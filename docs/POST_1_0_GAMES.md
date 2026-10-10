@@ -16,12 +16,43 @@ Primary sources:
 - [Meadows TTL](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/meadows/meadwttl.cpp)
 - [Midway TTL](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/bally/midwayttl.cpp)
 
+## ROM requirements
+
+CPU-less does not mean ROM-free. Discrete control circuits can read semiconductor ROMs/PROMs containing graphics, tracks, timing, motion lookup tables, or sound data without executing a software game program. Those chips require compatible dumped bytes. Hardwired diode graphics are a different case: their fixed connections can be reconstructed from adequate schematics rather than requiring a semiconductor ROM dump.
+
+All four first-priority candidates have ROM declarations in the inspected MAME source:
+
+| Candidate | Declared data dependency | Pinned evidence |
+| --- | --- | --- |
+| Tank | One 2 KiB graphics ROM, `90-2006.k10` | [Tank ROM definition](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/atari/atarittl.cpp#L540) |
+| Gran Trak 10 | One 2 KiB track/game-data ROM, `074186.j5`; another registered set uses `074181.j5` | [Gran Trak 10 definitions](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/atari/atarittl.cpp#L384) |
+| Death Race | Fifteen board-location declarations with eleven distinct image identities; graphics, timing/sync, score/timer, and motion lookup data | [Death Race board inventory and ROM definition](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/exidy/exidyttl.cpp#L180) |
+| Qwak! | One 512-byte graphics ROM, `90-2002.9k` | [Qwak ROM definition](https://github.com/mamedev/mame/blob/a025aba9df9d417ddff6cf6c501db1059507d642/src/mame/atari/atarittl.cpp#L494) |
+
+The broader backlog also contains data dependencies. These are source declarations, not an audit of test files in our possession:
+
+| Candidate | Evidence or remaining uncertainty |
+| --- | --- |
+| Tank II / Gran Trak 20 | Atari defines a Tank II image with an anomalous 2,049-byte length and three 2 KiB Gran Trak 20 images. Validate each variant separately. |
+| Destruction Derby / Le Mans | Exidy declares ROM images for Destruction Derby; Atari declares three 2 KiB Le Mans images. |
+| Speed Race / Gunman / Missile-X | Taito declares ROM/PROM loads for all three. A listed set is not proof its contents are complete or validated for a future circuit implementation. |
+| Fonz / Moto-Cross | Sega declares four Fonz PROM images. Moto-Cross is a catalog lead; its exact variant requirements remain unresolved. |
+| Indy 800 | Four Atari ROM declarations; checkpoint `003188.e5` and track `003189.f4` are marked `NO_DUMP`. The suggestion they might match Indy 4 is unverified. |
+| Monaco GP / Pro Monaco GP | Monaco GP has graphics/oscillator ROM/PROM definitions for two board configurations. Pro Monaco GP's exact requirements remain unresolved. |
+| Wheels II / Bombs Away / Cobra Gunship | Midway and Meadows declare ROM/PROM loads for these games. |
+| T.T. Block / Zun Zun Block | Taito declares one 2 KiB image for T.T. Block, and two 512-byte images plus one 32-byte image for Zun Zun Block. |
+| Touch-Me / Pursuit / World Cup / Goal IV | Atari's hardware catalog explicitly lists no ROM requirement. This still needs board/schematic verification before implementation. |
+| Ball Park / T.V. Flipper | Midway's catalog identifies Ball Park as using ROM; exact dumped requirements are not established here. T.V. Flipper is marked `?`, so its requirement is unresolved. |
+| Western Gun / Heavyweight Champ / Computer Space / Magnavox Odyssey | This review has not established their exact data-storage requirements from sufficient hardware evidence. Keep them unresolved rather than infer ROM-free status from a missing declaration. |
+
+Except for the two Indy 800 `NO_DUMP` entries, the listed dumped definitions carry CRC/SHA1 metadata in the linked source. Such metadata does not establish that compatible files are available to us, validate their bytes, or grant redistribution rights. Each accepted game still needs its own asset audit; the existing ten DICE fixture sets do not cover this expansion list.
+
 ## Ranked investigation list
 
 | Candidate | Why investigate | Main gate before scheduling |
 | --- | --- | --- |
 | Tank / Tank II | Recognizable two-player combat; strong fit alongside DICE's existing competitive games. MAME has a partial Tank netlist. | Validate schematics, tank PROM, analog audio and dual-track controls. Treat Tank II as a separate verification task. |
-| Death Race | Memorable preservation flagship; different driving objective from existing DICE racers. | Exidy schematics, sprite PROMs, reference gameplay and sound. MAME registration is a skeleton, not a working implementation to port. |
+| Death Race | Memorable preservation flagship; different driving objective from existing DICE racers. | Exidy schematics, graphics and timing/lookup PROMs, reference gameplay and sound. MAME registration is a skeleton, not a working implementation to port. |
 | Gran Trak 10 / Gran Trak 20 | Historically important circuit-based racers; single-player entry plus two-player follow-up. MAME has a partial Gran Trak 10 netlist. | Track PROM, wheel/pedal/shifter mapping, timer and collision behavior. Shared hardware does not guarantee cheap variants. |
 | Speed Race (Taito, 1974) | Adds scrolling racing; distinct from DICE's top-down circuit games. | Complete board documentation, video timing and steering behavior. |
 | Qwak! (Atari, 1974) | Adds a duck-shooting light-gun game; touch aiming could be approachable. | Target PROM, gun/CRT timing model, explicitly documented touch adaptation. |
