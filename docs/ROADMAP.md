@@ -86,8 +86,9 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 The reviewed [Pong browser preview](https://jelloshooter848.github.io/NoCPU/)
 is live with a C++/Wasm core, TypeScript frontend, notices and matching source.
-The clean automated matrix passes 57 cases with three expected simultaneous
-touch skips; ten selected checks against the public site also pass. See
+The viewport game shell's clean automated matrix passes 67 cases with three
+expected simultaneous-touch skips; 25 selected checks against the public site
+also pass. See
 [0.2.0_TASKS.md](0.2.0_TASKS.md) for individual tasks and
 [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for deployment identity and automation
 limits. Actual Android Chrome and iPhone Safari gameplay, speaker audio and
