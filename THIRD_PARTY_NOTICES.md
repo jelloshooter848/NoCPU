@@ -53,6 +53,26 @@ HID Utilities incorporation and George Warner; Apple's full original header
 is supplied alongside it. That header was decoded from Mac Roman to UTF-8 for
 readability; the original archival ManyMouse file remains unchanged.
 
+## fflate source and browser helper
+
+The 0.3.0 ROM-file importer uses **fflate 0.8.2**, copyright (c) 2023 Arjun
+Barrett, under the MIT license. Its exact [license](docs/licenses/fflate-0.8.2-LICENSE.txt)
+and [preferred library source](upstream/fflate-0.8.2/NOCPU_SOURCE.md) accompany
+the distribution. The unmodified source snapshot comes from
+[commit d3243651cb142e3e04f3e4bc037b9e985878f444](https://github.com/101arrowz/fflate/tree/d3243651cb142e3e04f3e4bc037b9e985878f444),
+which matches the v0.8.2 tag and the published npm package's gitHead. The exact
+npm version and integrity are pinned in the root lockfile; retained source and
+imported-file hashes are recorded in [the dependency manifest](tests/fflate-source-manifest.json).
+NoCPU does not claim authorship of fflate. This compression helper supplies no
+game ROMs and grants no rights to distribute player-supplied game data.
+
+fflate's preferred source and distributed browser module explicitly credit
+algorithms similar to Photopea's UZIP.js. The exact
+[UZIP MIT notice](docs/licenses/UZIP-MIT-LICENSE.txt), copyright (c) 2018
+Photopea, is retained conservatively from
+[source commit 95071093542682c2d4ed9b4e91855110ade73ce2](https://github.com/photopea/UZIP.js/blob/95071093542682c2d4ed9b4e91855110ade73ce2/LICENSE).
+UZIP.js is not separately imported as a NoCPU runtime dependency.
+
 ## External build dependencies
 
 The original native reference links Qt 4, SDL 1.2, OpenGL, and X11 and uses a
@@ -87,6 +107,7 @@ The browser build uses the following retained permissive runtime notices:
 | LLVM compiler-rt | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt) |
 | Emscripten's bundled musl libc | Rich Felker and contributors; MIT plus individual permissive routine terms | [COPYRIGHT](docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt); linked math notices are recorded by the browser assessment |
 | Vite 7.3.1 browser helpers | VoidZero Inc. and Vite contributors; MIT | [Exact package license and bundled dependency notices](docs/licenses/Vite-7.3.1-LICENSE.md) |
+| fflate 0.8.2 ZIP inflation helper | Copyright (c) 2023 Arjun Barrett; MIT | [Exact package license](docs/licenses/fflate-0.8.2-LICENSE.txt); preferred source and build inputs included in corresponding source |
 
 The LLVM compilation exception is retained in each complete license. These
 permissive components do not replace the combined application's GPLv3 source

@@ -1,98 +1,17 @@
 // NoCPU browser frontend, GPL-3.0-or-later. Original DICE circuit engine: DICE Team.
 import './style.css';
 import { CircuitAudio } from './audio';
+import { GAMES, getGame } from './catalog';
+import { createShellMarkup, escapeText, gameInfoMarkup } from './shell-ui';
+import { createSettingsUI } from './app-settings';
+import { createControls } from './controls';
+import { ACTION_LABELS, keyLabel } from './control-schema';
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
 
 const base = import.meta.env.BASE_URL;
 const source = `${base}source/nocpu-${__NOCPU_VERSION__}-source.tar.gz`;
 const app = document.querySelector<HTMLDivElement>('#app')!;
-app.innerHTML = `
-  <main class="game-shell" data-screen="title" aria-label="NoCPU circuit arcade">
-    <div class="game-stage" id="arcade">
-      <div class="screen-frame">
-        <canvas data-testid="game-canvas" width="576" height="432" tabindex="0" aria-label="Pong game display. Player 1 uses W and S, player 2 uses Up and Down. On touchscreens use the separate P1 and P2 sliders outside the court."></canvas>
-      </div>
-      <div class="touch-controls" aria-label="Paddle controls">
-        <div class="paddle-controller">
-          <span class="control-player" id="paddle-p1-label">P1</span>
-          <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p1-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
-          <span class="control-help" id="paddle-p1-help">DRAG UP / DOWN</span>
-        </div>
-        <div class="paddle-controller">
-          <span class="control-player" id="paddle-p2-label">P2</span>
-          <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p2-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
-          <span class="control-help" id="paddle-p2-help">DRAG UP / DOWN</span>
-        </div>
-      </div>
-    </div>
-    <nav class="game-hud" aria-label="Game actions" hidden>
-      <button class="hud-button coin-button" data-testid="insert-coin" disabled>Insert coin</button>
-      <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Menu <span aria-hidden="true">☰</span></button>
-    </nav>
-    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose Play Pong to start.</p>
-    <div class="sr-only" aria-label="Score"><span data-testid="score-p1">0</span><span data-testid="score-p2">0</span></div>
-    <div class="shell-overlay" id="screen-overlay" role="dialog" aria-modal="true" aria-labelledby="title-heading">
-      <div class="overlay-card">
-        <button class="back-button" id="back" data-testid="back" hidden>← Back</button>
-        <section class="panel-section title-panel" id="intro" data-panel="title">
-          <h1 id="title-heading" class="game-logo">NoCPU</h1>
-          <p class="game-subtitle">PONG</p>
-          <div class="menu-actions">
-            <button class="primary-button play-button" data-testid="play-pong">Play Pong</button>
-            <button data-action="settings">Settings</button>
-            <button data-action="help">How to play</button>
-            <button data-action="about">About</button>
-          </div>
-          <p class="title-version" data-testid="title-version">V${__NOCPU_VERSION__}</p>
-        </section>
-        <section class="panel-section loading-panel" data-panel="loading" hidden>
-          <h1 id="loading-heading">Loading Pong</h1>
-          <p id="overlay-label">Preparing the circuit…</p>
-        </section>
-        <section class="panel-section paused-panel" data-panel="paused" hidden>
-          <h1 id="paused-heading">Paused</h1>
-          <div class="menu-actions">
-            <button class="primary-button" id="resume" data-testid="resume">Resume</button>
-            <button data-testid="reset" disabled>Reset game</button>
-            <button data-action="settings">Settings</button>
-            <button data-action="help">How to play</button>
-            <button data-action="about">About</button>
-            <button id="return-title" data-testid="return-title">Return to title</button>
-          </div>
-        </section>
-        <section class="panel-section settings-panel" data-panel="settings" hidden>
-          <h1 id="settings-heading">Settings</h1>
-          <div class="sound-control">
-            <button data-testid="mute" aria-pressed="false" aria-label="Enable sound">Enable sound</button>
-            <label class="volume-label" for="volume">Volume</label>
-            <input id="volume" type="range" min="0" max="100" value="60" aria-label="Volume" />
-          </div>
-          <p id="sound-note" class="sound-note" hidden>Sound is unavailable. Tap Enable sound to try again.</p>
-        </section>
-        <section class="panel-section help-panel" data-panel="help" hidden>
-          <h1 id="help-heading">How to play</h1>
-          <p>Insert a coin to start a two-player game. Return the ball with your paddle. First to 11 wins.</p>
-          <dl class="controls-help"><div><dt>Player 1</dt><dd><kbd>W</kbd> / <kbd>S</kbd></dd></div><div><dt>Player 2</dt><dd><kbd>↑</kbd> / <kbd>↓</kbd></dd></div><div><dt>Coin / start</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Menu / resume</dt><dd><kbd>Space</kbd> / <kbd>Esc</kbd></dd></div></dl>
-          <p>On a touchscreen, drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.</p>
-        </section>
-        <section class="panel-section about-panel" data-panel="about" hidden>
-          <h1 id="about-heading">About NoCPU</h1>
-          <p>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, the Discrete Integrated Circuit Emulator, by the DICE Team.</p>
-          <p>Pong runs its original circuit simulation and sound. No ROM file is required.</p>
-          <p data-testid="version">Version ${__NOCPU_VERSION__} · <span id="build-id">development</span></p>
-          <p class="preview-note" id="release-stage">Browser preview · physical phone qualification pending</p>
-          <nav class="about-links" aria-label="Project and license"><a href="https://github.com/jelloshooter848/NoCPU" target="_blank" rel="noopener noreferrer">GitHub</a><a href="${source}" target="_blank" rel="noopener noreferrer">Source</a><a href="${base}notices/LICENSE">GPL v3</a><a href="${base}notices/THIRD_PARTY_NOTICES.md">Credits & notices</a></nav>
-        </section>
-        <section class="panel-section error-panel" data-panel="error" data-testid="error" role="alert" hidden>
-          <h1 id="error-heading">Unable to load Pong</h1>
-          <p id="error-message"></p>
-          <button class="primary-button" id="retry">Reload game</button>
-          <button data-action="title">Return to title</button>
-        </section>
-      </div>
-    </div>
-  </main>
-`;
+app.innerHTML = createShellMarkup(base, source);
 
 function element<T extends HTMLElement>(selector: string): T { return document.querySelector<T>(selector)!; }
 // Artifact promotion updates metadata while keeping the tested runtime bytes intact.
@@ -126,7 +45,6 @@ const audio = new CircuitAudio(() => pauseGame('Sound interrupted — tap Resume
 const AXIS_MIN = -32768;
 const AXIS_MAX = 32767;
 const SEED = 848;
-const heldKeys = new Set<string>();
 const pointers = new Map<number, number>();
 let axes: [number, number] = [0, 0];
 let worker: Worker | undefined;
@@ -152,10 +70,51 @@ let generatedSamples = 0;
 let workerTimeMs = 0;
 let workerSteps = 0;
 let workerMaxMs = 0;
-type Screen = 'title' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error';
+type Screen = 'title' | 'library' | 'game-info' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error';
 let screen: Screen = 'title';
-let panelOrigin: 'title' | 'paused' = 'title';
+let selectedGameId = 'pong';
+let helpGameId = 'pong';
+const navigation: { screen: Screen; focus?: HTMLElement; scrollTop?: number }[] = [];
+const pausedMenuButtons = new Map<string, { armed: boolean; pressed: boolean }>();
 const snapshotRequests = new Map<number, { resolve: (snapshot: CoreSnapshot) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
+const settingsUI = createSettingsUI({
+  onPreferences: (preferences) => {
+    muted = preferences.muted;
+    audio.setMuted(muted);
+    audio.setVolume(preferences.volume);
+    updateSoundButton();
+  },
+  onBindings: (preferences) => { releaseInputs(); controls.setBindings(preferences.bindings); renderHelp(); },
+  onCaptureStarted: releaseInputs,
+  onMetadataChanged: () => { renderGameInfo(true); },
+});
+const controls = createControls({
+  bindings: settingsUI.preferences.bindings,
+  onDirections: (directions) => { if (ready && !paused && !resetting) send({ type: 'keys', directions }); },
+  onAxes: (changes) => {
+    if (!ready || paused || resetting || failed) return;
+    changes.forEach((axis, slot) => {
+      if (axis === null || [...pointers.values()].includes(slot)) return;
+      axes[slot] = axis;
+      sendInputs(slot);
+    });
+    updatePads();
+  },
+  onAction: (action) => {
+    if (!ready || failed || resetting || screen !== 'playing') return;
+    if (action === 'coin') insertCoin();
+    else if (action === 'menu') pauseGame();
+    else if (action === 'reset') resetGame();
+    else if (action === 'mute') muteButton.click();
+  },
+  onGamepads: settingsUI.syncGamepads,
+  onDisconnect: releaseInputs,
+});
+muted = settingsUI.preferences.muted;
+audio.setMuted(muted);
+audio.setVolume(settingsUI.preferences.volume);
+element<HTMLInputElement>('#volume').value = String(Math.round(settingsUI.preferences.volume * 100));
+settingsUI.syncGamepads([]);
 
 function focusGame(): void { canvas.focus({ preventScroll: true }); }
 
@@ -166,7 +125,10 @@ function showScreen(next: Screen): void {
   overlay.hidden = playing;
   hud.hidden = !playing;
   gameStage.inert = !playing;
-  backButton.hidden = !['settings', 'help', 'about'].includes(next);
+  controls.setEnabled(playing && ready && !resetting && !failed);
+  pausedMenuButtons.clear();
+  element('.overlay-card').scrollTop = 0;
+  backButton.hidden = !['library', 'game-info', 'settings', 'help', 'about'].includes(next);
   document.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.panel !== next;
   });
@@ -175,18 +137,83 @@ function showScreen(next: Screen): void {
     overlay.setAttribute('aria-labelledby', `${next}-heading`);
     const panel = element<HTMLElement>(`[data-panel="${next}"]`);
     panel.tabIndex = -1;
-    const focusTarget = panel.querySelector<HTMLElement>('button, a, input') ?? panel;
+    const focusTarget = (next === 'library' ? panel.querySelector<HTMLElement>('.library-game') : undefined)
+      ?? panel.querySelector<HTMLElement>('button:not(:disabled), a, input:not(:disabled), select') ?? panel;
     focusTarget.focus({ preventScroll: true });
   }
 }
 
-function openPanel(panel: 'settings' | 'help' | 'about'): void {
-  panelOrigin = ready ? 'paused' : 'title';
-  if (ready) pauseGame();
+function openPanel(panel: 'library' | 'game-info' | 'settings' | 'help' | 'about'): void {
+  if (screen === 'playing') pauseGame();
+  settingsUI.cancelCapture();
+  navigation.push({ screen, focus: document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
+    scrollTop: element('.overlay-card').scrollTop });
+  if (panel === 'settings') void settingsUI.refreshRoms();
+  if (panel === 'help') renderHelp();
   showScreen(panel);
 }
 
-function closePanel(): void { showScreen(panelOrigin); }
+function closePanel(): void {
+  settingsUI.cancelCapture();
+  const origin = navigation.pop() ?? { screen: ready ? 'paused' : 'title' };
+  showScreen(origin.screen);
+  element('.overlay-card').scrollTop = origin.scrollTop ?? 0;
+  if (origin.focus?.isConnected && !origin.focus.closest('[hidden]')) origin.focus.focus({ preventScroll: true });
+}
+
+function renderGameInfo(metadataOnly = false): void {
+  const game = getGame(selectedGameId);
+  const content = element('#game-info-content');
+  if (metadataOnly && content.dataset.gameId === game.id) {
+    element('[data-testid="game-rom-status"]').textContent = settingsUI.romDescription(game.id);
+    return;
+  }
+  element('#game-info-heading').textContent = game.name;
+  content.innerHTML = gameInfoMarkup(game, settingsUI.romDescription(game.id));
+  content.dataset.gameId = game.id;
+  const play = element<HTMLButtonElement>('[data-testid="play-selected"]');
+  play.disabled = !game.playable;
+  play.textContent = game.playable ? `Play ${game.name}` : 'Browser port pending';
+  element('#manage-game-roms').hidden = !game.roms.length;
+}
+
+function renderHelp(): void {
+  const game = getGame(helpGameId);
+  const actions = game.controlSchema.keyboardActions;
+  canvas.setAttribute('aria-label', `Pong game display. Player 1 uses ${settingsUI.preferences.bindings.keyboard.p1Up.map(keyLabel).join(' / ')} and ${settingsUI.preferences.bindings.keyboard.p1Down.map(keyLabel).join(' / ')}; player 2 uses ${settingsUI.preferences.bindings.keyboard.p2Up.map(keyLabel).join(' / ')} and ${settingsUI.preferences.bindings.keyboard.p2Down.map(keyLabel).join(' / ')}. On touchscreens use the separate P1 and P2 sliders outside the court.`);
+  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${settingsUI.preferences.bindings.gamepad.players.map((player, slot) => `<li>Player ${slot + 1}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${settingsUI.preferences.bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.</p>`;
+  element('#help-heading').textContent = game.playable ? 'How to play' : `${game.name} controls`;
+  element('#game-help-content').innerHTML = game.playable
+    ? `<p>Insert a coin to start a two-player game. Return the ball with your paddle. First to 11 wins.</p><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${settingsUI.preferences.bindings.keyboard[action].map((code) => `<kbd>${escapeText(keyLabel(code))}</kbd>`).join(' ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>Drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.</p>${gamepadHelp}<p>Keyboard and gamepad assignments can be changed in Settings. Escape opens the menu or goes back.</p>`
+    : `<p>${escapeText(game.name)} uses ${game.controlFamilies.map(escapeText).join(', ').toLowerCase()} controls in DICE.</p><ul>${game.controlSchema.controls.map((control) => `<li>${escapeText(control.label)}</li>`).join('')}</ul><p>Its browser port is pending. Browser controls and touch layouts will be available with that port.</p>`;
+}
+
+function focusSettingsSection(id: string): void {
+  settingsUI.cancelCapture();
+  const heading = element(`#${id} h2`);
+  heading.scrollIntoView({ block: 'start', behavior: 'auto' });
+  heading.focus({ preventScroll: true });
+}
+
+function updateFullscreen(message?: string): void {
+  const button = element<HTMLButtonElement>('[data-testid="fullscreen"]');
+  const available = typeof shell.requestFullscreen === 'function' && document.fullscreenEnabled !== false;
+  button.disabled = !available;
+  button.textContent = document.fullscreenElement ? 'Exit fullscreen' : available ? 'Enter fullscreen' : 'Fullscreen unavailable';
+  element('[data-testid="fullscreen-status"]').textContent = message ?? (document.fullscreenElement
+    ? 'Fullscreen active.' : available ? 'Normal browser view works without fullscreen.'
+      : 'Fullscreen is unavailable in this browser. Normal browser view remains available.');
+}
+
+async function toggleFullscreen(): Promise<void> {
+  releaseInputs();
+  settingsUI.cancelCapture();
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await shell.requestFullscreen();
+    updateFullscreen();
+  } catch { updateFullscreen('Fullscreen could not start. Normal browser view remains available.'); }
+}
 
 function send(command: CoreCommand): void { worker?.postMessage(command); }
 function sendInputs(slot?: number): void {
@@ -197,11 +224,6 @@ function sendInputs(slot?: number): void {
     if (slot === undefined || slot === index) { changes[index] = axes[index]; axisRevisions[index] = revision; }
   }
   send({ type: 'inputs', axes: changes, revision });
-}
-function sendKeys(): void {
-  if (!ready) return;
-  send({ type: 'keys', directions: [Number(heldKeys.has('KeyS')) - Number(heldKeys.has('KeyW')),
-    Number(heldKeys.has('ArrowDown')) - Number(heldKeys.has('ArrowUp'))] });
 }
 function setClock(running: boolean): void {
   clockEpoch += 1;
@@ -237,7 +259,8 @@ function updatePads(): void {
 }
 
 function releaseInputs(): void {
-  heldKeys.clear();
+  controls.release();
+  pausedMenuButtons.clear();
   for (const [id, slot] of pointers) if (pads[slot].hasPointerCapture(id)) pads[slot].releasePointerCapture(id);
   pointers.clear();
   pads.forEach((pad) => pad.classList.remove('active'));
@@ -257,15 +280,15 @@ function pauseGame(message?: string): void {
   releaseInputs();
   audio.pause();
   pauseButton.setAttribute('aria-pressed', 'true');
-  if (!['settings', 'help', 'about'].includes(screen)) showScreen('paused');
+  if (!['library', 'game-info', 'settings', 'help', 'about'].includes(screen)) showScreen('paused');
   updatePads();
   showStatus(message);
 }
 
-function resumeGame(): void {
+function resumeGame(userGesture = true): void {
   if (!ready || failed || document.hidden) return;
   // Unlock from this gesture without making play depend on an audio device.
-  void trySound();
+  if (userGesture || audio.metrics().contextState === 'running') void trySound();
   paused = false;
   setClock(true);
   pauseButton.setAttribute('aria-pressed', 'false');
@@ -306,6 +329,10 @@ function acceptSnapshot(snapshot: CoreSnapshot): void {
 }
 
 async function startGame(): Promise<void> {
+  selectedGameId = 'pong';
+  helpGameId = 'pong';
+  navigation.length = 0;
+  settingsUI.cancelCapture();
   generation += 1;
   soundAttempt += 1;
   const ownGeneration = generation;
@@ -387,6 +414,7 @@ async function startGame(): Promise<void> {
         latestPixels = undefined;
         updatePads();
         acceptSnapshot(message.snapshot);
+        controls.setEnabled(!paused && screen === 'playing' && !document.hidden);
         break;
       case 'snapshot': {
         const request = snapshotRequests.get(message.id);
@@ -418,6 +446,7 @@ function resetGame(): void {
   updatePads();
   audio.clear();
   resetting = true;
+  controls.setEnabled(false);
   updatePads();
   clockEpoch += 1;
   framePending = false;
@@ -425,7 +454,7 @@ function resetGame(): void {
   send({ type: 'reset', id: ++resetId, seed: SEED, epoch: clockEpoch, running: !paused && !document.hidden });
 }
 
-function returnToTitle(): void {
+function disposeGame(destination: 'title' | 'library'): void {
   generation += 1;
   soundAttempt += 1;
   releaseInputs();
@@ -455,10 +484,44 @@ function returnToTitle(): void {
   updateSoundButton();
   status.textContent = 'Choose Play Pong to start.';
   context?.clearRect(0, 0, canvas.width, canvas.height);
-  showScreen('title');
+  navigation.length = 0;
+  if (destination === 'library') navigation.push({ screen: 'title', focus: element('[data-testid="open-library"]') });
+  showScreen(destination);
+  if (destination === 'library') element(`[data-game-id="${selectedGameId}"]`).focus({ preventScroll: true });
+}
+function returnToTitle(): void { disposeGame('title'); }
+function returnToLibrary(): void { disposeGame('library'); }
+
+function pollPausedMenu(): void {
+  if (screen !== 'paused' || !ready || resetting || failed) return;
+  if (document.hidden || !document.hasFocus()) { pausedMenuButtons.clear(); return; }
+  const present = new Set<string>();
+  let activate = false;
+  try {
+    const pads = navigator.getGamepads?.() ?? [];
+    for (const binding of settingsUI.preferences.bindings.gamepad.buttons.menu) {
+      const pad = pads[binding.pad];
+      if (!pad?.connected) continue;
+      const button = pad.buttons[binding.button];
+      if (!button) continue;
+      const key = `${pad.index}:${pad.id}:${binding.button}`;
+      present.add(key);
+      const down = button.pressed || button.value > .5;
+      const previous = pausedMenuButtons.get(key) ?? { armed: false, pressed: false };
+      if (!down) previous.armed = true;
+      else if (previous.armed && !previous.pressed) activate = true;
+      previous.pressed = down;
+      pausedMenuButtons.set(key, previous);
+    }
+  } catch { pausedMenuButtons.clear(); return; }
+  for (const key of pausedMenuButtons.keys()) if (!present.has(key)) pausedMenuButtons.delete(key);
+  if (activate) resumeGame(false);
 }
 
 function animationFrame(): void {
+  controls.pollGamepads();
+  settingsUI.pollCapture();
+  pollPausedMenu();
   if (ready && !paused && !failed && !resetting && !document.hidden) {
     if (latestPixels) {
       context!.putImageData(new ImageData(new Uint8ClampedArray(latestPixels), canvas.width, canvas.height), 0, 0);
@@ -517,44 +580,38 @@ pads.forEach((pad, slot) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.ctrlKey || event.altKey || event.metaKey) return;
+  if (settingsUI.handleCaptureKey(event)) return;
+  if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+  const target = event.target as HTMLElement | null;
   if (event.code === 'Escape' && !event.repeat) {
-    if (['settings', 'help', 'about'].includes(screen)) { event.preventDefault(); closePanel(); }
+    if (['library', 'game-info', 'settings', 'help', 'about'].includes(screen)) { event.preventDefault(); closePanel(); }
     else if (ready && !failed) { event.preventDefault(); if (paused) resumeGame(); else pauseGame(); }
     return;
   }
-  if (!ready || failed) return;
-  const target = event.target as HTMLElement | null;
-  if (target?.matches('input, textarea, select') || target?.isContentEditable) return;
-  if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
-    if (!paused && !resetting) { event.preventDefault(); heldKeys.add(event.code); sendKeys(); }
+  if (!ready || failed || target?.matches('input, textarea, select') || target?.isContentEditable) return;
+  // Native button activation remains available in game menus and after a click.
+  if (target?.closest('button') && ['Space', 'Enter'].includes(event.code)) return;
+  if (screen === 'paused') {
+    if (!event.repeat && settingsUI.preferences.bindings.keyboard.menu.includes(event.code)) {
+      event.preventDefault(); resumeGame();
+    }
     return;
   }
-  if (event.repeat) return;
-  // Space/Enter retain native button activation while paddle keys work after a click.
-  if (target?.closest('button') && ['Space', 'Enter'].includes(event.code)) return;
-  // Secondary panels own their keys; a coin shortcut must not dismiss settings
-  // or unlock audio from a non-gesture transition back to gameplay.
-  if (['settings', 'help', 'about'].includes(screen)) return;
-  switch (event.code) {
-    case 'Enter': event.preventDefault(); insertCoin(); break;
-    case 'Space': event.preventDefault(); if (paused) void resumeGame(); else pauseGame(); break;
-    case 'KeyR': event.preventDefault(); resetGame(); break;
-    case 'KeyM': event.preventDefault(); muteButton.click(); break;
-  }
+  if (screen !== 'playing' || resetting) return;
+  controls.handleKeyDown(event);
 });
 overlay.addEventListener('keydown', (event) => {
   if (event.code !== 'Tab') return;
-  const controls = [...overlay.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled)')]
+  const controls = [...overlay.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), summary')]
     .filter((control) => !control.closest<HTMLElement>('[hidden]'));
   if (!controls.length) { event.preventDefault(); return; }
   const index = controls.indexOf(document.activeElement as HTMLElement);
   if (event.shiftKey && index <= 0) { event.preventDefault(); controls.at(-1)!.focus(); }
   else if (!event.shiftKey && (index === -1 || index === controls.length - 1)) { event.preventDefault(); controls[0].focus(); }
 });
-document.addEventListener('keyup', (event) => { if (heldKeys.delete(event.code)) sendKeys(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame('Paused while you were away.'); });
-window.addEventListener('blur', () => { pauseGame('Paused while you were away.'); });
+document.addEventListener('keyup', (event) => { controls.handleKeyUp(event); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { settingsUI.cancelCapture(); pauseGame('Paused while you were away.'); releaseInputs(); } });
+window.addEventListener('blur', () => { settingsUI.cancelCapture(); pauseGame('Paused while you were away.'); releaseInputs(); });
 window.addEventListener('resize', () => {
   // A captured touch belongs to the old control geometry. Require a fresh
   // contact after rotation/viewport resizing instead of moving the paddle.
@@ -565,25 +622,52 @@ playButton.addEventListener('click', () => { void startGame(); });
 element('#retry').addEventListener('click', () => { void startGame(); });
 coinButton.addEventListener('click', insertCoin);
 pauseButton.addEventListener('click', () => { if (paused) void resumeGame(); else pauseGame(); });
-resumeButton.addEventListener('click', resumeGame);
+resumeButton.addEventListener('click', () => resumeGame());
 backButton.addEventListener('click', closePanel);
 element('#return-title').addEventListener('click', returnToTitle);
+element('#return-library').addEventListener('click', returnToLibrary);
+element('[data-testid="play-selected"]').addEventListener('click', () => { if (getGame(selectedGameId).playable) void startGame(); });
+element('.library-list').addEventListener('click', (event) => {
+  const item = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-game-id]');
+  if (!item) return;
+  item.focus({ preventScroll: true });
+  selectedGameId = item.dataset.gameId!;
+  renderGameInfo();
+  openPanel('game-info');
+});
 document.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) => {
   button.addEventListener('click', () => {
+    button.focus({ preventScroll: true });
     const action = button.dataset.action;
     if (action === 'title') returnToTitle();
-    else if (action === 'settings' || action === 'help' || action === 'about') openPanel(action);
+    else if (action === 'library') openPanel('library');
+    else if (action === 'manage-roms') {
+      settingsUI.selectRomGame(selectedGameId); openPanel('settings'); focusSettingsSection('rom-section');
+    } else if (action === 'game-help') { helpGameId = selectedGameId; openPanel('help'); }
+    else if (action === 'settings' || action === 'help' || action === 'about') {
+      if (action === 'help') helpGameId = 'pong';
+      openPanel(action);
+    }
   });
 });
 resetButton.addEventListener('click', resetGame);
 muteButton.addEventListener('click', () => {
   if (!muted && !soundAvailable) { void trySound(); return; }
   muted = !muted;
-  audio.setMuted(muted);
-  updateSoundButton();
+  settingsUI.setMuted(muted);
   if (!muted) void trySound();
 });
-element<HTMLInputElement>('#volume').addEventListener('input', (event) => { audio.setVolume(Number((event.target as HTMLInputElement).value) / 100); });
+element<HTMLInputElement>('#volume').addEventListener('input', (event) => { settingsUI.setVolume(Number((event.target as HTMLInputElement).value) / 100); });
+document.querySelectorAll<HTMLButtonElement>('[data-settings-target]').forEach((button) => {
+  button.addEventListener('click', () => focusSettingsSection(button.dataset.settingsTarget!));
+});
+element('[data-testid="fullscreen"]').addEventListener('click', () => { void toggleFullscreen(); });
+document.addEventListener('fullscreenchange', () => { releaseInputs(); updateFullscreen(); });
+document.addEventListener('fullscreenerror', () => updateFullscreen('Fullscreen could not start. Normal browser view remains available.'));
+renderGameInfo();
+renderHelp();
+updateSoundButton();
+updateFullscreen();
 showScreen('title');
 requestAnimationFrame(animationFrame);
 
@@ -602,7 +686,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         timePs: state.timeps, frame: state.frame, hits: state.hits, scores: state.scores,
         runN: Number(!state.run), attractN: Number(!state.attract),
         inputs: { coin: Number(state.coin), paddle1: state.axes[0], paddle2: state.axes[1] },
-        heldKeys: [...heldKeys], pointerCount: pointers.size, paused, screen,
+        heldKeys: controls.getState().heldKeys, pointerCount: pointers.size, paused, screen, selectedGame: selectedGameId,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,
           wasmMemoryCapacityBytes: state.wasmMemoryCapacityBytes },

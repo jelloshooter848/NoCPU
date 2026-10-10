@@ -99,6 +99,14 @@
     {
       "path": "docs/licenses/dlmalloc-2.8.6-NOTICE.txt",
       "sha256": "10c381581033c38d8adfab9100367b60099273a6e0fe395181224478c275277c"
+    },
+    {
+      "path": "docs/licenses/fflate-0.8.2-LICENSE.txt",
+      "sha256": "805f6cb28bb8b6d3a0badd83c93bccd9671fa01a3b4b92b7042b0743325ac243"
+    },
+    {
+      "path": "docs/licenses/UZIP-MIT-LICENSE.txt",
+      "sha256": "786adae9320db47cd483f9a8774ebd3edab8876d714caa4fb0aee8e5b2c3edc0"
     }
   ],
   "evidence": [
@@ -157,5 +165,19 @@
     "Inventory exact linked/bundled dependencies before distributing native binaries or Wasm.",
     "Preserve individual notices and source when distributing the combined version-3 source package.",
     "Retain original archive bytes and describe adaptations outside upstream."
+  ],
+  "supplemental_source_components": [
+    {
+      "name": "fflate",
+      "version": "0.8.2",
+      "license": "MIT",
+      "source_commit": "d3243651cb142e3e04f3e4bc037b9e985878f444",
+      "source_manifest": "tests/fflate-source-manifest.json",
+      "notices": [
+        "docs/licenses/fflate-0.8.2-LICENSE.txt",
+        "docs/licenses/UZIP-MIT-LICENSE.txt"
+      ],
+      "scope": "Preferred library source/build inputs in corresponding source; explicit UZIP attribution notice retained separately. Browser linking is assessed independently."
+    }
   ]
 }

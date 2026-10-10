@@ -1,5 +1,6 @@
 # Keep maintained scripts/docs usable across hosts while preserving audited bytes.
 * text=auto eol=lf
 upstream/dice-0.9/** -text -eol
+upstream/fflate-0.8.2/** -text -eol -whitespace
 LICENSE -text -eol
 docs/licenses/** -text -eol

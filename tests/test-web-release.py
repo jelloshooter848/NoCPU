@@ -181,8 +181,14 @@ class BrowserReleaseTests(unittest.TestCase):
         for filename in ('prepare-core.py', 'build-core.sh'):
             shutil.copyfile(ROOT / 'tools' / filename, self.root / 'tools' / filename)
         shutil.copyfile(ROOT / 'tests/source-manifest.json', self.root / 'tests/source-manifest.json')
-        for name in ('VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts'):
+        for name in ('VERSION', 'tsconfig.json', 'vite.config.ts'):
             (self.root / name).write_text('fixture input ' + name)
+        for name in ('package.json', 'package-lock.json', web.FFLATE_MANIFEST,
+                     'tests/fixtures/game-manifest.json', 'docs/licenses/fflate-0.8.2-LICENSE.txt'):
+            destination = self.root / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / name, destination)
+        shutil.copytree(ROOT / 'node_modules/fflate', self.root / 'node_modules/fflate')
         (self.root / 'web/src').mkdir(parents=True)
         (self.root / 'web/public').mkdir()
         (self.root / 'web/index.html').write_text('frontend fixture source')
@@ -198,11 +204,72 @@ class BrowserReleaseTests(unittest.TestCase):
         (self.root / 'build/core/wasm').mkdir()
         (self.root / 'build/core/wasm/build-provenance.json').write_text(json.dumps(core))
         frontend_inputs = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html', 'web/src/main.ts']
+        frontend_inputs += sorted(web.verify_frontend_dependency(self.root))
         frontend = {'schema_version': 1, 'base': '/NoCPU/', 'inputs': {name: web.sha256(self.root / name) for name in frontend_inputs},
                     'outputs': {entry['path']: entry['sha256'] for entry in web.runtime_files(self.dist)},
                     'core': {'core/' + name: web.sha256(self.dist / 'core' / name) for name in ('nocpu.js', 'nocpu.wasm')}}
         (self.root / 'build/web-provenance.json').write_text(json.dumps(frontend))
         return core, frontend
+
+    def test_catalog_and_every_audited_dependency_input_are_required_in_provenance(self):
+        _, frontend = self.prepare_provenance_fixture()
+        files = web.runtime_files(self.dist)
+        web.verify_build_provenance(self.root, self.dist, files)
+        required = web.verify_frontend_dependency(self.root)
+        self.assertIn('tests/fixtures/game-manifest.json', required)
+        self.assertIn('node_modules/fflate/esm/browser.js', required)
+        self.assertIn('upstream/fflate-0.8.2/src/index.ts', required)
+        for name in required:
+            omitted = copy.deepcopy(frontend)
+            omitted['inputs'].pop(name)
+            (self.root / 'build/web-provenance.json').write_text(json.dumps(omitted))
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'omits required source inputs'):
+                web.verify_build_provenance(self.root, self.dist, files)
+
+    def test_dependency_tampering_cannot_be_relabelled_by_refreshing_provenance(self):
+        _, frontend = self.prepare_provenance_fixture()
+        manifest = json.loads((self.root / web.FFLATE_MANIFEST).read_text())
+        names = [web.FFLATE_MANIFEST, manifest['notice'], *manifest['runtime_inputs'], *manifest['source_files']]
+        for name in names:
+            path = self.root / name
+            original = path.read_bytes()
+            path.write_bytes(original + (b'\n ' if name.endswith('.json') else b'\nchanged'))
+            forged = copy.deepcopy(frontend)
+            forged['inputs'][name] = web.sha256(path)
+            (self.root / 'build/web-provenance.json').write_text(json.dumps(forged))
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'fflate'):
+                web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist))
+            path.write_bytes(original)
+
+    def test_catalog_changed_after_build_and_dependency_symlink_are_rejected(self):
+        self.prepare_provenance_fixture()
+        catalog = self.root / 'tests/fixtures/game-manifest.json'
+        original = catalog.read_bytes()
+        catalog.write_bytes(original + b'\n')
+        with self.assertRaisesRegex(ValueError, 'Stale frontend build source input'):
+            web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist))
+        catalog.write_bytes(original)
+        runtime = self.root / 'node_modules/fflate/esm/browser.js'
+        saved = runtime.with_suffix('.saved')
+        runtime.rename(saved)
+        runtime.symlink_to(saved)
+        with self.assertRaisesRegex(ValueError, 'symlink'):
+            web.verify_frontend_dependency(self.root)
+
+    def test_dependency_version_and_lock_integrity_drift_are_rejected(self):
+        self.prepare_provenance_fixture()
+        for name in ('package.json', 'package-lock.json'):
+            path = self.root / name
+            original = path.read_bytes()
+            document = json.loads(original)
+            if name == 'package.json':
+                document['dependencies']['fflate'] = '^0.8.2'
+            else:
+                document['packages']['node_modules/fflate']['integrity'] = 'sha512-unreviewed'
+            path.write_text(json.dumps(document))
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'audited 0.8.2 pin'):
+                web.verify_frontend_dependency(self.root)
+            path.write_bytes(original)
 
     def test_stale_compiled_source_frontend_assets_and_prepared_adapters_rejected(self):
         self.prepare_provenance_fixture()

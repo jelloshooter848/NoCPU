@@ -35,7 +35,11 @@ COMPILED_NOTICES = {
     'docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt', 'docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt',
     'docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt', 'docs/licenses/Vite-7.3.1-LICENSE.md',
     'docs/licenses/Emscripten-3.1.74-RUNTIME-NOTICES.txt', 'docs/licenses/dlmalloc-2.8.6-NOTICE.txt',
+    'docs/licenses/fflate-0.8.2-LICENSE.txt',
 }
+FFLATE_MANIFEST = 'tests/fflate-source-manifest.json'
+FFLATE_MANIFEST_SHA256 = 'f810cb2233b207513e8f012e9085bd822b5f4557c647d2d9e0a6c3eab1d08fc7'
+FFLATE_INTEGRITY = 'sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A=='
 
 
 def sha256(path: Path) -> str:
@@ -90,6 +94,44 @@ def runtime_digest(files: list[dict]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def verify_frontend_dependency(root: Path) -> set[str]:
+    """Bind the npm code Vite consumes to its audited preferred source/license."""
+    def checked_path(name: str) -> Path:
+        relative = safe_relative(name)
+        path = root / name
+        if any(root.joinpath(*relative.parts[:index]).is_symlink() for index in range(1, len(relative.parts) + 1)):
+            raise ValueError(f'Frontend dependency input symlink: {name}')
+        if not path.is_file():
+            raise ValueError(f'Missing frontend dependency input: {name}')
+        return path
+
+    manifest_path = checked_path(FFLATE_MANIFEST)
+    if sha256(manifest_path) != FFLATE_MANIFEST_SHA256:
+        raise ValueError('Audited fflate source manifest changed')
+    manifest = json.loads(manifest_path.read_text())
+    package = json.loads(checked_path('package.json').read_text())
+    lock = json.loads(checked_path('package-lock.json').read_text())
+    installed = json.loads(checked_path('node_modules/fflate/package.json').read_text())
+    locked = lock.get('packages', {}).get('node_modules/fflate', {})
+    if (package.get('dependencies', {}).get('fflate') != '0.8.2'
+        or lock.get('packages', {}).get('', {}).get('dependencies', {}).get('fflate') != '0.8.2'
+        or locked.get('version') != '0.8.2' or locked.get('integrity') != FFLATE_INTEGRITY
+        or installed.get('name') != 'fflate' or installed.get('version') != '0.8.2'):
+        raise ValueError('fflate package, lock and installed runtime must match the audited 0.8.2 pin')
+    required = {FFLATE_MANIFEST, 'tests/fixtures/game-manifest.json', manifest['notice'],
+                manifest['preferred_source_directory'] + '/NOCPU_SOURCE.md'}
+    for inputs in (manifest['source_files'], manifest['runtime_inputs']):
+        for name, digest in inputs.items():
+            if sha256(checked_path(name)) != digest:
+                raise ValueError(f'Missing or changed fflate input: {name}')
+            required.add(name)
+    if sha256(checked_path(manifest['notice'])) != manifest['source_files'][manifest['preferred_source_directory'] + '/LICENSE']:
+        raise ValueError('fflate notice must preserve the exact original license')
+    for name in required:
+        checked_path(name)
+    return required
+
+
 def verify_browser_license(root: Path, version: str, *, require_ready: bool = True) -> list[dict]:
     audit = json.loads((root / 'tests/browser-license-audit.json').read_text())
     if audit.get('schema_version') != 1 or audit.get('version') != version:
@@ -134,6 +176,7 @@ def verify_build_provenance(root: Path, directory: Path, files: list[dict]) -> t
                      'tools/build-core.sh', 'VERSION', 'tests/source-manifest.json'}
     required_core |= {path.relative_to(root).as_posix() for path in (root / 'core/platform').rglob('*') if path.is_file()}
     required_frontend = {'VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html'}
+    required_frontend |= verify_frontend_dependency(root)
     required_frontend |= {path.relative_to(root).as_posix() for path in (root / 'web/src').rglob('*') if path.is_file()}
     required_frontend |= {path.relative_to(root).as_posix() for path in (root / 'web/public').rglob('*')
                           if path.is_file() and not path.is_relative_to(root / 'web/public/core')}

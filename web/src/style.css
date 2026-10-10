@@ -45,7 +45,7 @@ button {
 button:hover { border-color: var(--ink); }
 button:active { background: var(--ink); color: #000; }
 button:disabled { opacity: .45; cursor: wait; }
-button:focus-visible, a:focus-visible, input:focus-visible,
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
 canvas:focus-visible, .paddle-control:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 3px;
@@ -240,6 +240,8 @@ canvas {
   background: #000;
   overflow: auto;
   overscroll-behavior: contain;
+  scroll-padding-top: 64px;
+  scroll-padding-bottom: 12px;
   touch-action: pan-y;
   scrollbar-color: var(--line) #000;
   scrollbar-width: thin;
@@ -258,8 +260,10 @@ canvas {
 .menu-actions button { position: relative; width: 100%; }
 .primary-button { border-color: var(--ink); }
 .primary-button:hover, .primary-button:focus-visible { background: var(--ink); color: #000; }
-.back-button { padding: 10px 8px; margin: -4px 0 16px -8px; font-size: 13px; }
+.back-button { position: sticky; top: 0; z-index: 1; width: calc(100% + 16px); padding: 10px 8px; margin: -4px -8px 16px; background: #000; box-shadow: 0 -16px 0 16px #000; font-size: 13px; text-align: left; }
 .game-shell[data-screen="title"] .shell-overlay { background: #000; }
+.game-shell[data-screen="library"] .shell-overlay,
+.game-shell[data-screen="game-info"] .shell-overlay { background: #000; }
 .game-shell[data-screen="title"] .overlay-card {
   width: min(100%, 580px);
   border: 0;
@@ -305,13 +309,232 @@ canvas {
 .controls-help { display: grid; gap: 14px; margin: 24px 0; font-size: 14px; }
 .controls-help div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .controls-help dt { color: var(--muted); }
-.controls-help dd { margin: 0; text-align: right; }
-kbd { display: inline-block; min-width: 28px; padding: 4px; border: 1px solid var(--line); text-align: center; font: inherit; font-size: 13px; }
+.controls-help dd { min-width: 0; margin: 0; text-align: right; overflow-wrap: anywhere; }
+kbd { display: inline-block; min-width: 28px; max-width: 100%; padding: 4px; border: 1px solid var(--line); text-align: center; font: inherit; font-size: 13px; overflow-wrap: anywhere; }
 .about-panel [data-testid="version"] { overflow-wrap: anywhere; color: var(--muted); }
 .about-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 24px; }
 .about-links a { display: flex; min-height: 44px; align-items: center; padding: 8px; border: 1px solid var(--line); font-size: 13px; }
 .error-panel button { width: 100%; margin-top: 12px; }
 .error-panel p { overflow-wrap: anywhere; }
+
+/* The library and preferences are arcade menus inside the viewport shell. */
+.game-shell[data-screen="library"] .overlay-card,
+.game-shell[data-screen="game-info"] .overlay-card,
+.game-shell[data-screen="settings"] .overlay-card {
+  width: min(100%, 720px);
+}
+.library-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin-block: 24px;
+}
+.library-game {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-bottom-color: #45453e;
+  text-align: left;
+  letter-spacing: .02em;
+}
+.game-name {
+  font-size: 16px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.status-tag {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.game-summary {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.library-game[data-game-id="pong"] { border-color: var(--ink); }
+.library-game:active .status-tag, .library-game:active .game-summary { color: #34342e; }
+.library-panel .panel-note { color: var(--muted); font-size: 12px; }
+.menu-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 20px 0;
+}
+.menu-inline-actions button {
+  flex: 1 1 140px;
+  min-width: 0;
+  border-color: var(--line);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.menu-inline-actions .primary-button { border-color: var(--ink); }
+.library-panel .menu-inline-actions button { flex-basis: 100px; font-size: 12px; }
+.game-info-facts,
+.game-info-facts dl {
+  display: grid;
+  gap: 12px;
+  margin-block: 24px;
+}
+.game-info-facts div {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(0, 2fr);
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.game-info-facts dt { color: var(--muted); }
+.game-info-facts dd { margin: 0; overflow-wrap: anywhere; }
+.rom-requirements summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 13px;
+}
+.rom-requirements summary::before { content: "+"; margin-right: 12px; }
+.rom-requirements[open] summary::before { content: "−"; }
+.rom-requirements ul { padding-left: 20px; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.settings-section {
+  min-width: 0;
+  margin: 28px 0 0;
+  padding: 24px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.settings-section h2,
+.settings-section legend {
+  margin: 0 0 18px;
+  padding: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.settings-section h3 {
+  margin: 24px 0 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.settings-section button {
+  border-color: var(--line);
+  font-size: 13px;
+}
+.binding-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-block: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.binding-row button {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.gamepad-status, .storage-status,
+.settings-section [role="status"], .settings-section [role="alert"] {
+  overflow-wrap: anywhere;
+}
+.gamepad-player { min-width: 0; margin-block: 24px; padding: 0; border: 0; overflow-wrap: anywhere; }
+.gamepad-player legend { margin-bottom: 8px; font-size: 14px; }
+.gamepad-player label { display: grid; gap: 8px; margin-block: 12px; font-size: 13px; line-height: 1.5; }
+.gamepad-player input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--ink); }
+.settings-section select,
+.settings-section input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  color: var(--ink);
+  background: #000;
+  font-size: 13px;
+}
+.settings-section select { border: 1px solid var(--line); padding: 8px; }
+.settings-section input[type="file"] { margin-block: 12px; }
+.settings-section input[type="file"]::file-selector-button {
+  min-height: 44px;
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--ink);
+  background: #000;
+  font: inherit;
+  cursor: pointer;
+}
+.settings-section label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.settings-section input[type="checkbox"] {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+.remember-roms { margin-block: 16px; }
+.rom-file-label { display: block; margin-top: 16px; font-size: 13px; line-height: 1.5; }
+.rom-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 20px 0;
+  list-style: none;
+}
+.rom-list > li,
+.rom-list > .rom-row,
+.rom-list > .rom-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rom-list, .rom-list span, .rom-list p { min-width: 0; overflow-wrap: anywhere; }
+.rom-list button { min-width: 44px; padding-inline: 10px; }
+.rom-list > .rom-entry { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.rom-file-name { color: var(--muted); font-size: 12px; }
+.rom-entry .menu-inline-actions { margin-top: 12px; }
+
+@media (max-width: 520px) {
+  .library-list { grid-template-columns: minmax(0, 1fr); }
+  .library-game { min-height: 70px; }
+  .game-info-facts div { grid-template-columns: minmax(74px, 1fr) minmax(0, 2fr); font-size: 13px; }
+}
 
 @media (max-width: 360px) {
   button { font-size: 14px; }
@@ -321,6 +544,9 @@ kbd { display: inline-block; min-width: 28px; padding: 4px; border: 1px solid va
   kbd { min-width: 22px; font-size: 12px; }
   .title-panel .game-subtitle { margin: 20px 0 28px; }
   .title-panel .menu-actions { gap: 6px; }
+  .game-name { font-size: 14px; }
+  .binding-row { gap: 8px; font-size: 12px; }
+  .settings-section h2, .settings-section legend { font-size: 16px; }
 }
 
 @media (max-height: 480px) and (orientation: landscape) {
@@ -330,8 +556,19 @@ kbd { display: inline-block; min-width: 28px; padding: 4px; border: 1px solid va
   .game-shell[data-screen="title"] .overlay-card { padding-block: 12px; }
   .title-panel h1.game-logo { font-size: 60px; }
   .title-panel .game-subtitle { margin: 12px 0 18px; font-size: 22px; }
-  .title-panel .menu-actions { gap: 0; }
-  .title-panel .play-button { margin-bottom: 4px; }
+  .title-panel .menu-actions { width: min(100%, 460px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; }
+  .title-panel .play-button { grid-column: 1 / -1; margin-bottom: 0; }
+  .title-panel .menu-actions button { font-size: 14px; }
+  .game-shell[data-screen="paused"] .overlay-card { padding-block: 12px; }
+  .paused-panel h1 { margin-bottom: 12px; }
+  .paused-panel .menu-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; }
+  .paused-panel .menu-actions button { font-size: 13px; }
+  .paused-panel #resume { grid-column: 1 / -1; }
+}
+
+@media (max-height: 340px) and (orientation: landscape) {
+  .title-panel h1.game-logo { font-size: 48px; }
+  .title-panel .game-subtitle { margin: 8px 0 12px; font-size: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

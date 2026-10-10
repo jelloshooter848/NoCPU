@@ -1,6 +1,6 @@
 # Contributing to NoCPU
 
-Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). The current 0.2.1 work moves the Pong-only browser port's touch controls outside the court, preserving its measured native/Wasm behavior. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
+Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). The current [0.3.0 app foundation](docs/0.3.0_TASKS.md) adds the game-first library, remapping, preferences and optional local ROM management while Pong remains the only playable browser game. Preserve its measured native/Wasm behavior and external touch controls. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
 
 ## Make a reviewable change
 

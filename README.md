@@ -6,11 +6,22 @@ NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, b
 
 The [0.2.1 task ledger](docs/0.2.1_TASKS.md) records the completed automated preview work and publication. The full 75-case clean CI matrix passes 72 checks with 3 documented CDP touch skips. After the touch-control patch, the user reported two full iPhone games, one portrait and one landscape, both playing well with sound that seems to work well. This [partial device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback) does not complete the physical-device release gate.
 
+**The 0.3.0 preview candidate has passed independent local qualification.**
+Its [delivery contract](docs/0.3.0_TASKS.md) adds the game-first library,
+controls/remapping, preferences and optional local ROM-management foundation
+while Pong remains the only playable browser game. All 135 packaged cases
+complete in one attempt: 132 passes and 3 documented CDP touch skips, with no
+failures or retries. Required clean CI and actual deployment verification remain
+pending; the public site is still the verified 0.2.1 preview above.
+[0.3.0 qualification](docs/0.3.0_VALIDATION.md) records the evidence and limits.
+Physical-device readiness remains pending.
+
 The frontend is a viewport-filling game: a title screen, the original Pong court and in-game menus. Choose **Play Pong**, then **Insert coin**. Player 1 uses **W/S** and player 2 uses **Up/Down**. Drag the labeled **P1/P2 tracks outside the court**, below it in portrait and beside it in landscape; both players can move at once. Court touches do not move paddles. **Menu** pauses play and opens resume, reset, settings, help and About. Sound and volume are in Settings; DICE credit, build identity, licenses and the matching source download are in About. Pong needs no ROM file.
 
 ## Start here
 
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
+- [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
 - [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)
 - [Build and validation instructions](docs/TESTING.md) and [0.1.0 native foundation results](docs/0.1.0_VALIDATION.md)
 - [Game compatibility and validation matrix](docs/GAME_COMPATIBILITY.md)

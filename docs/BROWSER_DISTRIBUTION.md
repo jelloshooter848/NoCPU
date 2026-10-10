@@ -3,12 +3,16 @@
 The source-only assessment in [license-audit.json](../tests/license-audit.json)
 does not clear a compiled browser artifact. The separate
 [browser-license-audit.json](../tests/browser-license-audit.json) covers only
-the Pong frontend and its generated JavaScript/WebAssembly. Its concrete
-component inventory and independent assessment review were established in
-0.2.0 and retained for the 0.2.1 NoCPU-owned touch-control patch: core,
-linked SDK families, pinned dependencies and notice bytes are unchanged.
-Historical assessment hashes remain identified as the 0.2.0 baseline; current
-artifacts require fresh provenance and matching source.
+the Pong circuit, NoCPU app and generated JavaScript/WebAssembly. The engine
+and SDK inventory was established in 0.2.0 and retained for 0.2.1. Historical
+assessment hashes remain identified as that baseline. The 0.3.0 app foundation
+adds the pinned fflate ROM-import helper, exact MIT and supplemental UZIP
+notices, preferred library source and imported-byte provenance. Its affected
+component/source assessment and first actual 0.3.0 production inventory passed
+independent review, so the browser license audit is ready. This local component
+assessment does not establish packaged browser, committed CI, deployment or
+physical-device acceptance. Current artifacts always require fresh provenance
+and matching source.
 Previews and final releases must both pass this gate before distribution.
 
 ## Included components
@@ -30,6 +34,8 @@ inventory and attribution.
 | Bundled musl libc and math routines | MIT; current linked routines have no additional per-file terms | Exact installed COPYRIGHT and concrete linked-member inspection |
 | dlmalloc 2.8.6 allocator | Doug Lea's CC0/public-domain dedication; Emscripten modifications MIT | Original dedication excerpt and Emscripten support notices |
 | Vite 7.3.1 injected browser helpers | MIT | Exact package LICENSE.md |
+| fflate 0.8.2 ZIP deflate helper | MIT | Exact Arjun Barrett license; preferred TypeScript/build source and exact npm imported-file identity |
+| Explicit UZIP.js attribution within fflate | MIT supplemental notice; no separate runtime import | Exact Photopea license retained conservatively from the inspected source commit |
 
 Emscripten's license explicitly names its bundled musl copy and optional
 third-party components. An SDK's presence is not proof that an optional library
@@ -69,6 +75,15 @@ the member inventory is required if that changes.
   are the copies bundled in that Emscripten source tree.
 - [Vite v7.3.1](https://github.com/vitejs/vite/tree/v7.3.1) is pinned with npm
   integrity data in the project lockfile; its published full license is retained.
+- [fflate v0.8.2 source commit d3243651cb142e3e04f3e4bc037b9e985878f444](https://github.com/101arrowz/fflate/tree/d3243651cb142e3e04f3e4bc037b9e985878f444)
+  matches its npm gitHead. [The source manifest](../tests/fflate-source-manifest.json)
+  retains npm integrity, 17 unmodified preferred-source/build file hashes and
+  the three actual imported npm file hashes. The complete MIT notice matches
+  both source and installed package bytes.
+- fflate's preferred source and distributed browser entry explicitly reference
+  algorithms similar to UZIP.js. The supplemental [Photopea MIT notice](licenses/UZIP-MIT-LICENSE.txt)
+  is copied from [source commit 95071093542682c2d4ed9b4e91855110ade73ce2](https://github.com/photopea/UZIP.js/blob/95071093542682c2d4ed9b4e91855110ade73ce2/LICENSE).
+  This records supported attribution, not an additional dependency import.
 
 The concrete linker map lists seven runtime archives: `libc++.a`,
 `libc++abi.a`, `libc.a`, `libcompiler_rt.a`, `libdlmalloc.a`, `libnoexit.a` and
@@ -83,7 +98,7 @@ Every distributed Pages preview or final artifact must contain:
 
 - The original GPL text and applicable copyright/license/credit notices,
   accessible from the application.
-- `source/nocpu-0.2.1-source.tar.gz`, built from the same checkout as the runtime
+- `source/nocpu-0.3.0-source.tar.gz`, built from the same checkout as the runtime
   and linked directly from the application. A future tag link is not a
   substitute for an available source download during preview testing.
 - The source, browser and toolchain manifests identifying the build revision,
@@ -93,8 +108,15 @@ The corresponding source includes the immutable original DICE source, all
 portable adaptations and frontend code, build/packaging scripts, pinned SDK
 setup inputs, dependency lockfiles and notices. General-purpose compiler and
 system-library dependencies are identified by version/source links; they are
-not silently treated as NoCPU-owned code. Generated application glue is
-reproducible through the retained build scripts.
+not silently treated as NoCPU-owned code. The non-system fflate runtime helper
+has its complete preferred library source/build inputs under
+`upstream/fflate-0.8.2/`, separately attributed and byte-identical to the pinned
+upstream snapshot. Installed npm browser/package/license inputs are bound by
+exact package integrity and expected imported hashes; they are reacquirable
+through the frozen root lockfile rather than copied as node_modules into the
+source archive. Build/package checks reject changed or omitted catalog,
+preferred-source and imported dependency inputs. Generated application glue
+is reproducible through the retained build scripts.
 
 The source packager excludes ROM payloads, private fixture repositories,
 credentials, binaries and local evidence. Pong itself uses no game ROM. Game
