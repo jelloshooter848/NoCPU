@@ -5,11 +5,11 @@
 Pong browser preview with the preserved DICE circuit compiled to WebAssembly:
 
 - Add keyboard and independent simultaneous touch paddles, coin insertion, pause/resume, reset, mute, volume, and audio recovery.
-- Replace the initial page-style presentation with a viewport game shell: title, contextual coin/menu controls, pause/settings/help/About panels and original-court touch regions. Local independent reviews and the expanded 70-case browser matrix pass; replacement CI/Pages publication remains pending.
+- Replace the initial page-style presentation with a viewport game shell: title, contextual coin/menu controls, pause/settings/help/About panels and original-court touch regions. Independent reviews and the expanded 70-case clean CI matrix pass; the replacement is deployed and independently verified.
 - Preserve integer simulation time, circuit scheduling, video and generated PCM, with original/native/Wasm replay comparisons and reset checks.
 - Provide browser engine tests and a source-matched Pages package with component notices, runtime hashes, and corresponding-source downloads.
 - Deploy the reviewed [Pong preview](https://jelloshooter848.github.io/NoCPU/) through GitHub Actions, with matching source and notices verified against the public files.
-- Pass the clean 60-case CI matrix with 57 passes and three expected simultaneous-touch skips, followed by ten selected checks against the live site across five automated browser profiles.
+- Pass the expanded clean 70-case CI matrix with 67 passes and three expected simultaneous-touch skips, followed by 25 selected checks against the live site across five automated browser profiles.
 
 Physical-phone gameplay, audible speaker output, and sustained performance
 remain pending. Preview builds are identified separately from a final release;
