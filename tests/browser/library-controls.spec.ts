@@ -70,7 +70,9 @@ test('return to library disposes the running circuit and audio before a fresh RO
   await page.goto('?debug');
   await start(page);
   await page.getByTestId('insert-coin').click();
-  await waitSimulation(page, 500_000_000_000n);
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  const activated = await snapshot(page);
+  await waitSimulation(page, BigInt(activated.timeps) + 500_000_000_000n);
   const running = await snapshot(page);
   expect(running.run).toBe(true);
   await pauseMenu(page);
