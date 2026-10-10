@@ -84,13 +84,15 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 ### 0.2.0 — Engine boundary and first browser/phone proof
 
-Implementation is in progress with a Pong-only C++/Wasm core, TypeScript
-frontend and GitHub Actions Pages delivery. See [0.2.0_TASKS.md](0.2.0_TASKS.md)
-for individual tasks and [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for actual
-results. A reviewed Pages preview may support real-phone testing before the
-final release; it must include notices and matching source and keep pending
-device results explicit. The final tag is blocked until the agreed physical
-Android/iPhone gates are satisfied for the full deployed runtime.
+The reviewed [Pong browser preview](https://jelloshooter848.github.io/NoCPU/)
+is live with a C++/Wasm core, TypeScript frontend, notices and matching source.
+The clean automated matrix passes 57 cases with three expected simultaneous
+touch skips; ten selected checks against the public site also pass. See
+[0.2.0_TASKS.md](0.2.0_TASKS.md) for individual tasks and
+[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for deployment identity and automation
+limits. Actual Android Chrome and iPhone Safari gameplay, speaker audio and
+sustained performance remain pending. The final tag is blocked until those
+physical-device gates are satisfied for the full deployed runtime.
 
 1. Extract create/destroy/reset/input/advance/video/audio/ROM interfaces individually, preserving the event scheduler and integer timing.
 2. Remove Qt, native window creation, device audio, host filesystem assumptions and blocking wall-clock waits from the browser core. Keep simulation time separate from browser presentation time. Picosecond counters stay in C++/Wasm; do not pass them through imprecise JavaScript Number values.

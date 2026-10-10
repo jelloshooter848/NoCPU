@@ -2,9 +2,9 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
-**0.2.0 is in development: ROM-free Pong is the first browser game.** The port keeps DICE's C++ circuit simulation and adapts its display, inputs and generated sound to WebAssembly and browser APIs. Local automated qualification and independent reviews pass; Pages deployment and physical-phone qualification remain pending. The [0.2.0 validation report](docs/0.2.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the evidence, scope and release status.
+**[Play the Pong browser preview](https://jelloshooter848.github.io/NoCPU/).** The 0.2.0 port keeps DICE's C++ circuit simulation and adapts its display, inputs and generated sound to WebAssembly and browser APIs. Clean CI, independent source/package reviews and checks against the deployed site pass. Physical Android Chrome and iPhone Safari qualification remain pending, so the final `v0.2.0` tag and release have not been published. The [validation report](docs/0.2.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the evidence and remaining gates.
 
-The planned play URL is the [GitHub Pages Pong preview](https://jelloshooter848.github.io/NoCPU/). Its deployment is pending; the final 0.2.0 release also requires physical Android Chrome and iPhone Safari qualification.
+Choose **Play Pong**, then **Insert coin**. Player 1 uses **W/S** and player 2 uses **Up/Down**, or drag the two touch controls independently. Pause, reset, mute and volume controls are available on the page. Pong needs no ROM file. The preview includes credits, licenses and its matching source download.
 
 ## Start here
 
@@ -26,7 +26,7 @@ npm run build
 npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:4173/NoCPU/`. Choose **Play Pong**, then **Insert coin**. Player 1 uses **W/S** and player 2 uses **Up/Down**, or drag the two touch controls independently. Pause, reset, mute and volume controls are available on the page. Pong needs no ROM file.
+Open `http://127.0.0.1:4173/NoCPU/` and use the same controls as the public preview.
 
 ## Native foundation
 
