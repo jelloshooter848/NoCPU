@@ -114,6 +114,23 @@ physical-device qualification must identify the revised runtime.
 
 Exit: Pong is genuinely playable with sound on desktop and both phone platforms; original/adapted-native/Wasm comparisons have documented results; baseline phone performance is viable. This is the first decision gate before broad game support.
 
+### 0.2.1 — Touch controls outside the court
+
+The user authorized this usability correction before the 0.3 library work.
+Reported iPhone play showed that dragging directly on the raster hides the
+game behind fingers. Provide visible independent P1/P2 vertical tracks
+outside the court: below it in portrait and in side letterboxes in landscape.
+Retain the original 4:3 raster, game shell, coin/menu actions and circuit/audio
+behavior. Visible endpoints map to the full paddle range; court touches do not
+move paddles. Validate touch ownership, cancellation, menu/reset/background
+recovery, safe areas, orientation and source-matched preview deployment.
+
+The [patch task ledger](0.2.1_TASKS.md) and [qualification report](0.2.1_VALIDATION.md)
+record actual results. This authorization supersedes the earlier sequencing
+restriction for this correction; it does not waive physical Android/iPhone
+qualification or authorize new games. Phone evidence must match the revised
+runtime before a final tag is published.
+
 ### 0.3 — A usable NoCPU app
 
 1. Build library → game information → Play → pause/settings → return-to-library flow, with clear ROM and controls status.
@@ -178,7 +195,7 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The 0.1.0 repository foundation, upstream attribution/patch policy, 21-game matrix, native reference tooling and build/release scaffolding have completed review. The active implementation milestone is 0.2.0: a minimal Pong-only browser app that reaches physical Android/iPhone testing before the complete arcade UI. It adds a playable Pages URL with verified coin/start, two paddles, ball/scoring, circuit sound and reset. Complete its implementation, independent reviews and device qualification before expanding to the 0.3 library interface.
+The 0.1.0 foundation and 0.2.0 Pong browser preview have completed their recorded automated and publication reviews. The active work package is the explicitly authorized 0.2.1 off-court touch-control correction. Complete its implementation, independent reviews and tested preview deployment, then collect runtime-bound phone qualification. The 0.3 library interface and additional games remain later scope.
 
 ## After 1.0 — preservation and expansion
 

@@ -10,10 +10,18 @@ app.innerHTML = `
   <main class="game-shell" data-screen="title" aria-label="NoCPU circuit arcade">
     <div class="game-stage" id="arcade">
       <div class="screen-frame">
-        <canvas data-testid="game-canvas" width="576" height="432" tabindex="0" aria-label="Pong game display. Player 1 uses W and S, player 2 uses Up and Down. On touchscreens drag the left and right halves of the court."></canvas>
-        <div class="touch-controls" aria-label="Paddle controls">
-          <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player" aria-hidden="true">P1</span><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span><span class="control-help" aria-hidden="true">DRAG</span></div>
-          <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player" aria-hidden="true">P2</span><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span><span class="control-help" aria-hidden="true">DRAG</span></div>
+        <canvas data-testid="game-canvas" width="576" height="432" tabindex="0" aria-label="Pong game display. Player 1 uses W and S, player 2 uses Up and Down. On touchscreens use the separate P1 and P2 sliders outside the court."></canvas>
+      </div>
+      <div class="touch-controls" aria-label="Paddle controls">
+        <div class="paddle-controller">
+          <span class="control-player" id="paddle-p1-label">P1</span>
+          <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p1-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
+          <span class="control-help" id="paddle-p1-help">DRAG UP / DOWN</span>
+        </div>
+        <div class="paddle-controller">
+          <span class="control-player" id="paddle-p2-label">P2</span>
+          <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p2-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
+          <span class="control-help" id="paddle-p2-help">DRAG UP / DOWN</span>
         </div>
       </div>
     </div>
@@ -64,7 +72,7 @@ app.innerHTML = `
           <h1 id="help-heading">How to play</h1>
           <p>Insert a coin to start a two-player game. Return the ball with your paddle. First to 11 wins.</p>
           <dl class="controls-help"><div><dt>Player 1</dt><dd><kbd>W</kbd> / <kbd>S</kbd></dd></div><div><dt>Player 2</dt><dd><kbd>↑</kbd> / <kbd>↓</kbd></dd></div><div><dt>Coin / start</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Menu / resume</dt><dd><kbd>Space</kbd> / <kbd>Esc</kbd></dd></div></dl>
-          <p>On a touchscreen, drag the left half of the court for player 1 and the right half for player 2. Both players can move at once.</p>
+          <p>On a touchscreen, drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.</p>
         </section>
         <section class="panel-section about-panel" data-panel="about" hidden>
           <h1 id="about-heading">About NoCPU</h1>
@@ -220,7 +228,7 @@ async function trySound(): Promise<void> {
 function updatePads(): void {
   pads.forEach((pad, slot) => {
     const fraction = (axes[slot] - AXIS_MIN) / (AXIS_MAX - AXIS_MIN);
-    pad.style.setProperty('--paddle-position', `${Math.round(fraction * 100)}%`);
+    pad.style.setProperty('--paddle-position', `${fraction * 100}%`);
     pad.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     pad.setAttribute('aria-disabled', String(!ready || paused || resetting || failed));
     pad.tabIndex = ready && !paused && !resetting && !failed ? 0 : -1;
@@ -466,9 +474,13 @@ function animationFrame(): void {
 }
 
 pads.forEach((pad, slot) => {
+  const track = pad.querySelector<HTMLElement>('.control-track')!;
   function move(event: PointerEvent): void {
     if (pointers.get(event.pointerId) !== slot) return;
-    const bounds = pad.getBoundingClientRect();
+    // Labels and target padding are outside the visible thumb's travel. Map
+    // against that exact track so its endpoints represent the full input range.
+    const bounds = track.getBoundingClientRect();
+    if (bounds.height <= 0) return;
     const fraction = Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height));
     axes[slot] = Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN));
     updatePads();
@@ -542,6 +554,11 @@ overlay.addEventListener('keydown', (event) => {
 document.addEventListener('keyup', (event) => { if (heldKeys.delete(event.code)) sendKeys(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame('Paused while you were away.'); });
 window.addEventListener('blur', () => { pauseGame('Paused while you were away.'); });
+window.addEventListener('resize', () => {
+  // A captured touch belongs to the old control geometry. Require a fresh
+  // contact after rotation/viewport resizing instead of moving the paddle.
+  if (pointers.size) releaseInputs();
+});
 window.addEventListener('pagehide', () => { pauseGame('Paused while you were away.'); releaseInputs(); audio.pause(); });
 playButton.addEventListener('click', () => { void startGame(); });
 element('#retry').addEventListener('click', () => { void startGame(); });

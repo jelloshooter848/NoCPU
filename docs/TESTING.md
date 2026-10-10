@@ -125,8 +125,10 @@ The configured projects cover Chromium, Firefox, WebKit, an emulated Android
 viewport and an emulated iPhone viewport. They exercise actual production Wasm
 loading and frontend behavior. An emulated phone viewport is not a physical
 phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
-audio buffers do not prove speaker playback. [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md)
-records executed checks, limitations and the physical-phone procedure.
+audio buffers do not prove speaker playback. [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md)
+records current patch qualification and the physical-phone procedure; the
+earlier preview's executed checks remain in
+[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
 
 The Pages packager supplies source downloads/notices omitted from an ordinary
 Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged
