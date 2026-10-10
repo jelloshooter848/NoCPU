@@ -1,40 +1,129 @@
 # Releasing NoCPU
 
-`VERSION` identifies the current source foundation: **0.1.0**. Preparing the repository and a local archive does not create a Git tag, GitHub release, or browser deployment.
+`VERSION` is **0.2.0**, the Pong-only browser milestone. Preparing files,
+running tests or packaging a preview does not publish a final release. Current
+qualification and deployment evidence belong in
+[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
 
-## Before publishing
+## Build and qualification
 
-Run from the repository root with Python 3.10 or later, GNU Make, and Docker:
+Follow [TESTING.md](TESTING.md) to install the native reference, Emscripten and
+browser prerequisites. Before packaging, run the repository tests, original
+Pong capture, portable native/Wasm replay comparison and production browser
+checks. Inspect their reports; passing metadata checks do not establish
+gameplay for the other twenty DICE titles.
+
+Source packaging requires [license-audit.json](../tests/license-audit.json) to
+be ready with an empty blocker list. Browser packaging independently requires
+[browser-license-audit.json](../tests/browser-license-audit.json), hash-checked
+notices and matching corresponding source. Read
+[BROWSER_DISTRIBUTION.md](BROWSER_DISTRIBUTION.md) and
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for component evidence.
+Changing a readiness boolean alone does not resolve missing evidence.
+
+Public jobs use ROM-free Pong and fixture-free metadata. They receive no
+private ROM credentials. Never package ROM bytes, private fixtures, secrets,
+generated source copies or unrelated build output. Known-path/type checks are
+useful guards; they cannot identify arbitrary secret text.
+
+## Pages preview for phone testing
+
+GitHub Pages **Source: GitHub Actions** is the correct repository setting.
+The Pages workflow builds a tested static artifact and deploys it using the
+official Pages actions. It does not change this setting itself.
+
+A preview supplies the playable URL needed for physical Android/iPhone tests.
+It may retain pending phone qualification, while all repository, core,
+automated-browser and license checks must pass first. Preview packaging is:
 
 ```sh
-make test
-make native
-make pong
+npm run build:web
+python3 tools/package-web.py --preview
 ```
 
-Inspect `build/reference/report.json` and the native reference evidence. Public checks use ROM-free Pong and metadata; they do not fetch private fixtures or establish fidelity for all 21 games. Branch/PR CI uploads the reference report, evidence JSON, CSV traces, PPM frames, WAV samples, and adapter diff. It also retains toolchain metadata: exact package versions, base-image reference, local image ID, binary hash, toolchain checks, and signed APT release metadata. Generated source copies, object files, and executable builds stay local. Native binary distribution requires a separate dependency/license review.
+`build/pages/` contains the runtime, visible preview identification,
+`BUILD-MANIFEST.json`, complete applicable notices and
+`source/nocpu-0.2.0-source.tar.gz` with its checksum. The archive's manifest
+identifies `preview-corresponding-source`; the browser manifest has stage
+`preview` and no final tag. The app links directly to the available matching
+source archive. Preserve relative notice paths so their nested links work.
 
-Review `tests/license-audit.json` and `THIRD_PARTY_NOTICES.md`. A release requires `release_ready: true` and an empty `blockers` list, supported by the documented license evidence. Updating the boolean alone does not resolve missing notices or distribution questions. Source changes under `upstream/dice-0.9/` are prohibited; changes belong in maintained adapters or patches.
+The runtime reads its build identifier and preview/final label from the
+packaged manifest. Promoting reviewed bytes changes metadata without embedding
+a new Git commit or release-stage constant into the tested JavaScript.
 
-Confirm that `VERSION` and the corresponding `CHANGELOG.md` entry describe the release. Replace the entry's `prepared locally` status with the reviewed release date and update any preparation-only wording before tagging; release packaging rejects the preparation heading. Check for ROMs, private fixture credentials, generated builds, and unrelated files; `tools/check.py` rejects known prohibited paths and file types but cannot identify arbitrary secret text. Keep private fixture repositories outside this checkout.
+The manifest's `runtime_sha256` covers **all original production runtime
+files**, including HTML, CSS, workers, JavaScript, Wasm and icons. Added source,
+notice and provenance metadata are described separately, avoiding a hash of a
+manifest that contains its own hash. A Wasm-only checksum is insufficient for
+touch/audio/layout qualification.
 
-## Local source archives
+Check the deployed project URL and every referenced asset at `/NoCPU/`, not
+only a localhost root URL. Confirm Wasm MIME/loading, worker paths, source
+archive/checksum availability, notices and preview identification. Record the
+successful deployment URL and workflow revision in the validation report.
+
+## Physical-device and final-release gates
+
+[release-readiness.json](../tests/release-readiness.json) records actual physical
+Android Chrome and iPhone Safari evidence for the complete runtime digest.
+Record the model, OS/browser versions, test date, tested build, required play,
+touch, speaker audio and lifecycle checks, plus at least ten minutes of
+sustained performance. [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) provides the
+procedure. Automated mobile viewports cannot complete these fields.
+
+Final browser packaging rejects pending/failed device gates, stale runtime
+digests, missing checks and incomplete performance evidence. A tested runtime
+must be the runtime that is published. Rebuilding with different visible
+labels, runtime constants, CSS, compiler output or controls changes its digest
+and requires corresponding qualification; do not attach preview evidence to
+changed final bytes.
+
+Complete the agreed checks and independent repair/re-review loops before
+tagging. Pending physical-device results remain pending until actual testing
+supplies the required evidence.
+
+Once gates are satisfied, finalize the 0.2.0 changelog date/status, commit the
+reviewed change, create the exact `v0.2.0` tag and push it. Final packaging
+requires a clean checkout of that tag and version equality:
+
+```sh
+python3 tools/package-web.py --tag v0.2.0
+```
+
+`.github/workflows/verify-browser.yml` provides shared verification for pull
+requests, preview dispatch and release tags. An explicit dispatch of
+`.github/workflows/ci.yml` with `publish_preview: true` deploys its passing
+preview; normal pushes and pull requests verify without publication. The
+release workflow reruns qualification before publishing source/browser
+downloads and deploying the qualified Pages artifact. Publication
+jobs receive only their required write permissions. Pull-request verification
+uses read-only repository permissions; fork pull requests do not publish or
+receive private credentials. External actions are pinned to reviewed commits.
+Verify the resulting GitHub release assets, final Pages deployment and visible
+build/source identifiers before reporting publication.
+
+## Source archives
 
 ```sh
 make source-candidate
 make source
 ```
 
-`source-candidate` creates `build/release/nocpu-0.1.0-candidate-source.tar.gz` for local review, including any license blockers in `RELEASE-MANIFEST.json`. It is not suitable for publication while blockers remain. `source` requires the release license gate and produces `nocpu-0.1.0-source.tar.gz` plus its `.sha256` file.
+`source-candidate` makes a local review archive and records license blockers in
+its manifest. It is not publishable while blockers remain. `source` requires
+the source-license gate and exact current tag/version argument, then writes
+`nocpu-0.2.0-source.tar.gz` and its checksum; this local command alone does not
+create a Git tag or GitHub release.
 
-Both commands rerun repository integrity checks. Archives include curated project source, preserved upstream files, documentation, tools, game metadata, license notices, and a per-file SHA-256 manifest. They exclude the checkout's root `.git` directory or worktree pointer, generated build/capture outputs, private ROM directories, ROM archives, and executable build payloads. Nested `.git` directories and worktree pointer files in source are rejected by both the repository checker and packager to expose accidental embedded checkouts. Sorting, ownership, timestamps, and gzip metadata are normalized so unchanged source and executable modes produce identical bytes. `RELEASE-NOTES.md` beside the archive contains the exact current-version changelog section, which the publication workflow uses as its release description.
+Archives contain curated maintained source, unchanged original DICE files,
+frontend code, scripts, dependency lockfiles, metadata and notices. They exclude
+Git metadata, private fixtures, ROM archives, local evidence and compiled
+payloads. Nested checkouts, symlinks and prohibited payload paths/types fail
+closed. Sorting, modes, ownership, timestamps and gzip metadata are normalized;
+the manifest records every included file's SHA-256. Release notes are derived
+from the exact current-version changelog section.
 
-## GitHub publication
-
-The maintainer reviews the tested changes and explicitly authorizes publication before creating and pushing `v0.1.0` on the reviewed commit. The tag must equal `v` plus `VERSION` exactly. The `Verified source release` workflow reruns repository/tooling checks, builds the native reference, captures Pong, verifies the license gate, and packages source before its separate publication job obtains `contents: write`.
-
-Only pushed version tags trigger release publication. Pull requests and branch CI have read-only repository permissions and no private ROM access. External GitHub actions are pinned to verified upstream commit hashes; update these pins deliberately and review their changes. The publication step creates the release; it does not merge changes or alter repository settings. If a tag fails checks, correct the underlying problem before preparing the next reviewed release rather than treating a failed run as a published version.
-
-## Browser and mobile delivery
-
-0.1.0 has no browser artifact or Pages deployment workflow. At the browser milestone, add a real tested browser build and tag-controlled Pages deployment only after browser validation passes. Never publish a placeholder arcade that implies games are playable.
+Native executables and toolchain containers remain outside this browser
+distribution assessment. Their publication needs a separate linked dependency
+and license inventory.

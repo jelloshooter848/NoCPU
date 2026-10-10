@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -14,7 +15,8 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 FORBIDDEN_SUFFIXES = {".zip", ".rom", ".bin", ".7z", ".rar", ".gz", ".xz", ".bz2", ".tgz", ".tbz2", ".txz", ".exe", ".dll", ".so", ".dylib", ".o", ".a", ".wasm"}
-IGNORED_DIRS = {"build", "dist", ".cache", "__pycache__", ".vscode", ".idea"}
+IGNORED_DIRS = {"build", "dist", ".cache", "__pycache__", ".vscode", ".idea", "node_modules", "playwright-report", "test-results"}
+GENERATED_PATHS = {"web/public/core"}
 REQUIRED = (
     "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "CONTRIBUTING.md", "AGENTS.md",
     "VERSION", ".gitignore", ".gitattributes", "Makefile", "docs/PROVENANCE.md", "docs/ROADMAP.md", "docs/TESTING.md",
@@ -89,6 +91,8 @@ def verify_payloads(root: Path) -> list[str]:
             if name in IGNORED_DIRS:
                 continue
             path = base / name
+            if path.relative_to(root).as_posix() in GENERATED_PATHS:
+                continue
             if path.is_symlink():
                 errors.append(f"Repository symlink is not allowed: {path.relative_to(root).as_posix()}")
             else:
@@ -116,7 +120,7 @@ def verify_payloads(root: Path) -> list[str]:
                         errors.append(f"Nested Git metadata is tracked: {name}")
                     continue
                 paths.add(relative)
-                if any(part in IGNORED_DIRS for part in relative.parts):
+                if any(part in IGNORED_DIRS for part in relative.parts) or any(relative.as_posix() == path or relative.as_posix().startswith(path + "/") for path in GENERATED_PATHS):
                     errors.append(f"Generated or local-only path is tracked: {name}")
     for relative in sorted(paths):
         suffix = relative.suffix.lower()
@@ -173,7 +177,39 @@ def verify_license_notices(root: Path) -> list[str]:
     return errors
 
 
+def verify_browser_metadata(root: Path, version: str) -> list[str]:
+    """Allow honest pending phone/license gates while checking retained notice integrity."""
+    errors = []
+    required = ('package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'playwright.config.ts',
+                'tools/package-web.py', 'tools/build-core.sh', 'tests/browser-license-audit.json',
+                'tests/release-readiness.json', '.github/workflows/verify-browser.yml')
+    errors.extend(f'Required browser foundation missing: {name}' for name in required if not (root / name).is_file())
+    if errors:
+        return errors
+    spec = importlib.util.spec_from_file_location('browser_release_checks', root / 'tools/package-web.py')
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        module.verify_browser_license(root, version, require_ready=False)
+        readiness = json.loads((root / 'tests/release-readiness.json').read_text())
+        if readiness.get('schema_version') != 1 or readiness.get('version') != version:
+            errors.append('Browser release readiness schema/version mismatch')
+        if not isinstance(readiness.get('release_ready'), bool) or not isinstance(readiness.get('blockers'), list):
+            errors.append('Invalid browser release readiness fields')
+        elif readiness['release_ready'] and readiness['blockers']:
+            errors.append('Browser release cannot be ready while blockers remain')
+        package = json.loads((root / 'package.json').read_text())
+        lock = json.loads((root / 'package-lock.json').read_text())
+        if package.get('version') != version or lock.get('version') != version or lock.get('packages', {}).get('', {}).get('version') != version:
+            errors.append('Node package and lock versions must match VERSION')
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        errors.append(f'Browser metadata check failed: {exc}')
+    return errors
+
+
 def main() -> int:
+    version = ""
     errors = [f"Required repository file missing: {name}" for name in REQUIRED if not (ROOT / name).is_file()]
     if (ROOT / "VERSION").is_file():
         version = (ROOT / "VERSION").read_text().strip()
@@ -185,6 +221,8 @@ def main() -> int:
         errors.extend(verify_source(ROOT))
         errors.extend(verify_payloads(ROOT))
         errors.extend(verify_license_notices(ROOT))
+        if VERSION_RE.fullmatch(version) and tuple(map(int, version.split("."))) >= (0, 2, 0):
+            errors.extend(verify_browser_metadata(ROOT, version))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         errors.append(f"Repository metadata check failed: {exc}")
     if errors:

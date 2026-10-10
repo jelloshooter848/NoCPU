@@ -1,24 +1,60 @@
 # Architecture and fidelity boundaries
 
-## Current foundation
+## Original reference and Pong port
 
-NoCPU 0.1.0 keeps an independently auditable copy of DICE 0.9 under `upstream/dice-0.9/`. Its native reference is built in an isolated Qt4/SDL 1.2 toolchain from a generated source copy. The project currently provides repository structure, audited source/game/ROM metadata, native tooling, and controlled Pong reference evidence. There is no browser core or phone frontend yet.
+NoCPU keeps an independently auditable copy of DICE 0.9 under `upstream/dice-0.9/`. Its 0.1.0 native reference is built in an isolated Qt4/SDL 1.2 toolchain from a generated source copy. The 0.2.0 work adds a Pong-only portable core and browser frontend. Implementation and actual qualification results are recorded in [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md); the existence of a browser build does not establish final release or physical-phone qualification.
 
-Original source, build copies, validation instrumentation, and future product code have separate roles:
+Original source, build copies, validation instrumentation, and product code have separate roles:
 
 | Boundary | Responsibility |
 | --- | --- |
 | Original source | Historical reference; checked against its source manifest |
 | Native build tools | Reproduce compilation without editing that reference |
 | Validation adapter | Apply controlled inputs and capture observable behavior; document every instrumentation patch |
-| Future `core/` | Create/destroy/reset/input/advance/video/audio/ROM interface around the original-derived C++ simulation |
-| Future `web/` | Accessible library, per-game controls, rendering, audio delivery, local storage, and lifecycle handling |
+| `core/` | Versioned create/destroy/reset/input/advance/frame/PCM interface around the original-derived Pong circuit |
+| `web/` | Pong interface, independent touch/keyboard paddles, worker stepping, Canvas and Web Audio delivery |
+| Release packaging | Exact runtime identity, matching corresponding source, licenses and preview/final gates |
 
 The newer DirtBagXon fork is a reference for dependency modernization, not the authority for fidelity. Earlier comparison found identical game definitions but observed rendering and logging differences that remain unresolved. See [provenance](PROVENANCE.md), [Pong reference](PONG_REFERENCE.md), and [testing](TESTING.md) for exact evidence and limits.
 
-## Browser direction for 0.2 and later
+## 0.2.0 platform boundary
 
-Retain the C++ circuit engine and compile it with Emscripten to WebAssembly. Define the platform boundary before building the complete arcade UI:
+[`tools/prepare-core.py`](../tools/prepare-core.py) generates a disposable source
+copy and records every adaptation. The chip models, event scheduler and Pong
+netlist remain original-derived C++; the frontend does not implement replacement
+Pong rules. Native and Wasm targets compile the same prepared source.
+[`core/nocpu.h`](../core/nocpu.h) defines ABI 1, with one live circuit per module.
+Create/reset take a seed, paddle slots hold independent signed axes, and coin
+is a held switch. Time advances in bounded integer microseconds while internal
+picosecond time stays 64-bit. Exact telemetry crosses the boundary through
+high/low words and is presented as a decimal string, avoiding JavaScript Number
+rounding.
+
+The portable renderer exports a completed 576 × 432 top-down RGBA frame. It
+uses original video signal timing and adapted presentation geometry, compared
+with captured native OpenGL output. Generated audio is mono signed 16-bit PCM
+at 48,000 Hz. Module-owned frame/audio buffers must be copied before reset,
+destruction or further operations that invalidate their contents. Queues are
+bounded and expose overrun observations. See [PORT_PONG.md](PORT_PONG.md) and
+[`core/README.md`](../core/README.md) for the adaptation and ABI details.
+
+The browser uses a dedicated single-threaded worker without shared memory.
+The page sends ordered input and bounded advance requests, with only one
+advance in flight. The worker copies frame and PCM data before transferring
+them. Canvas presents the frame; gesture-unlocked Web Audio plays the actual
+circuit samples. Pause, reset, lost visibility and audio interruption stop or
+flush presentation work rather than accumulating hidden simulation time.
+Pointer capture assigns each simultaneous touch to its own paddle; cancellation
+and blur release held inputs. See [`web/README.md`](../web/README.md).
+
+The static Vite production build defaults to the `/NoCPU/` GitHub Pages project
+path. Release packaging supplies notices and matching source alongside the
+runtime. Previews retain pending phone gates and identify the exact deployed
+runtime; final releases require the agreed device evidence for those bytes.
+
+## Later library work
+
+Retain this platform boundary while adding the complete arcade UI:
 
 1. Advance bounded simulation work without native window, device-audio, filesystem, or blocking wall-clock assumptions.
 2. Export frames and circuit-generated PCM; deliver them through Canvas/WebGL and Web Audio.

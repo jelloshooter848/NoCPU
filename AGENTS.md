@@ -2,7 +2,7 @@
 
 ## Scope and fidelity
 
-- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. 0.1.0 is the native/reference foundation; browser and mobile play are not implemented yet.
+- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. 0.1.0 is the native/reference foundation; 0.2.0 develops the Pong-only browser port. Other browser games remain later work.
 - Preserve all 21 DICE 0.9 games as the 1.0 scope. A difficult game is a recorded blocker, not permission to remove it.
 - Keep `upstream/dice-0.9/` byte-identical to its audited source inventory. Build from a disposable copy. Place NoCPU adapters and instrumentation elsewhere, documenting any derived-source patches and attribution.
 - Preserve the circuit scheduler, integer simulation time, video geometry, PCM generation, and supported physical inputs. Browser adaptations must change access to the hardware, with behavior verified against the native reference.
@@ -13,6 +13,7 @@
 - Never commit or publish ROM payloads, private fixture archives, credentials, or secrets. Checksum/size metadata is permitted. Keep fixtures outside the checkout or in explicitly ignored local storage.
 - Keep binaries, build copies, runtime settings, frame/audio captures, and temporary reports under ignored `build/` output. Release packaging must exclude private fixtures and generated local evidence unless specifically reviewed for distribution.
 - Audit the applicable component notices before distributing code or binaries. Preserve existing copyright and license texts.
+- Source-release and browser-distribution license gates are separate. A source-ready assessment does not clear generated JS/Wasm, native binaries or toolchain containers. Browser output must include applicable notices and a matching corresponding-source archive.
 
 ## Required checks and reporting
 
@@ -21,6 +22,8 @@
 - Add or run meaningful tests for changed behavior; do not manufacture tests that merely repeat the implementation. Inspect failed checks and fix the cause before claiming success.
 - ROM-dependent checks without fixtures are skipped or blocked. A fixture-free metadata audit is not a ROM-loading or gameplay pass.
 - Distinguish build, checksum, basic rendering, scenario coverage, audio capture, full gameplay, and real-device results. Never infer phone performance from a native build or sound accuracy from a dummy audio device.
+- For browser changes, run the documented core build/comparison and browser checks in [docs/TESTING.md](docs/TESTING.md). Keep picosecond time inside C++/Wasm integer values and respect the ABI's frame/PCM ownership and bounded stepping rules.
+- Physical Android/iPhone evidence must identify the tested runtime and actual model/browser. Automation with a mobile viewport is separate evidence. A preview may support device testing; final release-readiness must reflect the agreed device gate honestly.
 - Record actual commands and limitations in the final report. Do not claim publication, repository settings changes, deployment, or release creation unless verified.
 
 ## Collaboration

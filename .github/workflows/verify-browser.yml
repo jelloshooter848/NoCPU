@@ -1,0 +1,107 @@
+name: Verify Pong browser distribution
+
+on:
+  workflow_call:
+    inputs:
+      release:
+        type: boolean
+        default: false
+      release_tag:
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '22.22.0'
+      - name: Check preservation, source tooling, and failure-injection tests
+        run: make test
+      - name: Install pinned web toolchain and browser engines
+        run: |
+          ./tools/install-web-toolchain.sh --browsers
+          PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox webkit
+      - name: Install a signed-package audio sink for real headless browser audio
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+      - name: Build original desktop reference
+        run: ./tools/build-native.sh --jobs 2
+      - name: Capture original ROM-free Pong behavior
+        run: ./tools/capture-pong.sh
+      - name: Check that qualification rejects incomplete actual reference evidence
+        run: python3 tests/test-reference-analysis.py --reference-dir build/reference
+      - name: Build portable native and Wasm cores
+        run: ./tools/build-core.sh all
+      - name: Compare original native, adapted native, and Wasm behavior
+        run: make core-compare
+      - name: Build production frontend at the project Pages path
+        env:
+          NOCPU_BASE_PATH: /NoCPU/
+        run: npm run build:web
+      - name: Package source-matched browser preview or qualified release
+        env:
+          FINAL_RELEASE: ${{ inputs.release }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [ "$FINAL_RELEASE" = true ]; then
+            python3 tools/package-web.py --tag "$RELEASE_TAG" --archive-dir build/release
+          else
+            python3 tools/package-web.py --preview --archive-dir build/release
+          fi
+      - name: Test packaged gameplay, controls, audio, and delivery in browser engines
+        env:
+          NOCPU_TEST_PACKAGED: '1'
+        run: npm run test:browser
+      - name: Retain verification evidence without executable native builds or private fixtures
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pong-verification-evidence
+          path: |
+            build/reference/report.json
+            build/reference/**/evidence.json
+            build/reference/**/*.csv
+            build/reference/**/*.ppm
+            build/reference/**/*.wav
+            build/reference/**/*.diff
+            build/native/toolchain-provenance/**
+            build/core/comparison.json
+            build/core/native/build-provenance.json
+            build/core/native/dependencies.mk
+            build/core/native/linker.map
+            build/core/wasm/build-provenance.json
+            build/core/wasm/dependencies.mk
+            build/core/wasm/linker.map
+            build/core/native-evidence/**/*.json
+            build/core/wasm-evidence/**/*.json
+            build/pages/BUILD-MANIFEST.json
+            build/web-provenance.json
+            build/playwright-report/**
+            build/browser-results/**
+            build/browser-matrix.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Retain verified matching source and browser release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-release-assets
+          path: build/release/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Prepare the tested Pages artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: build/pages
+          retention-days: 7
+
+# No private ROM checkout or repository-write permission belongs in verification.
