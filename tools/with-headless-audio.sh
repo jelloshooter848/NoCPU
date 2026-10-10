@@ -45,6 +45,6 @@ for ((attempt=0;attempt<50;attempt++)); do
 done
 export PULSE_SERVER="unix:$SOCKET"
 "$PACTL_BIN" --server="$PULSE_SERVER" list short sinks > "$SESSION_DIR/sinks.txt"
-rg -q $'\tnocpu\t' "$SESSION_DIR/sinks.txt" || { echo 'PulseAudio null sink did not initialize' >&2; exit 1; }
+grep -Fq $'\tnocpu\t' "$SESSION_DIR/sinks.txt" || { echo 'PulseAudio null sink did not initialize' >&2; exit 1; }
 echo "Headless audio: real PulseAudio null sink ($SESSION_DIR)" >&2
 "$@"
