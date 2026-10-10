@@ -7,54 +7,82 @@ const base = import.meta.env.BASE_URL;
 const source = `${base}source/nocpu-${__NOCPU_VERSION__}-source.tar.gz`;
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
-  <header class="site-header">
-    <a class="brand" href="${base}" aria-label="NoCPU home"><span class="brand-mark" aria-hidden="true">N<span>•</span></span><span>NoCPU</span></a>
-    <span class="header-note">THE CIRCUIT ARCADE</span>
-    <a class="source-link" href="https://github.com/jelloshooter848/NoCPU" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
-  </header>
-  <main>
-    <section class="intro" id="intro" aria-labelledby="game-title">
-      <div class="intro-copy">
-        <span class="eyebrow"><span class="live-dot"></span> FIRST CIRCUIT, NOW PLAYING</span>
-        <h1 id="game-title">P<span class="pong-o">O</span>NG<span class="title-dot">.</span></h1>
-        <p class="lead">Two paddles. One ball.<br />An arcade classic, down to the circuit.</p>
-        <p class="description">NoCPU brings DICE’s original arcade simulation to your browser. Grab a friend and keep the ball in play.</p>
-        <div class="game-tags"><span>2 PLAYERS</span><span>KEYBOARD + TOUCH</span><span>NO ROM NEEDED</span></div>
-        <button class="primary-button play-button" data-testid="play-pong">Play Pong <span aria-hidden="true">→</span></button>
-        <p class="start-note">Free to play. No download. Sound starts with your tap.</p>
-        <p class="preview-note" id="release-stage">Browser preview · phone testing in progress</p>
-      </div>
-      <div class="intro-art" aria-hidden="true">
-        <div class="art-top"><span>PONG / 1972</span><span>01</span></div>
-        <svg class="pong-art" viewBox="0 0 400 300"><path class="court" d="M200 15v270"/><path class="paddles" d="M65 60v60M335 170v60"/><rect class="ball" x="259" y="132" width="10" height="10"/><path class="trail" d="m190 115 59 17"/><text x="140" y="60">0</text><text x="236" y="60">0</text></svg>
-        <div class="art-bottom"><span>DISCRETE LOGIC</span><span>∞ QUARTERS</span></div>
-      </div>
-    </section>
-    <section class="arcade" id="arcade" hidden aria-label="Pong arcade">
-      <div class="game-heading"><div><span class="eyebrow">NOW PLAYING</span><h1>Pong</h1></div><div class="game-status"><span class="live-dot"></span><span data-testid="status" role="status" aria-live="polite">Loading Pong…</span></div></div>
-      <div class="error-panel" data-testid="error" role="alert" hidden><p id="error-message"></p><button class="primary-button" id="retry">Reload game</button></div>
-      <div class="game-layout">
-        <div class="screen-column">
-          <div class="screen-frame"><canvas data-testid="game-canvas" width="576" height="432" aria-label="Pong game display. Use the player controls below to move the paddles."></canvas><div class="screen-overlay" id="screen-overlay"><span id="overlay-label">Loading Pong…</span></div></div>
-          <div class="score-strip" aria-label="Score"><span>PLAYER 1 <strong data-testid="score-p1">0</strong></span><span class="score-caption">FIRST TO 11</span><span><strong data-testid="score-p2">0</strong> PLAYER 2</span></div>
-          <div class="touch-controls" aria-label="Touch paddle controls">
-            <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player">PLAYER 1</span><span class="control-track"><span class="control-thumb"></span></span><span class="control-help">DRAG UP / DOWN</span></div>
-            <div class="touch-middle" aria-hidden="true">↕<span>KEEP IT<br />IN PLAY</span></div>
-            <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player">PLAYER 2</span><span class="control-track"><span class="control-thumb"></span></span><span class="control-help">DRAG UP / DOWN</span></div>
-          </div>
+  <main class="game-shell" data-screen="title" aria-label="NoCPU circuit arcade">
+    <div class="game-stage" id="arcade">
+      <div class="screen-frame">
+        <canvas data-testid="game-canvas" width="576" height="432" tabindex="0" aria-label="Pong game display. Player 1 uses W and S, player 2 uses Up and Down. On touchscreens drag the left and right halves of the court."></canvas>
+        <div class="touch-controls" aria-label="Paddle controls">
+          <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player" aria-hidden="true">P1</span><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span><span class="control-help" aria-hidden="true">DRAG</span></div>
+          <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical"><span class="control-player" aria-hidden="true">P2</span><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span><span class="control-help" aria-hidden="true">DRAG</span></div>
         </div>
-        <aside class="control-panel" aria-label="Game controls">
-          <button class="primary-button" data-testid="insert-coin" disabled>Insert coin / Start <span aria-hidden="true">↗</span></button>
-          <p class="coin-help">One coin starts a two-player game.</p>
-          <div class="secondary-controls"><button data-testid="pause" aria-pressed="false" disabled>Pause</button><button data-testid="reset" disabled>Reset</button></div>
-          <div class="sound-control"><button data-testid="mute" aria-pressed="false" aria-label="Mute sound">Sound on</button><label class="volume-label" for="volume">Volume</label><input id="volume" type="range" min="0" max="100" value="60" aria-label="Volume" /></div>
-          <p id="sound-note" class="sound-note" hidden>Sound is unavailable. You can keep playing. Tap Enable sound to try again.</p>
-          <details class="how-to" open><summary>How to play</summary><p>Move your paddle to return the ball. A missed ball gives the other player a point.</p><dl><div><dt>Player 1</dt><dd><kbd>W</kbd> <kbd>S</kbd></dd></div><div><dt>Player 2</dt><dd><kbd>↑</kbd> <kbd>↓</kbd></dd></div><div><dt>Coin / start</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Pause</dt><dd><kbd>Space</kbd></dd></div></dl><p class="touch-hint">On a phone, each player drags their own paddle control. You can use both at once.</p></details>
-        </aside>
       </div>
-    </section>
+    </div>
+    <nav class="game-hud" aria-label="Game actions" hidden>
+      <button class="hud-button coin-button" data-testid="insert-coin" disabled>Insert coin</button>
+      <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Menu <span aria-hidden="true">☰</span></button>
+    </nav>
+    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose Play Pong to start.</p>
+    <div class="sr-only" aria-label="Score"><span data-testid="score-p1">0</span><span data-testid="score-p2">0</span></div>
+    <div class="shell-overlay" id="screen-overlay" role="dialog" aria-modal="true" aria-labelledby="title-heading">
+      <div class="overlay-card">
+        <button class="back-button" id="back" data-testid="back" hidden>← Back</button>
+        <section class="panel-section title-panel" id="intro" data-panel="title">
+          <h1 id="title-heading" class="game-logo">NoCPU</h1>
+          <p class="game-subtitle">PONG</p>
+          <div class="menu-actions">
+            <button class="primary-button play-button" data-testid="play-pong">Play Pong</button>
+            <button data-action="settings">Settings</button>
+            <button data-action="help">How to play</button>
+            <button data-action="about">About</button>
+          </div>
+        </section>
+        <section class="panel-section loading-panel" data-panel="loading" hidden>
+          <h1 id="loading-heading">Loading Pong</h1>
+          <p id="overlay-label">Preparing the circuit…</p>
+        </section>
+        <section class="panel-section paused-panel" data-panel="paused" hidden>
+          <h1 id="paused-heading">Paused</h1>
+          <div class="menu-actions">
+            <button class="primary-button" id="resume" data-testid="resume">Resume</button>
+            <button data-testid="reset" disabled>Reset game</button>
+            <button data-action="settings">Settings</button>
+            <button data-action="help">How to play</button>
+            <button data-action="about">About</button>
+            <button id="return-title" data-testid="return-title">Return to title</button>
+          </div>
+        </section>
+        <section class="panel-section settings-panel" data-panel="settings" hidden>
+          <h1 id="settings-heading">Settings</h1>
+          <div class="sound-control">
+            <button data-testid="mute" aria-pressed="false" aria-label="Enable sound">Enable sound</button>
+            <label class="volume-label" for="volume">Volume</label>
+            <input id="volume" type="range" min="0" max="100" value="60" aria-label="Volume" />
+          </div>
+          <p id="sound-note" class="sound-note" hidden>Sound is unavailable. Tap Enable sound to try again.</p>
+        </section>
+        <section class="panel-section help-panel" data-panel="help" hidden>
+          <h1 id="help-heading">How to play</h1>
+          <p>Insert a coin to start a two-player game. Return the ball with your paddle. First to 11 wins.</p>
+          <dl class="controls-help"><div><dt>Player 1</dt><dd><kbd>W</kbd> / <kbd>S</kbd></dd></div><div><dt>Player 2</dt><dd><kbd>↑</kbd> / <kbd>↓</kbd></dd></div><div><dt>Coin / start</dt><dd><kbd>Enter</kbd></dd></div><div><dt>Menu / resume</dt><dd><kbd>Space</kbd> / <kbd>Esc</kbd></dd></div></dl>
+          <p>On a touchscreen, drag the left half of the court for player 1 and the right half for player 2. Both players can move at once.</p>
+        </section>
+        <section class="panel-section about-panel" data-panel="about" hidden>
+          <h1 id="about-heading">About NoCPU</h1>
+          <p>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, the Discrete Integrated Circuit Emulator, by the DICE Team.</p>
+          <p>Pong runs its original circuit simulation and sound. No ROM file is required.</p>
+          <p data-testid="version">Version ${__NOCPU_VERSION__} · <span id="build-id">development</span></p>
+          <p class="preview-note" id="release-stage">Browser preview · physical phone qualification pending</p>
+          <nav class="about-links" aria-label="Project and license"><a href="https://github.com/jelloshooter848/NoCPU" target="_blank" rel="noopener noreferrer">GitHub</a><a href="${source}" target="_blank" rel="noopener noreferrer">Source</a><a href="${base}notices/LICENSE">GPL v3</a><a href="${base}notices/THIRD_PARTY_NOTICES.md">Credits & notices</a></nav>
+        </section>
+        <section class="panel-section error-panel" data-panel="error" data-testid="error" role="alert" hidden>
+          <h1 id="error-heading">Unable to load Pong</h1>
+          <p id="error-message"></p>
+          <button class="primary-button" id="retry">Reload game</button>
+          <button data-action="title">Return to title</button>
+        </section>
+      </div>
+    </div>
   </main>
-  <footer class="site-footer"><div>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, by the DICE Team.</div><div class="footer-links"><span data-testid="version">v${__NOCPU_VERSION__} <span class="build-id" id="build-id">development</span></span><span id="footer-stage">Preview</span><a href="${source}" target="_blank" rel="noopener noreferrer">Source</a><a href="${base}notices/LICENSE">GPL v3</a><a href="${base}notices/THIRD_PARTY_NOTICES.md">Credits & notices</a></div></footer>
 `;
 
 function element<T extends HTMLElement>(selector: string): T { return document.querySelector<T>(selector)!; }
@@ -68,17 +96,21 @@ void fetch(`${base}BUILD-MANIFEST.json`, { cache: 'no-store' }).then(async (resp
     || !['preview', 'release'].includes(String(metadata.stage)) || typeof metadata.buildId !== 'string') return;
   element('#build-id').textContent = metadata.buildId;
   element('#release-stage').hidden = metadata.stage === 'release';
-  element('#footer-stage').hidden = metadata.stage === 'release';
 }).catch(() => { /* Local development or offline metadata: retain the preview label. */ });
 const playButton = element<HTMLButtonElement>('[data-testid="play-pong"]');
 const coinButton = element<HTMLButtonElement>('[data-testid="insert-coin"]');
 const pauseButton = element<HTMLButtonElement>('[data-testid="pause"]');
 const resetButton = element<HTMLButtonElement>('[data-testid="reset"]');
+const resumeButton = element<HTMLButtonElement>('#resume');
+const backButton = element<HTMLButtonElement>('#back');
 const muteButton = element<HTMLButtonElement>('[data-testid="mute"]');
 const status = element('[data-testid="status"]');
 const overlay = element('#screen-overlay');
 const overlayLabel = element('#overlay-label');
 const canvas = element<HTMLCanvasElement>('[data-testid="game-canvas"]');
+const shell = element('.game-shell');
+const gameStage = element('.game-stage');
+const hud = element('.game-hud');
 const context = canvas.getContext('2d', { alpha: false });
 const pads = [element('[data-testid="paddle-p1"]'), element('[data-testid="paddle-p2"]')];
 const audio = new CircuitAudio(() => pauseGame('Sound interrupted — tap Resume.'));
@@ -111,7 +143,41 @@ let generatedSamples = 0;
 let workerTimeMs = 0;
 let workerSteps = 0;
 let workerMaxMs = 0;
+type Screen = 'title' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error';
+let screen: Screen = 'title';
+let panelOrigin: 'title' | 'paused' = 'title';
 const snapshotRequests = new Map<number, { resolve: (snapshot: CoreSnapshot) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
+
+function focusGame(): void { canvas.focus({ preventScroll: true }); }
+
+function showScreen(next: Screen): void {
+  screen = next;
+  shell.dataset.screen = next;
+  const playing = next === 'playing';
+  overlay.hidden = playing;
+  hud.hidden = !playing;
+  gameStage.inert = !playing;
+  backButton.hidden = !['settings', 'help', 'about'].includes(next);
+  document.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.panel !== next;
+  });
+  if (playing) focusGame();
+  else {
+    overlay.setAttribute('aria-labelledby', `${next}-heading`);
+    const panel = element<HTMLElement>(`[data-panel="${next}"]`);
+    panel.tabIndex = -1;
+    const focusTarget = panel.querySelector<HTMLElement>('button, a, input') ?? panel;
+    focusTarget.focus({ preventScroll: true });
+  }
+}
+
+function openPanel(panel: 'settings' | 'help' | 'about'): void {
+  panelOrigin = ready ? 'paused' : 'title';
+  if (ready) pauseGame();
+  showScreen(panel);
+}
+
+function closePanel(): void { showScreen(panelOrigin); }
 
 function send(command: CoreCommand): void { worker?.postMessage(command); }
 function sendInputs(slot?: number): void {
@@ -157,6 +223,7 @@ function updatePads(): void {
     pad.style.setProperty('--paddle-position', `${Math.round(fraction * 100)}%`);
     pad.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     pad.setAttribute('aria-disabled', String(!ready || paused || resetting || failed));
+    pad.tabIndex = ready && !paused && !resetting && !failed ? 0 : -1;
   });
 }
 
@@ -180,10 +247,8 @@ function pauseGame(message?: string): void {
   setClock(false);
   releaseInputs();
   audio.pause();
-  pauseButton.textContent = 'Resume';
   pauseButton.setAttribute('aria-pressed', 'true');
-  overlay.hidden = false;
-  overlayLabel.textContent = 'Paused';
+  if (!['settings', 'help', 'about'].includes(screen)) showScreen('paused');
   updatePads();
   showStatus(message);
 }
@@ -194,9 +259,8 @@ function resumeGame(): void {
   void trySound();
   paused = false;
   setClock(true);
-  pauseButton.textContent = 'Pause';
   pauseButton.setAttribute('aria-pressed', 'false');
-  overlay.hidden = true;
+  showScreen('playing');
   updatePads();
   showStatus();
 }
@@ -215,10 +279,8 @@ function failGame(message: string): void {
   coinButton.disabled = true;
   pauseButton.disabled = true;
   resetButton.disabled = true;
-  element('[data-testid="error"]').hidden = false;
   element('#error-message').textContent = message;
-  overlay.hidden = false;
-  overlayLabel.textContent = 'Unable to load Pong';
+  showScreen('error');
   updatePads();
   showStatus('Pong could not load');
 }
@@ -258,16 +320,11 @@ async function startGame(): Promise<void> {
   soundAvailable = false;
   updateSoundButton();
   updatePads();
-  element('#intro').hidden = true;
-  element('#arcade').hidden = false;
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  element('[data-testid="error"]').hidden = true;
-  overlay.hidden = false;
+  showScreen('loading');
   overlayLabel.textContent = 'Loading Pong…';
   showStatus();
   coinButton.disabled = true;
   pauseButton.disabled = true;
-  pauseButton.textContent = 'Pause';
   pauseButton.setAttribute('aria-pressed', 'false');
   resetButton.disabled = true;
   element('[data-testid="score-p1"]').textContent = '0';
@@ -293,11 +350,10 @@ async function startGame(): Promise<void> {
         coinButton.disabled = false;
         pauseButton.disabled = false;
         resetButton.disabled = false;
-        overlay.hidden = true;
         updatePads();
         acceptSnapshot(message.snapshot);
         if (document.hidden || !document.hasFocus()) pauseGame();
-        else setClock(true);
+        else { setClock(true); showScreen('playing'); }
         break;
       case 'output':
         if (message.epoch !== clockEpoch || paused || resetting) break;
@@ -339,11 +395,11 @@ async function startGame(): Promise<void> {
 
 function insertCoin(): void {
   if (!ready || failed || resetting) return;
-  window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   // Original hardware needs an initial settled interval; the first press is retained.
   if (paused) resumeGame();
   else void trySound();
   send({ type: 'coin' });
+  focusGame();
 }
 
 function resetGame(): void {
@@ -358,6 +414,39 @@ function resetGame(): void {
   framePending = false;
   latestPixels = undefined;
   send({ type: 'reset', id: ++resetId, seed: SEED, epoch: clockEpoch, running: !paused && !document.hidden });
+}
+
+function returnToTitle(): void {
+  generation += 1;
+  soundAttempt += 1;
+  releaseInputs();
+  audio.pause();
+  worker?.terminate();
+  worker = undefined;
+  if (loadTimeout) clearTimeout(loadTimeout);
+  for (const request of snapshotRequests.values()) {
+    clearTimeout(request.timeout);
+    request.reject(new Error('Returned to title.'));
+  }
+  snapshotRequests.clear();
+  ready = false;
+  paused = false;
+  resetting = false;
+  failed = false;
+  framePending = false;
+  latestPixels = undefined;
+  lastSnapshot = undefined;
+  axes = [0, 0];
+  soundAvailable = false;
+  coinButton.disabled = true;
+  pauseButton.disabled = true;
+  pauseButton.setAttribute('aria-pressed', 'false');
+  resetButton.disabled = true;
+  updatePads();
+  updateSoundButton();
+  status.textContent = 'Choose Play Pong to start.';
+  context?.clearRect(0, 0, canvas.width, canvas.height);
+  showScreen('title');
 }
 
 function animationFrame(): void {
@@ -403,7 +492,7 @@ pads.forEach((pad, slot) => {
   pad.addEventListener('pointercancel', release);
   pad.addEventListener('lostpointercapture', release);
   pad.addEventListener('keydown', (event) => {
-    if (!ready || paused || failed || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.code)) return;
+    if (!ready || paused || failed || resetting || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.code)) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.code === 'Home') axes[slot] = AXIS_MIN;
@@ -415,7 +504,13 @@ pads.forEach((pad, slot) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (!ready || failed || event.ctrlKey || event.altKey || event.metaKey) return;
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+  if (event.code === 'Escape' && !event.repeat) {
+    if (['settings', 'help', 'about'].includes(screen)) { event.preventDefault(); closePanel(); }
+    else if (ready && !failed) { event.preventDefault(); if (paused) resumeGame(); else pauseGame(); }
+    return;
+  }
+  if (!ready || failed) return;
   const target = event.target as HTMLElement | null;
   if (target?.matches('input, textarea, select') || target?.isContentEditable) return;
   if (['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].includes(event.code)) {
@@ -425,12 +520,24 @@ document.addEventListener('keydown', (event) => {
   if (event.repeat) return;
   // Space/Enter retain native button activation while paddle keys work after a click.
   if (target?.closest('button') && ['Space', 'Enter'].includes(event.code)) return;
+  // Secondary panels own their keys; a coin shortcut must not dismiss settings
+  // or unlock audio from a non-gesture transition back to gameplay.
+  if (['settings', 'help', 'about'].includes(screen)) return;
   switch (event.code) {
     case 'Enter': event.preventDefault(); insertCoin(); break;
     case 'Space': event.preventDefault(); if (paused) void resumeGame(); else pauseGame(); break;
     case 'KeyR': event.preventDefault(); resetGame(); break;
     case 'KeyM': event.preventDefault(); muteButton.click(); break;
   }
+});
+overlay.addEventListener('keydown', (event) => {
+  if (event.code !== 'Tab') return;
+  const controls = [...overlay.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled)')]
+    .filter((control) => !control.closest<HTMLElement>('[hidden]'));
+  if (!controls.length) { event.preventDefault(); return; }
+  const index = controls.indexOf(document.activeElement as HTMLElement);
+  if (event.shiftKey && index <= 0) { event.preventDefault(); controls.at(-1)!.focus(); }
+  else if (!event.shiftKey && (index === -1 || index === controls.length - 1)) { event.preventDefault(); controls[0].focus(); }
 });
 document.addEventListener('keyup', (event) => { if (heldKeys.delete(event.code)) sendKeys(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame('Paused while you were away.'); });
@@ -440,6 +547,16 @@ playButton.addEventListener('click', () => { void startGame(); });
 element('#retry').addEventListener('click', () => { void startGame(); });
 coinButton.addEventListener('click', insertCoin);
 pauseButton.addEventListener('click', () => { if (paused) void resumeGame(); else pauseGame(); });
+resumeButton.addEventListener('click', resumeGame);
+backButton.addEventListener('click', closePanel);
+element('#return-title').addEventListener('click', returnToTitle);
+document.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const action = button.dataset.action;
+    if (action === 'title') returnToTitle();
+    else if (action === 'settings' || action === 'help' || action === 'about') openPanel(action);
+  });
+});
 resetButton.addEventListener('click', resetGame);
 muteButton.addEventListener('click', () => {
   if (!muted && !soundAvailable) { void trySound(); return; }
@@ -449,6 +566,7 @@ muteButton.addEventListener('click', () => {
   if (!muted) void trySound();
 });
 element<HTMLInputElement>('#volume').addEventListener('input', (event) => { audio.setVolume(Number((event.target as HTMLInputElement).value) / 100); });
+showScreen('title');
 requestAnimationFrame(animationFrame);
 
 if (new URLSearchParams(location.search).has('debug')) {
@@ -466,7 +584,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         timePs: state.timeps, frame: state.frame, hits: state.hits, scores: state.scores,
         runN: Number(!state.run), attractN: Number(!state.attract),
         inputs: { coin: Number(state.coin), paddle1: state.axes[0], paddle2: state.axes[1] },
-        heldKeys: [...heldKeys], pointerCount: pointers.size, paused,
+        heldKeys: [...heldKeys], pointerCount: pointers.size, paused, screen,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,
           wasmMemoryCapacityBytes: state.wasmMemoryCapacityBytes },

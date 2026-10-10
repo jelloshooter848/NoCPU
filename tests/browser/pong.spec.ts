@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Black-box browser checks. Emulated mobile browsers are not physical phones.
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -194,6 +194,76 @@ async function start(page: Page): Promise<void> {
   await waitSimulation(page, 800_000_000_000n);
 }
 
+// Follow the game-shell UI rather than clicking controls hidden in submenus.
+async function pauseMenu(page: Page): Promise<void> {
+  if (!(await snapshot(page)).paused) await page.getByTestId('pause').click();
+  if (await page.getByTestId('back').isVisible()) await page.getByTestId('back').click();
+  await expect(page.getByTestId('resume')).toBeVisible();
+}
+
+async function resumePlay(page: Page): Promise<void> {
+  if (await page.getByTestId('back').isVisible()) await page.getByTestId('back').click();
+  await page.getByTestId('resume').click();
+}
+
+async function togglePause(page: Page): Promise<void> {
+  if ((await snapshot(page)).paused) await resumePlay(page);
+  else await page.getByTestId('pause').click();
+}
+
+async function openSettings(page: Page): Promise<void> {
+  await pauseMenu(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('#volume')).toBeVisible();
+}
+
+async function openAbout(page: Page): Promise<void> {
+  if (!(await page.getByRole('button', { name: 'About', exact: true }).isVisible())) await pauseMenu(page);
+  await page.getByRole('button', { name: 'About', exact: true }).click();
+  await expect(page.getByTestId('version')).toBeVisible();
+}
+
+async function expectViewportShell(page: Page): Promise<void> {
+  const documentBounds = await page.evaluate(() => {
+    window.scrollTo({ top: 9999, left: 9999, behavior: 'instant' });
+    return {
+      width: innerWidth, height: innerHeight,
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+      scrollX, scrollY,
+    };
+  });
+  expect(documentBounds.scrollWidth).toBeLessThanOrEqual(documentBounds.width + 1);
+  expect(documentBounds.scrollHeight).toBeLessThanOrEqual(documentBounds.height + 1);
+  expect(documentBounds.scrollX, 'The game shell must not scroll horizontally').toBe(0);
+  expect(documentBounds.scrollY, 'The game shell must not scroll vertically').toBe(0);
+}
+
+async function expectUsableTarget(page: Page, testId: string, namedButton = false): Promise<void> {
+  const target = namedButton ? page.getByRole('button', { name: testId, exact: true }) : page.getByTestId(testId);
+  const bounds = await target.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(bounds, testId).not.toBeNull();
+  // Firefox can report a CSS 44px edge as 43.9999847px. This arithmetic
+  // tolerance is a thousandth of a pixel, not a smaller touch-target policy.
+  expect(bounds!.width + 0.001, testId).toBeGreaterThanOrEqual(44);
+  expect(bounds!.height + 0.001, testId).toBeGreaterThanOrEqual(44);
+  expect(bounds!.x, testId).toBeGreaterThanOrEqual(-1);
+  expect(bounds!.y, testId).toBeGreaterThanOrEqual(-1);
+  expect(bounds!.x + bounds!.width, testId).toBeLessThanOrEqual(viewport.width + 1);
+  expect(bounds!.y + bounds!.height, testId).toBeLessThanOrEqual(viewport.height + 1);
+}
+
+async function captureShellPanel(page: Page, testInfo: TestInfo, state: string): Promise<void> {
+  const original = page.viewportSize()!;
+  await expectViewportShell(page);
+  await page.screenshot({ path: testInfo.outputPath(`shell-${state}.png`) });
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expectViewportShell(page);
+  await page.screenshot({ path: testInfo.outputPath(`shell-${state}-landscape.png`) });
+  await page.setViewportSize(original);
+}
+
 test('loads genuine Wasm at the Pages base path and starts the original circuit', async ({ page }) => {
   await installAudioProbe(page);
   const wasmResponses: Promise<void>[] = [];
@@ -229,6 +299,7 @@ test('loads genuine Wasm at the Pages base path and starts the original circuit'
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.samples)).toBeGreaterThan(4800);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.nonzero)).toBeGreaterThan(0);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.transitions)).toBeGreaterThan(0);
+  await openAbout(page);
   await expect(page.getByTestId('version')).toContainText(version);
 });
 
@@ -237,19 +308,31 @@ test('pause, reset, mute and focus loss recover without stale inputs or catch-up
   await start(page);
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  await expect(page.getByTestId('mute')).toHaveAttribute('aria-label', 'Mute sound');
+  await openSettings(page);
   await expect(page.getByTestId('mute')).toHaveAccessibleName('Mute sound');
   await page.getByTestId('mute').click();
   await expect(page.getByTestId('mute')).toHaveAttribute('aria-pressed', 'true');
+  // Settings pauses the circuit and clears every source. Observe native gain
+  // after explicit Resume, when the audio graph processes its scheduled change.
+  await resumePlay(page);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.gains[0].gain.value)).toBe(0);
+  await openSettings(page);
   await page.getByTestId('mute').click();
   await expect(page.getByTestId('mute')).toHaveAttribute('aria-pressed', 'false');
+  await resumePlay(page);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.gains[0].gain.value)).toBeCloseTo(0.6);
+  await openSettings(page);
   await page.locator('#volume').focus();
   await page.keyboard.press('Home');
+  await resumePlay(page);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.gains[0].gain.value)).toBe(0);
+  await openSettings(page);
+  await page.locator('#volume').focus();
   await page.keyboard.press('End');
+  await resumePlay(page);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.gains[0].gain.value)).toBe(1);
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
   // Wait for a bounded already-running worker slice, then assert no advancement.
   await page.waitForTimeout(150);
@@ -258,7 +341,7 @@ test('pause, reset, mute and focus loss recover without stale inputs or catch-up
   await page.waitForTimeout(350);
   expect((await snapshot(page)).timeps).toBe(paused.timeps);
   expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(audioStarted);
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(async () => BigInt((await snapshot(page)).timeps) > BigInt(paused.timeps)).toBe(true);
   await page.keyboard.down('s');
@@ -269,11 +352,13 @@ test('pause, reset, mute and focus loss recover without stale inputs or catch-up
   expect((await snapshot(page)).pointerCount).toBe(0);
   await page.keyboard.up('s');
   const lostFocusAxis = (await snapshot(page)).axes[0];
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   const resumed = await snapshot(page);
   await waitSimulation(page, BigInt(resumed.timeps) + 300_000_000_000n);
   expect((await snapshot(page)).axes[0]).toBe(lostFocusAxis);
+  await pauseMenu(page);
   await page.getByTestId('reset').click();
+  await resumePlay(page);
   await expect.poll(async () => (await snapshot(page)).attract).toBe(true);
   const reset = await snapshot(page);
   expect(reset.scores).toEqual([0, 0]);
@@ -312,7 +397,7 @@ test('reset completion survives same-turn blur and resume without freezing contr
   expect((await snapshot(page)).timeps).toBe(resetPaused.timeps);
   expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(played);
   await page.keyboard.up('s');
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('paddle-p1')).toHaveAttribute('aria-disabled', 'false');
   await waitSimulation(page, 300_000_000_000n);
   expect((await snapshot(page)).attract).toBe(true);
@@ -322,11 +407,11 @@ test('reset completion survives same-turn blur and resume without freezing contr
 
   // Conversely, resuming an already-paused reset changes the clock generation
   // before its acknowledgement returns. Completion must still enable controls.
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
   await page.evaluate(() => {
     (document.querySelector('[data-testid="reset"]') as HTMLButtonElement).click();
-    (document.querySelector('[data-testid="pause"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-testid="resume"]') as HTMLButtonElement).click();
   });
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByTestId('paddle-p2')).toHaveAttribute('aria-disabled', 'false');
@@ -340,13 +425,12 @@ test('reset completion survives same-turn blur and resume without freezing contr
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
-test('simultaneous touch paddles move independently and cancellation releases held gestures', async ({ page, context, browserName }) => {
+test('simultaneous touch paddles move independently and cancellation releases held gestures', async ({ page, context, browserName }, testInfo) => {
   test.skip(browserName !== 'chromium', 'CDP supplies true simultaneous browser touch contacts; physical iPhone testing remains required.');
   await start(page);
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
   await waitSimulation(page, 1_100_000_000_000n);
-  await page.getByTestId('paddle-p1').scrollIntoViewIfNeeded();
   const p1 = await page.getByTestId('paddle-p1').boundingBox();
   const p2 = await page.getByTestId('paddle-p2').boundingBox();
   expect(p1).not.toBeNull(); expect(p2).not.toBeNull();
@@ -363,6 +447,7 @@ test('simultaneous touch paddles move independently and cancellation releases he
   await expect.poll(async () => (await snapshot(page)).axes[1]).toBeGreaterThan(8000);
   await expect.poll(async () => centered[0] - (await paddles(page))[0]).toBeGreaterThan(0.1);
   await expect.poll(async () => (await paddles(page))[1] - centered[1]).toBeGreaterThan(0.1);
+  await page.screenshot({ path: testInfo.outputPath('shell-touch-active.png') });
   const bothMoved = await paddles(page);
   const before = await snapshot(page);
   points[0].y = p1!.y + p1!.height * 0.75;
@@ -376,10 +461,36 @@ test('simultaneous touch paddles move independently and cancellation releases he
   const cancelled = await snapshot(page);
   await waitSimulation(page, BigInt(cancelled.timeps) + 300_000_000_000n);
   expect((await snapshot(page)).axes).toEqual(cancelled.axes);
+
+  // A game-menu transition must also release two actual held contacts, not
+  // merely clear the controls after an already completed touchCancel.
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  await page.getByTestId('pause').click();
+  await expect(page.getByTestId('resume')).toBeVisible();
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+  await page.waitForTimeout(150);
+  const menuPaused = await snapshot(page);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await page.waitForTimeout(200);
+  expect((await snapshot(page)).timeps).toBe(menuPaused.timeps);
+  await resumePlay(page);
+  await waitSimulation(page, BigInt(menuPaused.timeps) + 300_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(menuPaused.axes);
+  await page.setViewportSize({ width: 844, height: 390 });
+  const landscape = await Promise.all([page.getByTestId('paddle-p1').boundingBox(), page.getByTestId('paddle-p2').boundingBox()]);
+  const landscapePoints = landscape.map((bounds, slot) => ({
+    id: 31 + slot, x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height * (slot ? 0.8 : 0.2),
+  }));
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: landscapePoints });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  await page.screenshot({ path: testInfo.outputPath('shell-touch-active-landscape.png') });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
   await session.detach();
 });
 
-test('a missing Wasm asset produces an actionable error instead of simulated gameplay', async ({ page }) => {
+test('a missing Wasm asset produces an actionable error instead of simulated gameplay', async ({ page }, testInfo) => {
   // Fail real worker HTTP requests on every engine, including Firefox, where
   // Playwright route interception does not cover the worker's Wasm download.
   const fixture = await missingWasmServer();
@@ -392,6 +503,7 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
     await expect(page.getByTestId('reset')).toBeDisabled();
+    await captureShellPanel(page, testInfo, 'error');
     fixture.restore();
     await page.locator('#retry').click();
     await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
@@ -414,7 +526,7 @@ test('audio interruption and visibility loss pause safely and recover from a new
   const suspended = await snapshot(page);
   await page.waitForTimeout(250);
   expect((await snapshot(page)).timeps).toBe(suspended.timeps);
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.contexts[0].state)).toBe('running');
   // Browser automation cannot physically lock a phone. Exercise the actual
@@ -424,10 +536,10 @@ test('audio interruption and visibility loss pause safely and recover from a new
     document.dispatchEvent(new Event('visibilitychange'));
   });
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   expect((await snapshot(page)).paused).toBe(true);
   await page.evaluate(() => { delete (document as any).hidden; document.dispatchEvent(new Event('visibilitychange')); });
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect.poll(async () => (await snapshot(page)).paused).toBe(false);
   const resumed = await snapshot(page);
   await waitSimulation(page, BigInt(resumed.timeps) + 300_000_000_000n);
@@ -449,16 +561,19 @@ test('an unresolved audio resume cannot freeze play and sound retry recovers saf
   });
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
   const stopped = await snapshot(page);
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await waitSimulation(page, BigInt(stopped.timeps) + 300_000_000_000n);
-  await expect(page.getByTestId('mute')).toHaveAccessibleName('Enable sound', { timeout: 5000 });
+  await expect(page.getByTestId('mute')).toHaveAttribute('aria-label', 'Enable sound', { timeout: 5000 });
   await page.evaluate(() => {
     const target = window as any;
     target.__audioProbe.contexts[0].resume = target.__originalResume;
   });
   const beforeRetry = await page.evaluate(() => (window as any).__audioProbe.samples);
+  await openSettings(page);
+  await expect(page.getByTestId('mute')).toHaveAccessibleName('Enable sound');
   await page.getByTestId('mute').click();
+  await resumePlay(page);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.contexts[0].state)).toBe('running');
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.samples)).toBeGreaterThan(beforeRetry);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
@@ -540,7 +655,7 @@ test('a delayed valid audio activation recovers sound while play continues', asy
   const started = await page.evaluate(() => (window as any).__audioProbe.started);
   await page.evaluate((targetTime) => { (window as any).__delayedSimulationTarget = targetTime; },
     (BigInt(paused.timeps) + 300_000_000_000n).toString());
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(async () => page.evaluate(() => (window as any).__delayedResumeCompleted), { timeout: 5000 }).toBe(true);
   const timing = await page.evaluate(() => ({
@@ -566,7 +681,7 @@ test('a delayed valid audio activation recovers sound while play continues', asy
   expect(timing.pendingObservation.started).toBe(started);
   expect(elapsed, 'Exercise a valid activation beyond the former 1500 ms cutoff').toBeGreaterThan(2000);
   expect(elapsed, 'Native activation and the concurrent delay must complete within the finite recovery window').toBeLessThan(3000);
-  await expect(page.getByTestId('mute')).toHaveAccessibleName('Mute sound');
+  await expect(page.getByTestId('mute')).toHaveAttribute('aria-label', 'Mute sound');
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(started);
 });
 
@@ -586,7 +701,7 @@ test('backgrounding cancels a pending audio gesture before it completes', async 
     };
   });
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await expect.poll(async () => page.evaluate(() => typeof (window as any).__finishEarlyResume)).toBe('function');
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
@@ -603,7 +718,7 @@ test('backgrounding cancels a pending audio gesture before it completes', async 
   await page.waitForTimeout(200);
   expect((await snapshot(page)).timeps).toBe(paused.timeps);
   expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(started);
-  await page.getByTestId('pause').click();
+  await togglePause(page);
   await waitSimulation(page, BigInt(paused.timeps) + 300_000_000_000n);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(started);
 });
@@ -640,32 +755,150 @@ test('a sustained browser session generates circuit scoring and bounded media', 
   await expect.poll(async () => (await snapshot(page)).scores).toEqual([0, 0]);
 });
 
-test('portrait and landscape layouts keep the canvas and two touch controls usable', async ({ page }, testInfo) => {
+test('portrait, landscape and desktop layouts keep the court and controls in a full viewport game', async ({ page }, testInfo) => {
   await start(page);
-  for (const size of [{ width: 390, height: 844 }, { width: 390, height: 664 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
+  for (const size of [{ width: 390, height: 844 }, { width: 390, height: 664 }, { width: 320, height: 568 },
+    { width: 844, height: 390 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(size);
     await expect(page.getByTestId('game-canvas')).toBeVisible();
-    const dimensions = await page.evaluate(() => ({ viewport: innerWidth, content: document.documentElement.scrollWidth }));
-    expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
+    await expectViewportShell(page);
     const canvas = await page.getByTestId('game-canvas').boundingBox();
     expect(canvas).not.toBeNull();
     expect(canvas!.width / canvas!.height).toBeCloseTo(4 / 3, 1);
-    await page.getByTestId('game-canvas').scrollIntoViewIfNeeded();
+    const usableCourtWidth = Math.min(size.width, (size.height - 64) * 4 / 3);
+    expect(canvas!.width, 'Court uses the available viewport rather than a website card').toBeGreaterThanOrEqual(usableCourtWidth * 0.9);
     for (const id of ['game-canvas', 'paddle-p1', 'paddle-p2']) {
       const bounds = await page.getByTestId(id).boundingBox();
       expect(bounds!.y, `${id} must share the gameplay viewport`).toBeGreaterThanOrEqual(-1);
       expect(bounds!.y + bounds!.height, `${id} must share the gameplay viewport`).toBeLessThanOrEqual(size.height + 1);
     }
-    for (const id of ['paddle-p1', 'paddle-p2', 'insert-coin', 'pause', 'reset', 'mute']) {
-      const bounds = await page.getByTestId(id).boundingBox();
-      expect(bounds, id).not.toBeNull();
-      expect(bounds!.width, id).toBeGreaterThanOrEqual(44);
-      expect(bounds!.height, id).toBeGreaterThanOrEqual(44);
-      expect(bounds!.x, id).toBeGreaterThanOrEqual(-1);
-      expect(bounds!.x + bounds!.width, id).toBeLessThanOrEqual(size.width + 1);
-    }
-    await page.screenshot({ path: testInfo.outputPath(`layout-${size.width}x${size.height}.png`), fullPage: true });
+    for (const id of ['paddle-p1', 'paddle-p2', 'insert-coin', 'pause']) await expectUsableTarget(page, id);
+    await page.screenshot({ path: testInfo.outputPath(`shell-play-${size.width}x${size.height}.png`) });
+    await pauseMenu(page);
+    for (const id of ['resume', 'reset']) await expectUsableTarget(page, id);
+    for (const name of ['Settings', 'How to play', 'About']) await expectUsableTarget(page, name, true);
+    await expectViewportShell(page);
+    await page.screenshot({ path: testInfo.outputPath(`shell-pause-${size.width}x${size.height}.png`) });
+    await resumePlay(page);
   }
+});
+
+test('title and game menus support keyboard navigation without leaking gameplay input', async ({ page }, testInfo) => {
+  await installAudioProbe(page);
+  await page.goto('./?debug');
+  await expect(page.getByTestId('play-pong')).toBeVisible();
+  await captureShellPanel(page, testInfo, 'title');
+  await page.getByTestId('play-pong').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await waitSimulation(page, 800_000_000_000n);
+  expect((await snapshot(page)).attract).toBe(true);
+  await page.getByTestId('insert-coin').click();
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  await page.keyboard.down('s');
+  await expect.poll(async () => (await snapshot(page)).heldKeys).toContain('KeyS');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('resume')).toBeVisible();
+  await page.keyboard.up('s');
+  await page.waitForTimeout(150);
+  const paused = await snapshot(page);
+  expect(paused.heldKeys).toEqual([]);
+  expect(paused.pointerCount).toBe(0);
+  const started = await page.evaluate(() => (window as any).__audioProbe.started);
+  await page.keyboard.press('w');
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('button', { name: 'How to play', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  const menuState = await snapshot(page);
+  expect(menuState.timeps).toBe(paused.timeps);
+  expect(menuState.axes).toEqual(paused.axes);
+  expect(menuState.heldKeys).toEqual([]);
+  expect(menuState.coin).toBe(false);
+  expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(started);
+  await openSettings(page);
+  await expect(page.locator('#volume')).toBeVisible();
+  await expectUsableTarget(page, 'mute');
+  await captureShellPanel(page, testInfo, 'settings');
+  await page.getByTestId('back').click();
+  await page.getByRole('button', { name: 'How to play', exact: true }).click();
+  await expect(page.getByTestId('back')).toBeVisible();
+  await captureShellPanel(page, testInfo, 'help');
+  await page.getByTestId('back').click();
+  await openAbout(page);
+  await expect(page.getByTestId('version')).toContainText(version);
+  await captureShellPanel(page, testInfo, 'about');
+  const aboutViewport = page.viewportSize()!;
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.getByRole('link', { name: 'Credits & notices', exact: true }).scrollIntoViewIfNeeded();
+  for (const name of ['Source', 'GPL v3', 'Credits & notices']) {
+    const bounds = await page.getByRole('link', { name, exact: true }).boundingBox();
+    expect(bounds, name).not.toBeNull();
+    expect(bounds!.y, `${name} is reachable within About`).toBeGreaterThanOrEqual(-1);
+    expect(bounds!.y + bounds!.height, `${name} is reachable within About`).toBeLessThanOrEqual(391);
+  }
+  await expectViewportShell(page);
+  await page.screenshot({ path: testInfo.outputPath('shell-about-landscape-source-links.png') });
+  await page.getByTestId('back').scrollIntoViewIfNeeded();
+  await expectUsableTarget(page, 'back');
+  await expectViewportShell(page);
+  await page.screenshot({ path: testInfo.outputPath('shell-about-landscape-back.png') });
+  await page.setViewportSize(aboutViewport);
+  await page.getByTestId('back').click();
+  expect((await snapshot(page)).paused).toBe(true);
+  // The contextual dialog contains keyboard focus, including wrap-around.
+  for (const key of ['Tab', 'Shift+Tab']) {
+    for (let step = 0; step < 8; step += 1) {
+      await page.keyboard.press(key);
+      expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
+    }
+  }
+  await page.getByTestId('resume').focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await snapshot(page)).paused).toBe(false);
+  await waitSimulation(page, BigInt(paused.timeps) + 300_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(paused.axes);
+});
+
+test('returning to the title stops playback and starting again creates a fresh circuit', async ({ page }, testInfo) => {
+  await installAudioProbe(page);
+  await start(page);
+  await page.getByTestId('insert-coin').click();
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.samples)).toBeGreaterThan(4800);
+  await page.keyboard.down('s');
+  await expect.poll(async () => (await snapshot(page)).heldKeys).toContain('KeyS');
+  await waitSimulation(page, 2_000_000_000_000n);
+  const old = await snapshot(page);
+  await pauseMenu(page);
+  await page.getByTestId('return-title').click();
+  await page.keyboard.up('s');
+  await expect(page.getByTestId('play-pong')).toBeVisible();
+  await expect(page.getByTestId('insert-coin')).toBeHidden();
+  await expectViewportShell(page);
+  const played = await page.evaluate(() => (window as any).__audioProbe.started);
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(played);
+  expect(await page.evaluate(async () => {
+    try { await (window as any).__nocpuDebug.snapshot(); return false; }
+    catch { return true; }
+  }), 'Returning to title disposes the old circuit observation').toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('shell-returned-title.png') });
+  await page.getByTestId('play-pong').click();
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await waitSimulation(page, 800_000_000_000n);
+  const fresh = await snapshot(page);
+  expect(fresh.attract).toBe(true);
+  expect(fresh.run).toBe(false);
+  expect(fresh.scores).toEqual([0, 0]);
+  expect(fresh.axes).toEqual([0, 0]);
+  expect(fresh.coin).toBe(false);
+  expect(fresh.heldKeys).toEqual([]);
+  expect(fresh.pointerCount).toBe(0);
+  expect(BigInt(fresh.timeps)).toBeLessThan(BigInt(old.timeps));
+  await page.getByTestId('insert-coin').click();
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(played);
 });
 
 test('distributed assets, source and notices match the build manifest', async ({ request, page }) => {
@@ -693,6 +926,12 @@ test('distributed assets, source and notices match the build manifest', async ({
   expect(paths.has('notices/THIRD_PARTY_NOTICES.md')).toBe(true);
   expect([...paths].some((path) => path.endsWith('.wasm'))).toBe(true);
   await page.goto('./');
+  await openAbout(page);
   await expect(page.getByTestId('version')).toContainText(manifest.version);
   await expect(page.getByTestId('version')).toContainText(manifest.buildId);
+  const base = new URL(page.url()).pathname;
+  await expect(page.getByRole('link', { name: 'Source', exact: true })).toHaveAttribute('href', `${base}${manifest.source_archive.path}`);
+  await expect(page.getByRole('link', { name: 'GPL v3', exact: true })).toHaveAttribute('href', `${base}notices/LICENSE`);
+  await expect(page.getByRole('link', { name: 'Credits & notices', exact: true })).toHaveAttribute('href', `${base}notices/THIRD_PARTY_NOTICES.md`);
+  await expect(page.getByRole('link', { name: 'DICE', exact: true })).toBeVisible();
 });

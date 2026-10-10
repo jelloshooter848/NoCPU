@@ -39,13 +39,24 @@ bounded and expose overrun observations. See [PORT_PONG.md](PORT_PONG.md) and
 [`core/README.md`](../core/README.md) for the adaptation and ABI details.
 
 The browser uses a dedicated single-threaded worker without shared memory.
-The page sends ordered input and bounded advance requests, with only one
-advance in flight. The worker copies frame and PCM data before transferring
-them. Canvas presents the frame; gesture-unlocked Web Audio plays the actual
-circuit samples. Pause, reset, lost visibility and audio interruption stop or
-flush presentation work rather than accumulating hidden simulation time.
+The page sends ordered control and input requests; the worker owns the bounded
+simulation clock independently of Canvas presentation cadence. The worker
+copies frame and PCM data before transferring them with bounded outstanding
+output. Canvas presents the frame; gesture-unlocked Web Audio plays the actual
+circuit samples. Pause, reset and lost visibility stop or flush work rather
+than accumulating hidden simulation time. Interruption of active audio flushes
+stale playback and pauses the circuit until explicit Resume. Bounded initial
+audio activation failure permits play with an Enable sound retry; simulation
+does not depend on that activation succeeding.
 Pointer capture assigns each simultaneous touch to its own paddle; cancellation
 and blur release held inputs. See [`web/README.md`](../web/README.md).
+
+The Pong frontend is a viewport game shell with title, loading, play, paused
+menu, settings, help, About and recoverable-error states. In play, its compact
+coin/menu controls surround the original 4:3 circuit raster. Settings and
+project/source information belong in game panels rather than permanent page
+sections. Opening a menu releases active inputs and pauses the circuit;
+returning from a panel does not resume until the player chooses Resume.
 
 The static Vite production build defaults to the `/NoCPU/` GitHub Pages project
 path. Release packaging supplies notices and matching source alongside the

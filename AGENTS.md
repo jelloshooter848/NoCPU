@@ -28,4 +28,8 @@
 
 ## Collaboration
 
-Split parallel work by file ownership and agree command/data contracts before editing shared files. Review integrated results and send incomplete or incorrect work back for correction. Keep bug reports reproducible and focused on one issue; follow [bug-reports/README.md](bug-reports/README.md).
+The root agent is the orchestrator: break the user's goal into incremental roadmap tasks, assign implementation and investigation to agents, decide review outcomes, and remain available for user messages. Delegate coding, technical analysis, tests, CI polling, repairs and release execution. After assignment, wait for agent reports or user steering rather than taking on an individual implementation task. Assign completed work to another agent for independent review; route required repairs back to an agent and repeat review until the acceptance criteria pass.
+
+Split parallel work by file ownership and agree command/data contracts before editing shared files. Agents report concise, timestamped milestones, acceptance results, blockers and the next action. State whether each assignment is running, waiting on a named dependency, or complete. Keep detailed logs and analysis in ignored `build/` evidence so the orchestrator can retain broad project context without carrying raw technical output. Do not imply that work or monitoring continues when no agent or external job is running.
+
+Keep bug reports reproducible and focused on one issue; follow [bug-reports/README.md](bug-reports/README.md).

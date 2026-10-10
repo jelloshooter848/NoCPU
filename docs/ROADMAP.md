@@ -94,6 +94,16 @@ limits. Actual Android Chrome and iPhone Safari gameplay, speaker audio and
 sustained performance remain pending. The final tag is blocked until those
 physical-device gates are satisfied for the full deployed runtime.
 
+The initial preview's page-style presentation did not meet the intended SMBC
+game experience. The scoped [shell correction](0.2.0_TASKS.md#game-first-shell-correction)
+belongs to 0.2.0: title, loading, gameplay, pause/settings/help/About and errors
+fill the viewport as game states. The original 4:3 Pong raster is the play
+surface; coin/menu controls stay compact, touch paddles are contextual, and
+attribution/source remain available through About. Normal browser-tab play
+must work without document scrolling or mandatory fullscreen. This correction
+does not add games, ROM import or replacement engine behavior. Automated and
+physical-device qualification must identify the revised runtime.
+
 1. Extract create/destroy/reset/input/advance/video/audio/ROM interfaces individually, preserving the event scheduler and integer timing.
 2. Remove Qt, native window creation, device audio, host filesystem assumptions and blocking wall-clock waits from the browser core. Keep simulation time separate from browser presentation time. Picosecond counters stay in C++/Wasm; do not pass them through imprecise JavaScript Number values.
 3. Build a native headless reference runner and Emscripten WebAssembly target using the same adapted core. Characterize event-boundary overshoot before changing stepping behavior.
