@@ -82,7 +82,15 @@ Use a root package manifest/lockfile for browser tooling when introduced, pinned
 
 Exit: source provenance and distribution requirements recorded; native Pong reference includes real controls and captured audio, not just an attract-screen image; repository can be built from documented prerequisites.
 
-### 0.2 — Engine boundary and first browser/phone proof
+### 0.2.0 — Engine boundary and first browser/phone proof
+
+Implementation is in progress with a Pong-only C++/Wasm core, TypeScript
+frontend and GitHub Actions Pages delivery. See [0.2.0_TASKS.md](0.2.0_TASKS.md)
+for individual tasks and [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for actual
+results. A reviewed Pages preview may support real-phone testing before the
+final release; it must include notices and matching source and keep pending
+device results explicit. The final tag is blocked until the agreed physical
+Android/iPhone gates are satisfied for the full deployed runtime.
 
 1. Extract create/destroy/reset/input/advance/video/audio/ROM interfaces individually, preserving the event scheduler and integer timing.
 2. Remove Qt, native window creation, device audio, host filesystem assumptions and blocking wall-clock waits from the browser core. Keep simulation time separate from browser presentation time. Picosecond counters stay in C++/Wasm; do not pass them through imprecise JavaScript Number values.
@@ -157,7 +165,7 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The 0.1.0 repository foundation, upstream attribution/patch policy, 21-game matrix, native reference tooling and build/release scaffolding have completed review. The next implementation milestone is 0.2: a minimal Pong-only browser prototype that reaches physical Android/iPhone testing before investing in the complete arcade UI. The 0.1.0 deliverable is the repository foundation with measured native Pong evidence. The first browser milestone, 0.2, adds a playable URL with verified coin/start, two paddles, ball/scoring, sound and reset.
+The 0.1.0 repository foundation, upstream attribution/patch policy, 21-game matrix, native reference tooling and build/release scaffolding have completed review. The active implementation milestone is 0.2.0: a minimal Pong-only browser app that reaches physical Android/iPhone testing before the complete arcade UI. It adds a playable Pages URL with verified coin/start, two paddles, ball/scoring, circuit sound and reset. Complete its implementation, independent reviews and device qualification before expanding to the 0.3 library interface.
 
 ## After 1.0 — preservation and expansion
 

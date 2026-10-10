@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "version": "0.2.0",
+  "release_ready": true,
+  "assessment_scope": "Pong-only browser frontend and generated JS/Wasm. Excludes native binaries, toolchain containers, ROMs and unbuilt games.",
+  "combined_distribution_license": "GPL-3.0-only",
+  "blockers": [],
+  "notices": [
+    {
+      "path": "docs/licenses/Apple-HID-Utilities.txt",
+      "sha256": "83fa77af890b129524013dca68a3c11b9c39306306878685b32500eebf85975c"
+    },
+    {
+      "path": "docs/licenses/ManyMouse-zlib.txt",
+      "sha256": "d0a8fd6576bfa68b99ede5b205e29b8f2aa8b700c102ad04c77ee9481f8dc16c"
+    },
+    {
+      "path": "docs/licenses/bsnes-088-debian-copyright.txt",
+      "sha256": "8acdf46114e7a8af7c55f856acce3286fb1c9fd170af02116d9ea4249a0543ac"
+    },
+    {
+      "path": "docs/licenses/higan-094-debian-copyright.txt",
+      "sha256": "a669376d0b99afa273b0f586b3b943d003be73a30fe8be0b3a48b6b9392f8f3e"
+    },
+    {
+      "path": "docs/licenses/higan-094-emulator.hpp.txt",
+      "sha256": "00f29306022dd15939b56f5debf76ccc6dc74e1a1d92a539a5737c3d83e1bfa2"
+    },
+    {
+      "path": "docs/licenses/higan-2020-license.txt",
+      "sha256": "77e89cf36c59a028664345e38d81bc06d80dd178a41e92e1369eb4e1671811cf"
+    },
+    {
+      "path": "docs/licenses/puff-zlib.txt",
+      "sha256": "b63a82ec6a1be554ab3c286f6c62a40ffb0194a478ebe117f27274b0246d4d59"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "5f631fae467c82b8cd28fd1ec425c816895a35f9d94e36bee0e0164570e8e0f6"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "4617cd9d7ca645ea281db15cafdfaf3cb64242c9921442f383582b5660d0e54d"
+    },
+    {
+      "path": "upstream/dice-0.9/README.txt",
+      "sha256": "1f0de8d2d142ae2078df8704e27b3d3eebdad0d13eb44ba77b8fcffae70849e9"
+    },
+    {
+      "path": "upstream/dice-0.9/LICENSE.txt",
+      "sha256": "5f631fae467c82b8cd28fd1ec425c816895a35f9d94e36bee0e0164570e8e0f6"
+    },
+    {
+      "path": "upstream/dice-0.9/manymouse/LICENSE.txt",
+      "sha256": "d0a8fd6576bfa68b99ede5b205e29b8f2aa8b700c102ad04c77ee9481f8dc16c"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-AUTHORS.txt",
+      "sha256": "56f7df65203d4858dac19cafe3a84a8c49abaff56b67d32d2d463d5fef6e440b"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-LICENSE.txt",
+      "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86"
+    },
+    {
+      "path": "docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt",
+      "sha256": "a9901f47a089da41e4690682d00ce4cedaa2baf41fedbe79beee366d43ac2461"
+    },
+    {
+      "path": "docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt",
+      "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxx-3.1.74-CREDITS.txt",
+      "sha256": "054e099bf5954c8821b880f5751d2fbf221bf43cf7c57ac1c2c5ff6263d6d9c3"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxx-3.1.74-LICENSE.txt",
+      "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt",
+      "sha256": "a259fff28a51623f14917dd68f97f3af7804984087ddc1bfd8196d08ebb75b83"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt",
+      "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
+    },
+    {
+      "path": "docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt",
+      "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+    },
+    {
+      "path": "docs/licenses/Vite-7.3.1-LICENSE.md",
+      "sha256": "2ef0b8a67599690e6abccc21a3678b54457b420fb402654112d45c4e71cce364"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-RUNTIME-NOTICES.txt",
+      "sha256": "361bec4f91674bc2b9d05fe9de61e2330ef7226f855d2bfafffcaaac1cb47695"
+    },
+    {
+      "path": "docs/licenses/dlmalloc-2.8.6-NOTICE.txt",
+      "sha256": "10c381581033c38d8adfab9100367b60099273a6e0fe395181224478c275277c"
+    }
+  ],
+  "components": [
+    {
+      "scope": "Original-derived Pong circuit, portable adapters and browser frontend",
+      "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
+      "basis": "tests/license-audit.json and docs/PROVENANCE.md"
+    },
+    {
+      "scope": "Emscripten generated JS, runtime and support code",
+      "version": "3.1.74",
+      "license": "MIT option of MIT / NCSA dual license",
+      "basis": "Exact installed LICENSE/AUTHORS and conservative original runtime-header notices retained; source tag commit matches installed compiler identity.",
+      "source_commit": "1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5",
+      "emsdk_commit": "3d6d8ee910466516a53e665b86458faa81dae9ba",
+      "release_bundle": "c2655005234810c7c42e02a18e4696554abe0352"
+    },
+    {
+      "scope": "LLVM libc++, libc++abi and compiler-rt object portions",
+      "version": "bundled with Emscripten 3.1.74",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "basis": "Exact installed LICENSE.TXT and CREDITS.TXT retained; compilation exception does not change DICE GPL source obligations"
+    },
+    {
+      "scope": "musl libc and linked math routines",
+      "version": "bundled with Emscripten 3.1.74",
+      "license": "MIT with individual permissive notices retained where linked",
+      "basis": "Exact installed COPYRIGHT; current linker math members __fpclassifyl, copysignl, fabsl, fmodl, frexp, lroundf, roundf, scalbn, scalbnl have no additional license headers and are covered by musl COPYRIGHT. No separately licensed Arm/Sun math routines in current linker map."
+    },
+    {
+      "scope": "Vite injected browser helpers",
+      "version": "7.3.1",
+      "license": "MIT",
+      "basis": "Exact npm package LICENSE.md retained; no application runtime dependency imports"
+    },
+    {
+      "scope": "dlmalloc allocator compiled into Wasm",
+      "version": "2.8.6 bundled with Emscripten 3.1.74",
+      "license": "CC0 / public-domain dedication for original dlmalloc; Emscripten modifications MIT",
+      "basis": "Exact Doug Lea notice excerpt and Emscripten support notices retained"
+    }
+  ],
+  "corresponding_source": {
+    "required": true,
+    "same_revision": true,
+    "path": "source/nocpu-0.2.0-source.tar.gz",
+    "delivery": "Included in every preview and final Pages artifact and linked visibly in app. Archive contains original DICE, adapters, frontend, scripts, pinned dependency lockfiles and notices."
+  },
+  "evidence": [
+    {
+      "kind": "source-tag-identity",
+      "url": "https://github.com/emscripten-core/emscripten/tree/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5",
+      "detail": "git ls-remote refs/tags/3.1.74 resolves to installed compiler source commit 1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5."
+    },
+    {
+      "kind": "sdk-identity",
+      "url": "https://github.com/emscripten-core/emsdk/tree/3d6d8ee910466516a53e665b86458faa81dae9ba",
+      "detail": "Pinned emsdk maps version3.1.74 to release bundle c2655005234810c7c42e02a18e4696554abe0352; installer rejects changed/wrong SDK checkout."
+    },
+    {
+      "kind": "installed-toolchain-notice-byte-comparison",
+      "detail": "All nine primary Emscripten/LLVM/musl license and author files match installed Emscripten3.1.74 bytes; supplemental original runtime copyright headers and dlmalloc dedication retained."
+    },
+    {
+      "kind": "compiler-dependencies",
+      "path": "build/core/wasm/dependencies.mk",
+      "sha256": "76dd4f25eccf5f77a9450464b063fadaa281a6f703f1284e9fa1205bfce1e8ae",
+      "detail": "Concrete project dependency inventory excludes Qt,SDL,GL,ManyMouse,nall,Phoenix. Own minimal phoenix::Keyboard stub is not the archived Phoenix library."
+    },
+    {
+      "kind": "wasm-build-provenance",
+      "path": "build/core/wasm/build-provenance.json",
+      "sha256": "e9333cf014850e7fed74c4a1f257b6287be5818f309c9e64d9dc4845219097b5",
+      "detail": "Thirty-one Pong/adapters translation units; original netlist/scheduler/chips plus maintained boundaries. Full compiler/linker flags retained."
+    },
+    {
+      "kind": "linked-runtime-inventory",
+      "path": "build/core/wasm/linker.map",
+      "sha256": "fb1a087018ab93829bea0f91f2c50a09bdd38c44c49cf3456b8f31b1fb65f1bc",
+      "detail": "Seven archives libc++.a,libc++abi.a,libc.a,libcompiler_rt.a,libdlmalloc.a,libnoexit.a,libstubs.a. Linked math has no additional per-file terms."
+    },
+    {
+      "kind": "frontend-output-inventory",
+      "path": "build/web-provenance.json",
+      "sha256": "fbde7d2333cab80472eef375acff83ec25a2f340b5b94e9ff19945cf1839724a",
+      "detail": "Actual Vite production output consists of ownfrontend/worker/CSS/icon/HTML and EmscriptenJS/Wasm; injected Vite helpers retain MIT notice. No application runtime dependency imports."
+    },
+    {
+      "kind": "vite-npm-notice",
+      "path": "docs/licenses/Vite-7.3.1-LICENSE.md",
+      "detail": "Byte copy of package-lock-pinned node_modules/vite/LICENSE.md; full bundled notices retained conservatively."
+    },
+    {
+      "kind": "corresponding-source-contract",
+      "path": "tools/package-web.py",
+      "detail": "Preview/final artifacts include matching wholeproject source archive and complete notice tree; frontend Source links directly to the included available archive."
+    }
+  ],
+  "excluded_components": [
+    "Qt",
+    "SDL",
+    "OpenGL",
+    "X11",
+    "ManyMouse",
+    "Phoenix library",
+    "nall library",
+    "game ROMs",
+    "other twenty DICE games",
+    "SDK/compiler/container payloads",
+    "Node/TypeScript/Playwright executables"
+  ],
+  "independent_review": {
+    "result": "passed",
+    "scope": "Concrete Pong browser component/notice/source assessment; excludes physical phone readiness, native binaries, SDK/container distribution and other games.",
+    "evidence": "Independent toolchain reviewer compared nine primary SDK notices and Vite license byte-for-byte, reviewed seven linked runtime families, nine musl math member sources, dependency exclusions and matching-source packaging contract. Compiled input count corrected to31 before qualification."
+  }
+}

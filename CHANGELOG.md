@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 — prepared locally
+
+Pong browser preview with the preserved DICE circuit compiled to WebAssembly:
+
+- Add keyboard and independent simultaneous touch paddles, coin insertion, pause/resume, reset, mute, volume, and audio recovery.
+- Preserve integer simulation time, circuit scheduling, video and generated PCM, with original/native/Wasm replay comparisons and reset checks.
+- Provide browser engine tests and a source-matched Pages package with component notices, runtime hashes, and corresponding-source downloads.
+- Verify a reviewed preview before explicit GitHub Actions deployment; require matching physical Android Chrome and iPhone Safari evidence before final release publication.
+
+Physical-phone gameplay, audible speaker output, and sustained performance
+remain pending. Preview builds are identified separately from a final release;
+no final `v0.2.0` tag or release has been published.
+
 ## 0.1.0 — 2026-10-10 (release candidate, UTC)
 
 Initial preservation and development foundation for NoCPU:

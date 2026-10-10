@@ -5,7 +5,7 @@ GPL-3.0-or-later. NoCPU-owned files derived from that work use the same grant.
 Root [`LICENSE`](LICENSE) contains the complete GPL version 3 text, copied
 unchanged from DICE 0.9. The historical library copies below are conservatively
 distributed under GPL version 3 where supported by their historical package
-evidence. The combined 0.1.0 source distribution therefore uses **GPL version
+evidence. The combined source distribution therefore uses **GPL version
 3**, preserving each component's individual notices and exceptions.
 
 ## Bundled source inventory
@@ -67,3 +67,30 @@ source-package audit does not clear redistribution of a toolchain container.
 
 ROM images and game trademarks are not licensed by DICE's GPL grant. Private
 test ROMs are excluded from this repository and its release archives.
+
+## Pong browser runtime
+
+The 0.2.0 Pong port retains DICE's simulation and replaces native input,
+presentation and device-audio access with maintained adapters. The separately
+reviewed [browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) and
+[`tests/browser-license-audit.json`](tests/browser-license-audit.json) cover the
+exact compiled browser artifact; the original source inventory above does not
+mean every archived GUI or device library is linked into it.
+
+The browser build uses the following retained permissive runtime notices:
+
+| Component | Author attribution and terms | Complete retained notices |
+| --- | --- | --- |
+| Emscripten 3.1.74 generated JavaScript and runtime support | Emscripten authors; MIT option of MIT/NCSA dual license | [LICENSE](docs/licenses/Emscripten-3.1.74-LICENSE.txt) and [AUTHORS](docs/licenses/Emscripten-3.1.74-AUTHORS.txt) |
+| LLVM libc++ | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-libcxx-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-libcxx-3.1.74-CREDITS.txt) |
+| LLVM libc++abi | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt) |
+| LLVM compiler-rt | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt) |
+| Emscripten's bundled musl libc | Rich Felker and contributors; MIT plus individual permissive routine terms | [COPYRIGHT](docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt); linked math notices are recorded by the browser assessment |
+| Vite 7.3.1 browser helpers | VoidZero Inc. and Vite contributors; MIT | [Exact package license and bundled dependency notices](docs/licenses/Vite-7.3.1-LICENSE.md) |
+
+The LLVM compilation exception is retained in each complete license. These
+permissive components do not replace the combined application's GPLv3 source
+requirements. Browser source downloads and notices must accompany previews as
+well as final deployments. The SDK/compiler, Node.js, TypeScript, bundlers and
+browser automation installations themselves are build/test tools, not public
+runtime payloads.

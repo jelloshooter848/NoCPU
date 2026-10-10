@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "version": "0.2.0",
+  "release_stage": "preview",
+  "release_ready": false,
+  "runtime_sha256": null,
+  "blockers": [
+    "Physical Android Chrome gameplay, audio and sustained performance have not been tested.",
+    "Physical iPhone Safari gameplay, audio and sustained performance have not been tested."
+  ],
+  "devices": [
+    {
+      "platform": "Android",
+      "status": "pending",
+      "physical": true,
+      "model": null,
+      "os_version": null,
+      "browser": null,
+      "browser_version": null,
+      "tested_at": null,
+      "build_id": null,
+      "runtime_sha256": null,
+      "checks": {},
+      "performance": null,
+      "evidence": null
+    },
+    {
+      "platform": "iPhone",
+      "status": "pending",
+      "physical": true,
+      "model": null,
+      "os_version": null,
+      "browser": null,
+      "browser_version": null,
+      "tested_at": null,
+      "build_id": null,
+      "runtime_sha256": null,
+      "checks": {},
+      "performance": null,
+      "evidence": null
+    }
+  ],
+  "required_checks": [
+    "coin_starts_play",
+    "independent_simultaneous_touch_paddles",
+    "ball_contacts_and_scoring",
+    "audible_circuit_sound",
+    "pause_resume_and_reset",
+    "mute_unmute_and_audio_recovery",
+    "portrait_landscape_layout",
+    "touch_cancel_and_background_recovery"
+  ],
+  "performance_requirements": {
+    "minimum_session_seconds": 600,
+    "minimum_simulation_speed_ratio": 0.95,
+    "record": [
+      "session_seconds",
+      "simulation_seconds",
+      "wall_seconds",
+      "simulation_speed_ratio",
+      "frame_pacing",
+      "audio_underruns",
+      "memory_start_bytes",
+      "memory_end_bytes",
+      "input_response"
+    ]
+  }
+}

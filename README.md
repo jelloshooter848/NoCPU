@@ -2,17 +2,31 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
-**0.1.0 establishes the repository and a measurable native reference. Browser and mobile play begin with the 0.2 milestone.** There is no NoCPU browser build or public play URL yet. See the [roadmap](docs/ROADMAP.md) for milestone gates and [changelog](CHANGELOG.md) for release status.
+**0.2.0 is in development: ROM-free Pong is the first browser game.** The port keeps DICE's C++ circuit simulation and adapts its display, inputs and generated sound to WebAssembly and browser APIs. Local automated qualification and independent reviews pass; Pages deployment and physical-phone qualification remain pending. The [0.2.0 validation report](docs/0.2.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the evidence, scope and release status.
+
+The planned play URL is the [GitHub Pages Pong preview](https://jelloshooter848.github.io/NoCPU/). Its deployment is pending; the final 0.2.0 release also requires physical Android Chrome and iPhone Safari qualification.
 
 ## Start here
 
-- [0.1.0 qualification and review results](docs/0.1.0_VALIDATION.md)
-- [Build and validation instructions](docs/TESTING.md), [0.1.0 task breakdown](docs/0.1.0_TASKS.md), and [validation report](docs/0.1.0_VALIDATION.md)
+- [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)
+- [Build and validation instructions](docs/TESTING.md) and [0.1.0 native foundation results](docs/0.1.0_VALIDATION.md)
 - [Game compatibility and validation matrix](docs/GAME_COMPATIBILITY.md)
 - [ROM requirements and private test fixtures](docs/ROMS.md)
 - [Architecture and platform boundaries](docs/ARCHITECTURE.md)
 - [Source provenance](docs/PROVENANCE.md) and [third-party notices](THIRD_PARTY_NOTICES.md)
 - [Contributing](CONTRIBUTING.md), [bug reports](bug-reports/README.md), and [releasing](docs/RELEASING.md)
+
+## Browser development
+
+Install the prerequisites in [TESTING.md](docs/TESTING.md), then run:
+
+```sh
+./tools/install-web-toolchain.sh
+npm run build
+npm run preview -- --host 127.0.0.1
+```
+
+Open `http://127.0.0.1:4173/NoCPU/`. Choose **Play Pong**, then **Insert coin**. Player 1 uses **W/S** and player 2 uses **Up/Down**, or drag the two touch controls independently. Pause, reset, mute and volume controls are available on the page. Pong needs no ROM file.
 
 ## Native foundation
 
@@ -43,8 +57,8 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 | Path | Purpose |
 | --- | --- |
 | `upstream/dice-0.9/` | Original DICE source, kept independently identifiable and checked against an inventory |
-| `core/` | Boundaries for future NoCPU engine adapters and documented port changes |
-| `web/` | Boundaries for the future browser frontend; no browser runtime in 0.1.0 |
+| `core/` | Headless Pong interface and documented adaptations of the original engine |
+| `web/` | Pong browser frontend, touch/keyboard controls, rendering and audio delivery |
 | `tools/` | Source/game/ROM audits, native builds, reference capture, and release checks |
 | `tests/` | Audited metadata and controlled reference scenarios |
 | `docs/` | Architecture, provenance, compatibility, testing, releases, and roadmap |
@@ -53,6 +67,6 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 
 ## Credit and license
 
-DICE is copyright © 2008–2014 DICE Team and licensed under GPL-3.0-or-later. Component-specific terms remain applicable: the historical nall/Phoenix licensing evidence supports GPL version 3, so the combined 0.1.0 distribution conservatively uses GPL version 3 rather than assuming every component permits later versions. Read [LICENSE](LICENSE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [PROVENANCE.md](docs/PROVENANCE.md) for the retained notices and release audit.
+DICE is copyright © 2008–2014 DICE Team and licensed under GPL-3.0-or-later. Component-specific terms remain applicable: historical nall/Phoenix licensing evidence supports GPL version 3, so the combined source distribution conservatively uses GPL version 3 rather than assuming every component permits later versions. Read [LICENSE](LICENSE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [PROVENANCE.md](docs/PROVENANCE.md) for retained notices. The [browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) separately records the components linked into the Pong JS/Wasm build and its matching-source delivery gate.
 
 [DICE on SourceForge](https://sourceforge.net/projects/dice/) supplies the historical source. [DirtBagXon/DICE](https://github.com/DirtBagXon/DICE) is an adaptation reference. [Super Mario Bros. Crossover REMIX](https://github.com/jelloshooter848/SMBC) informs the repository, release, controls, and bug-report conventions. NoCPU preserves DICE's circuit simulator rather than copying SMBC's game engine or license.

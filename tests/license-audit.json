@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release_ready": true,
-  "assessment_scope": "NoCPU 0.1.0 source-only distribution. Does not clear binaries, Wasm, ROMs or toolchain containers.",
+  "assessment_scope": "NoCPU source-only distribution, including original DICE and maintained adapters/frontend/build scripts. Does not clear compiled binaries, Wasm, ROMs or toolchain containers; browser distribution has its own audit.",
   "combined_distribution_license": "GPL-3.0-only",
   "original_dice_license": "GPL-3.0-or-later",
   "nocpu_owned_files_license": "GPL-3.0-or-later",
@@ -51,6 +51,54 @@
     },
     {
       "path": "upstream/dice-0.9/manymouse/LICENSE.txt"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-AUTHORS.txt",
+      "sha256": "56f7df65203d4858dac19cafe3a84a8c49abaff56b67d32d2d463d5fef6e440b"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-LICENSE.txt",
+      "sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86"
+    },
+    {
+      "path": "docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt",
+      "sha256": "a9901f47a089da41e4690682d00ce4cedaa2baf41fedbe79beee366d43ac2461"
+    },
+    {
+      "path": "docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt",
+      "sha256": "1a8f1058753f1ba890de984e48f0242a3a5c29a6a8f2ed9fd813f36985387e8d"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxx-3.1.74-CREDITS.txt",
+      "sha256": "054e099bf5954c8821b880f5751d2fbf221bf43cf7c57ac1c2c5ff6263d6d9c3"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxx-3.1.74-LICENSE.txt",
+      "sha256": "539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt",
+      "sha256": "a259fff28a51623f14917dd68f97f3af7804984087ddc1bfd8196d08ebb75b83"
+    },
+    {
+      "path": "docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt",
+      "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
+    },
+    {
+      "path": "docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt",
+      "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
+    },
+    {
+      "path": "docs/licenses/Vite-7.3.1-LICENSE.md",
+      "sha256": "2ef0b8a67599690e6abccc21a3678b54457b420fb402654112d45c4e71cce364"
+    },
+    {
+      "path": "docs/licenses/Emscripten-3.1.74-RUNTIME-NOTICES.txt",
+      "sha256": "361bec4f91674bc2b9d05fe9de61e2330ef7226f855d2bfafffcaaac1cb47695"
+    },
+    {
+      "path": "docs/licenses/dlmalloc-2.8.6-NOTICE.txt",
+      "sha256": "10c381581033c38d8adfab9100367b60099273a6e0fe395181224478c275277c"
     }
   ],
   "evidence": [

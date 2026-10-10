@@ -16,6 +16,135 @@ python3 tools/audit-roms.py
 
 The foundation check audits the repository contracts. Game and ROM audits compare source declarations with tracked metadata without requiring game ROM payloads. `audit-roms.py` checks actual archive bytes only when `--rom-dir` is supplied. Read their output: metadata consistency does not establish that a title loads, plays, or has accurate sound. The [compatibility matrix](GAME_COMPATIBILITY.md) is the record of per-game evidence.
 
+```sh
+make test
+```
+
+This runs repository integrity checks and source-release, game/ROM-metadata and
+reference-analysis regressions. Without captured artifacts, seven actual
+reference-mutation cases are skipped while their fourteen timing/input unit
+checks run. After the native capture, enable those cases explicitly:
+
+```sh
+python3 tests/test-reference-analysis.py --reference-dir build/reference
+```
+
+The CI browser qualification runs this command immediately after its fresh
+capture. It verifies that incomplete real media or altered replay logs are
+rejected, using disposable copies under ignored `build/audit-reference/`.
+Browser/core tests below have additional prerequisites.
+
+## Pong portable core and browser
+
+The browser tools require Node.js 22.12 or newer, npm, Python 3.10 or newer,
+Bash 4 or newer, Git and a native C++14 compiler such as GCC. Emscripten 3.1.74
+is the pinned Wasm compiler. Browser automation also needs the platform
+libraries required by Playwright Chromium, Firefox and WebKit. The historical
+Qt4 container is needed for the original comparison, not normal browser play.
+
+Install frozen npm dependencies and the pinned Wasm toolchain, then build:
+
+```sh
+./tools/install-web-toolchain.sh
+./tools/build-core.sh all
+npm run build:web
+npm run preview -- --host 127.0.0.1
+```
+
+The installer runs `npm ci`, installs the pinned SDK commit and activates
+Emscripten 3.1.74. Open `http://127.0.0.1:4173/NoCPU/` after building.
+`npm run dev` starts a development server after Wasm files have been built;
+`npm run build` rebuilds Wasm, checks TypeScript and produces the Vite runtime.
+The production base defaults to `/NoCPU/`; `NOCPU_BASE_PATH` can select another
+absolute path ending in `/`. The package lock pins npm dependency versions and
+integrity hashes.
+
+`build-core.sh native`, `wasm` and `all` select targets. It regenerates
+`build/core/source`, then records the adapter diff, compiled source list,
+dependency list, linker map, compiler version, flags and input/output hashes
+under `build/core/`. Do not run simultaneous core builds against that shared
+generated directory. The Wasm target also copies its generated module into
+ignored `web/public/core/` for Vite. Build artifacts remain outside tracked
+source.
+
+The app offers Play Pong, Insert coin, independent W/S and Up/Down paddle
+controls, two simultaneous touch controls, pause/resume, reset, mute and volume.
+Pong requires no ROM import. Broader game selection, remapping, gamepads and
+ROM storage remain later milestones.
+
+### Original, portable-native and Wasm comparison
+
+First build and capture the historical reference using the native commands
+below. After `build-core.sh all`, run:
+
+```sh
+build/core/native/pong-runner --output build/core/native-evidence --replay tests/replays/pong.tsv --seed 848 --epochs 2
+node tools/replay-core.mjs
+python3 tools/compare-core.py
+```
+
+The comparison writes `build/core/comparison.json`. It compares generated PCM,
+exact input/event timing, circuit telemetry and collision transitions with the
+original fresh circuit. It compares portable native and Wasm frames/PCM and
+same-module reset isolation separately. The portable reset restores fresh
+descriptor values; the historical application's second in-process epoch
+retained static state and is not its fresh-reset baseline. Render reports name
+full-frame/observation equality and measured settled geometry tolerances;
+read actual results before claiming pixel equality. [PORT_PONG.md](PORT_PONG.md)
+records preserved behavior and deliberate platform adaptations.
+
+### Browser checks
+
+On this Debian 13 amd64 cloud environment, the installer can also download the
+exact Playwright 1.58.2 engines and signed, locally extracted browser libraries:
+
+```sh
+./tools/install-web-toolchain.sh --browsers
+./tools/run-browser-tests.sh
+```
+
+On another supported Linux CI host, install system dependencies and browser
+engines using Playwright's standard installer instead:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH=./build/playwright npx playwright install --with-deps chromium firefox webkit
+./tools/run-browser-tests.sh
+```
+
+The wrapper supplies local library/cache paths where required. Do not bypass
+transport or package verification. Individual checks can select a project,
+for example `./tools/run-browser-tests.sh --project=chromium`.
+
+In this cloud workspace, Firefox's launcher encountered a read-only
+`/proc/self/uid_map` inside the command filesystem sandbox. Running the browser
+check through the environment's approved command path resolved that launch
+restriction. This is a runner limitation; a failed launch is not a gameplay
+result.
+
+The configured projects cover Chromium, Firefox, WebKit, an emulated Android
+viewport and an emulated iPhone viewport. They exercise actual production Wasm
+loading and frontend behavior. An emulated phone viewport is not a physical
+phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
+audio buffers do not prove speaker playback. [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md)
+records executed checks, limitations and the physical-phone procedure.
+
+The Pages packager supplies source downloads/notices omitted from an ordinary
+Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged
+artifact and its links.
+
+After deployment, the same two smoke checks can target the actual Pages site:
+
+```sh
+NOCPU_TEST_BASE_URL=https://jelloshooter848.github.io/NoCPU/ \
+NOCPU_TEST_PACKAGED=1 ./tools/run-browser-tests.sh --project=chromium \
+  --grep 'loads genuine Wasm|distributed assets'
+```
+
+An explicit remote base disables the local test server. These checks exercise
+the deployed Wasm, coin-start, rendered paddles, PCM scheduling and matching
+source/notices hashes. Local fault injection and the full engine matrix remain
+separate checks; a remote smoke pass does not replace them or physical phones.
+
 ## Native build
 
 ```sh
