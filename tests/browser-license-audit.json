@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "release_ready": true,
   "assessment_scope": "Pong-only browser frontend and generated JS/Wasm. Excludes native binaries, toolchain containers, ROMs and unbuilt games.",
   "combined_distribution_license": "GPL-3.0-only",
@@ -146,7 +146,7 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.2.0-source.tar.gz",
+    "path": "source/nocpu-0.2.1-source.tar.gz",
     "delivery": "Included in every preview and final Pages artifact and linked visibly in app. Archive contains original DICE, adapters, frontend, scripts, pinned dependency lockfiles and notices."
   },
   "evidence": [
@@ -216,5 +216,7 @@
     "result": "passed",
     "scope": "Concrete Pong browser component/notice/source assessment; excludes physical phone readiness, native binaries, SDK/container distribution and other games.",
     "evidence": "Independent toolchain reviewer compared nine primary SDK notices and Vite license byte-for-byte, reviewed seven linked runtime families, nine musl math member sources, dependency exclusions and matching-source packaging contract. Compiled input count corrected to31 before qualification."
-  }
+  },
+  "evidence_baseline_version": "0.2.0",
+  "assessment_continuity": "The 0.2.1 patch changes NoCPU-owned touch UI and version metadata only. The preserved Pong core, linked SDK runtime families, pinned dependencies and retained notice bytes are unchanged. Build hashes in historical assessment evidence refer to the 0.2.0 component baseline; each current artifact supplies fresh core/web provenance and matching source independently. Physical-device qualification is separate and remains pending."
 }

@@ -58,6 +58,13 @@ project/source information belong in game panels rather than permanent page
 sections. Opening a menu releases active inputs and pauses the circuit;
 returning from a panel does not resume until the player chooses Resume.
 
+The 0.2.1 usability patch places visible independent P1/P2 vertical touch
+tracks outside the raster: below the court in portrait and beside it in
+landscape. The original court is display-only for touch input. Track endpoints
+map to the unchanged absolute paddle axis; thumb feedback reflects each
+player's current position. This changes browser input access and layout,
+retaining the core, worker clock and circuit PCM boundaries.
+
 The static Vite production build defaults to the `/NoCPU/` GitHub Pages project
 path. Release packaging supplies notices and matching source alongside the
 runtime. Previews retain pending phone gates and identify the exact deployed

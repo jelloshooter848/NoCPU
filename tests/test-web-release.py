@@ -240,6 +240,7 @@ class BrowserReleaseTests(unittest.TestCase):
             web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist))
 
     def test_browser_license_notices_cannot_be_omitted_tampered_or_waived(self):
+        version = (ROOT / 'VERSION').read_text().strip()
         audit = json.loads((ROOT / 'tests/browser-license-audit.json').read_text())
         audit.update(release_ready=True, blockers=[])
         shutil.copyfile(ROOT / 'tests/license-audit.json', self.root / 'tests/license-audit.json')
@@ -249,20 +250,22 @@ class BrowserReleaseTests(unittest.TestCase):
             shutil.copyfile(ROOT / notice['path'], destination)
         path = self.root / 'tests/browser-license-audit.json'
         path.write_text(json.dumps(audit))
-        self.assertEqual(web.verify_browser_license(self.root, '0.2.0'), audit['notices'])
+        self.assertEqual(web.verify_browser_license(self.root, version), audit['notices'])
+        with self.assertRaisesRegex(ValueError, 'schema/version mismatch'):
+            web.verify_browser_license(self.root, '0.0.0')
         omitted = copy.deepcopy(audit)
         omitted['notices'] = [entry for entry in omitted['notices'] if entry['path'] != 'docs/licenses/Emscripten-3.1.74-LICENSE.txt']
         path.write_text(json.dumps(omitted))
         with self.assertRaisesRegex(ValueError, 'omits required'):
-            web.verify_browser_license(self.root, '0.2.0')
+            web.verify_browser_license(self.root, version)
         path.write_text(json.dumps(audit))
         (self.root / 'docs/licenses/Emscripten-3.1.74-LICENSE.txt').write_text('tampered')
         with self.assertRaisesRegex(ValueError, 'Missing or changed'):
-            web.verify_browser_license(self.root, '0.2.0')
+            web.verify_browser_license(self.root, version)
         audit['release_ready'] = False
         path.write_text(json.dumps(audit))
         with self.assertRaisesRegex(ValueError, 'blocked by license'):
-            web.verify_browser_license(self.root, '0.2.0')
+            web.verify_browser_license(self.root, version)
 
 
 if __name__ == '__main__':

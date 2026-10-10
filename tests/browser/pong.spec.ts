@@ -254,6 +254,101 @@ async function expectUsableTarget(page: Page, testId: string, namedButton = fals
   expect(bounds!.y + bounds!.height, testId).toBeLessThanOrEqual(viewport.height + 1);
 }
 
+type Bounds = { x: number; y: number; width: number; height: number };
+type Insets = { top: number; right: number; bottom: number; left: number };
+const noInsets: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+
+function separation(a: Bounds, b: Bounds): number {
+  return Math.max(a.x - b.x - b.width, b.x - a.x - a.width,
+    a.y - b.y - b.height, b.y - a.y - a.height);
+}
+
+async function controlBounds(page: Page, slot: number): Promise<{ pad: Bounds; track: Bounds; thumb: Bounds }> {
+  const control = page.getByTestId(`paddle-p${slot + 1}`);
+  const [pad, track, thumb] = await Promise.all([control.boundingBox(),
+    control.locator('.control-track').boundingBox(), control.locator('.control-thumb').boundingBox()]);
+  expect(pad).not.toBeNull(); expect(track).not.toBeNull(); expect(thumb).not.toBeNull();
+  return { pad: pad!, track: track!, thumb: thumb! };
+}
+
+async function expectThumbFraction(page: Page, slot: number, fraction: number): Promise<void> {
+  await expect.poll(async () => {
+    const { track, thumb } = await controlBounds(page, slot);
+    return Math.abs(thumb.y + thumb.height / 2 - (track.y + track.height * fraction));
+  }, { message: 'The visible thumb center follows the actual track travel' }).toBeLessThanOrEqual(2);
+  await expect(page.getByTestId(`paddle-p${slot + 1}`)).toHaveAttribute('aria-valuenow', String(Math.round(fraction * 100)));
+}
+
+async function settleInputPresentation(page: Page): Promise<void> {
+  const before = await snapshot(page);
+  await waitSimulation(page, BigInt(before.timeps) + 50_000_000_000n);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  expect((await snapshot(page)).frame).toBeGreaterThan(before.frame);
+}
+
+async function expectExternalLayout(page: Page, insets: Insets = noInsets): Promise<unknown> {
+  const viewport = page.viewportSize()!;
+  const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
+  expect(canvas).not.toBeNull();
+  const controls = await Promise.all([controlBounds(page, 0), controlBounds(page, 1)]);
+  const wrappers = await page.locator('.paddle-controller').evaluateAll((elements) => elements.map((element) => {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x, y, width, height };
+  }));
+  expect(wrappers).toHaveLength(2);
+  const hud = (await page.locator('.game-hud').boundingBox())!;
+  expect(hud).not.toBeNull();
+  const landscape = viewport.width > viewport.height;
+  for (let slot = 0; slot < 2; slot += 1) {
+    const { pad, track } = controls[slot];
+    const id = `paddle-p${slot + 1}`;
+    await expect(page.getByTestId(id)).toHaveAccessibleName(`Player ${slot + 1} paddle position`);
+    await expect(page.getByText(`P${slot + 1}`, { exact: true })).toBeVisible();
+    expect(pad.width + 0.001, `${id} has a visible, usable external target`).toBeGreaterThanOrEqual(64);
+    const compact = viewport.width <= 360 || viewport.height <= 620;
+    expect(track.height + 0.001, `${id} has real vertical travel`).toBeGreaterThanOrEqual(compact ? 120 : 144);
+    expect(separation(pad, canvas) + 0.001, `${id} cannot cover the court`).toBeGreaterThanOrEqual(8);
+    expect(track.x).toBeGreaterThanOrEqual(pad.x - 0.001);
+    expect(track.y).toBeGreaterThanOrEqual(pad.y - 0.001);
+    expect(track.x + track.width).toBeLessThanOrEqual(pad.x + pad.width + 0.001);
+    expect(track.y + track.height).toBeLessThanOrEqual(pad.y + pad.height + 0.001);
+    if (landscape) {
+      expect(wrappers[slot].width, 'Side controllers have a bounded width').toBeLessThanOrEqual(96.001);
+      if (!slot) expect(pad.x + pad.width + 8).toBeLessThanOrEqual(canvas.x + 0.001);
+      else expect(pad.x).toBeGreaterThanOrEqual(canvas.x + canvas.width + 8 - 0.001);
+    } else {
+      expect(wrappers[slot].height, 'The portrait controller row has a bounded height').toBeLessThanOrEqual(204.001);
+      expect(pad.y).toBeGreaterThanOrEqual(canvas.y + canvas.height + 8 - 0.001);
+    }
+    // Browser hit-testing proves that the displayed target receives input.
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="slider"]')?.getAttribute('data-testid'),
+      { x: pad.x + pad.width / 2, y: pad.y + pad.height / 2 })).toBe(id);
+  }
+  expect(separation(controls[0].pad, controls[1].pad)).toBeGreaterThanOrEqual(8);
+  for (const [name, bounds] of [['court', canvas], ['HUD', hud], ...wrappers.map((bounds, slot) => [`P${slot + 1} controller`, bounds])] as [string, Bounds][]) {
+    expect(bounds.x, `${name} respects the left safe area`).toBeGreaterThanOrEqual(insets.left - 0.001);
+    expect(bounds.y, `${name} respects the top safe area`).toBeGreaterThanOrEqual(insets.top - 0.001);
+    expect(bounds.x + bounds.width, `${name} respects the right safe area`).toBeLessThanOrEqual(viewport.width - insets.right + 0.001);
+    expect(bounds.y + bounds.height, `${name} respects the bottom safe area`).toBeLessThanOrEqual(viewport.height - insets.bottom + 0.001);
+  }
+  // Compute the largest 4:3 court from visible control reservations, not the
+  // implementation's CSS sizing formula or the previous overlay-pad budget.
+  const availableWidth = viewport.width - insets.left - insets.right
+    - (landscape ? wrappers[0].width + wrappers[1].width + 16 : 0);
+  const availableHeight = viewport.height - insets.top - insets.bottom - hud.height - 16
+    - (landscape ? 0 : Math.max(...wrappers.map((bounds) => bounds.height)) + 8);
+  expect(canvas.width / canvas.height).toBeCloseTo(4 / 3, 2);
+  expect(canvas.width, 'Court maximizes the usable area after external controls').toBeGreaterThanOrEqual(Math.min(availableWidth, availableHeight * 4 / 3) * 0.9);
+  // The court itself is an unobstructed raster throughout its hit-test area.
+  for (const fx of [0.05, 0.5, 0.95]) for (const fy of [0.05, 0.5, 0.95]) {
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+      { x: canvas.x + canvas.width * fx, y: canvas.y + canvas.height * fy })).toBe('CANVAS');
+  }
+  return { viewport, simulatedSafeInsets: insets, canvas, controls, wrappers, hud };
+}
+
 async function captureShellPanel(page: Page, testInfo: TestInfo, state: string): Promise<void> {
   const original = page.viewportSize()!;
   await expectViewportShell(page);
@@ -425,9 +520,83 @@ test('reset completion survives same-turn blur and resume without freezing contr
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
+test('external paddle tracks cover the native range while labels and court gestures remain inactive', async ({ page }, testInfo) => {
+  await start(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId('insert-coin').click();
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+  await initialRenderedPaddles(page);
+  await expectExternalLayout(page);
+  for (let slot = 0; slot < 2; slot += 1) {
+    const { pad, track } = await controlBounds(page, slot);
+    const x = track.x + track.width / 2;
+    await page.mouse.move(x, track.y + track.height / 2);
+    await page.mouse.down();
+    await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(1);
+    // Browser pointer coordinates can round by a fraction of a CSS pixel.
+    // Half a percent of native range still distinguishes midpoint from padding.
+    await expect.poll(async () => Math.abs((await snapshot(page)).axes[slot])).toBeLessThanOrEqual(512);
+    await expectThumbFraction(page, slot, 0.5);
+    const other = (await snapshot(page)).axes[1 - slot];
+    // At its native upper endpoint P2 can join the adjacent score glyph into
+    // one connected component. Measure independent actual paddle movement at
+    // distinct interior positions, then verify the exact native endpoints too.
+    await page.mouse.move(x, track.y + track.height * 0.2);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeLessThan(-16000);
+    await expect.poll(async () => (await paddles(page))[slot]).toBeLessThan(0.35);
+    const upper = await paddles(page);
+    await page.mouse.move(x, track.y + track.height * 0.8);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeGreaterThan(16000);
+    await expect.poll(async () => (await paddles(page))[slot] - upper[slot]).toBeGreaterThan(0.4);
+    expect((await snapshot(page)).axes[1 - slot]).toBe(other);
+    // Padding belongs to the target, but not to the visible track's travel.
+    // Both native endpoints must be reachable with the pointer still off-court.
+    await page.mouse.move(x, pad.y + 1);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
+    await expectThumbFraction(page, slot, 0);
+    await settleInputPresentation(page);
+    await page.screenshot({ path: testInfo.outputPath(`external-pointer-p${slot + 1}-top.png`) });
+    await page.mouse.move(x, pad.y + pad.height - 1);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(32767);
+    await expectThumbFraction(page, slot, 1);
+    await settleInputPresentation(page);
+    expect((await snapshot(page)).axes[1 - slot]).toBe(other);
+    await page.screenshot({ path: testInfo.outputPath(`external-pointer-p${slot + 1}-bottom.png`) });
+    // Captured movement beyond both target edges clamps to exact native limits.
+    await page.mouse.move(x, pad.y + pad.height + 24);
+    expect((await snapshot(page)).axes[slot]).toBe(32767);
+    await page.mouse.move(x, pad.y - 24);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
+    await page.mouse.up();
+    await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+    const released = await snapshot(page);
+    await page.getByText(`P${slot + 1}`, { exact: true }).click();
+    expect((await snapshot(page)).pointerCount).toBe(0);
+    expect((await snapshot(page)).axes).toEqual(released.axes);
+    // Keyboard access remains available on each external slider.
+    await page.getByTestId(`paddle-p${slot + 1}`).focus();
+    await page.keyboard.press('End');
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(32767);
+    await expectThumbFraction(page, slot, 1);
+    await page.keyboard.press('Home');
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
+    await expectThumbFraction(page, slot, 0);
+  }
+  const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
+  const beforeCourt = await snapshot(page);
+  await page.mouse.move(canvas.x + canvas.width * 0.25, canvas.y + canvas.height * 0.2);
+  await page.mouse.down();
+  await page.mouse.move(canvas.x + canvas.width * 0.25, canvas.y + canvas.height * 0.8, { steps: 5 });
+  expect((await snapshot(page)).pointerCount).toBe(0);
+  await page.mouse.up();
+  await waitSimulation(page, BigInt(beforeCourt.timeps) + 300_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(beforeCourt.axes);
+});
+
 test('simultaneous touch paddles move independently and cancellation releases held gestures', async ({ page, context, browserName }, testInfo) => {
   test.skip(browserName !== 'chromium', 'CDP supplies true simultaneous browser touch contacts; physical iPhone testing remains required.');
   await start(page);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
   await waitSimulation(page, 1_100_000_000_000n);
@@ -438,8 +607,8 @@ test('simultaneous touch paddles move independently and cancellation releases he
   await session.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   const centered = await initialRenderedPaddles(page);
   const points = [
-    { id: 11, x: p1!.x + p1!.width / 2, y: p1!.y + p1!.height * 0.2 },
-    { id: 22, x: p2!.x + p2!.width / 2, y: p2!.y + p2!.height * 0.8 },
+    { id: 11, x: p1!.x + p1!.width / 2, y: p1!.y + p1!.height * 0.2, radiusX: 12, radiusY: 12 },
+    { id: 22, x: p2!.x + p2!.width / 2, y: p2!.y + p2!.height * 0.8, radiusX: 12, radiusY: 12 },
   ];
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
   await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
@@ -456,6 +625,26 @@ test('simultaneous touch paddles move independently and cancellation releases he
   await expect.poll(async () => (await paddles(page))[0] - bothMoved[0]).toBeGreaterThan(0.2);
   expect(Math.abs((await paddles(page))[1] - bothMoved[1])).toBeLessThan(0.025);
   expect((await snapshot(page)).axes[1]).toBe(before.axes[1]);
+  const touchEvidence: unknown[] = [];
+  for (const swapped of [false, true]) {
+    const bounds = [p1!, p2!];
+    points.forEach((point, slot) => {
+      const bottom = Boolean(slot) !== swapped;
+      point.y = bounds[slot].y + (bottom ? bounds[slot].height - 6 : 6);
+    });
+    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
+    await expect.poll(async () => (await snapshot(page)).axes).toEqual(swapped ? [32767, -32768] : [-32768, 32767]);
+    await expectThumbFraction(page, 0, swapped ? 1 : 0);
+    await expectThumbFraction(page, 1, swapped ? 0 : 1);
+    await settleInputPresentation(page);
+    const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
+    for (const point of points) {
+      expect(separation({ x: point.x - 12, y: point.y - 12, width: 24, height: 24 }, canvas),
+        'Both actual contact footprints stay outside the visible ball and paddles').toBeGreaterThanOrEqual(0);
+    }
+    touchEvidence.push({ orientation: 'portrait', points: points.map((point) => ({ ...point })), canvas, axes: (await snapshot(page)).axes });
+    await page.screenshot({ path: testInfo.outputPath(`external-touch-endpoints-portrait-${swapped ? 'bottom-top' : 'top-bottom'}.png`) });
+  }
   await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
   const cancelled = await snapshot(page);
@@ -477,16 +666,75 @@ test('simultaneous touch paddles move independently and cancellation releases he
   await resumePlay(page);
   await waitSimulation(page, BigInt(menuPaused.timeps) + 300_000_000_000n);
   expect((await snapshot(page)).axes).toEqual(menuPaused.axes);
+
+  // Reset's release path must handle still-captured contacts as well as the
+  // normal menu flow, which has already released them before Reset is chosen.
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  await page.evaluate(() => (document.querySelector('[data-testid="reset"]') as HTMLButtonElement).click());
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+  await expect.poll(async () => (await snapshot(page)).axes).toEqual([0, 0]);
+  points[0].y = p1!.y + p1!.height * 0.8;
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
+  expect((await snapshot(page)).axes).toEqual([0, 0]);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await waitSimulation(page, 300_000_000_000n);
+  expect((await snapshot(page)).attract).toBe(true);
+  await page.getByTestId('insert-coin').click();
+  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+  await expect(page.getByTestId('resume')).toBeVisible();
+  const blurred = await snapshot(page);
+  points[1].y = p2!.y + p2!.height * 0.75;
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
+  expect((await snapshot(page)).axes).toEqual(blurred.axes);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await resumePlay(page);
+  await waitSimulation(page, BigInt(blurred.timeps) + 300_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(blurred.axes);
+
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  const beforeRotation = await snapshot(page);
   await page.setViewportSize({ width: 844, height: 390 });
+  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
+  expect((await snapshot(page)).axes).toEqual(beforeRotation.axes);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await waitSimulation(page, BigInt(beforeRotation.timeps) + 300_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(beforeRotation.axes);
+  await expectExternalLayout(page);
   const landscape = await Promise.all([page.getByTestId('paddle-p1').boundingBox(), page.getByTestId('paddle-p2').boundingBox()]);
   const landscapePoints = landscape.map((bounds, slot) => ({
-    id: 31 + slot, x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height * (slot ? 0.8 : 0.2),
+    id: 31 + slot, x: bounds!.x + bounds!.width / 2, y: bounds!.y + (slot ? bounds!.height - 6 : 6), radiusX: 12, radiusY: 12,
   }));
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: landscapePoints });
   await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
+  await expect.poll(async () => (await snapshot(page)).axes).toEqual([-32768, 32767]);
+  await expectThumbFraction(page, 0, 0);
+  await expectThumbFraction(page, 1, 1);
+  await settleInputPresentation(page);
+  const landscapeCanvas = (await page.getByTestId('game-canvas').boundingBox())!;
+  for (const point of landscapePoints) expect(separation({ x: point.x - 12, y: point.y - 12, width: 24, height: 24 }, landscapeCanvas)).toBeGreaterThanOrEqual(0);
+  touchEvidence.push({ orientation: 'landscape', points: landscapePoints, canvas: landscapeCanvas, axes: (await snapshot(page)).axes });
   await page.screenshot({ path: testInfo.outputPath('shell-touch-active-landscape.png') });
   await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
   await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
+  // Real browser touch events on either court half are deliberately inert.
+  const beforeCourt = await snapshot(page);
+  const courtPoints = [0.25, 0.75].map((fraction, slot) => ({ id: 41 + slot,
+    x: landscapeCanvas.x + landscapeCanvas.width * fraction, y: landscapeCanvas.y + landscapeCanvas.height * 0.2 }));
+  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: courtPoints });
+  courtPoints.forEach((point) => { point.y = landscapeCanvas.y + landscapeCanvas.height * 0.8; });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: courtPoints });
+  expect((await snapshot(page)).pointerCount).toBe(0);
+  expect((await snapshot(page)).axes).toEqual(beforeCourt.axes);
+  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await testInfo.attach('external-touch-contacts.json', { body: JSON.stringify(touchEvidence, null, 2), contentType: 'application/json' });
   await session.detach();
 });
 
@@ -757,16 +1005,13 @@ test('a sustained browser session generates circuit scoring and bounded media', 
 
 test('portrait, landscape and desktop layouts keep the court and controls in a full viewport game', async ({ page }, testInfo) => {
   await start(page);
+  const geometry: unknown[] = [];
   for (const size of [{ width: 390, height: 844 }, { width: 390, height: 664 }, { width: 320, height: 568 },
-    { width: 844, height: 390 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
+    { width: 844, height: 390 }, { width: 568, height: 320 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
     await page.setViewportSize(size);
     await expect(page.getByTestId('game-canvas')).toBeVisible();
     await expectViewportShell(page);
-    const canvas = await page.getByTestId('game-canvas').boundingBox();
-    expect(canvas).not.toBeNull();
-    expect(canvas!.width / canvas!.height).toBeCloseTo(4 / 3, 1);
-    const usableCourtWidth = Math.min(size.width, (size.height - 64) * 4 / 3);
-    expect(canvas!.width, 'Court uses the available viewport rather than a website card').toBeGreaterThanOrEqual(usableCourtWidth * 0.9);
+    geometry.push(await expectExternalLayout(page));
     for (const id of ['game-canvas', 'paddle-p1', 'paddle-p2']) {
       const bounds = await page.getByTestId(id).boundingBox();
       expect(bounds!.y, `${id} must share the gameplay viewport`).toBeGreaterThanOrEqual(-1);
@@ -781,6 +1026,25 @@ test('portrait, landscape and desktop layouts keep the court and controls in a f
     await page.screenshot({ path: testInfo.outputPath(`shell-pause-${size.width}x${size.height}.png`) });
     await resumePlay(page);
   }
+  // env(safe-area-inset-*) is zero in automation. Override its existing CSS
+  // variables to test reserved geometry, without claiming a physical notch.
+  for (const [size, insets] of [
+    [{ width: 320, height: 568 }, { top: 24, right: 0, bottom: 34, left: 0 }],
+    [{ width: 568, height: 320 }, { top: 24, right: 44, bottom: 34, left: 44 }],
+    [{ width: 844, height: 390 }, { top: 0, right: 44, bottom: 21, left: 44 }],
+  ] as [{ width: number; height: number }, Insets][]) {
+    await page.setViewportSize(size);
+    await page.evaluate((safe) => {
+      for (const [edge, value] of Object.entries(safe)) document.documentElement.style.setProperty(`--safe-${edge}`, `${value}px`);
+    }, insets);
+    await expectViewportShell(page);
+    geometry.push(await expectExternalLayout(page, insets));
+    await page.screenshot({ path: testInfo.outputPath(`external-safe-area-${size.width}x${size.height}.png`) });
+    await page.evaluate(() => {
+      for (const edge of ['top', 'right', 'bottom', 'left']) document.documentElement.style.removeProperty(`--safe-${edge}`);
+    });
+  }
+  await testInfo.attach('external-control-geometry.json', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
 });
 
 test('title and game menus support keyboard navigation without leaking gameplay input', async ({ page }, testInfo) => {

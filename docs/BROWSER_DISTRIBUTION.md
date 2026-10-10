@@ -3,8 +3,12 @@
 The source-only assessment in [license-audit.json](../tests/license-audit.json)
 does not clear a compiled browser artifact. The separate
 [browser-license-audit.json](../tests/browser-license-audit.json) covers only
-the 0.2.0 Pong frontend and its generated JavaScript/WebAssembly. Its concrete
-component inventory and independent assessment review are complete.
+the Pong frontend and its generated JavaScript/WebAssembly. Its concrete
+component inventory and independent assessment review were established in
+0.2.0 and retained for the 0.2.1 NoCPU-owned touch-control patch: core,
+linked SDK families, pinned dependencies and notice bytes are unchanged.
+Historical assessment hashes remain identified as the 0.2.0 baseline; current
+artifacts require fresh provenance and matching source.
 Previews and final releases must both pass this gate before distribution.
 
 ## Included components
@@ -79,7 +83,7 @@ Every distributed Pages preview or final artifact must contain:
 
 - The original GPL text and applicable copyright/license/credit notices,
   accessible from the application.
-- `source/nocpu-0.2.0-source.tar.gz`, built from the same checkout as the runtime
+- `source/nocpu-0.2.1-source.tar.gz`, built from the same checkout as the runtime
   and linked directly from the application. A future tag link is not a
   substitute for an available source download during preview testing.
 - The source, browser and toolchain manifests identifying the build revision,

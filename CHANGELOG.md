@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — Unreleased (preview candidate)
+
+- Move phone paddle control to visible independent P1/P2 tracks outside the court, below it in portrait and beside it in landscape, so fingers do not hide play.
+- Retain the original Pong raster, circuit, worker clock, PCM and game menus; court touches no longer move paddles.
+- Packaged local acceptance passed 72 browser checks with 3 documented CDP touch skips and no failures, flaky results or retries; original/native/Wasm comparison and independent visual review passed. Clean committed CI and replacement publication remain pending.
+- Track implementation and independent qualification in [0.2.1 tasks](docs/0.2.1_TASKS.md) and [validation](docs/0.2.1_VALIDATION.md). The replacement preview is not yet published; physical Android/iPhone qualification and a final tag remain pending.
+
 ## 0.2.0 — 2026-10-10 (Pages preview)
 
 Pong browser preview with the preserved DICE circuit compiled to WebAssembly:

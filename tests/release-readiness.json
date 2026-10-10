@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "release_stage": "preview",
   "release_ready": false,
   "runtime_sha256": null,
