@@ -285,6 +285,16 @@ canvas {
 }
 .title-panel .menu-actions { width: min(100%, 300px); margin-inline: auto; gap: 8px; }
 .title-panel .play-button { margin-bottom: 10px; }
+.title-panel .title-version {
+  position: absolute;
+  right: calc(var(--safe-right) + 12px);
+  bottom: calc(var(--safe-bottom) + 12px);
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: .06em;
+}
 .loading-panel { text-align: center; }
 .loading-panel p { color: var(--muted); }
 .sound-control { display: grid; align-items: center; gap: 18px; }
