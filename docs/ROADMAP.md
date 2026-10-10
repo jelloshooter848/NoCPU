@@ -84,8 +84,9 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 ### 0.2.0 — Engine boundary and first browser/phone proof
 
-The reviewed [Pong browser preview](https://jelloshooter848.github.io/NoCPU/)
-is live with a C++/Wasm core, TypeScript frontend, notices and matching source.
+The reviewed 0.2.0 Pong preview introduced a C++/Wasm core, TypeScript frontend,
+notices and matching source. Its published review remains historical evidence;
+the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves 0.2.1 below.
 The viewport game shell's clean automated matrix passes 67 cases with three
 expected simultaneous-touch skips; 25 selected checks against the public site
 also pass. See
@@ -126,7 +127,10 @@ move paddles. Validate touch ownership, cancellation, menu/reset/background
 recovery, safe areas, orientation and source-matched preview deployment.
 
 The [patch task ledger](0.2.1_TASKS.md) and [qualification report](0.2.1_VALIDATION.md)
-record actual results. This authorization supersedes the earlier sequencing
+record the delivered preview: full clean CI passes 72 cases with three
+documented CDP touch skips; selected live checks pass 32 with three such skips,
+and all 84 public files match the independently reviewed artifact. This
+authorization supersedes the earlier sequencing
 restriction for this correction; it does not waive physical Android/iPhone
 qualification or authorize new games. Phone evidence must match the revised
 runtime before a final tag is published.
@@ -195,7 +199,7 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The 0.1.0 foundation and 0.2.0 Pong browser preview have completed their recorded automated and publication reviews. The active work package is the explicitly authorized 0.2.1 off-court touch-control correction. Complete its implementation, independent reviews and tested preview deployment, then collect runtime-bound phone qualification. The 0.3 library interface and additional games remain later scope.
+The 0.1.0 foundation, 0.2.0 Pong preview and authorized 0.2.1 off-court control patch have completed their recorded automated and publication reviews. Next collect actual Android Chrome/iPhone Safari touch, speakers and sustained-performance evidence for the deployed runtime and declare the supported device floor. A final tag requires those gates. The 0.3 library interface, control remapping and preferences remain later scope; reuse the completed Pong menus, touch and lifecycle behavior. Additional games remain 0.4–0.7 work.
 
 ## After 1.0 — preservation and expansion
 
