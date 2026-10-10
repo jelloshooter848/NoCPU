@@ -464,10 +464,24 @@ test('a delayed valid audio activation recovers sound while play continues', asy
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.samples)).toBeGreaterThan(4800);
   await page.evaluate(async () => {
     const target = window as any;
-    const context = target.__audioProbe.contexts[0] as AudioContext;
+    await (target.__audioProbe.contexts[0] as AudioContext).close();
+    // Prepare a fresh real device outside the gesture so its native state is
+    // suspended. This isolates valid asynchronous recovery from WebKit's
+    // separately measured synchronous stalls on a reused native device.
+    const ObservedAudioContext = target.AudioContext;
+    const context = new ObservedAudioContext({ latencyHint: 'interactive' }) as AudioContext;
     await context.suspend();
+    if (context.state !== 'suspended') throw new Error('Prepared native audio device must be suspended');
+    target.__preparedContextConsumed = false;
+    target.AudioContext = function PreparedAudioContext(): AudioContext {
+      target.AudioContext = ObservedAudioContext;
+      target.__preparedContextConsumed = true;
+      return context;
+    };
+    target.AudioContext.prototype = ObservedAudioContext.prototype;
     const originalResume = context.resume.bind(context);
     target.__delayedResumeCompleted = false;
+    target.__delayedPendingObservation = null;
     context.resume = () => {
       const began = performance.now();
       // Register the delay before calling native code: WebKit's backend may
@@ -478,6 +492,25 @@ test('a delayed valid audio activation recovers sound while play continues', asy
       }, 2200));
       const native = originalResume();
       target.__delayedResumeInvocationElapsed = performance.now() - began;
+      // Observe the real circuit and source scheduling in the browser while
+      // activation is pending. External click/poll RPCs may return afterwards.
+      const observePending = async (): Promise<void> => {
+        try {
+          const state = await target.__nocpuDebug.snapshot();
+          const observed = {
+            timePs: state.timePs, paused: state.paused,
+            completed: target.__delayedResumeCompleted,
+            started: target.__audioProbe.started,
+            elapsedMilliseconds: performance.now() - began,
+          };
+          if (!observed.completed && BigInt(state.timePs) >= BigInt(target.__delayedSimulationTarget)) {
+            target.__delayedPendingObservation = observed;
+          } else if (!target.__delayedResumeCompleted) {
+            setTimeout(() => { void observePending(); }, 10);
+          }
+        } catch (error) { target.__delayedObservationError = String(error); }
+      };
+      void observePending();
       return Promise.all([
         native, delay,
       ]).then(() => {
@@ -489,25 +522,32 @@ test('a delayed valid audio activation recovers sound while play continues', asy
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'true');
   const paused = await snapshot(page);
   const started = await page.evaluate(() => (window as any).__audioProbe.started);
+  await page.evaluate((targetTime) => { (window as any).__delayedSimulationTarget = targetTime; },
+    (BigInt(paused.timeps) + 300_000_000_000n).toString());
   await page.getByTestId('pause').click();
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
-  await waitSimulation(page, BigInt(paused.timeps) + 300_000_000_000n);
-  const pending = await page.evaluate(() => ({
-    completed: (window as any).__delayedResumeCompleted,
-    started: (window as any).__audioProbe.started,
-  }));
-  expect(pending.completed).toBe(false);
-  expect(pending.started).toBe(started);
   await expect.poll(async () => page.evaluate(() => (window as any).__delayedResumeCompleted), { timeout: 5000 }).toBe(true);
   const timing = await page.evaluate(() => ({
     totalResumeMilliseconds: (window as any).__delayedResumeElapsed,
     nativeInvocationMilliseconds: (window as any).__delayedResumeInvocationElapsed,
     concurrentTimerMilliseconds: (window as any).__delayedResumeTimerElapsed,
+    preparedContextConsumed: (window as any).__preparedContextConsumed,
+    nativeContextState: (window as any).__audioProbe.contexts.at(-1).state,
+    pendingObservation: (window as any).__delayedPendingObservation,
+    observationError: (window as any).__delayedObservationError,
   }));
   const elapsed = timing.totalResumeMilliseconds;
   await testInfo.attach('delayed-audio-activation.json', {
     body: Buffer.from(JSON.stringify({ ...timing, requestedConcurrentDelayMilliseconds: 2200 })), contentType: 'application/json',
   });
+  expect(timing.preparedContextConsumed).toBe(true);
+  expect(timing.nativeContextState).toBe('running');
+  expect(timing.observationError).toBeUndefined();
+  expect(timing.pendingObservation, 'Observe circuit advancement and silence during the actual pending window').not.toBeNull();
+  expect(BigInt(timing.pendingObservation.timePs)).toBeGreaterThanOrEqual(BigInt(paused.timeps) + 300_000_000_000n);
+  expect(timing.pendingObservation.paused).toBe(false);
+  expect(timing.pendingObservation.completed).toBe(false);
+  expect(timing.pendingObservation.started).toBe(started);
   expect(elapsed, 'Exercise a valid activation beyond the former 1500 ms cutoff').toBeGreaterThan(2000);
   expect(elapsed, 'Native activation and the concurrent delay must complete within the finite recovery window').toBeLessThan(3000);
   await expect(page.getByTestId('mute')).toHaveAccessibleName('Mute sound');
