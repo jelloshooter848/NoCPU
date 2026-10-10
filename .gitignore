@@ -1,0 +1,27 @@
+# Generated native builds, captures, and local release candidates.
+/build/
+/dist/
+/.cache/
+__pycache__/
+*.py[cod]
+
+# Private local configuration and ROM fixtures must never be committed.
+.env
+.env.*
+!.env.example
+/roms/
+/private-roms/
+*.zip
+*.rom
+*.bin
+*.7z
+*.rar
+*.tar
+*.tar.gz
+
+# Editor and operating-system files.
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

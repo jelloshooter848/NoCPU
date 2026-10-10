@@ -1,0 +1,15 @@
+# Simulation-time input replay, milliseconds from circuit construction.
+# Seed supplied separately; original Pong's coin switch starts the game.
+# Fields: requested_ms action value. Paddle axes are SDL signed 16-bit axes.
+500 coin 1
+600 coin 0
+1500 paddle1 -18000
+2200 paddle1 0
+2500 paddle2 18000
+2800 paddle2 -7000
+4000 paddle1 -28000
+10000 paddle1 -32768
+10000 paddle2 -32768
+14000 coin 1
+14100 coin 0
+16000 recreate 1

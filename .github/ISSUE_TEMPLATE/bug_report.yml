@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a build, tooling, documentation, or game-fidelity problem.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not attach ROMs, private fixture links, or secrets. No browser/mobile build is available in 0.1.0."
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "0.1.0 or commit SHA"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior and public evidence
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system, Docker version, and game if relevant
