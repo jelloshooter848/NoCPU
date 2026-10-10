@@ -65,4 +65,5 @@ for run in baseline repeat; do
         > "$reference_dir/$run.log" 2>&1
 done
 python3 "$repo_root/tools/reference/analyze.py" "$reference_dir"
+python3 "$repo_root/tests/test-reference-analysis.py" --reference-dir "$reference_dir"
 printf 'Native Pong assertions passed: %s/report.json\n' "$reference_dir"

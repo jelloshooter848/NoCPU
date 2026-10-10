@@ -15,6 +15,11 @@ from pathlib import Path
 
 WIDTH, HEIGHT = 160, 120
 CONTACT_GAP_PS = 100_000_000_000  # 100 ms; raster pulses within one contact group together.
+PCM_RATE = 48000
+PCM_SAMPLE_COUNT_TOLERANCE = 4  # Original initialization yields two extra samples.
+FRAME_PERIOD_PS = 10**12 // 60
+FRAME_CADENCE_TOLERANCE_PS = FRAME_PERIOD_PS // 100  # Original Pong measures 60.055 Hz.
+REPLAY_PATH = Path(__file__).resolve().parents[2] / "tests/replays/pong.tsv"
 
 
 def read_rows(path):
@@ -24,6 +29,60 @@ def read_rows(path):
 
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def read_replay(path=REPLAY_PATH):
+    events = []
+    for line in path.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        milliseconds, action, value = line.split()
+        events.append((int(milliseconds) * 10**9, action, int(value)))
+    if not events or events[-1][1:] != ("recreate", 1) or events[-1][0] <= 0:
+        raise ValueError("Replay must end with a positive-time circuit recreation")
+    if any(b[0] < a[0] for a, b in zip(events, events[1:])):
+        raise ValueError("Declared replay timestamps are not ordered")
+    return events
+
+
+def validate_recorded_inputs(rows, expected_events):
+    """Every declared external input must be accounted for, including ties."""
+    try:
+        actual = [(int(row["requested_ps"]), row["action"], int(row["value"])) for row in rows]
+    except (KeyError, TypeError, ValueError):
+        return False
+    return actual == expected_events
+
+
+def media_coverage(frame_rows, sample_count, duration_ps):
+    """Bound complete native media coverage independently of telemetry."""
+    times = [int(row["time_ps"]) for row in frame_rows]
+    indices = [int(row["frame"]) for row in frame_rows]
+    periods = [b - a for a, b in zip(times, times[1:])]
+    expected_frames = duration_ps * 60 // 10**12
+    expected_samples = duration_ps * PCM_RATE // 10**12
+    edge_tolerance = FRAME_PERIOD_PS + FRAME_CADENCE_TOLERANCE_PS
+    video_duration_complete = bool(times) and 0 <= times[0] <= edge_tolerance \
+        and 0 <= duration_ps - times[-1] <= edge_tolerance \
+        and abs(len(times) - expected_frames) <= 2
+    video_cadence_complete = bool(periods) and indices == list(range(len(times))) \
+        and all(abs(period - FRAME_PERIOD_PS) <= FRAME_CADENCE_TOLERANCE_PS for period in periods)
+    pcm_duration_complete = abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE
+    return {
+        "expected_duration_ps": duration_ps,
+        "frame_first_time_ps": times[0] if times else None,
+        "frame_last_time_ps": times[-1] if times else None,
+        "frame_minimum_period_ps": min(periods) if periods else None,
+        "frame_maximum_period_ps": max(periods) if periods else None,
+        "expected_frame_count_at_60hz": expected_frames,
+        "frame_count_tolerance": 2,
+        "frame_cadence_tolerance_ps": FRAME_CADENCE_TOLERANCE_PS,
+        "expected_pcm_sample_count": expected_samples,
+        "pcm_sample_count_tolerance": PCM_SAMPLE_COUNT_TOLERANCE,
+        "checks": {"native_video_duration_complete": video_duration_complete,
+                   "native_video_cadence_complete": video_cadence_complete,
+                   "native_pcm_duration_complete": pcm_duration_complete},
+    }
 
 
 def components(frame):
@@ -90,7 +149,9 @@ def velocity(observations, start, end):
     return sum((t - mean_t) * (x - mean_x) for t, x in values) / sum((t - mean_t)**2 for t, x in values)
 
 
-def analyze_epoch(path):
+def analyze_epoch(path, expected_events=None):
+    if expected_events is None:
+        expected_events = read_replay()
     observations = observe_frames(path)
     telemetry = read_rows(path / "telemetry.csv")
     inputs = read_rows(path / "inputs.csv")
@@ -138,6 +199,7 @@ def analyze_epoch(path):
         output.setframerate(48000)
         output.writeframes(pcm)
     gl_errors = read_rows(path / "renderer-errors.csv") if (path / "renderer-errors.csv").exists() else []
+    coverage = media_coverage(read_rows(path / "frames.csv"), len(samples), expected_events[-1][0])
     checks = {
         "settled_attract_before_coin": state(250)["run_n"] == "1" and state(250)["attract_n"] == "0",
         "coin_starts_active_game": state(1000)["run_n"] == "0" and state(1000)["attract_n"] == "1",
@@ -150,13 +212,18 @@ def analyze_epoch(path):
             and after_restart["score1"] == "0" and after_restart["score2"] == "0" and after_restart["run_n"] == "0",
         "native_pcm_contains_sound_transitions": len(active) >= 12 * 48000 and max(active) - min(active) > 500 and transitions > 100,
         "input_schedule_skew_bounded": bool(skews) and min(skews) >= 0 and max(skews) < 10**7,
-        "full_scenario_completed": int(telemetry[-1]["time_ps"]) >= 16000 * 10**9 and inputs[-1]["action"] == "recreate",
+        "recorded_inputs_match_declared_replay": validate_recorded_inputs(inputs, expected_events),
+        "full_scenario_completed": int(telemetry[-1]["time_ps"]) >= expected_events[-1][0]
+            and bool(inputs) and inputs[-1]["action"] == "recreate",
     }
+    checks.update(coverage["checks"])
     evidence = {"checks": checks, "passed": all(checks.values()), "frame_count": len(observations),
                 "contacts": contacts, "maximum_total_score": maximum_score,
                 "paddle_observations": {"center": [left_center, right_center], "left_move": [left_moved, right_held],
                                         "right_move": [left_held, right_moved]},
-                "input_maximum_skew_ps": max(skews),
+                "input_maximum_skew_ps": max(skews) if skews else None,
+                "declared_input_count": len(expected_events), "recorded_input_count": len(inputs),
+                "media_coverage": coverage,
                 "pcm": {"rate": 48000, "channels": 1, "sample_count": len(samples),
                         "active_min": min(active), "active_max": max(active), "active_transitions": transitions,
                         "sha256": sha256(path / "audio.s16le")},
@@ -186,7 +253,8 @@ def main():
         "toolchain_check": (provenance / "check.txt").read_text().strip(),
         "toolchain_packages_sha256": sha256(provenance / "packages.tsv"),
     }
-    epochs = {run: [analyze_epoch(root / run / ("epoch%d" % i)) for i in range(2)]
+    expected_events = read_replay()
+    epochs = {run: [analyze_epoch(root / run / ("epoch%d" % i), expected_events) for i in range(2)]
               for run in ["baseline", "repeat"]}
     identical = []
     for i in range(2):

@@ -10,6 +10,7 @@ check:
 test: check
 	$(PYTHON) tests/test-release-tools.py
 	$(PYTHON) tests/test-game-audits.py
+	$(PYTHON) tests/test-reference-analysis.py
 
 native: check
 	./tools/build-native.sh --jobs $(JOBS)

@@ -32,6 +32,8 @@ def collect_files(root: Path) -> list[Path]:
             candidates.extend(directory.rglob("*"))
     for path in candidates:
         relative = path.relative_to(root)
+        if ".git" in relative.parts:
+            raise ValueError(f"Nested Git metadata is not allowed in source: {relative}")
         if any(part in SKIP_DIRS for part in relative.parts):
             continue
         if path.is_symlink():

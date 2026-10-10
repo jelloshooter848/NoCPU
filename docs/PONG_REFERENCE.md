@@ -66,6 +66,20 @@ frame hashes, observation rasters, circuit telemetry, input timestamps, and HIT
 traces separately for each epoch. `tools/reference/analyze.py` exits nonzero if
 behavioral assertions or those repeat comparisons fail.
 
+Qualification also requires complete media for each declared epoch, independently
+of telemetry reaching the recreate action. For the 16-second replay, video must
+start and finish within one nominal frame of the epoch boundaries, contain
+approximately 960 frames (±2), retain contiguous frame indices, and maintain
+60 Hz cadence within 1%. Original Pong measures approximately 60.055 Hz. PCM must
+contain 768,000 samples within ±4 samples; the native initialization emits two
+extra samples in this baseline. A six-second video or thirteen-second PCM stream
+fails even if scores, contacts, and final telemetry still exist.
+
+Every recorded input must also match `tests/replays/pong.tsv`: requested timestamp,
+action, integer value, row order, and multiplicity. This includes both paddle
+events sharing the 10-second timestamp. Applied-time skew is checked separately.
+Keeping only the final recreate log row cannot qualify a capture.
+
 HIT is `B2.8` in the original Pong circuit. One physical contact spans several
 raster scan lines, so pulses separated by less than 100 ms form one contact
 episode. Two pulses do not establish a rally: the assertions require two
@@ -123,6 +137,14 @@ The aggregate report records the NoCPU version, original source-archive hash,
 replay hash, adapted binary hash, adapter diff hash, native binary record, capture
 image ID, and copied toolchain provenance. These identify the measured build
 when reporting a later regression.
+
+`make test` runs ROM-free regression tests for these qualification gates.
+After native capture, the capture script additionally runs
+`tests/test-reference-analysis.py --reference-dir build/reference`, which tests
+the healthy capture and mutates isolated copies under ignored
+`build/audit-reference/`. The regression cases truncate actual video/PCM and
+remove, change, duplicate, or reorder recorded input rows. They preserve the
+original capture and require each altered copy to fail the appropriate gate.
 
 CI uploads reports, CSVs, WAVs, PPM snapshots, and the adapter diff. It excludes
 copied source, executables, object files, and raw working buffers.

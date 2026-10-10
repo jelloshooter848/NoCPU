@@ -101,6 +101,53 @@ class ReleaseToolsTests(unittest.TestCase):
         self.assertTrue(any("hidden.zip" in error for error in errors))
         self.assertTrue(any(".env.local" in error for error in errors))
 
+    def test_nested_git_directory_rejected_even_when_empty(self):
+        metadata = self.root / "tools/vendor/.git"
+        metadata.mkdir(parents=True)
+        destination = Path(self.temp.name) / "unsafe.tar.gz"
+        for populated in (False, True):
+            if populated:
+                (metadata / "config").write_text("[remote \"origin\"]\nurl = https://example.invalid/private-fixture\n")
+            with self.subTest(populated=populated):
+                self.assertTrue(any("Nested Git metadata" in error for error in checks.verify_payloads(self.root)))
+                with self.assertRaisesRegex(ValueError, "Nested Git metadata"):
+                    package.collect_files(self.root)
+                with self.assertRaisesRegex(ValueError, "Nested Git metadata"):
+                    package.make_archive(self.root, destination, "0.1.0", True)
+                self.assertFalse(destination.exists())
+
+    def test_nested_git_worktree_pointer_rejected(self):
+        metadata = self.root / "tools/vendor/.git"
+        metadata.parent.mkdir(parents=True)
+        metadata.write_text("gitdir: /tmp/nocpu-private-fixture\n")
+        self.assertTrue(any("Nested Git metadata" in error for error in checks.verify_payloads(self.root)))
+        with self.assertRaisesRegex(ValueError, "Nested Git metadata"):
+            package.collect_files(self.root)
+        destination = Path(self.temp.name) / "unsafe.tar.gz"
+        with self.assertRaisesRegex(ValueError, "Nested Git metadata"):
+            package.make_archive(self.root, destination, "0.1.0", True)
+        self.assertFalse(destination.exists())
+
+    def test_root_git_directory_or_worktree_pointer_allowed_and_excluded(self):
+        metadata = self.root / ".git"
+        for directory in (True, False):
+            if directory:
+                metadata.mkdir()
+                (metadata / "config").write_text("[remote \"origin\"]\nurl = https://example.invalid/private-fixture\n")
+            else:
+                metadata.write_text("gitdir: /tmp/nocpu-private-fixture\n")
+            with self.subTest(directory=directory):
+                self.assertEqual(checks.verify_payloads(self.root), [])
+                self.assertFalse(any(".git" in path.relative_to(self.root).parts for path in package.collect_files(self.root)))
+                destination = Path(self.temp.name) / "safe.tar.gz"
+                package.make_archive(self.root, destination, "0.1.0", True)
+                with tarfile.open(destination, "r:gz") as archive:
+                    self.assertFalse(any(".git" in Path(member.name).parts for member in archive))
+            if directory:
+                shutil.rmtree(metadata)
+            else:
+                metadata.unlink()
+
     def test_license_notice_missing_tampered_and_unsafe_paths_detected(self):
         shutil.copyfile(ROOT / "tests/license-audit.json", self.root / "tests/license-audit.json")
         audit = json.loads((self.root / "tests/license-audit.json").read_text())

@@ -20,3 +20,18 @@ increase, coin restart/clear, generated sound transitions, bounded simulation
 input scheduling, full recreation scenario, or fresh-process repeat equality is
 missing. Circuit recreation is characterized separately; identical startup
 frames are not an assertion about the original simulator.
+
+Qualification additionally requires full video/PCM duration and cadence, plus
+exact accounting of every declared replay timestamp/action/value in row order.
+`make test` exercises these gates without native media. The capture command then
+also runs actual-artifact regressions using isolated copies under ignored
+`build/audit-reference/`. To rerun those against an existing capture:
+
+```sh
+python3 tests/test-reference-analysis.py --reference-dir build/reference
+```
+
+The actual-artifact tests reject video truncated to 360 frames, PCM truncated to
+624,000 samples, a log containing only recreation, altered paddle values, extra
+duplicate rows, and reordered inputs sharing one timestamp. Original captured
+media and reports remain unchanged.

@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 FORBIDDEN_SUFFIXES = {".zip", ".rom", ".bin", ".7z", ".rar", ".gz", ".xz", ".bz2", ".tgz", ".tbz2", ".txz", ".exe", ".dll", ".so", ".dylib", ".o", ".a", ".wasm"}
-IGNORED_DIRS = {".git", "build", "dist", ".cache", "__pycache__", ".vscode", ".idea"}
+IGNORED_DIRS = {"build", "dist", ".cache", "__pycache__", ".vscode", ".idea"}
 REQUIRED = (
     "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "CONTRIBUTING.md", "AGENTS.md",
     "VERSION", ".gitignore", ".gitattributes", "Makefile", "docs/PROVENANCE.md", "docs/ROADMAP.md", "docs/TESTING.md",
@@ -82,6 +82,10 @@ def verify_payloads(root: Path) -> list[str]:
         base = Path(directory)
         retained = []
         for name in dirs:
+            if name == ".git":
+                if base != root:
+                    errors.append(f"Nested Git metadata is not allowed: {(base / name).relative_to(root).as_posix()}")
+                continue
             if name in IGNORED_DIRS:
                 continue
             path = base / name
@@ -93,6 +97,10 @@ def verify_payloads(root: Path) -> list[str]:
         for name in files:
             path = base / name
             relative = path.relative_to(root)
+            if name == ".git":
+                if base != root:
+                    errors.append(f"Nested Git metadata is not allowed: {relative.as_posix()}")
+                continue
             if path.is_symlink():
                 errors.append(f"Repository symlink is not allowed: {relative.as_posix()}")
             else:
@@ -103,8 +111,12 @@ def verify_payloads(root: Path) -> list[str]:
         for name in result.stdout.decode().split("\0"):
             if name:
                 relative = Path(name)
+                if ".git" in relative.parts:
+                    if relative != Path(".git"):
+                        errors.append(f"Nested Git metadata is tracked: {name}")
+                    continue
                 paths.add(relative)
-                if any(part in IGNORED_DIRS - {".git"} for part in relative.parts):
+                if any(part in IGNORED_DIRS for part in relative.parts):
                     errors.append(f"Generated or local-only path is tracked: {name}")
     for relative in sorted(paths):
         suffix = relative.suffix.lower()
