@@ -1,17 +1,21 @@
 # Changelog
 
-## 0.2.0 — prepared locally
+## 0.2.0 — 2026-10-10 (Pages preview)
 
 Pong browser preview with the preserved DICE circuit compiled to WebAssembly:
 
 - Add keyboard and independent simultaneous touch paddles, coin insertion, pause/resume, reset, mute, volume, and audio recovery.
 - Preserve integer simulation time, circuit scheduling, video and generated PCM, with original/native/Wasm replay comparisons and reset checks.
 - Provide browser engine tests and a source-matched Pages package with component notices, runtime hashes, and corresponding-source downloads.
-- Verify a reviewed preview before explicit GitHub Actions deployment; require matching physical Android Chrome and iPhone Safari evidence before final release publication.
+- Deploy the reviewed [Pong preview](https://jelloshooter848.github.io/NoCPU/) through GitHub Actions, with matching source and notices verified against the public files.
+- Pass the clean 60-case CI matrix with 57 passes and three expected simultaneous-touch skips, followed by ten selected checks against the live site across five automated browser profiles.
 
 Physical-phone gameplay, audible speaker output, and sustained performance
 remain pending. Preview builds are identified separately from a final release;
-no final `v0.2.0` tag or release has been published.
+no final `v0.2.0` tag or release has been published. Actual Android Chrome and
+iPhone Safari evidence must match the deployed runtime before final release
+publication. See [0.2.0 validation](docs/0.2.0_VALIDATION.md) for deployment
+identity, results and automation limits.
 
 ## 0.1.0 — 2026-10-10 (release candidate, UTC)
 

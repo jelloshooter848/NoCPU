@@ -1,8 +1,8 @@
 # DICE 0.9 game inventory
 
-NoCPU 0.1.0 preserves all 21 original registrations. This is an inventory and native reference foundation; browser and phone play arrive in later milestones. Source declarations describe intended capabilities, not completed gameplay verification.
+NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
-The 0.2.0 port implements **Pong only**. Its original/native/Wasm replay comparison and local automated browser qualification pass; physical Android/iPhone results remain pending. See [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for the measured results and automation limits. The other twenty games retain the inventory and native evidence below.
+The live [0.2.0 browser preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong only**. Its original/native/Wasm replay comparison, clean automated browser matrix and selected live-site checks pass; physical Android Chrome/iPhone Safari results remain pending. See [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for the measured results and automation limits. The other twenty games retain the inventory and native evidence below.
 
 The machine-readable [game manifest](../tests/fixtures/game-manifest.json) contains every labeled input, active DIP setting/default, exposed potentiometer range, rotation, overlay geometry, audio declaration, and required ROM descriptor. [The source audit](../tools/audit-games.py) compares those fields against the preserved C++ source without requiring ROMs.
 
@@ -56,11 +56,11 @@ The ten external ROM sets have passed actual CRC and observed-size validation us
 | Ten ROM-dependent games plus Pong | Earlier basic rendering observed in both comparison builds |
 | Pong portable native/Wasm replay | Coin-start, independent paddles, rally contacts, scoring, coin restart and reset pass; frames/PCM and circuit observations match the original fresh baseline exactly |
 | Remaining ROM-free games | Inventoried; no per-game render claim in this manifest |
-| Coin/start, movement, all actions, scoring/end/restart | Gameplay acceptance still pending per game |
+| Coin/start, movement, all actions, scoring/end/restart | Full acceptance across all 21 games remains pending; Pong has the narrower replay and browser evidence recorded here |
 | Every DIP option and potentiometer adjustment | Source declarations inventoried; runtime behavior untested |
 | Audible audio and audio/video synchronization | Physical playback pending; Pong's generated PCM and automated browser delivery are checked |
 | Browser, Android, iPhone/iPad in 0.1.0 | Not implemented in that foundation milestone |
-| Pong browser in 0.2.0 | Local automated qualification and independent reviews pass; three expected CDP touch skips, clean CI and physical phones pending |
+| Pong browser in 0.2.0 | Public preview verified; clean CI has 57 passes/3 expected CDP touch skips, ten selected live-site cases pass; physical phones pending |
 
 The manifest's `validation` fields distinguish these limits. The separate Pong reference artifact records whatever narrower native checks its command actually performs; it does not upgrade all 21 games to verified gameplay.
 
