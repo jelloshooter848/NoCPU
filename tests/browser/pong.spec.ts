@@ -114,6 +114,22 @@ async function paddles(page: Page): Promise<[number, number]> {
   });
 }
 
+async function initialRenderedPaddles(page: Page): Promise<[number, number]> {
+  let rendered: [number, number] | undefined;
+  // Circuit telemetry can precede presentation of the first gameplay frame.
+  // Require both actual rendered components before capturing the pixel baseline.
+  await expect.poll(async () => {
+    try {
+      rendered = await paddles(page);
+      return true;
+    } catch (error) {
+      if (!(error instanceof Error) || !/No rendered (left|right) paddle/.test(error.message)) throw error;
+      return false;
+    }
+  }, { timeout: 10_000, message: 'Both original circuit paddles must appear in the rendered gameplay frame' }).toBe(true);
+  return rendered!;
+}
+
 async function settledReleasedPaddles(page: Page, slot: number): Promise<[number, number]> {
   const released = await snapshot(page);
   await waitSimulation(page, BigInt(released.timeps) + 50_000_000_000n);
@@ -199,7 +215,7 @@ test('loads genuine Wasm at the Pages base path and starts the original circuit'
   await expect.poll(async () => (await snapshot(page)).run, { timeout: 15_000 }).toBe(true);
   expect((await snapshot(page)).attract).toBe(false);
   await expect.poll(async () => (await snapshot(page)).coin).toBe(false);
-  const before = await paddles(page);
+  const before = await initialRenderedPaddles(page);
   await page.keyboard.down('w');
   await expect.poll(async () => before[0] - (await paddles(page))[0], { timeout: 15_000 }).toBeGreaterThan(0.1);
   await page.keyboard.up('w');
@@ -336,7 +352,7 @@ test('simultaneous touch paddles move independently and cancellation releases he
   expect(p1).not.toBeNull(); expect(p2).not.toBeNull();
   const session = await context.newCDPSession(page);
   await session.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  const centered = await paddles(page);
+  const centered = await initialRenderedPaddles(page);
   const points = [
     { id: 11, x: p1!.x + p1!.width / 2, y: p1!.y + p1!.height * 0.2 },
     { id: 22, x: p2!.x + p2!.width / 2, y: p2!.y + p2!.height * 0.8 },
