@@ -6,7 +6,7 @@
   "runtime_sha256": null,
   "blockers": [
     "Physical Android Chrome gameplay, audio and sustained performance have not been tested.",
-    "Physical iPhone Safari gameplay, audio and sustained performance have not been tested."
+    "Partial user-reported iPhone portrait/landscape play and sound feedback is recorded in docs/0.2.1_VALIDATION.md; identified browser/runtime, complete checks and sustained-performance evidence remain pending."
   ],
   "devices": [
     {
