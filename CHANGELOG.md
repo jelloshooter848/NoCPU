@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show the build's version number unobtrusively on the title screen, beginning with the next release.
+
 ## 0.2.1 — 2026-10-10 (Pages preview)
 
 - Move phone paddle control to visible independent P1/P2 tracks outside the court, below it in portrait and beside it in landscape, so fingers do not hide play.

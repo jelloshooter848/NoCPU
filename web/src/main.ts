@@ -43,6 +43,7 @@ app.innerHTML = `
             <button data-action="help">How to play</button>
             <button data-action="about">About</button>
           </div>
+          <p class="title-version" data-testid="title-version">V${__NOCPU_VERSION__}</p>
         </section>
         <section class="panel-section loading-panel" data-panel="loading" hidden>
           <h1 id="loading-heading">Loading Pong</h1>
