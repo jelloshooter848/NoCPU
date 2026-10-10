@@ -6,6 +6,7 @@ NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, b
 
 ## Start here
 
+- [0.1.0 qualification and review results](docs/0.1.0_VALIDATION.md)
 - [Build and validation instructions](docs/TESTING.md), [0.1.0 task breakdown](docs/0.1.0_TASKS.md), and [validation report](docs/0.1.0_VALIDATION.md)
 - [Game compatibility and validation matrix](docs/GAME_COMPATIBILITY.md)
 - [ROM requirements and private test fixtures](docs/ROMS.md)
