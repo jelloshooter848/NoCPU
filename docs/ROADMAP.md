@@ -34,7 +34,7 @@ In-app pause/reset, volume/mute, display sizing, remapping and persistent settin
 
 ### 0.1.0 — GitHub repository foundation and measurable native reference
 
-Implementation and the review gauntlet are complete for the 0.1.0 source candidate; see [0.1.0_VALIDATION.md](0.1.0_VALIDATION.md). The PR is ready for review, and no release tag has been published. See [TESTING.md](TESTING.md) for actual command contracts, [GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md) for validation coverage, [PROVENANCE.md](PROVENANCE.md) for the source and license audit, and [RELEASING.md](RELEASING.md) for the publication gate. Browser/mobile support is not part of this release.
+Implementation and the review gauntlet are complete for the 0.1.0 source candidate; see [0.1.0_VALIDATION.md](0.1.0_VALIDATION.md). The source foundation is merged; no release tag has been published. See [TESTING.md](TESTING.md) for actual command contracts, [GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md) for validation coverage, [PROVENANCE.md](PROVENANCE.md) for the source and license audit, and [RELEASING.md](RELEASING.md) for the publication gate. Browser/mobile support is not part of this release.
 
 The repository itself is a deliverable of 0.1.0, following SMBC's separation of runtime code, tools, documentation, bug reports and release automation. Foundation layout:
 
