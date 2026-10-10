@@ -12,7 +12,7 @@ Original source, build copies, validation instrumentation, and product code have
 | Native build tools | Reproduce compilation without editing that reference |
 | Validation adapter | Apply controlled inputs and capture observable behavior; document every instrumentation patch |
 | `core/` | Versioned create/destroy/reset/input/advance/frame/PCM interface around the original-derived Pong circuit |
-| `web/` | Pong interface, independent touch/keyboard paddles, worker stepping, Canvas and Web Audio delivery |
+| `web/` | Game shell/catalog, input mappings, local preferences/ROM management, worker stepping, Canvas and Web Audio delivery; Pong alone is playable |
 | Release packaging | Exact runtime identity, matching corresponding source, licenses and preview/final gates |
 
 The newer DirtBagXon fork is a reference for dependency modernization, not the authority for fidelity. Earlier comparison found identical game definitions but observed rendering and logging differences that remain unresolved. See [provenance](PROVENANCE.md), [Pong reference](PONG_REFERENCE.md), and [testing](TESTING.md) for exact evidence and limits.
@@ -70,7 +70,36 @@ path. Release packaging supplies notices and matching source alongside the
 runtime. Previews retain pending phone gates and identify the exact deployed
 runtime; final releases require the agreed device evidence for those bytes.
 
-## Later library work
+## 0.3.0 app-foundation boundary
+
+The authorized [0.3.0 work](0.3.0_TASKS.md) extends the game shell with library
+and information screens, shared controls/remapping, preferences and local ROM
+management. The source-audited `tests/fixtures/game-manifest.json` supplies all
+21 metadata entries; only Pong has a playable browser circuit. ROM compatibility
+and optional retention are separate from game availability.
+
+Shell/catalog modules consume the input, preference and ROM modules through
+agreed typed interfaces. Gamepad and remapped keyboard inputs still target the
+unchanged circuit axes and control protocol. Storage migration, corruption or
+eviction must not prevent ROM-free Pong play. ZIP validation uses the pinned
+fflate helper with output bounds and accepted source CRC/observed-size checks;
+filenames are documentary. The preferred library source and actual imported
+dependency bytes are covered by the separate distribution/provenance checks.
+
+Preferences retain volume, mute and keyboard/gamepad assignments through a
+versioned record. ROM archives remain session-local unless retention is
+explicitly selected; re-import, removal and backup are distinct from game
+availability. Known corrupt retained records are not treated as validated and
+remain removable. Back follows the panel origin without resuming simulation;
+returning to library/title tears down the active circuit. Optional fullscreen
+uses the browser capability with a usable ordinary-viewport fallback.
+
+This foundation preserves the worker-owned clock, circuit PCM, original raster
+and external paddle tracks. It does not port the other game circuits or waive
+pending actual-phone gates. Candidate and deployment results are recorded
+separately in [0.3.0 qualification](0.3.0_VALIDATION.md).
+
+## Full-library implementation
 
 Retain this platform boundary while adding the complete arcade UI:
 

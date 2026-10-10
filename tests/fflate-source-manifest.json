@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "package": "fflate",
+  "version": "0.8.2",
+  "license": "MIT",
+  "source_repository": "https://github.com/101arrowz/fflate",
+  "source_commit": "d3243651cb142e3e04f3e4bc037b9e985878f444",
+  "source_tag": "v0.8.2",
+  "npm_integrity": "sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==",
+  "preferred_source_directory": "upstream/fflate-0.8.2",
+  "source_files": {
+    "upstream/fflate-0.8.2/LICENSE": "805f6cb28bb8b6d3a0badd83c93bccd9671fa01a3b4b92b7042b0743325ac243",
+    "upstream/fflate-0.8.2/README.md": "7697e0b31b94feb5cd6d8114ee965b1442bd3c916bfdbe21e4cb7e57bf821437",
+    "upstream/fflate-0.8.2/CHANGELOG.md": "a61f0369d564fa7e4411c2628cd3d658bc5bed2e6ca633744abccaf01b1102be",
+    "upstream/fflate-0.8.2/package.json": "1f39729fc15f568a3aef326e03b3a2b766ad3b6d43705a11bcb66b2979649c89",
+    "upstream/fflate-0.8.2/package-lock.json": "99b9fc2712e442daae2623ea798e71ce2eac12a2fb15c00a3670423f840f08cd",
+    "upstream/fflate-0.8.2/tsconfig.json": "98f9a6bee0735f1d6c5056a27a77e1acaceae7b604abb34bd1a0f3d7b7b77a05",
+    "upstream/fflate-0.8.2/tsconfig.esm.json": "b2d8b240045eda4bf7c3e5f0eeb4ef8ff949418acef0f051202d72eaeb7f6ed6",
+    "upstream/fflate-0.8.2/.browserslistrc": "2b18032369e7a046a5710d3c9d4657cda3b95140dd579732e544e3bb595d0cce",
+    "upstream/fflate-0.8.2/.terserrc": "4834b142db82dc870301022024bfd8082ba799d7f7f71e8dfe6d07791fd374c5",
+    "upstream/fflate-0.8.2/.npmignore": "077a91c435b9c1ad48b18ae78c5140fe084a6fa8de61381995f936397674a271",
+    "upstream/fflate-0.8.2/.gitignore": "dfcc43a0c615cf526f58a0ee180bcfca055753003b9023bd1181aca43b1288bf",
+    "upstream/fflate-0.8.2/src/index.ts": "5c53303c081ce37d3c936e34cee6a75acb02fc40630a9f5f584e4afce62fe1c0",
+    "upstream/fflate-0.8.2/src/node-worker.ts": "f025621a72fed25d8ab36d0bd5fd929911f1f763578aba0df99df5a718c11cd1",
+    "upstream/fflate-0.8.2/src/worker.ts": "6046799f3838e2c6b3c08132bab5b450bf86530e34193e7baa2fcab2a6615b05",
+    "upstream/fflate-0.8.2/scripts/buildUMD.ts": "af29f49b2fe146c497ad9303278a436a772c9438f8de4b44ac3b6835daa6f989",
+    "upstream/fflate-0.8.2/scripts/cpGHPages.ts": "f7d993cba42428c6737a98811c841130b42af33d8624a8ed88552882062e0ee7",
+    "upstream/fflate-0.8.2/scripts/rewriteBuilds.ts": "354d8150be2ff0b05c5aa68ec3d9386dba63297e34fbb32b5a7322686f813bd8"
+  },
+  "runtime_inputs": {
+    "node_modules/fflate/esm/browser.js": "8cc1f687e0159e977addb6b85e274dbd11e622cf151f4fcb7b85d49622ea43e7",
+    "node_modules/fflate/package.json": "1f39729fc15f568a3aef326e03b3a2b766ad3b6d43705a11bcb66b2979649c89",
+    "node_modules/fflate/LICENSE": "805f6cb28bb8b6d3a0badd83c93bccd9671fa01a3b4b92b7042b0743325ac243"
+  },
+  "notice": "docs/licenses/fflate-0.8.2-LICENSE.txt",
+  "scope": "Synchronous/streaming ZIP deflate helper imported by the ROM-file validator. No ROM data or other games are distributed."
+}

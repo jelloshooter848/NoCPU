@@ -2,7 +2,7 @@
 
 ## Scope and fidelity
 
-- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. 0.1.0 is the native/reference foundation; 0.2.0 establishes the Pong-only browser port. The authorized 0.2.1 patch moves touch controls outside the court before 0.3. Other browser games remain later work.
+- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. 0.1.0 is the native/reference foundation; 0.2.0 establishes the Pong-only browser port and 0.2.1 moves touch controls outside the court. The authorized 0.3.0 app foundation adds a game-first library, controls/remapping, preferences and optional local ROM management while Pong remains the only playable browser game. See [docs/0.3.0_TASKS.md](docs/0.3.0_TASKS.md) for the current delivery contract. Physical qualification remains pending; it gates final tags and broad-game-support readiness, not authorized app-foundation development or independently reviewed previews.
 - Preserve all 21 DICE 0.9 games as the 1.0 scope. A difficult game is a recorded blocker, not permission to remove it.
 - Keep `upstream/dice-0.9/` byte-identical to its audited source inventory. Build from a disposable copy. Place NoCPU adapters and instrumentation elsewhere, documenting any derived-source patches and attribution.
 - Preserve the circuit scheduler, integer simulation time, video geometry, PCM generation, and supported physical inputs. Browser adaptations must change access to the hardware, with behavior verified against the native reference.

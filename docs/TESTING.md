@@ -67,10 +67,13 @@ generated directory. The Wasm target also copies its generated module into
 ignored `web/public/core/` for Vite. Build artifacts remain outside tracked
 source.
 
-The app offers Play Pong, Insert coin, independent W/S and Up/Down paddle
-controls, two simultaneous touch controls, pause/resume, reset, mute and volume.
-Pong requires no ROM import. Broader game selection, remapping, gamepads and
-ROM storage remain later milestones.
+The 0.3.0 candidate retains Play Pong, Insert coin, default W/S and Up/Down
+paddles, external simultaneous touch tracks, pause/resume, reset, mute and
+volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
+remapping, preferences and optional local ROM management. Only Pong is
+playable and requires no ROM import; compatibility/import results do not
+qualify the other twenty circuits. The verified public site remains 0.2.1
+until the replacement passes independent deployment checks.
 
 ### Original, portable-native and Wasm comparison
 
@@ -94,6 +97,13 @@ read actual results before claiming pixel equality. [PORT_PONG.md](PORT_PONG.md)
 records preserved behavior and deliberate platform adaptations.
 
 ### Browser checks
+
+After the frozen `npm ci` install, run `npm run test:foundations` for the
+control, preferences and bounded ROM/ZIP modules. The shared CI runs this
+meaningful suite after dependency installation. Its temporary synthetic
+archives contain no private ROM payloads and do not establish other-game
+loading or gameplay. Browser tests independently exercise the actual app,
+gamepad/IndexedDB interactions and existing circuit/audio/touch behavior.
 
 On this Debian 13 amd64 cloud environment, the installer can also download the
 exact Playwright 1.58.2 engines and signed, locally extracted browser libraries:
@@ -125,9 +135,10 @@ The configured projects cover Chromium, Firefox, WebKit, an emulated Android
 viewport and an emulated iPhone viewport. They exercise actual production Wasm
 loading and frontend behavior. An emulated phone viewport is not a physical
 phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
-audio buffers do not prove speaker playback. [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md)
-records current patch qualification and the physical-phone procedure; the
-earlier preview's executed checks remain in
+audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](0.3.0_VALIDATION.md)
+records current app-foundation qualification and the physical-phone procedure;
+the separately verified public preview and partial actual-iPhone feedback
+remain in [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
 [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
 
 The Pages packager supplies source downloads/notices omitted from an ordinary

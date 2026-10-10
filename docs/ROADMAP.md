@@ -137,6 +137,15 @@ runtime before a final tag is published.
 
 ### 0.3 — A usable NoCPU app
 
+The user authorized this app-foundation milestone after reporting two full
+0.2.1 iPhone games, one in portrait and one in landscape, both playing well
+with sound that seems to work well. That is partial device feedback; complete
+identified-device and sustained-performance qualification remains pending.
+The [0.3.0 delivery contract](0.3.0_TASKS.md) permits implementation and a
+reviewed preview while retaining the actual-device final-tag gate. The library
+shows all 21 source-audited titles; only Pong is playable in the browser.
+Imported ROM compatibility is distinct from browser game availability.
+
 1. Build library → game information → Play → pause/settings → return-to-library flow, with clear ROM and controls status.
 2. Add responsive portrait/landscape layouts, safe-area spacing, usable touch targets and fullscreen where the browser supports it, with a normal viewport fallback.
 3. Add keyboard and gamepad remapping and per-game controls help. Touch layouts cover absolute/relative paddles, wheel/throttle, aiming, direction/action buttons and multiple player slots.
@@ -145,7 +154,17 @@ runtime before a final tag is published.
 6. Persist preferences and optional ROM files using versioned browser storage. Handle unavailable storage, browser eviction and re-import without losing access to the app.
 7. Include original developer credit, project/source links, version, help and useful errors.
 
-Exit: a new player can open the site and play Pong on a phone without keyboard access or unexplained settings. Resizing, orientation changes and audio interruption recover cleanly.
+Reuse the completed Pong menus, responsive layouts, external simultaneous
+touch tracks and audio/lifecycle recovery. Extend them through library/info,
+shared input/help, remapping and versioned storage rather than rebuilding their
+already validated behavior.
+
+Exit: a new player can use the game-first library/info flow, play Pong without
+keyboard access, configure supported inputs and retain preferences without
+unexplained settings. ROM import/storage failures remain recoverable, and
+unavailable games stay clearly identified. Resizing, orientation changes and
+audio interruption recover cleanly. Automated preview qualification and
+physical final-release qualification remain separate.
 
 ### 0.4–0.7 — Full DICE library and compatibility
 
@@ -199,7 +218,17 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The 0.1.0 foundation, 0.2.0 Pong preview and authorized 0.2.1 off-court control patch have completed their recorded automated and publication reviews. Next collect actual Android Chrome/iPhone Safari touch, speakers and sustained-performance evidence for the deployed runtime and declare the supported device floor. A final tag requires those gates. The 0.3 library interface, control remapping and preferences remain later scope; reuse the completed Pong menus, touch and lifecycle behavior. Additional games remain 0.4–0.7 work.
+The 0.1.0 foundation, 0.2.0 Pong preview and authorized 0.2.1 off-court control
+patch have completed their recorded automated and publication reviews. The
+user has now authorized the [0.3.0 app foundation](0.3.0_TASKS.md): implement
+the game-first library/info flow, shared controls/remapping, preferences and
+optional local ROM management, then independently qualify its source-matched
+preview. Pong remains the only browser game. Continue collecting actual
+Android Chrome/iPhone Safari touch, speakers and sustained-performance
+evidence and declare the supported device floor; pending fields are not
+waived by development or preview publication. Final tags require complete
+runtime-matched actual-device evidence. Additional games remain 0.4–0.7 work
+after the broad-game-support decision gate.
 
 ## After 1.0 — preservation and expansion
 

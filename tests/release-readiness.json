@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "version": "0.2.1",
+  "version": "0.3.0",
   "release_stage": "preview",
   "release_ready": false,
   "runtime_sha256": null,
   "blockers": [
-    "Physical Android Chrome gameplay, audio and sustained performance have not been tested.",
-    "Partial user-reported iPhone portrait/landscape play and sound feedback is recorded in docs/0.2.1_VALIDATION.md; identified browser/runtime, complete checks and sustained-performance evidence remain pending."
+    "Physical Android Chrome qualification for the complete 0.3.0 runtime remains pending.",
+    "Partial user-reported 0.2.1 iPhone play and sound feedback is recorded in docs/0.2.1_VALIDATION.md; complete identified-device checks and sustained performance for the 0.3.0 runtime remain pending."
   ],
   "devices": [
     {
