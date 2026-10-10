@@ -1,0 +1,23 @@
+name: Game proposal
+description: Suggest a post-1.0 discrete-logic game or documentation source.
+title: "[Game]: "
+body:
+  - type: markdown
+    attributes:
+      value: "New games follow the original 21-game fidelity milestone. Link documentation; do not upload ROMs."
+  - type: input
+    id: game
+    attributes:
+      label: Game, manufacturer, and year
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Evidence that the original hardware has no CPU
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Schematics, manuals, existing emulation status, and control requirements

@@ -1,0 +1,5 @@
+# Keep maintained scripts/docs usable across hosts while preserving audited bytes.
+* text=auto eol=lf
+upstream/dice-0.9/** -text -eol
+LICENSE -text -eol
+docs/licenses/** -text -eol

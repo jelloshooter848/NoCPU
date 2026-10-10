@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "release_ready": true,
+  "assessment_scope": "NoCPU 0.1.0 source-only distribution. Does not clear binaries, Wasm, ROMs or toolchain containers.",
+  "combined_distribution_license": "GPL-3.0-only",
+  "original_dice_license": "GPL-3.0-or-later",
+  "nocpu_owned_files_license": "GPL-3.0-or-later",
+  "historical_library_license_basis": "GPL version 3 conservatively, except retained zlib and Apple sample-code notices. No blanket public-domain or retroactive ISC claim.",
+  "blockers": [],
+  "notices": [
+    {
+      "path": "docs/licenses/Apple-HID-Utilities.txt",
+      "sha256": "83fa77af890b129524013dca68a3c11b9c39306306878685b32500eebf85975c"
+    },
+    {
+      "path": "docs/licenses/ManyMouse-zlib.txt",
+      "sha256": "d0a8fd6576bfa68b99ede5b205e29b8f2aa8b700c102ad04c77ee9481f8dc16c"
+    },
+    {
+      "path": "docs/licenses/bsnes-088-debian-copyright.txt",
+      "sha256": "8acdf46114e7a8af7c55f856acce3286fb1c9fd170af02116d9ea4249a0543ac"
+    },
+    {
+      "path": "docs/licenses/higan-094-debian-copyright.txt",
+      "sha256": "a669376d0b99afa273b0f586b3b943d003be73a30fe8be0b3a48b6b9392f8f3e"
+    },
+    {
+      "path": "docs/licenses/higan-094-emulator.hpp.txt",
+      "sha256": "00f29306022dd15939b56f5debf76ccc6dc74e1a1d92a539a5737c3d83e1bfa2"
+    },
+    {
+      "path": "docs/licenses/higan-2020-license.txt",
+      "sha256": "77e89cf36c59a028664345e38d81bc06d80dd178a41e92e1369eb4e1671811cf"
+    },
+    {
+      "path": "docs/licenses/puff-zlib.txt",
+      "sha256": "b63a82ec6a1be554ab3c286f6c62a40ffb0194a478ebe117f27274b0246d4d59"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "5f631fae467c82b8cd28fd1ec425c816895a35f9d94e36bee0e0164570e8e0f6"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "upstream/dice-0.9/README.txt"
+    },
+    {
+      "path": "upstream/dice-0.9/LICENSE.txt"
+    },
+    {
+      "path": "upstream/dice-0.9/manymouse/LICENSE.txt"
+    }
+  ],
+  "evidence": [
+    {
+      "kind": "primary-original-archive",
+      "path": "upstream/dice-0.9/README.txt",
+      "detail": "DICE Team 2008-2014, GPL version 3 or later; LICENSE.txt retained verbatim."
+    },
+    {
+      "kind": "primary-historical-source",
+      "url": "https://github.com/higan-emu/higan/blob/10464b8c54085702b6ac8225aeb5bd01501ae5ee/emulator/emulator.hpp",
+      "path": "docs/licenses/higan-094-emulator.hpp.txt",
+      "detail": "Author byuu, library-bearing historical higan program declares GPLv3. Does not itself enumerate file-level exceptions."
+    },
+    {
+      "kind": "secondary-contemporaneous-inventory",
+      "url": "https://sources.debian.org/src/higan/094-5/debian/copyright/",
+      "path": "docs/licenses/higan-094-debian-copyright.txt",
+      "detail": "Files:* GPL-3 scope, with nall/inflate.hpp explicitly zlib. Used with primary declarations and identified library provenance, not substituted for rights-holder grant."
+    },
+    {
+      "kind": "secondary-contributor-attribution",
+      "url": "https://sources.debian.org/src/bsnes/0.088-5/debian/copyright/",
+      "path": "docs/licenses/bsnes-088-debian-copyright.txt",
+      "detail": "Historical family package credits include vladitx and Ryphecha; does not assign exact file authorship."
+    },
+    {
+      "kind": "library-identity-hash-comparison",
+      "url": "https://api.github.com/repos/higan-emu/higan/git/trees/4e2eb23835228477859f4d9de69e8cd27a4eeea6?recursive=1",
+      "files_examined": 390,
+      "corresponding_paths": 390,
+      "identical_git_blob_hashes": 346,
+      "different_git_blob_hashes": 44,
+      "detail": "All original Phoenix/nall files compared to v093 same-family paths. Remaining differences are adaptations within those libraries; author attribution for each change is not asserted."
+    },
+    {
+      "kind": "primary-zlib-exception",
+      "url": "https://github.com/madler/zlib/blob/v1.2.8/contrib/puff/puff.h",
+      "path": "docs/licenses/puff-zlib.txt",
+      "detail": "Complete original puff notice. The imported nall puff implementation is an adaptation, not represented as unmodified puff."
+    },
+    {
+      "kind": "primary-apple-exception",
+      "url": "https://developer.apple.com/library/archive/samplecode/HID_Utilities_Source/HID_Utilities_Source.zip",
+      "path": "docs/licenses/Apple-HID-Utilities.txt",
+      "detail": "Complete HID_Utilities.c original header, Mac Roman decoded to UTF-8. ManyMouse explicitly acknowledges Apple/George Warner incorporation."
+    },
+    {
+      "kind": "primary-later-context",
+      "url": "https://github.com/higan-emu/higan/blob/8f4df010715298455b92cfc0821ea833770a8b5a/LICENSE.txt",
+      "path": "docs/licenses/higan-2020-license.txt",
+      "detail": "Later nall/hiro ISC terms retained as context; not retroactively asserted for this older Phoenix/nall import."
+    }
+  ],
+  "followups": [
+    "Inventory exact linked/bundled dependencies before distributing native binaries or Wasm.",
+    "Preserve individual notices and source when distributing the combined version-3 source package.",
+    "Retain original archive bytes and describe adaptations outside upstream."
+  ]
+}
