@@ -24,12 +24,12 @@ jobs:
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: '22.22.0'
-      - name: Check preservation, source tooling, and failure-injection tests
-        run: make test
       - name: Install pinned web toolchain and browser engines
         run: |
           ./tools/install-web-toolchain.sh --browsers
           PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox webkit
+      - name: Check preservation, source tooling, and failure-injection tests
+        run: make test
       - name: Test web control, preferences and ROM foundations
         run: npm run test:foundations
       - name: Install a signed-package audio sink for real headless browser audio

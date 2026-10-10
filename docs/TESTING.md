@@ -17,11 +17,16 @@ python3 tools/audit-roms.py
 The foundation check audits the repository contracts. Game and ROM audits compare source declarations with tracked metadata without requiring game ROM payloads. `audit-roms.py` checks actual archive bytes only when `--rom-dir` is supplied. Read their output: metadata consistency does not establish that a title loads, plays, or has accurate sound. The [compatibility matrix](GAME_COMPATIBILITY.md) is the record of per-game evidence.
 
 ```sh
+npm ci --cache build/npm-cache --no-audit --no-fund
 make test
 ```
 
-This runs repository integrity checks and source-release, game/ROM-metadata and
-reference-analysis regressions. Without captured artifacts, seven actual
+Install the pinned npm dependencies before the full regression command: the
+0.3.0 distribution tests verify actual fflate input bytes in disposable copies.
+The fixture-free Python audits above still run without Node dependencies.
+
+This runs repository integrity checks and source-release, game/ROM-metadata,
+browser-distribution and reference-analysis regressions. Without captured artifacts, seven actual
 reference-mutation cases are skipped while their fourteen timing/input unit
 checks run. After the native capture, enable those cases explicitly:
 
