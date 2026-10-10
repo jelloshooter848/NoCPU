@@ -34,7 +34,7 @@ In-app pause/reset, volume/mute, display sizing, remapping and persistent settin
 
 ### 0.1.0 — GitHub repository foundation and measurable native reference
 
-This is the first implementation milestone. See [TESTING.md](TESTING.md) for actual command contracts, [GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md) for validation coverage, [PROVENANCE.md](PROVENANCE.md) for the source and license audit, and [RELEASING.md](RELEASING.md) for the publication gate. Browser/mobile support is not part of this release.
+Implementation and the review gauntlet are complete for the 0.1.0 source candidate; see [0.1.0_VALIDATION.md](0.1.0_VALIDATION.md). The source foundation is merged; no release tag has been published. See [TESTING.md](TESTING.md) for actual command contracts, [GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md) for validation coverage, [PROVENANCE.md](PROVENANCE.md) for the source and license audit, and [RELEASING.md](RELEASING.md) for the publication gate. Browser/mobile support is not part of this release.
 
 The repository itself is a deliverable of 0.1.0, following SMBC's separation of runtime code, tools, documentation, bug reports and release automation. Foundation layout:
 
@@ -155,9 +155,9 @@ Release all 21 original games through a tested browser/mobile interface. Publish
 
 Do not rewrite the circuit emulator in TypeScript to imitate its output. The original source is available and both native builds already work; preserve that investment and verify the new platform boundary.
 
-## First concrete work package
+## Next concrete work package
 
-Complete and review the NoCPU repository foundation, upstream attribution and patch policy, the 21-game matrix, native reference tooling and build/release scaffolding. Then implement a minimal Pong-only browser prototype that reaches physical Android/iPhone testing before investing in the complete arcade UI. The 0.1.0 deliverable is the repository foundation with measured native Pong evidence. The first browser milestone, 0.2, adds a playable URL with verified coin/start, two paddles, ball/scoring, sound and reset.
+The 0.1.0 repository foundation, upstream attribution/patch policy, 21-game matrix, native reference tooling and build/release scaffolding have completed review. The next implementation milestone is 0.2: a minimal Pong-only browser prototype that reaches physical Android/iPhone testing before investing in the complete arcade UI. The 0.1.0 deliverable is the repository foundation with measured native Pong evidence. The first browser milestone, 0.2, adds a playable URL with verified coin/start, two paddles, ball/scoring, sound and reset.
 
 ## After 1.0 — preservation and expansion
 
