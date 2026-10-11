@@ -186,17 +186,17 @@ gate; controller hardware evidence and final tags stay pending.
 
 ### 0.4–0.7 — Full DICE library and compatibility
 
-The [0.4.0 first batch](0.4.0_TASKS.md) is delivered as an independently
+The historical [0.4.0 first batch](0.4.0_TASKS.md) was delivered as an independently
 verified Pages preview: Pong Doubles and Space Race alongside Pong. All three
 are ROM-free. Exact-main CI passes 214 cases with six existing annotated CDP
 skips out of 220; all 15 selected live cases and all 97 public-file checks pass.
 Original/native/Wasm fidelity, compiled components/notices and matching source
 are independently accepted. The [0.4.0 validation ledger](0.4.0_VALIDATION.md)
-records the deployed identities and earlier failed attempts. The other eighteen
-titles remain explicitly unported. Actual phone/controller qualification and
+records its deployed identities and earlier failed attempts. That preview left
+eighteen titles explicitly unported; the delivered 0.5.0 batch below leaves seventeen. Actual phone/controller qualification and
 final tags remain pending.
 
-Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Breakout is selected for 0.5.0 after independent source feasibility review; Stunt Cycle and Indy 4 remain subsequent candidates, subject to the asset/control audit.
+Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Breakout is delivered in 0.5.0 after independent source, fidelity and publication review; Stunt Cycle and Indy 4 remain subsequent candidates, subject to the asset/control audit.
 
 For each title:
 
@@ -211,14 +211,18 @@ Exit: every original title has an explicit desktop/mobile/ROM/fidelity result. B
 
 #### 0.5.0 — Next batch and iPhone Home Screen support
 
-The user authorized [0.5.0 implementation and reviewed preview delivery](0.5.0_TASKS.md):
-Breakout alongside an online iPhone Home Screen experience. Breakout-only source
-feasibility and complete original/native/Wasm settings/media/reset comparisons
-are independently accepted; current final package/browser qualification remains
-pending. The intended local library
-has four playable circuits and seventeen remaining ports. [Current validation](0.5.0_VALIDATION.md)
-keeps local development and actual delivery stages distinct; the public site
-still serves the accepted three-game 0.4.0 preview.
+The [0.5.0 milestone](0.5.0_TASKS.md) is delivered as an independently verified
+online Pages preview: Breakout alongside Pong, Pong Doubles and Space Race,
+with iPhone Home Screen/standalone support. Four circuits are playable and
+seventeen remain unported. Complete original/native/Wasm settings/media/reset,
+current component/source-package review, exact-main full 290-instance CI
+(281 passes/nine existing annotated CDP skips), all 107 public HTTP responses
+and the separate 20/20 live cases pass independent review. [Current
+validation](0.5.0_VALIDATION.md) preserves exact deployed identities and failed/
+interrupted/superseded history. Physical installed-iPhone/controller qualification
+remains pending; no offline delivery or final tag is claimed.
+
+Delivered Home Screen/standalone behavior and remaining device checks:
 
 Home Screen and standalone must-haves:
 
@@ -292,23 +296,22 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The [0.4.0 first-game batch](0.4.0_TASKS.md) is delivered and independently
-verified. Implement the [authorized 0.5.0 work](#050--next-batch-and-iphone-home-screen-support):
-online iPhone Home Screen/standalone usability alongside the selected Breakout
-port. Complete original circuit/asset/control/settings/audio baselines and
-measured browser qualification; source feasibility alone is not a runtime pass.
-Offline play remains a separate optional investigation and is
-excluded by default. Development and reviewed preview delivery are authorized;
-final tags and broad hardware readiness remain subject to actual device gates.
+The [0.5.0 four-game/Home Screen preview](0.5.0_TASKS.md) is delivered and
+independently verified. Continue identified Android Chrome, iPhone Safari and
+installed-iPhone testing with the [current device
+packet](DEVICE_QUALIFICATION_0.5.md), recording touch, speaker, lifecycle,
+storage and sustained-performance results against the actual tested runtime.
+Record physical controller support separately. The retained Pong baseline does
+not qualify every new title or installed context automatically.
 
-Continue collecting identified Android Chrome/iPhone Safari touch, speaker,
-lifecycle and sustained-performance evidence with the [three-game device
-packet](DEVICE_QUALIFICATION_0.4.md), matched to the actual tested runtime and
-game. Record actual controller support separately. The user's move-on decision
-permitted the delivered preview while those results remain pending;
-broad-game-support readiness and final tags retain the physical gate. Do not
-reuse an earlier runtime's results to qualify changed bytes or declare a
-supported device floor without actual results.
+Plan the next game batch from the seventeen remaining ports and capability
+matrix. Stunt Cycle and Indy 4 remain evaluation candidates, subject to their
+source/asset/control/fidelity assessment; no next batch is selected here. Offline
+play remains a separate optional investigation, excluded by default. The user's
+move-on authorization permits reviewed preview progress while physical results
+remain pending; broad-game-support readiness and final tags retain the actual
+device gate. Do not reuse an earlier runtime's results to qualify changed bytes
+or declare a supported device floor without measured evidence.
 
 ## After 1.0 — preservation and expansion
 

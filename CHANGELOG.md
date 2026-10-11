@@ -1,10 +1,12 @@
 # Changelog
 
-## 0.5.0 — In development
+## 0.5.0 — 2026-10-11 (Pages preview)
 
-- Prepare online iPhone Home Screen installation and game-first standalone usability, with manual Safari guidance, appropriate icons/metadata, safe-area/lifecycle/audio checks and honest local storage recovery.
-- Implement the original DICE Breakout circuit alongside Pong, Pong Doubles and Space Race. The complete original/native/Wasm batch, compared media and reset/ABI checks pass independent review; current final package/browser qualification remains pending.
-- Preserve the accepted three-game foundation and all 21 original titles as the 1.0 scope. Offline play is excluded by default; physical qualification, publication and final tags remain pending. See [0.5.0 tasks](docs/0.5.0_TASKS.md) and [validation](docs/0.5.0_VALIDATION.md).
+- Add online iPhone Home Screen installation and game-first standalone usability: manual Safari guidance, stable `/NoCPU/` identity, reproducible icons, safe-area/lifecycle handling and local-storage recovery. Installation does not promise offline play, shared Safari/installed storage or permanent retention.
+- Add original DICE Breakout alongside Pong, Pong Doubles and Space Race: four ROM-free playable titles and seventeen remaining ports. Preserve the shared horizontal paddle, held Serve, separate one-/two-player starts, rotated color raster, PCM and original settings.
+- Pass independently reviewed original/native/Wasm comparisons across sixteen scenarios and 64 portable behavioral epochs, with legacy ABI 295/295 checks across 45 traces and canonical Breakout ABI 502/502 across 70 traces.
+- Publish the exact-main preview after clean CI: 281 browser passes and nine existing annotated CDP skips out of 290. Verify all 104 public files, canonical root and both hash-keyed core URLs, then pass all 20 live cases across five browser profiles. Preserve earlier failed/interrupted/superseded attempts in [0.5.0 validation](docs/0.5.0_VALIDATION.md).
+- Physical Safari/installed-iPhone/controller qualification, bonus-threshold award behavior and event overflow remain unexercised; no final hardware-readiness tag is published. All 21 original titles remain the 1.0 scope.
 
 ## 0.4.0 — 2026-10-11 (Pages preview)
 
