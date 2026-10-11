@@ -1,18 +1,18 @@
 # Changelog
 
-## 0.3.0 — reviewed preview candidate
+## 0.3.0 — 2026-10-11 (Pages preview)
 
 - Show the build's version number unobtrusively on the title screen, beginning with this release.
 - Add a source-derived 21-title library and information panels with origin-aware Back, while Pong remains the only playable browser game.
 - Add keyboard/gamepad remapping, player joystick settings and shared help; retain the original court and external touch tracks.
 - Add versioned sound/control preferences and local ZIP validation with optional device retention, removal, backup and corruption/eviction recovery. Compatible ROMs do not make pending browser ports playable.
 - Add optional fullscreen with an ordinary-browser fallback and retain matching-source delivery for the pinned ZIP helper.
-- Pass independent source, product, visual and assertion reviews and the full 135-case packaged matrix: 132 passes plus 3 documented CDP touch skips, with no failures, retries or flaky results.
+- Pass independent source, product, visual and assertion reviews and the full 135-case clean CI matrix: 132 passes plus 3 documented CDP touch skips, with no failures, retries or flaky results.
+- Publish and independently verify the exact-main preview: 92 live passes plus 3 documented CDP skips out of 95 cases, and all 90 public HTTPS files equal the reviewed artifact.
 
-Required clean CI, committed artifact/source acceptance and actual deployment
-verification are pending. This version is not deployed or tagged. The verified
-public site remains the 0.2.1 preview below; actual-device qualification remains
-incomplete.
+Deployed source/runtime identity and the accepted qualification runs are recorded
+in [0.3.0 validation](docs/0.3.0_VALIDATION.md). This publication is a preview;
+physical-device/controller hardware qualification and a final tag remain pending.
 
 ## 0.2.1 — 2026-10-10 (Pages preview)
 

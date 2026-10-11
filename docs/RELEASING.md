@@ -3,10 +3,12 @@
 `VERSION` is **0.3.0**, the app foundation with a game-first library, remapping,
 preferences and optional local ROM management. Pong remains the only playable
 browser circuit. Preparing files, running tests or packaging a preview does
-not publish a final release. Current candidate qualification belongs in
-[0.3.0_VALIDATION.md](0.3.0_VALIDATION.md). The verified public site still serves
-the [0.2.1 preview](0.2.1_VALIDATION.md); earlier 0.2.0 evidence remains
-historical. No final 0.2.0 or 0.2.1 tag was published. The user authorized app
+not publish a final release. The verified public site now serves the
+[0.3.0 preview](0.3.0_VALIDATION.md), published from exact source
+`ee7f78e57278bc318dc52820d1606b3ec3fa2917`. Later documentation-only commits
+record its outcome without republishing or relabeling that source archive.
+Earlier 0.2.0/0.2.1 deployments remain historical. No final 0.2.0, 0.2.1 or
+0.3.0 tag was published. The user authorized app
 foundation development and reviewed previews without waiving actual-device
 qualification for final tags or the broad-game-support decision gate.
 

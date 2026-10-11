@@ -1,12 +1,13 @@
 # NoCPU browser application
 
-The reviewed [0.3.0 app foundation](../docs/0.3.0_TASKS.md) preview candidate adds
+The independently verified [0.3.0 app foundation](../docs/0.3.0_TASKS.md) preview adds
 game-first library/info, shared controls/remapping, persistent preferences and
 optional local ROM management. All 21 games have source-derived metadata, but
 only Pong is playable. ROM compatibility never implies browser availability.
-The verified public preview remains 0.2.1 until a
-new candidate passes required clean CI and actual deployment verification; qualification
-belongs in [0.3.0 validation](../docs/0.3.0_VALIDATION.md).
+Clean CI passes 132 cases with three documented CDP skips; the selected actual
+live suite passes 92 with three such skips. All 90 public HTTPS files match the
+reviewed exact-main artifact. Deployed source/runtime and pending physical
+qualification belong in [0.3.0 validation](../docs/0.3.0_VALIDATION.md).
 
 The Pong frontend introduced in 0.2.0 presents ROM-free Pong from DICE's original-derived C++ circuit engine. The 0.2.1 patch changes its touch controls. It uses TypeScript and Vite, a dedicated WebAssembly worker, a Canvas display, and Web Audio playback of the engine's signed mono PCM. The frontend contains no replacement game rules or synthesized Pong effects. Current physical Android/iPhone qualification is tracked separately in [0.3.0 validation](../docs/0.3.0_VALIDATION.md); [0.2.1 validation](../docs/0.2.1_VALIDATION.md) retains its historical deployment and partial device feedback, and the earlier runtime is recorded in [0.2.0 validation](../docs/0.2.0_VALIDATION.md).
 

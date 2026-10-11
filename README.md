@@ -2,21 +2,28 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
-**[Play the Pong browser preview](https://jelloshooter848.github.io/NoCPU/).** The deployed 0.2.1 port keeps DICE's C++ circuit simulation and adapts its display, inputs and generated sound to WebAssembly and browser APIs. Its viewport game shell has visible paddle tracks outside the court. Clean CI and independent reviews pass; selected checks against the actual public site record 32 passes and 3 documented CDP touch skips, with all 84 public files matching the reviewed artifact. Physical Android Chrome and iPhone Safari qualification remain pending; no final browser tag or release has been published. The [0.2.1 validation report](docs/0.2.1_VALIDATION.md), [roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the evidence and remaining gates.
+**[Play the NoCPU browser preview](https://jelloshooter848.github.io/NoCPU/).**
+The independently verified 0.3.0 preview adds a game-first 21-title library,
+keyboard/gamepad remapping, saved preferences and optional local ROM
+management. Pong remains the only playable browser game; compatible imported
+ROMs do not unlock unported games. The original circuit, court, off-court paddle
+tracks and generated sound are preserved.
 
-The [0.2.1 task ledger](docs/0.2.1_TASKS.md) records the completed automated preview work and publication. The full 75-case clean CI matrix passes 72 checks with 3 documented CDP touch skips. After the touch-control patch, the user reported two full iPhone games, one portrait and one landscape, both playing well with sound that seems to work well. This [partial device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback) does not complete the physical-device release gate.
+Clean CI records 132 passes and 3 documented CDP touch skips out of 135 cases.
+Selected checks against the actual public site record 92 passes and 3 such
+skips out of 95; all 90 public files match the independently reviewed artifact.
+The [0.3.0 validation report](docs/0.3.0_VALIDATION.md), [delivery contract](docs/0.3.0_TASKS.md),
+[roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the deployed
+source/runtime and completed reviews. Physical Android Chrome/iPhone Safari
+and controller hardware qualification remain pending; no final browser tag or
+release has been published.
 
-**The 0.3.0 preview candidate has passed independent local qualification.**
-Its [delivery contract](docs/0.3.0_TASKS.md) adds the game-first library,
-controls/remapping, preferences and optional local ROM-management foundation
-while Pong remains the only playable browser game. All 135 packaged cases
-complete in one attempt: 132 passes and 3 documented CDP touch skips, with no
-failures or retries. Required clean CI and actual deployment verification remain
-pending; the public site is still the verified 0.2.1 preview above.
-[0.3.0 qualification](docs/0.3.0_VALIDATION.md) records the evidence and limits.
-Physical-device readiness remains pending.
+The earlier touch-control preview received a user report of two full iPhone
+games, one portrait and one landscape, both playing well with sound that seems
+to work well. This [partial 0.2.1 device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback)
+does not qualify the new 0.3.0 runtime or complete the physical-device gate.
 
-The frontend is a viewport-filling game: a title screen, the original Pong court and in-game menus. Choose **Play Pong**, then **Insert coin**. Player 1 uses **W/S** and player 2 uses **Up/Down**. Drag the labeled **P1/P2 tracks outside the court**, below it in portrait and beside it in landscape; both players can move at once. Court touches do not move paddles. **Menu** pauses play and opens resume, reset, settings, help and About. Sound and volume are in Settings; DICE credit, build identity, licenses and the matching source download are in About. Pong needs no ROM file.
+The frontend is a viewport-filling game: a title screen, library, the original Pong court and in-game menus. Choose **Play Pong**, then **Insert coin**. Default keys are **W/S** for player 1 and **Up/Down** for player 2; Settings can change assignments. Drag the labeled **P1/P2 tracks outside the court**, below it in portrait and beside it in landscape; both players can move at once. Court touches do not move paddles. **Menu** pauses play and opens resume, reset, settings, help and About. Sound and volume are in Settings; DICE credit, build identity, licenses and the matching source download are in About. Pong needs no ROM file.
 
 ## Start here
 

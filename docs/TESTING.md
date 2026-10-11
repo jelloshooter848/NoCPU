@@ -72,13 +72,14 @@ generated directory. The Wasm target also copies its generated module into
 ignored `web/public/core/` for Vite. Build artifacts remain outside tracked
 source.
 
-The 0.3.0 candidate retains Play Pong, Insert coin, default W/S and Up/Down
+The independently verified 0.3.0 preview retains Play Pong, Insert coin, default W/S and Up/Down
 paddles, external simultaneous touch tracks, pause/resume, reset, mute and
 volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
 remapping, preferences and optional local ROM management. Only Pong is
 playable and requires no ROM import; compatibility/import results do not
-qualify the other twenty circuits. The verified public site remains 0.2.1
-until the replacement passes independent deployment checks.
+qualify the other twenty circuits. The public site serves the reviewed 0.3.0
+preview; exact deployment identity and pending physical qualification are in
+[0.3.0 validation](0.3.0_VALIDATION.md).
 
 ### Original, portable-native and Wasm comparison
 
