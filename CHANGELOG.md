@@ -1,9 +1,11 @@
 # Changelog
 
-## 0.3.1 — preview candidate
+## 0.3.1 — 2026-10-11 (Pages preview)
 
 - Add an opt-in phone qualification collector with Start, Finish and Export, preserving normal Pong play and explicit measurement limits.
 - Add an identified-device test packet and separate real-controller report; physical results and a final tag remain pending.
+- Pass independently reviewed clean CI: 167 browser passes and 3 documented CDP skips out of 170 single attempts, including all 35 new qualification cases.
+- Publish the exact-main preview and verify all 93 public files, both hash-keyed core responses and 50 selected live browser cases. See [0.3.1 validation](docs/0.3.1_VALIDATION.md) for deployed identities and preserved failed-run history.
 
 ## 0.3.0 — 2026-10-11 (Pages preview)
 

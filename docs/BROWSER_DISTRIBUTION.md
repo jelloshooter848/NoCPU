@@ -13,10 +13,11 @@ independent review for that 0.3.0 artifact. The initial 0.3.1 collector/loading
 source and actual production inventory also pass independent affected-component
 review: 47 frontend inputs, seven runtime outputs and the unchanged linked
 families/notices verify. No new dependency is added, and the browser license
-audit is ready within that scope. This local component
-assessment does not establish current packaged browser, committed CI, deployment or
-physical-device acceptance. Current artifacts always require fresh provenance
-and matching source.
+audit is ready within that scope. Subsequent independent
+[0.3.1 exact-main/public reviews](0.3.1_VALIDATION.md#published-preview-outcome)
+verify the actual 93 public files, 725 preferred-source files and corresponding
+provenance/notices. Physical-device acceptance remains separate. Current
+artifacts always require fresh provenance and matching source.
 Previews and final releases must both pass this gate before distribution.
 
 ## Included components

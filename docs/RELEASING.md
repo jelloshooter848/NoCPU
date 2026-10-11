@@ -5,13 +5,14 @@ app foundation's game-first library, remapping, preferences and local ROM
 management. Its [review/publication status](0.3.1_VALIDATION.md) is separate
 from actual-device readiness. Pong remains the only playable browser circuit.
 Preparing files, running tests or packaging a preview does not publish a final
-release. The verified public site still serves the
-[0.3.0 preview](0.3.0_VALIDATION.md), published from exact source
-`ee7f78e57278bc318dc52820d1606b3ec3fa2917`. Later documentation-only commits
+release. The verified public site serves the
+[0.3.1 preview](0.3.1_VALIDATION.md), published from exact source
+`4005e3cb1a20d328a8ea9a2196438a52c43e2095`. Later documentation-only commits
 record its outcome without republishing or relabeling that source archive.
-Earlier 0.2.0/0.2.1 deployments remain historical. No final 0.2.0, 0.2.1 or
-0.3.0 tag was published. The user authorized app
-foundation development and reviewed previews without waiving actual-device
+The [0.3.0 preview](0.3.0_VALIDATION.md), published from
+`ee7f78e57278bc318dc52820d1606b3ec3fa2917`, and earlier 0.2.0/0.2.1 deployments
+remain historical. No final 0.2.0, 0.2.1, 0.3.0 or 0.3.1 tag was published.
+The user authorized app foundation development and reviewed previews without waiving actual-device
 qualification for final tags or the broad-game-support decision gate.
 
 ## Build and qualification
@@ -73,9 +74,9 @@ Check the deployed project URL and every referenced asset at `/NoCPU/`, not
 only a localhost root URL. Confirm Wasm MIME/loading, worker paths, source
 archive/checksum availability, notices and preview identification. Record the
 successful deployment URL and workflow revision in the validation report.
-Until that replacement is verified, retain the earlier preview's source,
-runtime and deployment identifiers as historical evidence rather than
-relabeling its bytes as 0.3.1.
+Preserve earlier previews' source, runtime and deployment identifiers as
+historical evidence. Outcome-documentation commits do not change the exact
+source or matching archive served by the verified 0.3.1 deployment.
 
 ## Physical-device and final-release gates
 
