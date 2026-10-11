@@ -2,57 +2,54 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
-Current [0.5.0 development](docs/0.5.0_TASKS.md) adds online iPhone Home
-Screen/standalone support and the original Breakout port. The complete original/
-portable game batch is independently accepted; current final package/browser
-qualification remains pending. Offline play is excluded by default.
-The public preview below remains the independently verified 0.4.0 build.
+**[Play NoCPU 0.5.0](https://jelloshooter848.github.io/NoCPU/).** The
+independently verified Pages preview has four playable original-derived,
+ROM-free games: **Pong, Pong Doubles, Space Race and Breakout**. It adds online
+iPhone Home Screen support, manual Safari installation guidance and game-first
+standalone layout/lifecycle handling. The library, remapping, preferences,
+optional local ROM management and qualification recorder are preserved. The
+other seventeen titles remain explicitly unported; imported ROMs do not unlock
+them. Offline play is excluded.
 
-**[Play NoCPU 0.4.0](https://jelloshooter848.github.io/NoCPU/).** The
-independently verified Pages preview has three playable original-derived,
-ROM-free games: **Pong, Pong Doubles and Space Race**. The game-first library,
-remapping, preferences, optional local ROM management and qualification
-recorder are preserved. The other eighteen titles remain explicitly unported;
-compatible imported ROMs do not unlock them.
-
-Exact-main CI passes 214 cases with six existing annotated CDP touch skips out
-of 220. All 15 selected live cases pass across five browser profiles, and all
-97 public files plus the canonical root match the reviewed artifact. Original,
-portable native and Wasm scenario comparisons, actual component notices and
-matching-source delivery pass independent review. The [0.4.0 validation
-report](docs/0.4.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and
-[changelog](CHANGELOG.md) record the deployed identities and preserved failed
-attempts. The [0.3.1 qualification-tooling preview](docs/0.3.1_VALIDATION.md)
-remains historical evidence.
+Exact-main CI passes 281 cases with nine existing annotated CDP touch skips out
+of 290. All 20 selected live cases pass across five browser profiles. All 104
+public files, the canonical root and both hash-keyed core URLs match the
+reviewed artifact. Original/native/Wasm comparisons, components/notices and
+matching-source delivery pass independent review. The [0.5.0 validation
+report](docs/0.5.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and
+[changelog](CHANGELOG.md) record exact identities and retained failed attempts.
+Earlier previews remain historical evidence.
 
 Open the [qualification page](https://jelloshooter848.github.io/NoCPU/?debug)
-and follow the [three-game phone/controller
-packet](docs/DEVICE_QUALIFICATION_0.4.md) to record actual-device evidence.
-Physical Android Chrome/iPhone Safari and controller qualification remain
-pending; no final browser tag or release has been published.
+and follow the [four-game/Home Screen device
+packet](docs/DEVICE_QUALIFICATION_0.5.md) to record actual-device evidence.
+Physical Android Chrome, iPhone Safari, installed-iPhone and controller
+qualification remain pending; no final browser tag has been published.
 
 The earlier touch-control preview received a user report of two full iPhone
 games, one portrait and one landscape, both playing well with sound that seems
 to work well. This [partial 0.2.1 device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback)
-does not qualify the current 0.4.0 runtime or complete the physical-device gate.
+does not qualify the current 0.5.0 runtime or complete the physical-device gate.
 
 The frontend fills the viewport with a title screen, library, original game
 raster and in-game menus. Choose a title from the library. Pong needs **Insert
 coin**; default keys are **W/S** for player 1 and **Up/Down** for player 2.
 For Pong Doubles, insert one coin then **Start** for the two outer paddles, or
 two separate coins then **Start** for all four independent paddles. Space Race
-has separate **Coin/Start** and two Up/Down sticks. Settings and Help show each
-game's assignments. Touch tracks and digital controls sit outside the raster,
+has separate **Coin/Start** and two Up/Down sticks. Breakout has one shared
+horizontal paddle and held **Serve**: use one credit for **Start 1P**, or two
+credits for **Start 2P** (two separate coins at the default coinage). Settings
+and Help show each game's assignments. Touch tracks and digital controls sit outside the raster,
 below it in portrait and beside it in landscape. **Menu** pauses play and
 opens resume, reset, settings, help and About. Sound and volume are in Settings;
 DICE credit, build identity, licenses and the matching source download are in
-About. None of these three games needs a ROM file.
+About. None of these four games needs a ROM file.
 
 ## Start here
 
-- [0.5.0 development contract](docs/0.5.0_TASKS.md) and [current validation stages](docs/0.5.0_VALIDATION.md)
+- [0.5.0 delivered contract](docs/0.5.0_TASKS.md) and [validation/qualification status](docs/0.5.0_VALIDATION.md)
 - [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
-- [Three-game physical phone/controller procedure](docs/DEVICE_QUALIFICATION_0.4.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
+- [Four-game/Home Screen physical procedure](docs/DEVICE_QUALIFICATION_0.5.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
 - [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
 - [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)

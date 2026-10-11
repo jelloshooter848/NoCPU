@@ -48,16 +48,18 @@ Browser/core tests below have additional prerequisites.
 
 ## Portable core and browser
 
-Current [0.5.0 development](0.5.0_TASKS.md) selects Breakout and online iPhone
-Home Screen/standalone support. Its additive ABI 3 actions/options source
-contract is distinct from measured media, actual gameplay/performance and
-package acceptance. Follow [0.5.0 validation](0.5.0_VALIDATION.md) for current
-source/execution stages and the exact calibrated scenario/stream contract;
-initial software checks on an old core do not establish current matching source.
-The [four-game/Home Screen device draft](DEVICE_QUALIFICATION_0.5.md) keeps
-installed-iPhone checks separate from browser emulation.
+The delivered [0.5.0 contract](0.5.0_TASKS.md) compiles original-derived Pong,
+Pong Doubles, Space Race and Breakout with online Home Screen/standalone support.
+The complete sixteen-scenario original/native/Wasm batch, reset/ABI, components
+and matching-source delivery pass independent review. Exact-main full CI
+accounts for 290 instances: 281 passes/nine existing annotated CDP skips. All
+107 HTTP bodies and the separate 20 live cases pass, as recorded in
+[0.5.0 validation](0.5.0_VALIDATION.md). The [four-game/Home Screen physical
+packet](DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
+from browser emulation. Initial old-core Home checks and incomplete/scoped local
+matrices retain their recorded stage identities.
 
-The delivered [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
+The historical delivered [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
 and authorized proportionate local browser scopes pass independent review.
 The delivered preview also passes exact-main full-matrix CI (214 passed/six
@@ -106,9 +108,9 @@ playable and requires no ROM import; compatibility/import results do not
 qualify the other twenty circuits in that historical preview. The later
 [0.3.1 preview](0.3.1_VALIDATION.md) adds the qualification recorder and remains
 historical evidence. The public site now serves the independently verified
-three-game 0.4.0 preview described above; its exact deployed identity, software
+four-game 0.5.0 preview described above; its exact deployed identity, software
 results and pending physical qualification are in
-[0.4.0 validation](0.4.0_VALIDATION.md).
+[0.5.0 validation](0.5.0_VALIDATION.md).
 
 ### Original, portable-native and Wasm comparison
 
@@ -208,12 +210,12 @@ and partial actual-iPhone feedback remain in
 [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
 [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
 
-The current [three-game physical-device packet](DEVICE_QUALIFICATION_0.4.md)
+The current [four-game/Home Screen physical-device packet](DEVICE_QUALIFICATION_0.5.md)
 and [fillable report](DEVICE_REPORT_TEMPLATE.md) bind the selected title/options
 and actual phone/controller observations to the tested runtime. The historical
 [0.3.1 recorder report](0.3.1_VALIDATION.md) and [Pong baseline
 packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
-[0.4.0 validation](0.4.0_VALIDATION.md) records publication and hardware limits;
+[0.5.0 validation](0.5.0_VALIDATION.md) records publication and hardware limits;
 no collector export or automated profile completes the actual-device gate by
 itself.
 

@@ -1,14 +1,15 @@
 # 0.5.0 four-game and iPhone Home Screen qualification — draft packet
 
-Use this packet after the [0.5.0 preview](0.5.0_VALIDATION.md) passes independent
-publication review. The public site currently serves the verified three-game
-0.4.0 preview; its procedure remains [the 0.4.0 packet](DEVICE_QUALIFICATION_0.4.md).
-This draft records no physical result and does not authorize a final tag.
+Use this packet with the independently reviewed, deployed
+[0.5.0 four-game/Home Screen preview](0.5.0_VALIDATION.md). Its software
+acceptance does not establish physical installation or device performance.
+This draft records no physical result and does not authorize a final tag; the
+[0.4.0 packet](DEVICE_QUALIFICATION_0.4.md) retains its shared game procedure.
 
 Record the actual phone model, OS/browser versions, UTC date, tested build/source
 and complete runtime SHA-256. Test Android Chrome, iPhone Safari and installed
 iPhone mode separately. Browser emulation, a manifest or a home-screen icon
-cannot supply installed-device evidence. The intended four playable titles are
+cannot supply installed-device evidence. The four software-preview playable titles are
 ROM-free; the other seventeen must remain explicitly unported.
 
 ## iPhone Safari and installed mode
