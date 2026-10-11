@@ -176,8 +176,8 @@ unavailable games stay clearly identified. Resizing, orientation changes and
 audio interruption recover cleanly. Automated preview qualification and
 physical final-release qualification remain separate.
 
-The next step is identified physical-phone/controller qualification before
-additional game ports. The scoped [0.3.1 qualification tool](0.3.1_VALIDATION.md)
+Identified physical-phone/controller qualification remains pending. The scoped
+[0.3.1 qualification tool](0.3.1_VALIDATION.md)
 adds an opt-in on-phone recording/export flow and a
 [test packet](DEVICE_QUALIFICATION.md). Its independently verified preview passes
 167 CI cases plus three documented skips, all 50 selected live checks and all
@@ -185,6 +185,12 @@ adds an opt-in on-phone recording/export flow and a
 gate; controller hardware evidence and final tags stay pending.
 
 ### 0.4–0.7 — Full DICE library and compatibility
+
+The user authorized proceeding to the [0.4.0 first batch](0.4.0_TASKS.md):
+Pong Doubles and Space Race, alongside Pong, for a reviewed three-game preview.
+All are ROM-free. The other eighteen titles remain explicitly unported; actual
+phone/controller qualification remains pending and no final tag is authorized.
+The [0.4.0 validation ledger](0.4.0_VALIDATION.md) records its actual progress.
 
 Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Pong Doubles, Space Race, Stunt Cycle, Breakout and Indy 4 are useful candidates for exercising different paths, subject to the asset/control audit.
 
@@ -236,22 +242,21 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The [0.3.0 app foundation](0.3.0_TASKS.md) has completed independent automated,
-source/artifact and actual-live preview reviews. Pong remains the only browser
-game. The scoped [0.3.1 phone collector](0.3.1_VALIDATION.md) is now published
-and independently verified. Use its [packet](DEVICE_QUALIFICATION.md) to
-collect identified Android Chrome/iPhone Safari touch, speaker, lifecycle and
-sustained-performance evidence for that
-exact reviewed runtime, plus app-panel/storage/fullscreen observations. Declare
-the supported device floor from actual results. Controller hardware receives
-separate support evidence; the replaced 0.3.0 preview remains historical.
+Deliver the user-authorized [0.4.0 first-game batch](0.4.0_TASKS.md): faithful
+Pong Doubles and Space Race alongside Pong, original/native/Wasm comparisons,
+four-player analog and two-player digital controls, original settings,
+independent frontend/component/source reviews and exact-main/public preview
+qualification. The public site still serves the independently verified
+[0.3.1 preview](0.3.1_VALIDATION.md) until 0.4.0 completes those gates.
 
-Then select the first 0.4–0.7 game-port batch using the audited capability
-matrix, beginning with simpler ROM-free circuits and their control/replay
-requirements. Source-only planning can proceed; broad-game-support readiness
-retains the actual-device decision gate. Preview publication does not waive
-pending fields, and final tags require complete runtime-matched actual-device
-evidence.
+Continue collecting identified Android Chrome/iPhone Safari touch, speaker,
+lifecycle and sustained-performance evidence with the [device
+packet](DEVICE_QUALIFICATION.md), matched to the actual tested runtime and game.
+Record actual controller support separately. The user's move-on decision
+authorizes this preview development and delivery while those results remain
+pending; broad-game-support readiness and final tags retain the physical gate.
+Do not reuse an earlier runtime's results to qualify changed bytes or declare
+a supported device floor without actual results.
 
 ## After 1.0 — preservation and expansion
 

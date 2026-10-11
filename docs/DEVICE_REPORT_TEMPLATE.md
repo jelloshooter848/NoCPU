@@ -15,12 +15,18 @@ results apply separately to each tested pairing. Send no ROM bytes/private archi
 | Test URL | |
 | Build displayed in About | |
 | Full source/build commit and runtime SHA-256 | |
+| Tested game ID and actual settings/options | |
 | Manifest/export filenames and artifact validation/loaded-byte scope | |
 | Orientations; fullscreen or normal tab | |
 | Charging, thermal and other conditions | |
 | Screenshots/clips filenames | |
 
 ## Required phone checks
+
+The existing rows below describe Pong. For a 0.4.0 report, copy one record
+per tested game/options and add the title-specific observations in the
+[three-game packet](DEVICE_QUALIFICATION_0.4.md); Pong checks alone cannot
+qualify Doubles or Space Race. Mixed-game metrics do not qualify a title.
 
 | Check | Result | Steps and observed evidence |
 | --- | --- | --- |
@@ -34,6 +40,11 @@ results apply separately to each tested pairing. Send no ROM bytes/private archi
 | `touch_cancel_and_background_recovery` | pending | Held input, Menu, rotation, background and lock/unlock |
 
 ## App observations
+
+Record separate title-specific controls, settings, scoring/end behavior and
+implemented sound evidence for Pong Doubles and Space Race when tested.
+Keep untested titles/options pending rather than marking the whole library
+qualified from one successful game.
 
 | Check | Result | Steps and observed evidence |
 | --- | --- | --- |
@@ -49,21 +60,24 @@ results apply separately to each tested pairing. Send no ROM bytes/private archi
 Session seconds include excluded time. Wall/simulation seconds cover the same
 accepted foreground/native-running segments. Copy measured values from the
 export and preserve raw readings/limitations. Missing fields remain blank.
+The 600-second/0.95 thresholds are the retained Pong phone baseline. For
+Doubles and Space Race, record actual duration/speed and measured/manual scope;
+this template adds no mandatory per-title ten-minute threshold.
 
 | Field | Actual value | Source / units / limitation |
 | --- | --- | --- |
 | Session seconds | | Total recording-session elapsed seconds |
-| Wall seconds | | Sum of accepted active intervals, at least 600 |
+| Wall seconds | | Sum of accepted active intervals; Pong baseline at least 600 |
 | Conservative active-wall lower bound | | Preserve endpoint acquisition uncertainty |
 | Simulation seconds | | Native deltas over those same intervals |
-| Simulation/wall ratio and uncertainty | | At least 0.95; retain nominal/conservative values |
+| Simulation/wall ratio and uncertainty | | Pong baseline at least 0.95; retain actual nominal/conservative values for each title |
 | Frame pacing | | Method and observed stalls |
 | Audio underruns | | Start/end/delta and counter scope |
 | Memory start/end bytes | | Wasm capacity; other memory only if separately measured |
 | Input response | | Method and manual observation |
 | Thermal/slowdown observations | | |
 | Raw readings, excluded intervals, coverage and identity/measurement gaps | | Export/evidence filenames |
-| Measurement result | pending | Missing fields or failed threshold remain explicit |
+| Measurement result | pending | Missing fields and Pong-baseline thresholds remain explicit; additional-title measured/manual scope stays separate |
 
 ## Controller pairing — copy for each pairing
 
@@ -71,12 +85,12 @@ export and preserve raw readings/limitations. Missing fields remain blank.
 | --- | --- |
 | Device/browser and tested build/runtime | |
 | Controller model(s), connection and visible ID(s) | |
-| P1/P2 axes and action bindings before/after remap | |
+| Selected game's player axes/directions and action bindings before/after remap | |
 | Evidence filenames | |
 
 | Check | Result | Steps and observed evidence |
 | --- | --- | --- |
-| Detection and independent simultaneous P1/P2 movement | pending | |
+| Detection and independent simultaneous selected-game player movement | pending | Name all tested player slots; untested Doubles slots remain pending |
 | Coin/menu/reset/mute and remapped binding | pending | |
 | Reload retains binding | pending | |
 | Held disconnect/reconnect, neutral return and fresh input | pending | |

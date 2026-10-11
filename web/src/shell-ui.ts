@@ -10,7 +10,7 @@ export function libraryMarkup(): string {
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
-  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? '<p>Insert a coin to start. First to 11 wins.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
+  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
 }
 
 export function createShellMarkup(base: string, source: string): string {
@@ -20,21 +20,22 @@ export function createShellMarkup(base: string, source: string): string {
       <div class="screen-frame">
         <canvas data-testid="game-canvas" width="576" height="432" tabindex="0" aria-label="Pong game display. Player 1 uses W and S, player 2 uses Up and Down. On touchscreens use the separate P1 and P2 sliders outside the court."></canvas>
       </div>
-      <div class="touch-controls" aria-label="Paddle controls">
-        <div class="paddle-controller">
-          <span class="control-player" id="paddle-p1-label">P1</span>
-          <div class="paddle-control" data-testid="paddle-p1" tabindex="0" role="slider" aria-label="Player 1 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p1-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
-          <span class="control-help" id="paddle-p1-help">DRAG UP / DOWN</span>
-        </div>
-        <div class="paddle-controller">
-          <span class="control-player" id="paddle-p2-label">P2</span>
-          <div class="paddle-control" data-testid="paddle-p2" tabindex="0" role="slider" aria-label="Player 2 paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p2-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
-          <span class="control-help" id="paddle-p2-help">DRAG UP / DOWN</span>
-        </div>
+      <div class="touch-controls" aria-label="Player controls">
+        ${[0, 2, 3, 1].map((slot) => `<div class="paddle-controller" data-player-slot="${slot}"${slot > 1 ? ' hidden' : ''}>
+          <span class="control-player" id="paddle-p${slot + 1}-label">P${slot + 1}</span>
+          <div class="paddle-control" data-testid="paddle-p${slot + 1}" tabindex="0" role="slider" aria-label="Player ${slot + 1} paddle position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-orientation="vertical" aria-describedby="paddle-p${slot + 1}-help"><span class="control-track" aria-hidden="true"><span class="control-thumb"></span></span></div>
+          <span class="control-help" id="paddle-p${slot + 1}-help">DRAG UP / DOWN</span>
+        </div>`).join('')}
+        ${[0, 1].map((slot) => `<div class="direction-controller" data-direction-slot="${slot}" hidden>
+          <span class="control-player">P${slot + 1}</span>
+          <button class="direction-button" data-testid="direction-p${slot + 1}-up" data-direction="up" data-slot="${slot}" aria-label="Player ${slot + 1} rocket up">↑</button>
+          <button class="direction-button" data-testid="direction-p${slot + 1}-down" data-direction="down" data-slot="${slot}" aria-label="Player ${slot + 1} rocket down">↓</button>
+        </div>`).join('')}
       </div>
     </div>
     <nav class="game-hud" aria-label="Game actions" hidden>
       <button class="hud-button coin-button" data-testid="insert-coin" disabled>Insert coin</button>
+      <button class="hud-button start-button" data-testid="start-game" disabled hidden>Start</button>
       <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Menu <span aria-hidden="true">☰</span></button>
     </nav>
     <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose Play Pong to start.</p>
@@ -44,7 +45,7 @@ export function createShellMarkup(base: string, source: string): string {
         <button class="back-button" id="back" data-testid="back" hidden>← Back</button>
         <section class="panel-section title-panel" id="intro" data-panel="title">
           <h1 id="title-heading" class="game-logo">NoCPU</h1>
-          <p class="game-subtitle">PONG</p>
+          <p class="game-subtitle">CIRCUIT ARCADE</p>
           <div class="menu-actions">
             <button class="primary-button play-button" data-testid="play-pong">Play Pong</button>
             <button data-action="library" data-testid="open-library">Library</button>
@@ -72,7 +73,7 @@ export function createShellMarkup(base: string, source: string): string {
         </section>
         <section class="panel-section library-panel" data-panel="library" hidden>
           <h1 id="library-heading">Library</h1>
-          <p class="panel-note">Pong is ready to play. More DICE games are coming.</p>
+          <p class="panel-note">Pong, Pong Doubles and Space Race are ready to play.</p>
           <div class="menu-inline-actions"><button data-action="settings">Settings</button><button data-action="help">How to play</button><button data-action="about">About</button></div>
           <div class="library-list" data-testid="game-library">${libraryMarkup()}</div>
         </section>
@@ -97,16 +98,20 @@ export function createShellMarkup(base: string, source: string): string {
           </section>
           <section class="settings-section" id="controls-section" aria-labelledby="controls-heading">
             <h2 id="controls-heading" tabindex="-1">Pong controls</h2>
+            <label for="settings-game">Game controls & settings</label><select id="settings-game" data-testid="settings-game">${GAMES.filter((game) => game.playable).map((game) => `<option value="${game.id}">${escapeText(game.name)}</option>`).join('')}</select>
             <p>Choose a keyboard action, then press its new key. Escape cancels. Each key or controller button belongs to one action.</p>
             <h3>Keyboard</h3><div id="keyboard-bindings" data-testid="keyboard-bindings"></div>
             <h3>Gamepads</h3><p class="gamepad-status" data-testid="gamepad-status" role="status">Connect a gamepad and press a button.</p>
             <div id="gamepad-players"></div><div id="gamepad-bindings" data-testid="gamepad-bindings"></div>
             <p id="binding-message" data-testid="binding-message" role="status" aria-live="polite"></p>
             <div class="menu-inline-actions"><button id="cancel-binding" data-testid="cancel-binding" hidden>Cancel assignment</button><button id="controls-defaults" data-testid="controls-defaults">Restore default controls</button></div>
+            <h3>Game settings</h3><div id="game-options" data-testid="game-options"></div>
+            <p data-testid="game-options-status" role="status">Settings are used next time this game starts.</p>
+            <button data-testid="apply-game-options" hidden>Apply & reset game</button>
           </section>
           <section class="settings-section" id="rom-section" aria-labelledby="rom-heading">
             <h2 id="rom-heading" tabindex="-1">Local ROMs</h2>
-            <p>Pong needs no ROM. Import your own compatible ZIP for a game below. Files stay in this browser; importing does not make a pending browser port playable.</p>
+            <p>The playable games need no ROM. Import your own compatible ZIP for a game below. Files stay in this browser; importing does not make a pending browser port playable.</p>
             <label for="rom-game">Game</label><select id="rom-game" data-testid="rom-game">${GAMES.filter((game) => game.roms.length).map((game) => `<option value="${game.id}">${escapeText(game.name)}</option>`).join('')}</select>
             <label class="remember-roms" for="remember-roms"><input id="remember-roms" data-testid="remember-roms" type="checkbox" /> Remember on this device</label>
             <label class="rom-file-label" for="rom-file">Choose ROM ZIP</label><input id="rom-file" data-testid="rom-import" type="file" accept=".zip,application/zip" />
@@ -124,7 +129,7 @@ export function createShellMarkup(base: string, source: string): string {
         <section class="panel-section about-panel" data-panel="about" hidden>
           <h1 id="about-heading">About NoCPU</h1>
           <p>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, the Discrete Integrated Circuit Emulator, by the DICE Team.</p>
-          <p>Pong runs its original circuit simulation and sound. No ROM file is required.</p>
+          <p>Pong, Pong Doubles and Space Race run their original circuit simulation and sound. No ROM files are required for these games.</p>
           <p data-testid="version">Version ${__NOCPU_VERSION__} · <span id="build-id">development</span></p>
           <p class="preview-note" id="release-stage">Browser preview · physical phone qualification pending</p>
           <nav class="about-links" aria-label="Project and license"><a href="https://github.com/jelloshooter848/NoCPU" target="_blank" rel="noopener noreferrer">GitHub</a><a href="${source}" target="_blank" rel="noopener noreferrer">Source</a><a href="${base}notices/LICENSE">GPL v3</a><a href="${base}notices/THIRD_PARTY_NOTICES.md">Credits & notices</a></nav>

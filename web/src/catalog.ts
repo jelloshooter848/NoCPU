@@ -39,7 +39,7 @@ export const GAMES: readonly GameInfo[] = manifest.games.map((game) => {
           control.family === 'throttle' ? 'Throttle' : 'Buttons'))],
     roms: game.roms,
     audioWired: game.audio.mono_output_wired,
-    playable: controlSchema.runtime === 'pong',
+    playable: controlSchema.runtime !== 'not-implemented',
   };
 });
 

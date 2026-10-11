@@ -15,7 +15,7 @@ test('preferences retain chosen sound settings and recover documented migrations
   await page.getByTestId('mute').click();
   await expect(page.getByTestId('mute')).toHaveAttribute('aria-pressed', 'true');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
-  expect(saved.version).toBe(1);
+  expect(saved.version).toBe(2);
   expect(saved.preferences.volume).toBe(.23);
   expect(saved.preferences.muted).toBe(true);
   await page.reload();

@@ -245,7 +245,10 @@ export async function expectExternalLayout(page: Page, insets: Insets = noInsets
   const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
   expect(canvas).not.toBeNull();
   const controls = await Promise.all([controlBounds(page, 0), controlBounds(page, 1)]);
-  const wrappers = await page.locator('.paddle-controller').evaluateAll((elements) => elements.map((element) => {
+  const wrappers = await page.locator('.paddle-controller').evaluateAll((elements) => elements.filter((element) => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.width > 0 && bounds.height > 0;
+  }).map((element) => {
     const { x, y, width, height } = element.getBoundingClientRect();
     return { x, y, width, height };
   }));
@@ -257,7 +260,9 @@ export async function expectExternalLayout(page: Page, insets: Insets = noInsets
     const { pad, track } = controls[slot];
     const id = `paddle-p${slot + 1}`;
     await expect(page.getByTestId(id)).toHaveAccessibleName(`Player ${slot + 1} paddle position`);
-    await expect(page.getByText(`P${slot + 1}`, { exact: true })).toBeVisible();
+    const label = page.locator(`#paddle-p${slot + 1}-label`);
+    await expect(label).toHaveText(`P${slot + 1}`);
+    await expect(label).toBeVisible();
     expect(pad.width + 0.001, `${id} has a visible, usable external target`).toBeGreaterThanOrEqual(64);
     const compact = viewport.width <= 360 || viewport.height <= 620;
     expect(track.height + 0.001, `${id} has real vertical travel`).toBeGreaterThanOrEqual(compact ? 120 : 144);

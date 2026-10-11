@@ -5,22 +5,32 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const options = { module: 'build/core/wasm/nocpu.js', output: 'build/core/wasm-evidence', replay: 'tests/replays/pong.tsv', seed: 848, epochs: 2 };
+const options = { module: 'build/core/wasm/nocpu.js', output: 'build/core/wasm-evidence', replay: 'tests/replays/pong.tsv', seed: 848, epochs: 2, game: 'pong', dip: 0, potOhms: 0 };
 for (let i = 2; i < process.argv.length; i += 2) {
-  const key = process.argv[i].replace(/^--/, '');
+  const key = process.argv[i].replace(/^--/, '').replace('pot-ohms', 'potOhms');
   if (!(key in options) || process.argv[i + 1] === undefined) throw new Error(`Invalid argument ${process.argv[i]}`);
-  options[key] = key === 'seed' || key === 'epochs' ? Number(process.argv[i + 1]) : process.argv[i + 1];
+  options[key] = ['seed', 'epochs', 'dip', 'potOhms'].includes(key) ? Number(process.argv[i + 1]) : process.argv[i + 1];
 }
 if (!Number.isInteger(options.epochs) || options.epochs < 2 || options.epochs > 10) throw new Error('Use 2–10 epochs to test reset isolation.');
+const gameId = { pong: 0, pongdoubles: 1, spacerace: 2 }[options.game];
+if (gameId === undefined) throw new Error('Unsupported replay game.');
+if (gameId === 2 && options.potOhms === 0) options.potOhms = 970000;
+if (![0, 1].includes(options.dip) || !Number.isInteger(options.potOhms)
+  || (gameId === 2 ? options.potOhms < 470000 || options.potOhms > 1470000 : options.potOhms !== 0)) throw new Error('Invalid original game options.');
+const allowed = gameId === 2 ? ['coin', 'start', 'up1', 'down1', 'up2', 'down2', 'recreate']
+  : gameId === 1 ? ['coin', 'start', 'paddle1', 'paddle2', 'paddle3', 'paddle4', 'recreate'] : ['coin', 'paddle1', 'paddle2', 'recreate'];
 const events = (await readFile(options.replay, 'utf8')).split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith('#')).map((line) => {
   const [milliseconds, action, value, extra] = line.trim().split(/\s+/);
-  if (extra || !['coin', 'paddle1', 'paddle2', 'recreate'].includes(action) || !Number.isInteger(Number(milliseconds)) || !Number.isInteger(Number(value))) throw new Error('Invalid replay row.');
+  if (extra || !allowed.includes(action) || !Number.isInteger(Number(milliseconds)) || Number(milliseconds) > 1000000 || !Number.isInteger(Number(value))) throw new Error('Invalid replay row.');
+  if (action.startsWith('paddle') ? Number(value) < -32768 || Number(value) > 32767 : ![0, 1].includes(Number(value))) throw new Error('Replay input outside physical range.');
   return { time: BigInt(milliseconds) * 1_000_000_000n, action, value: Number(value) };
 });
-if (!events.length || events.at(-1).action !== 'recreate' || events.some((event, i) => event.time < 0n || (i && event.time < events[i - 1].time))) throw new Error('Replay must be ordered and finish with recreate.');
+if (!events.length || events.at(-1).action !== 'recreate' || events.at(-1).time <= 0n || events.at(-1).value !== 1
+  || events.slice(0, -1).some((event) => event.action === 'recreate')
+  || events.some((event, i) => event.time < 0n || (i && event.time < events[i - 1].time))) throw new Error('Replay must be ordered and finish with recreate.');
 const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
 const core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-if (core._nocpu_abi_version() !== 1) throw new Error('Unsupported core ABI.');
+if (core._nocpu_abi_version() !== 2) throw new Error('Unsupported core ABI.');
 const ps = (prefix = 'time') => (BigInt(core[`_nocpu_${prefix}_hi`]() >>> 0) << 32n) | BigInt(core[`_nocpu_${prefix}_lo`]() >>> 0);
 const width = core._nocpu_width(), height = core._nocpu_height();
 if (width !== 576 || height !== 432 || core._nocpu_sample_rate() !== 48000) throw new Error('Unexpected native media dimensions or sample rate.');
@@ -39,15 +49,17 @@ function nativeFrameHash(rgba) {
 }
 
 for (let epoch = 0; epoch < options.epochs; epoch += 1) {
-  const made = epoch ? core._nocpu_reset(options.seed) : core._nocpu_create(options.seed);
+  const made = epoch ? core._nocpu_reset(options.seed) : core._nocpu_create_game(gameId, options.seed, options.dip, options.potOhms);
   if (made !== 1) throw new Error('Core creation/reset failed.');
+  if (core._nocpu_game() !== gameId || core._nocpu_dip() !== options.dip || core._nocpu_pot_ohms() !== options.potOhms) throw new Error('Native selected game/configuration mismatch.');
   const initialCount = core._nocpu_audio_count();
   if (core._nocpu_create(options.seed) !== 0 || core._nocpu_advance(100001) !== 0 || core._nocpu_advance(0) !== 1 || ps() !== 0n || core._nocpu_frame_number() !== 0 || core._nocpu_audio_count() !== initialCount) throw new Error('ABI lifetime/bounded-step contract violated.');
   const directory = resolve(options.output, `epoch${epoch}`);
   await mkdir(directory, { recursive: true });
-  const frames = ['frame,time_ps,fnv1a64\n'], telemetry = ['time_ps,score1,score2,run_n,attract_n,hits\n'];
+  const frames = ['frame,time_ps,fnv1a64\n'], telemetry = [`time_ps,score1,score2,run_n,attract_n,hits${gameId === 0 ? '\n' : ',active\n'}`];
   const inputs = ['requested_ps,applied_ps,action,value\n'], collisions = ['time_ps,hit_output\n'];
-  const pcm = [], gray = [], snapshots = [250, 1000, 2000, 3000, 6000, 13000, 15000];
+  const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]];
+  const pcm = [], gray = [], snapshots = [250,399,633,799,866,999,1000,1132,1166,1232,1316,1382,1500,1800,2000,2100,2200,2250,2300,2400,2500,2600,2700,2750,3000,3200,3250,3300,3400,3500,3600,3700,3750,3800,3900,4000,4250,4500,4750,5000,5250,5500,5750,6000,6500,7500,8000,8500,9000,9500,10000,10500,11000,11500,12000,13000,15000,20000,30000,45000,60000,80000,110000,130000,170000];
   let eventIndex = 0, lastFrame = 0, deadline = 0n, snapshotIndex = 0;
   function drain() {
     const count = core._nocpu_audio_count();
@@ -59,18 +71,30 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
       collisions.push(`${time},${core.HEAPU32[offset + i * 3 + 2]}\n`);
     }
     core._nocpu_collisions_clear();
+    const countEvents = core._nocpu_event_count(), eventOffset = core._nocpu_events() >>> 2;
+    for (let i = 0; i < countEvents; i += 1) {
+      const time = (BigInt(core.HEAPU32[eventOffset + i * 4 + 1]) << 32n) | BigInt(core.HEAPU32[eventOffset + i * 4]);
+      transitions.push(`${time},${core.HEAPU32[eventOffset + i * 4 + 2]},${core.HEAPU32[eventOffset + i * 4 + 3]}\n`);
+    }
+    core._nocpu_events_clear();
     if (core._nocpu_audio_overruns() !== 0) throw new Error('Core PCM overflow.');
+    if (core._nocpu_event_overruns() !== 0) throw new Error('Core native event overflow.');
   }
   drain();
   while (true) {
     const now = ps();
-    telemetry.push(`${now},${core._nocpu_score(0)},${core._nocpu_score(1)},${core._nocpu_run_n()},${core._nocpu_attract_n()},${core._nocpu_hits()}\n`);
+    telemetry.push(`${now},${core._nocpu_score(0)},${core._nocpu_score(1)},${core._nocpu_run_n()},${core._nocpu_attract_n() >>> 0},${core._nocpu_hits()}${gameId === 0 ? '' : `,${core._nocpu_active()}`}\n`);
     while (eventIndex < events.length && events[eventIndex].time <= now) {
       const event = events[eventIndex++];
       inputs.push(`${event.time},${now},${event.action},${event.value}\n`);
       if (event.action === 'coin') core._nocpu_coin(event.value);
-      else if (event.action === 'paddle1') core._nocpu_paddle(0, event.value);
-      else if (event.action === 'paddle2') core._nocpu_paddle(1, event.value);
+      else if (event.action === 'start') core._nocpu_start(event.value);
+      else if (event.action.startsWith('paddle')) core._nocpu_paddle(Number(event.action.at(-1)) - 1, event.value);
+      else if (/^(up|down)[12]$/.test(event.action)) {
+        const slot = Number(event.action.at(-1)) - 1, direction = event.action.startsWith('up') ? 0 : 1;
+        directions[slot][direction] = event.value;
+        core._nocpu_joystick(slot, ...directions[slot]);
+      }
     }
     if (eventIndex === events.length) break;
     const target = deadline + 1_000_000_000n < events[eventIndex].time ? deadline + 1_000_000_000n : events[eventIndex].time;
@@ -96,9 +120,10 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
       lastFrame = frame;
     }
   }
-  await Promise.all(Object.entries({ 'frames.csv': frames.join(''), 'frames.gray': Buffer.concat(gray), 'telemetry.csv': telemetry.join(''), 'inputs.csv': inputs.join(''), 'collisions.csv': collisions.join(''), 'audio.s16le': Buffer.concat(pcm) }).map(([name, data]) => writeFile(resolve(directory, name), data)));
+  await Promise.all(Object.entries({ 'frames.csv': frames.join(''), 'frames.gray': Buffer.concat(gray), 'telemetry.csv': telemetry.join(''), 'inputs.csv': inputs.join(''), 'collisions.csv': collisions.join(''), 'events.csv': transitions.join(''), 'audio.s16le': Buffer.concat(pcm) }).map(([name, data]) => writeFile(resolve(directory, name), data)));
   console.log(`Wasm epoch ${epoch}: ${lastFrame} frames; ${Buffer.concat(pcm).length / 2} PCM samples.`);
 }
+await writeFile(resolve(options.output, 'configuration.json'), `${JSON.stringify({ game: options.game, dip: options.dip, pot_ohms: options.potOhms })}\n`);
 core._nocpu_destroy();
 core._nocpu_destroy();
 if (core._nocpu_advance(1) !== 0 || core._nocpu_audio_count() !== 0 || core._nocpu_frame() !== 0) throw new Error('Destroyed core retains output.');

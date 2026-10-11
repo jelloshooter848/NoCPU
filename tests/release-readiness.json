@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "release_stage": "preview",
   "release_ready": false,
   "runtime_sha256": null,
   "blockers": [
-    "Physical Android Chrome qualification for the complete 0.3.1 runtime remains pending.",
-    "Partial user-reported 0.2.1 iPhone play and sound feedback is recorded in docs/0.2.1_VALIDATION.md; complete identified-device checks and sustained performance for the 0.3.1 runtime remain pending."
+    "Physical Android Chrome qualification for the complete 0.4.0 runtime and its three playable circuits remains pending.",
+    "Physical iPhone Safari qualification for the complete 0.4.0 runtime and its three playable circuits remains pending; historical partial 0.2.1 feedback does not qualify changed runtime bytes."
   ],
   "devices": [
     {

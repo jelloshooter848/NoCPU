@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Build an auditable disposable Pong core; never modify the archived DICE tree.
+# Build an auditable disposable DICE core; never modify the archived DICE tree.
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
@@ -29,7 +29,7 @@ files={str(p.relative_to(root)):digest(p) for p in inputs}
 outputs={p.name:digest(p) for p in sorted(out.iterdir()) if p.is_file() and p.name!='build-provenance.json'}
 compiled=(root/'build/core/sources.txt').read_text().splitlines()+[str(root/'core/api.cpp'),str(root/'core/platform/portable_input.cpp')]
 if target=='native':compiled.append(str(root/'core/native_runner.cpp'))
-data={'target':target,'compiler':compiler,'compiler_version':version,'flags':sys.argv[4:], 'compiled_sources':compiled,'source_manifest_sha256':digest(root/'tests/source-manifest.json'),'inputs':files,'outputs':outputs,'threads':False,'fast_math':False,'lto':False}
+data={'target':target,'abi':2,'games':['pong','pongdoubles','spacerace'],'compiler':compiler,'compiler_version':version,'flags':sys.argv[4:], 'compiled_sources':compiled,'source_manifest_sha256':digest(root/'tests/source-manifest.json'),'inputs':files,'outputs':outputs,'threads':False,'fast_math':False,'lto':False}
 (out/'build-provenance.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
 PY
 }

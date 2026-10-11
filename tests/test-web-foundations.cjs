@@ -57,13 +57,13 @@ function forged(size, target) {
 function central(bytes) { const offset = bytes.length - 22; return new DataView(bytes.buffer, bytes.byteOffset).getUint32(offset + 16, true); }
 function patchSize(bytes, size) { const copy = bytes.slice(); const view = new DataView(copy.buffer); view.setUint32(22, size, true); view.setUint32(central(copy) + 24, size, true); return copy; }
 
-test('audited controls describe all 21 circuits while Pong alone has runtime mappings', () => {
+test('audited controls describe all 21 circuits while three implemented games have runtime mappings', () => {
   const inventory = require('../tests/fixtures/game-manifest.json');
   assert.equal(inventory.games.length, 21);
   for (const game of inventory.games) {
     const help = schema.getControlSchema(game.id); assert.equal(help.players, game.max_players_indicated);
     assert.deepEqual(help.controls.map((control) => control.label), game.controls.map((control) => control.label));
-    assert.equal(help.keyboardActions.length > 0, game.id === 'pong');
+    assert.equal(help.keyboardActions.length > 0, ['pong', 'pongdoubles', 'spacerace'].includes(game.id));
   }
   assert.equal(schema.getControlSchema('missing'), undefined);
   assert.deepEqual(schema.getControlSchema('pong').keyboardActions, ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute']);
@@ -192,4 +192,97 @@ test('an opened but unresponsive ROM store costs one read timeout per list, pres
   records.set('jetfighter', { version: 1, gameId: 'jetfighter', fileName: 'invalid.zip', bytes: new ArrayBuffer(32) });
   const corrupt = (await library.list()).find((entry) => entry.gameId === 'jetfighter'); assert.equal(corrupt.status, 'missing'); assert.equal(corrupt.storage, 'device'); assert.equal(corrupt.archiveBytes, null); assert.equal(corrupt.fileName, null); assert.deepEqual(corrupt.members, []);
   library.close();
+});
+
+
+test('four-player Doubles mappings preserve independent keyboard actions and all four absolute axes', () => {
+  const bindings = schema.defaultBindings('pongdoubles');
+  assert.equal(schema.validateBindings(bindings, 'pongdoubles').ok, true);
+  assert.equal(bindings.gamepad.players.length, 4);
+  const events = { directions: [], axes: [], actions: [] };
+  const controls = createControls({ gameId: 'pongdoubles', bindings, onDirections: (d) => events.directions.push(d),
+    onAxes: (a) => events.axes.push(a), onAction: (a) => events.actions.push(a) });
+  controls.setEnabled(true);
+  const pads = [0, 1, 2, 3].map((slot) => gamepad(slot)); controls.pollGamepads(pads);
+  controls.handleKeyDown(keyboard('KeyW')); controls.handleKeyDown(keyboard('ArrowDown'));
+  controls.handleKeyDown(keyboard('KeyT')); controls.handleKeyDown(keyboard('KeyK'));
+  assert.deepEqual(controls.getState().directions, [-1, 1, -1, 1]);
+  controls.pollGamepads([gamepad(0, -1), gamepad(1, 1), gamepad(2, .7), gamepad(3, -.7)]);
+  const axes = events.axes.at(-1); assert.equal(axes.length, 4);
+  assert.equal(axes[0], -32768); assert.equal(axes[1], 32767); assert.ok(axes[2] > 20000); assert.ok(axes[3] < -20000);
+  controls.handleKeyDown(keyboard('Digit1')); assert.deepEqual(events.actions, ['start']);
+  controls.release(); assert.deepEqual(controls.getState().directions, [0, 0, 0, 0]);
+  const count = events.axes.length; controls.pollGamepads([gamepad(0, -1), gamepad(1, 1), gamepad(2, 1), gamepad(3, -1)]);
+  assert.equal(events.axes.length, count, 'Held axes cannot reactivate after release before neutral');
+  controls.pollGamepads(pads); controls.pollGamepads([gamepad(0, -1), gamepad(1), gamepad(2, 1), gamepad(3)]);
+  assert.deepEqual(events.axes.at(-1), [-32768, null, 32767, null]);
+  const conflicting = schema.cloneBindings(bindings); conflicting.gamepad.players[3] = { ...conflicting.gamepad.players[2] };
+  assert.equal(schema.validateBindings(conflicting, 'pongdoubles').ok, false);
+  conflicting.gamepad.players[3] = { ...bindings.gamepad.players[3] }; conflicting.keyboard.p4Down = ['KeyT'];
+  assert.equal(schema.validateBindings(conflicting, 'pongdoubles').ok, false);
+});
+
+test('Space Race combines held directional sources, releases centered axes and neutralizes opposing inputs', () => {
+  const bindings = schema.defaultBindings('spacerace'); const events = { directions: [], axes: [], actions: [] };
+  const controls = createControls({ gameId: 'spacerace', bindings, onDirections: (d) => events.directions.push(d),
+    onAxes: (a) => events.axes.push(a), onAction: (a) => events.actions.push(a) });
+  controls.setEnabled(true); controls.pollGamepads([gamepad(0), gamepad(1)]);
+  controls.pollGamepads([gamepad(0, -1), gamepad(1, 1)]); assert.deepEqual(controls.getState().directions, [-1, 1]);
+  controls.setTouchButtons(0, false, true); assert.deepEqual(controls.getState().directions, [0, 1]);
+  controls.pollGamepads([gamepad(0), gamepad(1)]); assert.deepEqual(controls.getState().directions, [1, 0]);
+  controls.handleKeyDown(keyboard('KeyW')); assert.deepEqual(controls.getState().directions, [0, 0]);
+  controls.setTouchButtons(0, false, false); assert.deepEqual(controls.getState().directions, [-1, 0]);
+  controls.handleKeyDown(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [0, 0]);
+  controls.handleKeyUp(keyboard('KeyW')); assert.deepEqual(controls.getState().directions, [1, 0]);
+  controls.handleKeyUp(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [0, 0]);
+  assert.deepEqual(events.axes, [], 'Digital controls never emit absolute paddle coordinates');
+  controls.handleKeyDown(keyboard('Enter')); controls.handleKeyDown(keyboard('Digit1'));
+  assert.deepEqual(events.actions, ['coin', 'start']);
+  controls.pollGamepads([gamepad(0, -1), gamepad(1)]); controls.release();
+  controls.pollGamepads([gamepad(0, -1), gamepad(1)]); assert.deepEqual(controls.getState().directions, [0, 0]);
+  controls.pollGamepads([gamepad(0), gamepad(1)]); controls.pollGamepads([gamepad(0, -1), gamepad(1)]);
+  assert.deepEqual(controls.getState().directions, [-1, 0]);
+  controls.pollGamepads([]); assert.deepEqual(controls.getState().directions, [0, 0]);
+});
+
+test('version-1 migration preserves custom Pong keys, pad axes, buttons and sound while new games get independent defaults', () => {
+  const bindings = schema.cloneBindings(); bindings.keyboard.p1Up = ['KeyQ']; bindings.keyboard.p1Down = ['KeyA'];
+  bindings.keyboard.coin = ['KeyC']; bindings.gamepad.players = [
+    { pad: 2, axis: 3, invert: true, deadzone: .27 }, { pad: 2, axis: 1, invert: false, deadzone: .22 },
+  ];
+  bindings.gamepad.buttons.coin = [{ pad: 2, button: 7 }];
+  for (const action of ['p3Up', 'p3Down', 'p4Up', 'p4Down', 'start']) { delete bindings.keyboard[action]; delete bindings.gamepad.buttons[action]; }
+  const old = memoryStorage(JSON.stringify({ version: 1, preferences: { volume: .23, muted: true, bindings } }));
+  const migrated = prefs.loadPreferences(old); assert.equal(migrated.status, 'recovered');
+  assert.equal(migrated.preferences.volume, .23); assert.equal(migrated.preferences.muted, true);
+  for (const action of schema.ACTION_IDS) {
+    assert.deepEqual(migrated.preferences.bindings.keyboard[action], bindings.keyboard[action]);
+    assert.deepEqual(migrated.preferences.bindings.gamepad.buttons[action], bindings.gamepad.buttons[action]);
+  }
+  assert.deepEqual(migrated.preferences.bindings.gamepad.players, bindings.gamepad.players);
+  assert.deepEqual(migrated.preferences.bindingsByGame.pongdoubles, schema.defaultBindings('pongdoubles'));
+  assert.deepEqual(migrated.preferences.bindingsByGame.spacerace, schema.defaultBindings('spacerace'));
+  assert.equal(prefs.savePreferences(migrated.preferences, old).status, 'available');
+  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 2);
+  assert.deepEqual(prefs.loadPreferences(old).preferences, migrated.preferences);
+});
+
+test('per-game preferences persist separately and a malformed new-game section cannot discard valid Pong or another title', () => {
+  const value = prefs.clonePreferences(); value.bindings.keyboard.p1Down = ['KeyJ']; value.volume = .31;
+  value.bindingsByGame.pongdoubles.keyboard.p3Down = ['KeyH']; value.bindingsByGame.spacerace.keyboard.p1Down = ['KeyQ'];
+  value.optionsByGame.pong.winningScore = 15; value.optionsByGame.pongdoubles.winningScore = 15;
+  value.optionsByGame.spacerace = { coinage: 2, playtimeOhms: 1470000 };
+  const store = memoryStorage(); assert.equal(prefs.savePreferences(value, store).status, 'available');
+  assert.deepEqual(prefs.loadPreferences(store).preferences, value);
+  const bad = structuredClone(value); bad.bindingsByGame.pongdoubles.keyboard.p4Down = ['Escape'];
+  bad.optionsByGame.spacerace.playtimeOhms = NaN;
+  const recovered = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 2, preferences: bad })));
+  assert.equal(recovered.status, 'recovered'); assert.equal(recovered.preferences.volume, .31);
+  assert.deepEqual(recovered.preferences.bindings, value.bindings);
+  assert.deepEqual(recovered.preferences.bindingsByGame.spacerace, value.bindingsByGame.spacerace);
+  assert.deepEqual(recovered.preferences.bindingsByGame.pongdoubles, schema.defaultBindings('pongdoubles'));
+  assert.equal(recovered.preferences.optionsByGame.spacerace.coinage, 2);
+  assert.equal(recovered.preferences.optionsByGame.spacerace.playtimeOhms, 970000);
+  const denied = { getItem() { throw new Error('Denied'); }, setItem() { throw new Error('Denied'); } };
+  const saved = prefs.savePreferences(value, denied); assert.equal(saved.status, 'unavailable'); assert.deepEqual(saved.preferences, value);
 });

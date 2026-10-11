@@ -1,0 +1,33 @@
+# Original DICE Pong Doubles: coin and Start are different physical switches.
+# Slots 1/2 outer left/right, 3/4 inner left/right; original SDL int16 axes.
+200 start 1
+300 start 0
+500 coin 1
+600 coin 0
+700 coin 1
+800 coin 0
+1000 start 1
+1100 start 0
+2000 paddle1 -18000
+2500 paddle1 0
+3000 paddle2 18000
+3500 paddle2 0
+4000 paddle3 -18000
+4500 paddle3 0
+5000 paddle4 18000
+5500 paddle4 0
+6500 paddle1 -23000
+6500 paddle2 23000
+6500 paddle3 18000
+6500 paddle4 -18000
+9000 paddle1 -32768
+9000 paddle2 -32768
+9000 paddle3 -32768
+9000 paddle4 -32768
+70000 coin 1
+70100 coin 0
+70300 coin 1
+70400 coin 0
+71000 start 1
+71100 start 0
+75000 recreate 1

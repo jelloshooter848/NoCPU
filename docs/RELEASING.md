@@ -1,9 +1,11 @@
 # Releasing NoCPU
 
-`VERSION` is **0.3.1**, the opt-in phone qualification collector built on the
-app foundation's game-first library, remapping, preferences and local ROM
-management. Its [review/publication status](0.3.1_VALIDATION.md) is separate
-from actual-device readiness. Pong remains the only playable browser circuit.
+`VERSION` is **0.4.0**, the user-authorized first-game preview batch: Pong,
+Pong Doubles and Space Race. Its [contract](0.4.0_TASKS.md) and
+[qualification status](0.4.0_VALIDATION.md) distinguish implementation,
+independent source/fidelity/browser/component acceptance, publication and
+actual-device readiness. The other eighteen library circuits remain unported.
+The existing 0.3.1 app/collector foundation is preserved.
 Preparing files, running tests or packaging a preview does not publish a final
 release. The verified public site serves the
 [0.3.1 preview](0.3.1_VALIDATION.md), published from exact source
@@ -12,18 +14,20 @@ record its outcome without republishing or relabeling that source archive.
 The [0.3.0 preview](0.3.0_VALIDATION.md), published from
 `ee7f78e57278bc318dc52820d1606b3ec3fa2917`, and earlier 0.2.0/0.2.1 deployments
 remain historical. No final 0.2.0, 0.2.1, 0.3.0 or 0.3.1 tag was published.
-The user authorized app foundation development and reviewed previews without waiving actual-device
-qualification for final tags or the broad-game-support decision gate.
+The user explicitly authorized advancing to the three-game 0.4.0 preview
+while actual-device qualification remains pending. Development and reviewed
+preview delivery do not waive final-tag or broad-readiness hardware gates.
 
 ## Build and qualification
 
 Follow [TESTING.md](TESTING.md) to install the native reference, Emscripten and
 browser prerequisites. Before packaging, run the repository tests, original
-Pong capture, portable native/Wasm replay comparison and production browser
+Pong and six new-game scenario captures, portable native/Wasm replay
+comparisons and production browser
 checks, including `npm run test:foundations` after the frozen dependency
 install and `npm run test:qualification` after the core build. Inspect their
 reports; passing metadata or synthetic ZIP checks do not establish
-gameplay for the other twenty DICE titles.
+gameplay for the eighteen unported DICE titles.
 
 Source packaging requires [license-audit.json](../tests/license-audit.json) to
 be ready with an empty blocker list. Browser packaging independently requires
@@ -33,7 +37,8 @@ notices and matching corresponding source. Read
 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for component evidence.
 Changing a readiness boolean alone does not resolve missing evidence.
 
-Public jobs use ROM-free Pong and fixture-free metadata. They receive no
+Public jobs use ROM-free Pong, Pong Doubles and Space Race with fixture-free
+metadata. They receive no
 private ROM credentials. Never package ROM bytes, private fixtures, secrets,
 generated source copies or unrelated build output. Known-path/type checks are
 useful guards; they cannot identify arbitrary secret text.
@@ -55,7 +60,7 @@ python3 tools/package-web.py --preview
 
 `build/pages/` contains the runtime, visible preview identification,
 `BUILD-MANIFEST.json`, complete applicable notices and
-`source/nocpu-0.3.1-source.tar.gz` with its checksum. The archive's manifest
+`source/nocpu-0.4.0-source.tar.gz` with its checksum. The archive's manifest
 identifies `preview-corresponding-source`; the browser manifest has stage
 `preview` and no final tag. The app links directly to the available matching
 source archive. Preserve relative notice paths so their nested links work.
@@ -83,13 +88,13 @@ source or matching archive served by the verified 0.3.1 deployment.
 [release-readiness.json](../tests/release-readiness.json) records actual physical
 Android Chrome and iPhone Safari evidence for the complete runtime digest.
 Record the model, OS/browser versions, test date, tested build, required play,
-touch, speaker audio and lifecycle checks, plus at least ten minutes of
-sustained performance. The [physical-device packet](DEVICE_QUALIFICATION.md)
-provides the 0.3.1 procedure after reviewed publication: include both external tracks, their visible
+touch, speaker audio and lifecycle checks, plus the retained Pong baseline's
+at least ten minutes of sustained performance. The [physical-device packet](DEVICE_QUALIFICATION.md)
+provides the existing Pong procedure after reviewed publication: include both external tracks, their visible
 full-range feedback, court separation and portrait/landscape reachability.
 The earlier iPhone obstruction report and subsequent two successful 0.2.1
 games are useful partial feedback; they do not supply the missing identified
-device/performance fields or qualify changed 0.3.1 runtime bytes. Automated
+device/performance fields or qualify changed 0.4.0 runtime bytes. Automated
 mobile viewports cannot complete them.
 
 Final browser packaging rejects pending/failed device gates, stale runtime
@@ -99,18 +104,26 @@ labels, runtime constants, CSS, compiler output or controls changes its digest
 and requires corresponding qualification; do not attach preview evidence to
 changed final bytes.
 
+The maintained eight phone-check keys and 600-active-second/0.95 requirements
+retain their Pong baseline meaning. [The three-game device
+packet](DEVICE_QUALIFICATION_0.4.md) records additional title/options-specific
+manual and performance scope without introducing a mandatory ten-minute gate
+for each new title. A Pong baseline pass cannot qualify four Doubles paddles,
+Space Race's digital controls, or broad-game support. Actual new-title coverage
+remains pending and requires independent review before any final promotion.
+
 Complete the agreed checks and independent repair/re-review loops before
 tagging. Pending physical-device results remain pending until actual testing
 supplies the required evidence.
 
 Once gates are satisfied and final publication is authorized, finalize the
-0.3.1 changelog date/status, commit the reviewed change, create the exact
-`v0.3.1` tag and push it. This qualification preview does not authorize that
+0.4.0 changelog date/status, commit the reviewed change, create the exact
+`v0.4.0` tag and push it. This qualification preview does not authorize that
 final tag. Final packaging
 requires a clean checkout of that tag and version equality:
 
 ```sh
-python3 tools/package-web.py --tag v0.3.1
+python3 tools/package-web.py --tag v0.4.0
 ```
 
 `.github/workflows/verify-browser.yml` provides shared verification for pull
@@ -135,7 +148,7 @@ make source
 `source-candidate` makes a local review archive and records license blockers in
 its manifest. It is not publishable while blockers remain. `source` requires
 the source-license gate and exact current tag/version argument, then writes
-`nocpu-0.3.1-source.tar.gz` and its checksum; this local command alone does not
+`nocpu-0.4.0-source.tar.gz` and its checksum; this local command alone does not
 create a Git tag or GitHub release.
 
 Archives contain curated maintained source, unchanged original DICE files,

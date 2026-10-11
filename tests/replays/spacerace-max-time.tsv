@@ -1,0 +1,21 @@
+# Original Space Race: physical digital Up/Down switches per left/right rocket.
+# Default 1 coin/credit, 1470000-ohm Play Time pot. Attract/game timer observed.
+200 start 1
+300 start 0
+500 coin 1
+600 coin 0
+1000 start 1
+1100 start 0
+2000 up1 1
+2300 up1 0
+2400 down1 1
+2700 down1 0
+3200 up2 1
+3500 up2 0
+3600 down2 1
+3900 down2 0
+6500 up1 1
+6500 up2 1
+170000 up1 0
+170000 up2 0
+170000 recreate 1
