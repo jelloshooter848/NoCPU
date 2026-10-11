@@ -511,7 +511,7 @@ export function createQualificationRecorder(options: QualificationRecorderOption
       const complete = errors.length === 0 && samples.length > 1 && unchanged && gameConsistent;
       const report: QualificationReport = {
         schema_version: 1, game: initialGame, game_consistent: gameConsistent, game_sessions: gameSessions,
-        native_run_scope: 'Pong uses its original RUN_n and ATTRACT_n signals. Pong Doubles uses original ATTRACT_n (D2.4) for game-active status. Space Race uses the original GAME_ON timer signal (C9.3), preserving its inherited coin/start behavior; it has no equivalent ATTRACT signal, so attractN is null. No activity is inferred from input events or displayed scores.',
+        native_run_scope: 'runN is the normalized inverse of nativeRunning. Pong uses its original RUN_n and ATTRACT_n signals. Pong Doubles uses original ATTRACT_n (D2.4) for game-active status. Space Race uses the original GAME_ON timer signal (C9.3), preserving its inherited coin/start behavior; it has no equivalent ATTRACT signal, so attractN is null. Breakout uses original ATTRACT_n (E6.9) for game-active status; its raw credit Q_n is a separate signal. No activity is inferred from input events or displayed scores.',
         scope: 'Instrumented measurement only. Human device identity, speaker/touch/lifecycle observations and independent artifact verification remain required.',
         release_ready: false, tested_at: startedAt, finished_at: finishedAt,
         device: { physical: metadata.physical ?? null, platform: text(metadata.platform), model: text(metadata.model),

@@ -21,6 +21,8 @@ interface DiceModule {
   _nocpu_pot_ohms(): number;
   _nocpu_coin(held: number): void;
   _nocpu_start(held: number): void;
+  _nocpu_start_player(player: number, held: number): number;
+  _nocpu_serve(held: number): number;
   _nocpu_paddle(slot: number, axis: number): void;
   _nocpu_joystick(slot: number, up: number, down: number): void;
   _nocpu_advance(microseconds: number): number;
@@ -42,6 +44,8 @@ interface DiceModule {
   _nocpu_attract_n(): number;
   _nocpu_active(): number;
   _nocpu_crashes(slot: number): number;
+  _nocpu_breakout_signal(signal: number): number;
+  _nocpu_breakout_count(event: number): number;
   _nocpu_time_lo(): number;
   _nocpu_time_hi(): number;
 }
@@ -50,7 +54,8 @@ let core: DiceModule | undefined;
 let gameId: PlayableGameId = 'pong';
 let gameOptions: GameOptions = defaultGameOptions('pong');
 let axes: number[] = [];
-// Original vertical channels: -1 is Up, 0 neutral, +1 Down.
+// Logical display directions: -1 Up/Left,0 neutral,+1 Down/Right. Absolute
+// axes/snapshots retain original native polarity; measured spec maps movement.
 let directions: number[] = [];
 let inputRevision = 0;
 let coin = false;
@@ -58,8 +63,11 @@ let coinsQueued = 0;
 let coinRemainingUs = 0;
 let coinReleasedUs = 0;
 let start = false;
-let startPending = false;
+let startPlayer: 1 | 2 | null = null;
+let startsQueued: (1 | 2)[] = [];
 let startRemainingUs = 0;
+let startReleasedUs = 0;
+let serve = false;
 let simulatedUs = 0;
 let lastFrame = -1;
 let running = false;
@@ -93,8 +101,15 @@ function snapshot(): CoreSnapshot {
     options: { ...gameOptions },
     timeps: time.toString(),
     frame: core._nocpu_frame_number(),
-    hits: gameId === 'spacerace' ? null : core._nocpu_hits(),
+    hits: gameId === 'spacerace' || gameId === 'breakout' ? null : core._nocpu_hits(),
     crashes: gameId === 'spacerace' ? [core._nocpu_crashes(0), core._nocpu_crashes(1)] : null,
+    breakout: gameId === 'breakout' ? {
+      attractPin: core._nocpu_breakout_signal(0), attractN: core._nocpu_breakout_signal(1),
+      creditN: core._nocpu_breakout_signal(2), serveWait: core._nocpu_breakout_signal(3),
+      player2: core._nocpu_breakout_signal(4), ballCounter: core._nocpu_breakout_signal(5),
+      brickHits: core._nocpu_breakout_count(5), paddleHits: core._nocpu_breakout_count(6),
+      wallHits: core._nocpu_breakout_count(7),
+    } : null,
     scores: [core._nocpu_score(0), core._nocpu_score(1)],
     run: core._nocpu_active() !== 0,
     attract: gameId === 'spacerace' ? null : core._nocpu_attract_n() === 0,
@@ -103,6 +118,12 @@ function snapshot(): CoreSnapshot {
     coin,
     coinsQueued,
     start,
+    startPlayer,
+    startsQueued: startsQueued.length,
+    serve,
+    width: core._nocpu_width(),
+    height: core._nocpu_height(),
+    pixelFormat: 'rgba8888',
     inputRevision,
     wasmMemoryCapacityBytes: core.HEAPU8.byteLength,
     audioOverruns: core._nocpu_audio_overruns(),
@@ -112,16 +133,21 @@ function snapshot(): CoreSnapshot {
 }
 
 function releaseHeld(): void {
-  directions = Array(gameSpec(gameId).playerCount).fill(0) as number[];
+  directions = Array(gameSpec(gameId).controlSlotCount).fill(0) as number[];
   coin = false;
   coinsQueued = 0;
   coinRemainingUs = 0;
   coinReleasedUs = 0;
   start = false;
-  startPending = false;
+  startPlayer = null;
+  startsQueued = [];
   startRemainingUs = 0;
+  startReleasedUs = 0;
+  serve = false;
   core?._nocpu_coin(0);
   core?._nocpu_start(0);
+  core?._nocpu_start_player(2, 0);
+  core?._nocpu_serve(0);
   if (gameId === 'spacerace') directions.forEach((_, slot) => core?._nocpu_joystick(slot, 0, 0));
 }
 
@@ -181,21 +207,25 @@ function tick(): void {
       }
       // Coin and Start are separate original switches. A user's explicit Start
       // can queue behind a coin pulse, but inserting a coin never queues Start.
-      if (startPending && simulatedUs >= 500000 && coinsQueued === 0 && coinRemainingUs === 0 && coinReleasedUs === 0) {
-        startPending = false;
+      if (startsQueued.length > 0 && simulatedUs >= 500000 && coinsQueued === 0
+        && coinRemainingUs === 0 && coinReleasedUs === 0 && startRemainingUs === 0 && startReleasedUs === 0) {
+        startPlayer = startsQueued.shift()!;
         start = true;
         startRemainingUs = 100000;
-        core._nocpu_start(1);
+        if (core._nocpu_start_player(startPlayer, 1) !== 1) throw new PlayerError('The selected Start switch is unsupported. Reload the game.');
       }
       let microseconds = Math.min(MAX_SLICE_US, Math.floor(debtUs));
       if (coinsQueued > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
       if (coinRemainingUs > 0) microseconds = Math.min(microseconds, coinRemainingUs);
       if (coinReleasedUs > 0) microseconds = Math.min(microseconds, coinReleasedUs);
-      if (startPending && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
+      if (startsQueued.length > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
       if (startRemainingUs > 0) microseconds = Math.min(microseconds, startRemainingUs);
+      if (startReleasedUs > 0) microseconds = Math.min(microseconds, startReleasedUs);
       for (let slot = 0; slot < gameSpec(gameId).paddleCount; slot += 1) {
         if (directions[slot] !== 0) {
-          axes[slot] = Math.max(-32768, Math.min(32767, axes[slot] + directions[slot] * 32768 * microseconds / 1e6));
+          const sign = gameSpec(gameId).paddleAxisSign;
+          if (sign === null) throw new PlayerError('This game is awaiting original paddle calibration.');
+          axes[slot] = Math.max(-32768, Math.min(32767, axes[slot] + directions[slot] * sign * 32768 * microseconds / 1e6));
           core._nocpu_paddle(slot, Math.round(axes[slot]));
         }
       }
@@ -203,6 +233,7 @@ function tick(): void {
       simulatedUs += microseconds;
       debtUs -= microseconds;
       if (coinReleasedUs > 0) coinReleasedUs -= microseconds;
+      if (startReleasedUs > 0) startReleasedUs -= microseconds;
       if (coinRemainingUs > 0) {
         coinRemainingUs -= microseconds;
         if (coinRemainingUs === 0) {
@@ -215,7 +246,12 @@ function tick(): void {
       }
       if (startRemainingUs > 0) {
         startRemainingUs -= microseconds;
-        if (startRemainingUs === 0) { start = false; core._nocpu_start(0); }
+        if (startRemainingUs === 0) {
+          core._nocpu_start_player(startPlayer!, 0);
+          start = false;
+          startPlayer = null;
+          startReleasedUs = 100000;
+        }
       }
     }
     const offset = core._nocpu_audio() >>> 1;
@@ -258,7 +294,7 @@ async function handle(command: CoreCommand): Promise<void> {
       printErr: () => {},
       onAbort: () => send({ type: 'error', message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` }),
     });
-    if (core._nocpu_abi_version() !== 2) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
+    if (core._nocpu_abi_version() !== 3) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
     if (core._nocpu_create_game(settings.game, command.seed, settings.dip, settings.potOhms) !== 1) {
       throw new PlayerError(`${gameSpec(gameId).title} could not start. Reload the game to try again.`);
     }
@@ -266,7 +302,7 @@ async function handle(command: CoreCommand): Promise<void> {
       throw new PlayerError('The game download did not accept the selected settings. Reload and try again.');
     }
     axes = Array(gameSpec(gameId).paddleCount).fill(0) as number[];
-    directions = Array(gameSpec(gameId).playerCount).fill(0) as number[];
+    directions = Array(gameSpec(gameId).controlSlotCount).fill(0) as number[];
     send({ type: 'ready', width: core._nocpu_width(), height: core._nocpu_height(), sampleRate: core._nocpu_sample_rate(), snapshot: snapshot() });
     return;
   }
@@ -285,7 +321,7 @@ async function handle(command: CoreCommand): Promise<void> {
       inputRevision = command.revision;
       break;
     case 'keys':
-      if (command.directions.length !== gameSpec(gameId).playerCount
+      if (command.directions.length !== gameSpec(gameId).controlSlotCount
         || command.directions.some((direction) => !Number.isFinite(direction))) {
         throw new PlayerError('The control input is unsupported. Return to the game and try again.');
       }
@@ -298,8 +334,19 @@ async function handle(command: CoreCommand): Promise<void> {
       if (coinsQueued >= 8) throw new PlayerError('Too many coins are queued. Reload the game and insert coins more slowly.');
       coinsQueued += 1;
       break;
-    case 'start':
-      if (gameSpec(gameId).hasStart) startPending = true;
+    case 'start': {
+      const player = command.player ?? 1;
+      if (player !== 1 && player !== 2) throw new PlayerError('The selected Start switch is unsupported. Reload the game.');
+      if (!gameSpec(gameId).hasStart) break;
+      if (player > gameSpec(gameId).startButtons) throw new PlayerError('The selected Start switch is unsupported. Reload the game.');
+      if (startsQueued.length >= 8) throw new PlayerError('Too many starts are queued. Reload the game and press Start more slowly.');
+      startsQueued.push(player);
+      break;
+    }
+    case 'serve':
+      if (typeof command.held !== 'boolean' || !gameSpec(gameId).hasServe) throw new PlayerError('The selected Serve switch is unsupported. Reload the game.');
+      if (core._nocpu_serve(Number(command.held)) !== 1) throw new PlayerError('The selected Serve switch is unsupported. Reload the game.');
+      serve = command.held;
       break;
     case 'release':
       releaseHeld();

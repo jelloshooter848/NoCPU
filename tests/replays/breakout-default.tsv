@@ -1,0 +1,9 @@
+# Original-source calibrated Breakout physical input schedule; seed 848.
+500 coin 1
+600 coin 0
+1000 start 1
+1100 start 0
+1500 serve 1
+1600 serve 0
+2200 paddle1 14000
+30000 recreate 1

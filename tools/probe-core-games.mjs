@@ -13,7 +13,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
   if (!(key in options) || !process.argv[i + 1]) throw new Error(`Unknown or incomplete option ${process.argv[i]}`);
   options[key] = process.argv[i + 1];
 }
-// Numeric IDs are the frozen ABI2 access contract; circuit descriptions,
+// Numeric IDs retain the ABI2 access contract within ABI3; circuit descriptions,
 // physical channels and setting values are audited from original DICE 0.9.
 const games = [
   { id: 0, name: 'pong', dip: 0, pot: 0, paddles: 2 },
@@ -123,10 +123,10 @@ try {
   report.original_inventory_sha256 = sha(await readFile(new URL('../tests/source-manifest.json', import.meta.url)));
   const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
   core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-  check('ABI2 required', core._nocpu_abi_version() === 2);
+  check('ABI3 required', core._nocpu_abi_version() === 3);
   check('media dimensions/sample rate preserve original contract', core._nocpu_width() === 576 && core._nocpu_height() === 432 && core._nocpu_sample_rate() === 48000);
   const uncreated = state();
-  for (const args of [[3, 0, 0], [0, 2, 0], [1, 0, 1], [2, 0, 469999], [2, 0, 1470001]]) {
+  for (const args of [[4, 0, 0], [0, 2, 0], [1, 0, 1], [2, 0, 469999], [2, 0, 1470001]]) {
     check(`invalid create ${args}: rejected without mutation`, core._nocpu_create_game(args[0], 848, args[1], args[2]) === 0 && equal(uncreated, state()));
   }
   check('uncreated machine cannot advance/reset/expose media', core._nocpu_advance(1) === 0 && core._nocpu_reset(848) === 0 && core._nocpu_frame() === 0);

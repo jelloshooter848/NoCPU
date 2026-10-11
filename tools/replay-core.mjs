@@ -6,18 +6,21 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const options = { module: 'build/core/wasm/nocpu.js', output: 'build/core/wasm-evidence', replay: 'tests/replays/pong.tsv', seed: 848, epochs: 2, game: 'pong', dip: 0, potOhms: 0 };
+let dipProvided = false;
 for (let i = 2; i < process.argv.length; i += 2) {
   const key = process.argv[i].replace(/^--/, '').replace('pot-ohms', 'potOhms');
   if (!(key in options) || process.argv[i + 1] === undefined) throw new Error(`Invalid argument ${process.argv[i]}`);
+  if (key === 'dip') dipProvided = true;
   options[key] = ['seed', 'epochs', 'dip', 'potOhms'].includes(key) ? Number(process.argv[i + 1]) : process.argv[i + 1];
 }
 if (!Number.isInteger(options.epochs) || options.epochs < 2 || options.epochs > 10) throw new Error('Use 2–10 epochs to test reset isolation.');
-const gameId = { pong: 0, pongdoubles: 1, spacerace: 2 }[options.game];
+const gameId = { pong: 0, pongdoubles: 1, spacerace: 2, breakout: 3 }[options.game];
 if (gameId === undefined) throw new Error('Unsupported replay game.');
+if (gameId === 3 && !dipProvided) options.dip = 3;
 if (gameId === 2 && options.potOhms === 0) options.potOhms = 970000;
-if (![0, 1].includes(options.dip) || !Number.isInteger(options.potOhms)
+if (!Number.isInteger(options.dip) || (gameId === 3 ? options.dip < 0 || options.dip >= 128 || (options.dip & 15) > 8 : ![0, 1].includes(options.dip)) || !Number.isInteger(options.potOhms)
   || (gameId === 2 ? options.potOhms < 470000 || options.potOhms > 1470000 : options.potOhms !== 0)) throw new Error('Invalid original game options.');
-const allowed = gameId === 2 ? ['coin', 'start', 'up1', 'down1', 'up2', 'down2', 'recreate']
+const allowed = gameId === 3 ? ['coin', 'start', 'start2', 'serve', 'paddle1', 'recreate'] : gameId === 2 ? ['coin', 'start', 'up1', 'down1', 'up2', 'down2', 'recreate']
   : gameId === 1 ? ['coin', 'start', 'paddle1', 'paddle2', 'paddle3', 'paddle4', 'recreate'] : ['coin', 'paddle1', 'paddle2', 'recreate'];
 const events = (await readFile(options.replay, 'utf8')).split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith('#')).map((line) => {
   const [milliseconds, action, value, extra] = line.trim().split(/\s+/);
@@ -30,17 +33,17 @@ if (!events.length || events.at(-1).action !== 'recreate' || events.at(-1).time 
   || events.some((event, i) => event.time < 0n || (i && event.time < events[i - 1].time))) throw new Error('Replay must be ordered and finish with recreate.');
 const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
 const core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-if (core._nocpu_abi_version() !== 2) throw new Error('Unsupported core ABI.');
+if (core._nocpu_abi_version() !== 3) throw new Error('Unsupported core ABI.');
 const ps = (prefix = 'time') => (BigInt(core[`_nocpu_${prefix}_hi`]() >>> 0) << 32n) | BigInt(core[`_nocpu_${prefix}_lo`]() >>> 0);
-const width = core._nocpu_width(), height = core._nocpu_height();
+let width = core._nocpu_width(), height = core._nocpu_height();
 if (width !== 576 || height !== 432 || core._nocpu_sample_rate() !== 48000) throw new Error('Unexpected native media dimensions or sample rate.');
 if (core._nocpu_advance(1) !== 0 || core._nocpu_audio_count() !== 0 || core._nocpu_frame() !== 0) throw new Error('Uncreated core advanced or exposed output.');
 
-function nativeFrameHash(rgba) {
+function nativeFrameHash(rgba, frameWidth = width, frameHeight = height) {
   // Exact 64-bit FNV-1a using two words; no 53-bit floating point time/hash loss.
   let lo = 0x84222325, hi = 0xcbf29ce4;
-  for (let y = height - 1; y >= 0; y -= 1) for (let x = 0; x < width; x += 1) for (let c = 0; c < 3; c += 1) {
-    lo = (lo ^ rgba[(y * width + x) * 4 + c]) >>> 0;
+  for (let y = frameHeight - 1; y >= 0; y -= 1) for (let x = 0; x < frameWidth; x += 1) for (let c = 0; c < 3; c += 1) {
+    lo = (lo ^ rgba[(y * frameWidth + x) * 4 + c]) >>> 0;
     const product = lo * 435;
     hi = (hi * 435 + lo * 256 + Math.floor(product / 4294967296)) >>> 0;
     lo = product >>> 0;
@@ -51,6 +54,8 @@ function nativeFrameHash(rgba) {
 for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   const made = epoch ? core._nocpu_reset(options.seed) : core._nocpu_create_game(gameId, options.seed, options.dip, options.potOhms);
   if (made !== 1) throw new Error('Core creation/reset failed.');
+  width = core._nocpu_width(); height = core._nocpu_height();
+  if (width !== (gameId === 3 ? 324 : 576) || height !== 432) throw new Error('Selected native viewport differs from the measured original.');
   if (core._nocpu_game() !== gameId || core._nocpu_dip() !== options.dip || core._nocpu_pot_ohms() !== options.potOhms) throw new Error('Native selected game/configuration mismatch.');
   const initialCount = core._nocpu_audio_count();
   if (core._nocpu_create(options.seed) !== 0 || core._nocpu_advance(100001) !== 0 || core._nocpu_advance(0) !== 1 || ps() !== 0n || core._nocpu_frame_number() !== 0 || core._nocpu_audio_count() !== initialCount) throw new Error('ABI lifetime/bounded-step contract violated.');
@@ -74,7 +79,10 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
     const countEvents = core._nocpu_event_count(), eventOffset = core._nocpu_events() >>> 2;
     for (let i = 0; i < countEvents; i += 1) {
       const time = (BigInt(core.HEAPU32[eventOffset + i * 4 + 1]) << 32n) | BigInt(core.HEAPU32[eventOffset + i * 4]);
-      transitions.push(`${time},${core.HEAPU32[eventOffset + i * 4 + 2]},${core.HEAPU32[eventOffset + i * 4 + 3]}\n`);
+      const signal = core.HEAPU32[eventOffset + i * 4 + 2];
+      if (gameId === 3 && (signal < 5 || signal > 10)) throw new Error('Unexpected Breakout native source signal.');
+      // Original observer IDs100..105 name the same six independently mapped pins.
+      transitions.push(`${time},${gameId === 3 ? signal + 95 : signal},${core.HEAPU32[eventOffset + i * 4 + 3]}\n`);
     }
     core._nocpu_events_clear();
     if (core._nocpu_audio_overruns() !== 0) throw new Error('Core PCM overflow.');
@@ -88,7 +96,12 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
       const event = events[eventIndex++];
       inputs.push(`${event.time},${now},${event.action},${event.value}\n`);
       if (event.action === 'coin') core._nocpu_coin(event.value);
-      else if (event.action === 'start') core._nocpu_start(event.value);
+      else if (event.action === 'start') {
+        if (gameId === 3) { if (core._nocpu_start_player(1, event.value) !== 1) throw new Error('Native Start1 rejected.'); }
+        else core._nocpu_start(event.value);
+      }
+      else if (event.action === 'start2') { if (core._nocpu_start_player(2, event.value) !== 1) throw new Error('Native Start2 rejected.'); }
+      else if (event.action === 'serve') { if (core._nocpu_serve(event.value) !== 1) throw new Error('Native Serve rejected.'); }
       else if (event.action.startsWith('paddle')) core._nocpu_paddle(Number(event.action.at(-1)) - 1, event.value);
       else if (/^(up|down)[12]$/.test(event.action)) {
         const slot = Number(event.action.at(-1)) - 1, direction = event.action.startsWith('up') ? 0 : 1;
@@ -148,7 +161,8 @@ function extremeInputs(a, b, invalidSlot, heldReset = false) {
     audio.push(Buffer.from(core.HEAPU8.slice(core._nocpu_audio(), core._nocpu_audio() + count * 2)));
     core._nocpu_audio_clear();
   }
-  const observed = { frame: nativeFrameHash(core.HEAPU8.slice(core._nocpu_frame(), core._nocpu_frame() + width * height * 4)), audio: Buffer.concat(audio), time: ps() };
+  const probeWidth = core._nocpu_width(), probeHeight = core._nocpu_height();
+  const observed = { frame: nativeFrameHash(core.HEAPU8.slice(core._nocpu_frame(), core._nocpu_frame() + probeWidth * probeHeight * 4), probeWidth, probeHeight), audio: Buffer.concat(audio), time: ps() };
   core._nocpu_destroy();
   return observed;
 }

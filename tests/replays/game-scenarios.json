@@ -72,6 +72,130 @@
       "dip": 0,
       "pot_ohms": 970000,
       "kind": "coin_only"
+    },
+    {
+      "id": "breakout-default",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-default.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "rally",
+      "expected_active": true
+    },
+    {
+      "id": "breakout-three-balls-miss-restart",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-three-balls-miss-restart.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "end_restart",
+      "expected_active": true,
+      "balls_option": 3,
+      "end_window_ms": [
+        17080,
+        17100
+      ],
+      "restart_ms": 27200
+    },
+    {
+      "id": "breakout-five-balls-miss-restart",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-five-balls-miss-restart.tsv",
+      "dip": 67,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "end_restart",
+      "expected_active": true,
+      "balls_option": 5,
+      "end_window_ms": [
+        25190,
+        25210
+      ],
+      "restart_ms": 27200
+    },
+    {
+      "id": "breakout-two-player-normal",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-two-player-normal.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "two_player",
+      "expected_active": true,
+      "cabinet": "normal"
+    },
+    {
+      "id": "breakout-two-player-cocktail",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-two-player-cocktail.tsv",
+      "dip": 19,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "two_player",
+      "expected_active": true,
+      "cabinet": "cocktail"
+    },
+    {
+      "id": "breakout-coinage-one-singlecoin-start2",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-coinage-one-singlecoin-start2.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "start2_credit",
+      "expected_active": false
+    },
+    {
+      "id": "breakout-coinage-two-singlecoin-start2",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-coinage-two-singlecoin-start2.tsv",
+      "dip": 35,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "start2_credit",
+      "expected_active": true
+    },
+    {
+      "id": "breakout-bonus100-rally",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-bonus100-rally.tsv",
+      "dip": 1,
+      "pot_ohms": 0,
+      "bonus_award_exercised": false,
+      "kind": "rally",
+      "expected_active": true
+    },
+    {
+      "id": "breakout-pilot",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-pilot.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "kind": "controls",
+      "expected_active": true,
+      "bonus_award_exercised": false
+    },
+    {
+      "id": "breakout-alternate",
+      "game": "breakout",
+      "core_id": 3,
+      "replay": "tests/replays/breakout-alternate.tsv",
+      "dip": 112,
+      "pot_ohms": 0,
+      "kind": "controls",
+      "expected_active": true,
+      "bonus_award_exercised": false
     }
   ]
 }

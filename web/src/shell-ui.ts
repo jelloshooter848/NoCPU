@@ -1,5 +1,6 @@
 // NoCPU game-shell views, GPL-3.0-or-later.
 import { GAMES, type GameInfo } from './catalog';
+import { homeScreenGuideMarkup } from './home-screen';
 
 export function escapeText(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
@@ -10,7 +11,7 @@ export function libraryMarkup(): string {
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
-  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
+  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
 }
 
 export function createShellMarkup(base: string, source: string): string {
@@ -31,11 +32,13 @@ export function createShellMarkup(base: string, source: string): string {
           <button class="direction-button" data-testid="direction-p${slot + 1}-up" data-direction="up" data-slot="${slot}" aria-label="Player ${slot + 1} rocket up">↑</button>
           <button class="direction-button" data-testid="direction-p${slot + 1}-down" data-direction="down" data-slot="${slot}" aria-label="Player ${slot + 1} rocket down">↓</button>
         </div>`).join('')}
+        <div class="serve-controller" hidden><button class="serve-button" data-testid="serve-game" aria-label="Serve ball" disabled>Serve</button></div>
       </div>
     </div>
     <nav class="game-hud" aria-label="Game actions" hidden>
       <button class="hud-button coin-button" data-testid="insert-coin" disabled>Insert coin</button>
       <button class="hud-button start-button" data-testid="start-game" disabled hidden>Start</button>
+      <button class="hud-button start-button" data-testid="start-game-2" aria-label="Start 2-player game" disabled hidden>Start 2P</button>
       <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Menu <span aria-hidden="true">☰</span></button>
     </nav>
     <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose Play Pong to start.</p>
@@ -73,7 +76,7 @@ export function createShellMarkup(base: string, source: string): string {
         </section>
         <section class="panel-section library-panel" data-panel="library" hidden>
           <h1 id="library-heading">Library</h1>
-          <p class="panel-note">Pong, Pong Doubles and Space Race are ready to play.</p>
+          <p class="panel-note">Pong, Pong Doubles, Space Race and Breakout are ready to play.</p>
           <div class="menu-inline-actions"><button data-action="settings">Settings</button><button data-action="help">How to play</button><button data-action="about">About</button></div>
           <div class="library-list" data-testid="game-library">${libraryMarkup()}</div>
         </section>
@@ -125,13 +128,15 @@ export function createShellMarkup(base: string, source: string): string {
         <section class="panel-section help-panel" data-panel="help" hidden>
           <h1 id="help-heading">How to play</h1>
           <div id="game-help-content"></div>
+          ${homeScreenGuideMarkup('help')}
         </section>
         <section class="panel-section about-panel" data-panel="about" hidden>
           <h1 id="about-heading">About NoCPU</h1>
           <p>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, the Discrete Integrated Circuit Emulator, by the DICE Team.</p>
-          <p>Pong, Pong Doubles and Space Race run their original circuit simulation and sound. No ROM files are required for these games.</p>
+          <p>Pong, Pong Doubles, Space Race and Breakout run their original circuit simulation and sound. No ROM files are required for these games.</p>
           <p data-testid="version">Version ${__NOCPU_VERSION__} · <span id="build-id">development</span></p>
           <p class="preview-note" id="release-stage">Browser preview · physical phone qualification pending</p>
+          ${homeScreenGuideMarkup('about')}
           <nav class="about-links" aria-label="Project and license"><a href="https://github.com/jelloshooter848/NoCPU" target="_blank" rel="noopener noreferrer">GitHub</a><a href="${source}" target="_blank" rel="noopener noreferrer">Source</a><a href="${base}notices/LICENSE">GPL v3</a><a href="${base}notices/THIRD_PARTY_NOTICES.md">Credits & notices</a></nav>
         </section>
         <section class="panel-section error-panel" data-panel="error" data-testid="error" role="alert" hidden>

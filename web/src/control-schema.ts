@@ -1,41 +1,50 @@
 import inventory from '../../tests/fixtures/game-manifest.json';
-import { isPlayableGameId, type PlayableGameId } from './game-contract';
+import { gameSpec, isPlayableGameId, type PlayableGameId } from './game-contract';
 
 /** The shipped Pong actions stay stable for version-1 settings migration. */
 export const ACTION_IDS = ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute'] as const;
-export const ALL_ACTION_IDS = [...ACTION_IDS, 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'start'] as const;
+export const ALL_ACTION_IDS = [...ACTION_IDS, 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'start', 'p1Left', 'p1Right', 'start2', 'serve'] as const;
 export type ActionId = typeof ALL_ACTION_IDS[number];
-export type GameAction = 'coin' | 'start' | 'menu' | 'reset' | 'mute';
+export type GameAction = 'coin' | 'start' | 'start2' | 'menu' | 'reset' | 'mute';
 export const ACTION_LABELS: Record<ActionId, string> = {
   p1Up: 'Player 1 up', p1Down: 'Player 1 down', p2Up: 'Player 2 up', p2Down: 'Player 2 down',
   p3Up: 'Player 3 up', p3Down: 'Player 3 down', p4Up: 'Player 4 up', p4Down: 'Player 4 down',
   coin: 'Insert coin', start: 'Start game', menu: 'Pause / resume', reset: 'Reset game', mute: 'Toggle sound',
+  p1Left: 'Shared paddle left', p1Right: 'Shared paddle right', start2: 'Start 2 players', serve: 'Serve ball',
 };
+export function actionLabel(action: ActionId, gameId: PlayableGameId = 'pong'): string {
+  return gameId === 'breakout' && action === 'start' ? 'Start 1 player' : ACTION_LABELS[action];
+}
 export type KeyboardBindings = Record<ActionId, string[]>;
 export interface GamepadButtonBinding { pad: number; button: number }
 export interface GamepadPlayerBinding { pad: number; axis: number; invert: boolean; deadzone: number }
 export interface GamepadBindings { players: GamepadPlayerBinding[]; buttons: Record<ActionId, GamepadButtonBinding[]> }
 export interface Bindings { keyboard: KeyboardBindings; gamepad: GamepadBindings }
 export function actionsForGame(gameId: PlayableGameId = 'pong'): readonly ActionId[] {
-  return gameId === 'pong' ? ACTION_IDS : gameId === 'pongdoubles'
+  return gameId === 'breakout' ? ['p1Left', 'p1Right', 'coin', 'start', 'start2', 'serve', 'menu', 'reset', 'mute']
+    : gameId === 'pong' ? ACTION_IDS : gameId === 'pongdoubles'
     ? ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'coin', 'start', 'menu', 'reset', 'mute']
     : ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'start', 'menu', 'reset', 'mute'];
 }
-export function controlPlayerCount(gameId: PlayableGameId = 'pong'): number { return gameId === 'pongdoubles' ? 4 : 2; }
-export function directionAction(slot: number, direction: 'Up' | 'Down'): ActionId { return `p${slot + 1}${direction}` as ActionId; }
+export function controlPlayerCount(gameId: PlayableGameId = 'pong'): number { return gameSpec(gameId).controlSlotCount; }
+export function directionAction(slot: number, direction: 'Up' | 'Down', gameId: PlayableGameId = 'pong'): ActionId {
+  return gameId === 'breakout' ? direction === 'Up' ? 'p1Left' : 'p1Right' : `p${slot + 1}${direction}` as ActionId;
+}
 export function defaultBindings(gameId: PlayableGameId = 'pong'): Bindings {
   const keyboard = Object.fromEntries(ALL_ACTION_IDS.map((action) => [action, [] as string[]])) as KeyboardBindings;
   Object.assign(keyboard, { p1Up: ['KeyW'], p1Down: ['KeyS'], p2Up: ['ArrowUp'], p2Down: ['ArrowDown'], coin: ['Enter'], menu: ['Space'], reset: ['KeyR'], mute: ['KeyM'] });
   if (gameId !== 'pong') keyboard.start = ['Digit1'];
+  if (gameId === 'breakout') Object.assign(keyboard, { p1Left: ['ArrowLeft'], p1Right: ['ArrowRight'], start2: ['Digit2'], serve: ['KeyS'] });
   if (gameId === 'pongdoubles') Object.assign(keyboard, { p3Up: ['KeyT'], p3Down: ['KeyG'], p4Up: ['KeyI'], p4Down: ['KeyK'] });
   const buttons = Object.fromEntries(ALL_ACTION_IDS.map((action) => [action, [] as GamepadButtonBinding[]])) as GamepadBindings['buttons'];
-  const players = Array.from({ length: controlPlayerCount(gameId) }, (_, pad) => ({ pad, axis: 1, invert: false, deadzone: 0.15 }));
+  const players = Array.from({ length: controlPlayerCount(gameId) }, (_, pad) => ({ pad, axis: gameId === 'breakout' ? 0 : 1, invert: false, deadzone: 0.15 }));
   players.forEach((player, slot) => {
-    buttons[directionAction(slot, 'Up')] = [{ pad: player.pad, button: 12 }];
-    buttons[directionAction(slot, 'Down')] = [{ pad: player.pad, button: 13 }];
+    buttons[directionAction(slot, 'Up', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' ? 14 : 12 }];
+    buttons[directionAction(slot, 'Down', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' ? 15 : 13 }];
     buttons.coin.push({ pad: player.pad, button: 0 });
     buttons.menu.push({ pad: player.pad, button: 9 });
     if (gameId !== 'pong') buttons.start.push({ pad: player.pad, button: 1 });
+    if (gameId === 'breakout') { buttons.start2.push({ pad: player.pad, button: 2 }); buttons.serve.push({ pad: player.pad, button: 3 }); }
   });
   return { keyboard, gamepad: { players, buttons } };
 }

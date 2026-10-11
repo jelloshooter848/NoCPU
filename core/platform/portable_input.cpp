@@ -10,6 +10,8 @@ Settings::Settings():num_mice(0),pause(false),throttle(false),fullscreen(false),
     for(unsigned slot=0;slot<4;++slot) {
         auto& paddle=input.paddle[slot];
         paddle.use_joystick=true;
+        paddle.joy_x_axis.joystick=slot;
+        paddle.joy_x_axis.axis=0;
         paddle.joy_y_axis.joystick=slot;
         paddle.joy_y_axis.axis=1;
         paddle.joystick_mode=Settings::Input::JOYSTICK_ABSOLUTE;
@@ -18,12 +20,14 @@ Settings::Settings():num_mice(0),pause(false),throttle(false),fullscreen(false),
     }
     input.coin_start.coin1=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Number5);
     input.coin_start.start1=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Number1);
+    input.coin_start.start2=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Number2);
+    input.buttons[0].button1=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Serve);
     input.joystick[0].up=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player1Up);
     input.joystick[0].down=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player1Down);
     input.joystick[1].up=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Up);
     input.joystick[1].down=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Down);
 }
-Input::Input():coin(false),start(false),axes{0,0,0,0},up{false,false},down{false,false}{}
+Input::Input():coin(false),start(false),start2(false),serve(false),axes{0,0,0,0},up{false,false},down{false,false}{}
 Input::~Input(){}
 void Input::poll_input(){}
 int Input::getRelativeMouseX(unsigned){return 0;}
@@ -32,6 +36,8 @@ bool Input::getKeyboardState(unsigned key){
     switch(key) {
     case phoenix::Keyboard::Number5:return coin;
     case phoenix::Keyboard::Number1:return start;
+    case phoenix::Keyboard::Number2:return start2;
+    case phoenix::Keyboard::Serve:return serve;
     case phoenix::Keyboard::Player1Up:return up[0];
     case phoenix::Keyboard::Player1Down:return down[0];
     case phoenix::Keyboard::Player2Up:return up[1];
@@ -40,7 +46,7 @@ bool Input::getKeyboardState(unsigned key){
     }
 }
 bool Input::getJoystickButton(unsigned,unsigned){return false;}
-int16_t Input::getJoystickAxis(unsigned slot,unsigned axis){return slot<4&&axis==1?axes[slot]:0;}
+int16_t Input::getJoystickAxis(unsigned slot,unsigned axis){return slot<4&&axis<2?axes[slot]:0;}
 int Input::getNumJoysticks(){return 4;}
 int Input::getNumJoystickAxes(int slot){return slot>=0&&slot<4?2:0;}
 bool Input::getKeyPressed(const KeyAssignment& key) {

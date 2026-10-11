@@ -93,14 +93,14 @@ canvas:focus-visible, .paddle-control:focus-visible {
   grid-column: 2;
   grid-row: 1;
   width: var(--court-width);
-  aspect-ratio: 4 / 3;
+  aspect-ratio: var(--court-aspect, 4 / 3);
   background: #000;
 }
 canvas {
   display: block;
   width: 100%;
   height: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: var(--court-aspect, 4 / 3);
   background: #000;
   image-rendering: crisp-edges;
   image-rendering: pixelated;
@@ -222,6 +222,55 @@ canvas {
 .hud-button:hover { border-color: var(--ink); }
 .menu-button span { margin-left: 6px; }
 
+/* The original rotated Breakout raster stays intact. Its shared horizontal
+   control and held Serve switch occupy a separate area beside/below it. */
+.game-stage[data-game="breakout"] {
+  --control-width: clamp(160px, 42vw, 320px);
+  --court-width: min(calc(var(--stage-width) - var(--control-width) - var(--court-gap)), calc(var(--stage-height) * var(--court-aspect, .75)));
+  grid-template-columns: var(--court-width) var(--control-width);
+  gap: 0;
+  column-gap: var(--court-gap);
+  justify-content: center;
+}
+.game-stage[data-game="breakout"] .screen-frame { grid-column: 1; }
+.game-stage[data-game="breakout"] .touch-controls {
+  display: grid; grid-column: 2; grid-row: 1;
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: 84px 48px;
+  gap: 16px; width: var(--control-width); height: auto;
+}
+.game-stage[data-game="breakout"] .paddle-controller {
+  grid-column: 1; grid-row: 1; width: 100%; height: 84px; min-height: 0; gap: 8px;
+}
+.game-stage[data-game="breakout"] .paddle-control { min-height: 56px; cursor: ew-resize; }
+.game-stage[data-game="breakout"] .control-track {
+  top: 50%; bottom: auto; left: 12px; right: 12px;
+  width: auto; height: 4px; transform: translateY(-50%);
+}
+.game-stage[data-game="breakout"] .control-thumb {
+  top: 50%; left: var(--paddle-position, 50%); width: 12px; height: 36px;
+}
+.serve-controller { display: flex; grid-column: 1; grid-row: 2; justify-content: center; align-items: center; }
+.serve-button { width: 100%; min-height: 48px; border: 1px solid var(--line); touch-action: none; user-select: none; -webkit-user-select: none; }
+.serve-button.active { color: #000; background: var(--ink); }
+.game-shell[data-game="breakout"] .game-hud { gap: 8px; }
+.game-shell[data-game="breakout"] .hud-button { padding-inline: 8px; font-size: 12px; letter-spacing: 0; }
+@media (orientation: portrait) {
+  .game-stage[data-game="breakout"] {
+    --control-row-height: 108px;
+    --court-width: min(var(--stage-width), calc((var(--stage-height) - var(--control-row-height) - var(--court-gap)) * var(--court-aspect, .75)));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: calc(var(--court-width) / var(--court-aspect, .75)) var(--control-row-height);
+    gap: var(--court-gap);
+  }
+  .game-stage[data-game="breakout"] .screen-frame { grid-column: 1; }
+  .game-stage[data-game="breakout"] .touch-controls {
+    grid-column: 1; grid-row: 2; grid-template-columns: minmax(144px, 1fr) 72px;
+    grid-template-rows: 84px; gap: 16px; width: min(100%, 440px); height: var(--control-row-height); align-items: end;
+  }
+  .game-stage[data-game="breakout"] .serve-controller { grid-column: 2; grid-row: 1; height: 56px; }
+  .game-stage[data-game="breakout"] .serve-button { height: 56px; padding-inline: 6px; font-size: 12px; }
+}
+
 .shell-overlay {
   position: absolute;
   z-index: 3;
@@ -314,6 +363,10 @@ kbd { display: inline-block; min-width: 28px; max-width: 100%; padding: 4px; bor
 .about-panel [data-testid="version"] { overflow-wrap: anywhere; color: var(--muted); }
 .about-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 24px; }
 .about-links a { display: flex; min-height: 44px; align-items: center; padding: 8px; border: 1px solid var(--line); font-size: 13px; }
+.home-screen-guide { margin-block: 24px; border-top: 1px solid var(--line); }
+.home-screen-guide summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-size: 14px; }
+.home-screen-guide ol { padding-left: 24px; font-size: 14px; line-height: 1.6; }
+.home-screen-guide li + li { margin-top: 8px; }
 .error-panel button { width: 100%; margin-top: 12px; }
 .error-panel p { overflow-wrap: anywhere; }
 

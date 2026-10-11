@@ -16,7 +16,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    # Six original/native/Wasm scenarios plus five browser profiles need bounded headroom.
+    # Complete original/native/Wasm scenarios plus five browser profiles need bounded headroom.
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,7 +41,7 @@ jobs:
         run: ./tools/build-native.sh --jobs 2
       - name: Capture original ROM-free Pong behavior
         run: ./tools/capture-pong.sh
-      - name: Capture original Pong Doubles and Space Race scenarios
+      - name: Capture original Pong Doubles, Space Race and Breakout scenarios
         run: ./tools/capture-games.sh
       - name: Check that qualification rejects incomplete actual reference evidence
         run: python3 tests/test-reference-analysis.py --reference-dir build/reference
@@ -85,7 +85,7 @@ jobs:
             build/reference/**/*.diff
             build/reference-games/latest.txt
             build/reference-games/**/report.json
-            build/reference-games/**/scenarios.tsv
+            build/reference-games/**/*.tsv
             build/reference-games/**/scenario-manifest.json
             build/reference-games/**/capture-image-id.txt
             build/reference-games/**/adapter.diff
@@ -96,7 +96,7 @@ jobs:
             build/reference-games/**/*.s16le
             build/reference-games/**/*.gray
             build/reference-games/**/*.diff
-            build/reference-games/*/*.log
+            build/reference-games/**/*.log
             build/native/toolchain-provenance/**
             build/core/comparison.json
             build/core/native/build-provenance.json

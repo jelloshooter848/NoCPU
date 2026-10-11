@@ -1,10 +1,10 @@
 # 0.4.0 three-game physical qualification — draft packet
 
-Use this packet **after** the [0.4.0 preview](0.4.0_VALIDATION.md) has passed
-independent publication review. The current public site remains the verified
-0.3.1 Pong preview until then; its existing procedure is in
-[DEVICE_QUALIFICATION.md](DEVICE_QUALIFICATION.md). This draft records no
-physical-device result and does not authorize a final tag.
+The [0.4.0 preview](0.4.0_VALIDATION.md) has passed independent publication
+review. Use this packet with its exact tested runtime; later previews require
+their own runtime identity and additional-title/mode procedure. The earlier
+Pong procedure remains in [DEVICE_QUALIFICATION.md](DEVICE_QUALIFICATION.md).
+This packet records no physical-device result and does not authorize a final tag.
 
 Test an identified actual iPhone in Safari and Android phone in Chrome.
 Record the model, OS/browser version, UTC date, source/build and full runtime

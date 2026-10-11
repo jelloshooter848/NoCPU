@@ -5,7 +5,8 @@
 #include <stdint.h>
 #include <stddef.h>
 namespace phoenix { struct Keyboard { enum Scancode {
-    None=0, Number5=1, Number1=2, Player1Up=3, Player1Down=4, Player2Up=5, Player2Down=6
+    None=0, Number5=1, Number1=2, Player1Up=3, Player1Down=4, Player2Up=5, Player2Down=6,
+    Number2=7, Serve=8
 }; }; }
 struct KeyAssignment {
     enum InputType { NONE=0, KEYBOARD, JOYSTICK_AXIS, JOYSTICK_BUTTON };

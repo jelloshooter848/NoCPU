@@ -2,6 +2,12 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
+Current [0.5.0 development](docs/0.5.0_TASKS.md) adds online iPhone Home
+Screen/standalone support and the original Breakout port. The complete original/
+portable game batch is independently accepted; current final package/browser
+qualification remains pending. Offline play is excluded by default.
+The public preview below remains the independently verified 0.4.0 build.
+
 **[Play NoCPU 0.4.0](https://jelloshooter848.github.io/NoCPU/).** The
 independently verified Pages preview has three playable original-derived,
 ROM-free games: **Pong, Pong Doubles and Space Race**. The game-first library,
@@ -44,6 +50,7 @@ About. None of these three games needs a ROM file.
 
 ## Start here
 
+- [0.5.0 development contract](docs/0.5.0_TASKS.md) and [current validation stages](docs/0.5.0_VALIDATION.md)
 - [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
 - [Three-game physical phone/controller procedure](docs/DEVICE_QUALIFICATION_0.4.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
@@ -97,7 +104,7 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 | Path | Purpose |
 | --- | --- |
 | `upstream/dice-0.9/` | Original DICE source, kept independently identifiable and checked against an inventory |
-| `core/` | Headless three-game interface and documented adaptations of the original engine |
+| `core/` | Headless four-game development interface and documented adaptations of the original engine |
 | `web/` | Game-first browser frontend, touch/keyboard/gamepad controls, rendering and audio delivery |
 | `tools/` | Source/game/ROM audits, native builds, reference capture, and release checks |
 | `tests/` | Audited metadata and controlled reference scenarios |

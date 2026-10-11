@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Independent batch identity and source-clock media coverage gates.
+"""Independent batch identity and original-clock media coverage gates.
 
 These checks do not generate gameplay fixtures or establish game fidelity.
 The exact early Space Race gaps are the measured 500--600ms Coin reset of
 F7's scan counters, bound to captured settings and physical replay inputs;
 they are not a general allowance for missing frames.
+Breakout retains its measured original VBLANK period and cold phase. The
+period's integer source-clock relation is not an analytic divider proof.
 """
 import csv
 import hashlib
@@ -22,7 +24,14 @@ CLOCK_HALF_PERIOD_PS = 34920  # uint64_t((0.5 / 14.31818) * 10**6)
 HORIZONTAL_CLOCK_COUNTS = 455
 VERTICAL_LINES = 262
 FRAME_PERIOD_PS = CLOCK_HALF_PERIOD_PS * 4 * HORIZONTAL_CLOCK_COUNTS * VERTICAL_LINES
-FIRST_FRAME_PS = {"pongdoubles": 16652246960, "spacerace": 16652279880}
+FIRST_FRAME_PS = {"pongdoubles": 16652246960, "spacerace": 16652279880,
+                  "breakout": 14018475800}
+# All 506 gaps in each of six fresh 8s original Breakout attempts were exact.
+# This is 451556 halfcycles of the source clock; the measured cold first phase
+# has a 16400ps residual and must not be rounded to a clock boundary. Neither
+# the visible scanline interval nor visible line count divides the full frame.
+FRAME_PERIOD_PS_BY_GAME = {"pongdoubles": FRAME_PERIOD_PS, "spacerace": FRAME_PERIOD_PS,
+                           "breakout": 15768335520}
 SPACE_COIN_RESET_PAIR_PS = (499538611080, 616652189640)
 SPACE_COIN_RESET_GAP_PS = SPACE_COIN_RESET_PAIR_PS[1] - SPACE_COIN_RESET_PAIR_PS[0]
 SPACE_ALTERNATE_COIN_RESET_PS = (499538611080, 510001034000, 616652189640)
@@ -61,9 +70,13 @@ def validate_selection(directory, manifest, *, repo_root=ROOT, capture_layout="o
             errors.append(f"Duplicate manifest scenario: {identifier}")
             continue
         game, dip, pot = item["game"], item["dip"], item["pot_ohms"]
-        valid_options = type(dip) is int and dip in (0, 1) and type(pot) is int and (
-            (game == "pongdoubles" and pot == 0) or
-            (game == "spacerace" and 470000 <= pot <= 1470000))
+        # Breakout packs the original bonus-credit index in bits 0..3 and
+        # cabinet/coinage/ball-count switches in bits 4..6. Reserved bits and
+        # unused bonus indices must fail before any capture is qualified.
+        valid_options = type(dip) is int and type(pot) is int and (
+            (game == "pongdoubles" and dip in (0, 1) and pot == 0) or
+            (game == "spacerace" and dip in (0, 1) and 470000 <= pot <= 1470000) or
+            (game == "breakout" and 0 <= dip < 128 and (dip & 15) <= 8 and pot == 0))
         if not valid_options or not isinstance(item["replay"], str) or not item["replay"]:
             errors.append(f"Invalid manifest game/settings/replay: {identifier}")
             continue
@@ -179,7 +192,7 @@ def _space_reset_sequence(scenario, replay):
 
 def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_count=None,
                    scenario=None, replay=None):
-    """Reject missing native media using integer original clock and reset phase.
+    """Reject missing media using the exact per-game original cadence/phase.
 
     Full raster hashes, PCM bytes, replay accounting and gameplay assertions
     remain separate gates. Optional byte_count also rejects odd/truncated PCM
@@ -204,18 +217,19 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
         errors.append(f"Malformed frame record: {error}")
     periods = [b - a for a, b in zip(times, times[1:])]
     reset_pairs, unexpected_pairs = [], []
+    frame_period = FRAME_PERIOD_PS_BY_GAME.get(game)
     reset_sequence = _space_reset_sequence(scenario, replay) if game == "spacerace" else ()
     expected_reset_pairs = list(zip(reset_sequence, reset_sequence[1:]))
     for a, b in zip(times, times[1:]):
-        if b - a == FRAME_PERIOD_PS:
+        if b - a == frame_period:
             continue
         if (a, b) in expected_reset_pairs:
             reset_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
         else:
             unexpected_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
-    delay = sum(item["gap_ps"] - FRAME_PERIOD_PS for item in reset_pairs)
+    delay = sum(item["gap_ps"] - frame_period for item in reset_pairs)
     first = FIRST_FRAME_PS.get(game)
-    expected_frames = max(0, 1 + (duration_ps - first - delay) // FRAME_PERIOD_PS) if valid_parameters else None
+    expected_frames = max(0, 1 + (duration_ps - first - delay) // frame_period) if valid_parameters else None
     indices_complete = indices == list(range(len(times))) and bool(times)
     # Both pieces of the split are required in order. A dropped reset frame
     # must not masquerade as the default long gap or a regular-cadence stream.
@@ -225,17 +239,20 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     cadence_complete = valid_parameters and not errors and bool(periods) and indices_complete \
         and not unexpected_pairs and reset_complete
     duration_complete = valid_parameters and not errors and bool(times) and times[0] == first \
-        and 0 <= duration_ps - times[-1] < FRAME_PERIOD_PS and len(times) == expected_frames
+        and 0 <= duration_ps - times[-1] < frame_period and len(times) == expected_frames
     expected_samples = duration_ps * PCM_RATE // PS_PER_SECOND if valid_parameters else None
     pcm_duration_complete = valid_parameters and abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE
     pcm_container_complete = pcm_byte_count is None or (type(pcm_byte_count) is int \
         and pcm_byte_count >= 0 and pcm_byte_count % 2 == 0 and pcm_byte_count == sample_count * 2)
     return {"expected_duration_ps": duration_ps, "game": game, "errors": errors,
             "source_clock_half_period_ps": CLOCK_HALF_PERIOD_PS,
-            "source_horizontal_clock_counts": HORIZONTAL_CLOCK_COUNTS,
-            "source_vertical_lines": VERTICAL_LINES,
-            "source_frame_period_ps": FRAME_PERIOD_PS,
-            "source_paths": ["upstream/dice-0.9/chips/clock.cpp", f"upstream/dice-0.9/games/{game}.cpp"],
+            "source_horizontal_clock_counts": None if game == "breakout" else HORIZONTAL_CLOCK_COUNTS,
+            "source_vertical_lines": None if game == "breakout" else VERTICAL_LINES,
+            "source_frame_period_ps": frame_period,
+            "source_frame_period_basis": "measured original VBLANK cadence, 451556 source-clock halfcycles; not a complete analytic divider proof"
+                if game == "breakout" else "integer source-clock horizontal/vertical counts",
+            "source_paths": ["upstream/dice-0.9/chips/clock.cpp", f"upstream/dice-0.9/games/{game}.cpp"]
+                + (["upstream/dice-0.9/chips/video.cpp", "upstream/dice-0.9/chip.cpp"] if game == "breakout" else []),
             "frame_first_time_ps": times[0] if times else None,
             "frame_last_time_ps": times[-1] if times else None,
             "frame_minimum_period_ps": min(periods) if periods else None,

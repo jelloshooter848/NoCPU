@@ -1,4 +1,4 @@
-Supplemental musl math notices for the NoCPU 0.4.0 Wasm distribution.
+Supplemental musl math notices for the NoCPU browser Wasm distributions.
 Source: Emscripten 3.1.74, commit 1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5.
 Concrete exp.o and exp_data.o members are linked; exp_data.h is their
 supporting source header. The following copyright/license headers are
@@ -56,3 +56,146 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
 CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Additional concrete members linked by the NoCPU 0.5.0 Breakout build.
+The following pinned SDK copyright/license headers are retained verbatim.
+Sun-derived trigonometric members retain their own notice-preservation grant;
+Arm log/log_data portions use the MIT grant reproduced above.
+
+system/lib/libc/musl/src/math/cosf.c
+Source SHA-256: 33cf828e8e733da2b72c723b9ff20057b9a4f10df72a3923dadcb626c23d222c
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/cosf.c
+/* origin: FreeBSD /usr/src/lib/msun/src/s_cosf.c */
+/*
+ * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
+ */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/sinf.c
+Source SHA-256: 2583af55446f07da3225186c368a7aae5a0a0a0edab268967f4122b92e222b87
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/sinf.c
+/* origin: FreeBSD /usr/src/lib/msun/src/s_sinf.c */
+/*
+ * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
+ */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/__cosdf.c
+Source SHA-256: 0ba872cc7e26b93bb9784d19fee84b263e1fa3543a76ec3c0893aea47453a2a7
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/__cosdf.c
+/* origin: FreeBSD /usr/src/lib/msun/src/k_cosf.c */
+/*
+ * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Debugged and optimized by Bruce D. Evans.
+ */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/__sindf.c
+Source SHA-256: de7026bcd159b7d06a8cbcc162df722014f3b1a3cc4183116b6b7829eef1d118
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/__sindf.c
+/* origin: FreeBSD /usr/src/lib/msun/src/k_sinf.c */
+/*
+ * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Optimized by Bruce D. Evans.
+ */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/__rem_pio2f.c
+Source SHA-256: b73a0219ba4a34e39ed904b5008126ff1b12dfa1a4a380941363c8db5088d756
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/__rem_pio2f.c
+/* origin: FreeBSD /usr/src/lib/msun/src/e_rem_pio2f.c */
+/*
+ * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
+ * Debugged and optimized by Bruce D. Evans.
+ */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/__rem_pio2_large.c
+Source SHA-256: b97f19fb5951c83a0c10506fab35646caefde13bd03100ad2af55ef00af0b9fb
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/__rem_pio2_large.c
+/* origin: FreeBSD /usr/src/lib/msun/src/k_rem_pio2.c */
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+system/lib/libc/musl/src/math/log.c
+Source SHA-256: a0694d8587a0d145d0f8ae87cbffba014d7988bc2ebcbfad94cea73b394c9ecc
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/log.c
+/*
+ * Double-precision log(x) function.
+ *
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
+
+system/lib/libc/musl/src/math/log_data.c
+Source SHA-256: e96bcd99d88fc57e0f3686299014f4b949a6212603ce237f39e16cedc155617a
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/log_data.c
+/*
+ * Data for log.
+ *
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
+
+system/lib/libc/musl/src/math/log_data.h
+Source SHA-256: a8dced6f0821f30cad040ba326b03e419fbe0a750ed8f3b0d7145992bee4bccc
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/log_data.h
+/*
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
