@@ -86,7 +86,7 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 The reviewed 0.2.0 Pong preview introduced a C++/Wasm core, TypeScript frontend,
 notices and matching source. Its published review remains historical evidence;
-the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves 0.2.1 below.
+the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves 0.3.0 below.
 The viewport game shell's clean automated matrix passes 67 cases with three
 expected simultaneous-touch skips; 25 selected checks against the public site
 also pass. See
@@ -127,7 +127,7 @@ move paddles. Validate touch ownership, cancellation, menu/reset/background
 recovery, safe areas, orientation and source-matched preview deployment.
 
 The [patch task ledger](0.2.1_TASKS.md) and [qualification report](0.2.1_VALIDATION.md)
-record the delivered preview: full clean CI passes 72 cases with three
+record that historical preview: full clean CI passes 72 cases with three
 documented CDP touch skips; selected live checks pass 32 with three such skips,
 and all 84 public files match the independently reviewed artifact. This
 authorization supersedes the earlier sequencing
@@ -145,6 +145,15 @@ The [0.3.0 delivery contract](0.3.0_TASKS.md) permits implementation and a
 reviewed preview while retaining the actual-device final-tag gate. The library
 shows all 21 source-audited titles; only Pong is playable in the browser.
 Imported ROM compatibility is distinct from browser game availability.
+
+The app foundation is now an independently verified Pages preview. Required
+clean CI passes 132 cases with three documented CDP skips out of 135; the
+selected actual-live run passes 92 with three such skips out of 95, and all
+90 public files match the reviewed artifact. [0.3.0 validation](0.3.0_VALIDATION.md)
+records the exact deployed source/runtime and completed gates. This completes
+the Pong app foundation; playing and qualifying other control families follows
+their game-circuit ports in 0.4–0.7. Physical/controller hardware qualification
+and final tags remain pending.
 
 1. Build library → game information → Play → pause/settings → return-to-library flow, with clear ROM and controls status.
 2. Add responsive portrait/landscape layouts, safe-area spacing, usable touch targets and fullscreen where the browser supports it, with a normal viewport fallback.
@@ -218,17 +227,19 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The 0.1.0 foundation, 0.2.0 Pong preview and authorized 0.2.1 off-court control
-patch have completed their recorded automated and publication reviews. The
-user has now authorized the [0.3.0 app foundation](0.3.0_TASKS.md): implement
-the game-first library/info flow, shared controls/remapping, preferences and
-optional local ROM management, then independently qualify its source-matched
-preview. Pong remains the only browser game. Continue collecting actual
-Android Chrome/iPhone Safari touch, speakers and sustained-performance
-evidence and declare the supported device floor; pending fields are not
-waived by development or preview publication. Final tags require complete
-runtime-matched actual-device evidence. Additional games remain 0.4–0.7 work
-after the broad-game-support decision gate.
+The [0.3.0 app foundation](0.3.0_TASKS.md) has completed independent automated,
+source/artifact and actual-live preview reviews. Pong remains the only browser
+game. Next, collect identified Android Chrome/iPhone Safari touch, speaker,
+lifecycle and sustained-performance evidence for the deployed 0.3.0 runtime,
+plus app-panel/storage/fullscreen observations, and declare the supported device
+floor. Actual controller hardware also needs separate testing.
+
+Then select the first 0.4–0.7 game-port batch using the audited capability
+matrix, beginning with simpler ROM-free circuits and their control/replay
+requirements. Source-only planning can proceed; broad-game-support readiness
+retains the actual-device decision gate. Preview publication does not waive
+pending fields, and final tags require complete runtime-matched actual-device
+evidence.
 
 ## After 1.0 — preservation and expansion
 
