@@ -87,6 +87,7 @@ test('return to library disposes the running circuit and audio before a fresh RO
   await page.getByTestId('game-pong').click();
   await page.getByTestId('play-selected').click();
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
+  await waitSimulation(page, 250_000_000_000n);
   const fresh = await snapshot(page);
   expect(fresh.attract).toBe(true);
   expect(fresh.run).toBe(false);
