@@ -291,7 +291,8 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
     let reference: SpaceMovementNativeState | undefined;
     const continuous = (state: GameObservation) => state.gameId === 'spacerace' && state.run && !state.paused
       && (!reference || (state.generation === reference.generation && state.resetId === reference.resetId
-        && state.clockEpoch === reference.clockEpoch && JSON.stringify(state.crashes) === JSON.stringify(reference.crashes)));
+        && state.clockEpoch === reference.clockEpoch && JSON.stringify(state.options) === JSON.stringify(reference.options)
+        && JSON.stringify(state.crashes) === JSON.stringify(reference.crashes)));
     const wait = async (phase: string, condition: (state: SpaceMovementNativeState) => boolean): Promise<SpaceMovementNativeState> => {
       const deadline = performance.now() + 10000;
       while (true) {
@@ -303,13 +304,17 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
         await sleep();
       }
     };
-    const at = async (phase: string, target: bigint) => {
-      const state = await wait(phase, state => now(state) >= target);
-      observations.push({ phase: 'edge_timing', edge: phase, targetPs: target.toString(), state,
+    const at = async (phase: string, target: bigint, heldDirections?: readonly number[]) => {
+      const state = await wait(phase, state => {
+        if (heldDirections) check(JSON.stringify(state.directions) === JSON.stringify(heldDirections),
+          'Expected digital direction was lost during held native observations');
+        return now(state) >= target;
+      });
+      observations.push({ phase: 'scheduled_phase_observation', requestedPhase: phase, targetPs: target.toString(), state,
         overshootPs: (now(state) - target).toString() });
-      // The bounded probe must actually stay within its local 25ms scheduling
-      // observation window; it cannot pretend a delayed phase was canonical.
-      check(now(state) - target <= millis(25), 'Overshot exploratory scheduled edge ' + phase);
+      // A requested phase is an observed native state, not a switch-apply
+      // timestamp. Complete worker ticks may advance 50 ms before snapshots run.
+      // Each motion pulse separately qualifies its actual apply brackets.
       return state;
     };
     const key = (kind: 'keydown' | 'keyup', code: string) => {
@@ -373,26 +378,55 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
       reference = await wait('active', state => state.run);
       await at('cold_phase', millis(1800));
       const cold = await bracket('cold');
+      check(cold.before.directions.every(direction => direction === 0) && cold.after.directions.every(direction => direction === 0),
+        'The fixed cold raster must precede movement with both digital channels neutral');
       for (const [slot, upMs, downMs] of [[0, 2000, 2400], [1, 3200, 3600]] as const) {
         const pulse = async (direction: -1 | 1, phaseMs: number) => {
           const code = slot === 0 ? (direction < 0 ? 'KeyW' : 'KeyS') : (direction < 0 ? 'ArrowUp' : 'ArrowDown');
           const expected = slot === 0 ? [direction, 0] : [0, direction];
-          await at(`p${slot + 1}_${direction < 0 ? 'up' : 'down'}_begin`, anchor + millis(phaseMs));
-          let acknowledged: GameObservation | undefined, released: GameObservation | undefined;
+          const nominalBegin = anchor + millis(phaseMs), nominalEnd = anchor + millis(phaseMs + 300);
+          // Nine original timing corners and fresh repeats calibrate this
+          // finite envelope: build/v040/space-timing-envelope-actual-v1.
+          // Each actual browser still requires its own bracket/pixel/crash
+          // proof; this does not guarantee asynchronous input latency or
+          // establish safety of every interior trajectory.
+          const maximumOffset = millis(100), minimumHold = millis(250), maximumHold = millis(400);
+          const lastNeutral = await at(`p${slot + 1}_${direction < 0 ? 'up' : 'down'}_begin`, nominalBegin);
+          check(lastNeutral.directions.every(value => value === 0), 'Unexpected direction before ordinary keydown');
+          let firstHeld: GameObservation | undefined, lastHeld: GameObservation | undefined, firstNeutral: GameObservation | undefined;
           try {
             key('keydown', code);
-            acknowledged = await wait('held_ack', state => JSON.stringify(state.directions) === JSON.stringify(expected));
-            await at(`p${slot + 1}_pulse_end`, anchor + millis(phaseMs + 300));
+            firstHeld = await wait('held_ack', state => {
+              check(state.directions.every((value, index) => value === 0 || value === expected[index]), 'Unexpected direction before held acknowledgment');
+              return JSON.stringify(state.directions) === JSON.stringify(expected);
+            });
+            check(now(lastNeutral) >= nominalBegin && now(firstHeld) <= nominalBegin + maximumOffset,
+              'Actual keydown apply bracket exceeds the original-calibrated envelope');
+            lastHeld = await at(`p${slot + 1}_pulse_end`, nominalEnd, expected);
+            check(JSON.stringify(lastHeld.directions) === JSON.stringify(expected), 'Expected digital direction was lost before ordinary keyup');
           } finally {
             key('keyup', code);
-            try { released = await wait('neutral_ack', state => state.directions.every(direction => direction === 0)); }
+            try { firstNeutral = await wait('neutral_ack', state => {
+              check(state.directions.every((value, index) => value === 0 || value === expected[index]), 'Unexpected direction before neutral acknowledgment');
+              return state.directions.every(value => value === 0);
+            }); }
             finally {
-              const last = released ?? lastNative;
-              observations.push({ phase: 'native_pulse', slot, direction, scheduledBeginPs: (anchor + millis(phaseMs)).toString(),
-                scheduledEndPs: (anchor + millis(phaseMs + 300)).toString(), acknowledged, released: last, neutralAcknowledged: Boolean(released),
-                acknowledgedDurationPs: acknowledged && last ? (now(last) - now(acknowledged)).toString() : null });
+              observations.push({ phase: 'native_input_apply_brackets', slot, direction,
+                nominalBeginPs: nominalBegin.toString(), nominalEndPs: nominalEnd.toString(),
+                onBracket: { lastNeutral, firstHeld }, offBracket: { lastHeld, firstNeutral },
+                conservativeHeldDurationPs: firstHeld && lastHeld && firstNeutral ? [
+                  (now(lastHeld) - now(firstHeld)).toString(), (now(firstNeutral) - now(lastNeutral)).toString()] : null,
+                envelope: { maximumApplyOffsetPs: maximumOffset.toString(), minimumHeldPs: minimumHold.toString(), maximumHeldPs: maximumHold.toString() },
+                neutralAcknowledged: Boolean(firstNeutral), lastObserved: lastNative });
             }
           }
+          check(Boolean(firstHeld && lastHeld && firstNeutral), 'Missing native input-apply bracket');
+          check(now(lastNeutral) <= now(firstHeld!) && now(firstHeld!) <= now(lastHeld!) && now(lastHeld!) <= now(firstNeutral!),
+            'Native input-apply bracket timestamps are not ordered');
+          check(now(lastHeld!) >= nominalEnd && now(firstNeutral!) <= nominalEnd + maximumOffset,
+            'Actual keyup apply bracket exceeds the original-calibrated envelope');
+          check(now(lastHeld!) - now(firstHeld!) >= minimumHold && now(firstNeutral!) - now(lastNeutral) <= maximumHold,
+            'Conservative actual held-duration interval exceeds the original-calibrated envelope');
         };
         await pulse(-1, upMs);
         const raised = await raster(`p${slot + 1}_raised`, objects => cold.objects[slot].y - objects[slot].y > 25);
@@ -402,7 +436,7 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
     } catch (error) { failure = String(error); }
     finally { for (const code of ['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown']) key('keyup', code); }
     return { stage: 'software motion assertion', physicalQualification: false, inputSource: 'synthetic DOM events; isTrusted=false; actual application handlers',
-      phaseLimit: 'Ordinary visible fresh Reset restores the configured native machine before the startup Coin guard; every actual phase is recorded and overshot edges fail.',
+      phaseLimit: 'Ordinary fresh Reset anchors native time. Start/cold requested phases are state observations, not exact switch edges. Every motion on/off apply bracket and conservative held-duration interval must fit the independently calibrated empirical envelope; delayed phases or changed session/options/crashes never silently qualify.',
       replayDifference: 'The original retained replay includes a no-credit Start at200ms. This ordinary Coin-then-Start probe omits it; existing UI startup guard prevents emitting that early edge. It is a candidate source-calibrated trajectory, not an identical full replay.',
       loaded, reset, coinHeld, coinReleased, reference, events, observations, failure };
   });
