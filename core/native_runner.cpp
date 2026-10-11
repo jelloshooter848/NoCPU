@@ -18,7 +18,7 @@ struct Event { uint64_t time; std::string action; int value; };
 std::string output, epoch_path;
 std::ofstream pcm,frames,gray,telemetry,inputs,collisions,transition_events;
 uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0;
-const char* game_name(){return game==NOCPU_PONG?"pong":game==NOCPU_PONG_DOUBLES?"pongdoubles":"spacerace";}
+const char* game_name(){return game==NOCPU_PONG?"pong":game==NOCPU_PONG_DOUBLES?"pongdoubles":game==NOCPU_BREAKOUT?"breakout":"spacerace";}
 uint32_t frame_number=0,snapshot=0;
 const uint64_t snapshots[]={250,399,633,799,866,999,1000,1132,1166,1232,1316,1382,1500,1800,2000,2100,2200,2250,2300,2400,2500,2600,2700,2750,3000,3200,3250,3300,3400,3500,3600,3700,3750,3800,3900,4000,4250,4500,4750,5000,5250,5500,5750,6000,6500,7500,8000,8500,9000,9500,10000,10500,11000,11500,12000,13000,15000,20000,30000,45000,60000,80000,110000,130000,170000};
 
@@ -48,7 +48,15 @@ void on_frame(uint64_t time) {
     }
 }
 void on_hit(uint64_t time,int value){collisions<<time<<','<<value<<'\n';}
-void on_event(uint64_t time,unsigned signal,int value){transition_events<<time<<','<<signal<<','<<value<<'\n';}
+void on_event(uint64_t time,unsigned signal,int value){
+    // The independently instrumented original Breakout names these six raw
+    // source pins 100..105. Portable IDs 5..10 use the same declared order.
+    if(game==NOCPU_BREAKOUT) {
+        if(signal<5||signal>10)throw std::runtime_error("Unexpected Breakout source event");
+        signal+=95;
+    }
+    transition_events<<time<<','<<signal<<','<<value<<'\n';
+}
 void drain_audio() {
     const auto* samples=nocpu_audio();
     for(uint32_t i=0;i<nocpu_audio_count();++i) {
@@ -93,9 +101,10 @@ std::vector<Event> read_replay(const std::string& path) {
         event.time=milliseconds*1000000000ULL;
         if(!events.empty()&&event.time<events.back().time)throw std::runtime_error("Unsorted replay");
         const bool paddle=event.action.size()==7&&event.action.substr(0,6)=="paddle"&&event.action[6]>='1'
-            &&event.action[6]<=(game==NOCPU_PONG_DOUBLES?'4':'2')&&game!=NOCPU_SPACE_RACE;
+            &&event.action[6]<=(game==NOCPU_PONG_DOUBLES?'4':game==NOCPU_BREAKOUT?'1':'2')&&game!=NOCPU_SPACE_RACE;
         const bool direction=game==NOCPU_SPACE_RACE&&(event.action=="up1"||event.action=="down1"||event.action=="up2"||event.action=="down2");
-        if(event.action!="coin"&&!(event.action=="start"&&game!=NOCPU_PONG)&&!paddle&&!direction&&event.action!="recreate")
+        const bool breakout_switch=game==NOCPU_BREAKOUT&&(event.action=="start2"||event.action=="serve");
+        if(event.action!="coin"&&!(event.action=="start"&&game!=NOCPU_PONG)&&!breakout_switch&&!paddle&&!direction&&event.action!="recreate")
             throw std::runtime_error("Unknown replay action");
         if(event.action=="recreate"&&event.value!=1)throw std::runtime_error("Invalid recreate action");
         if(paddle&&(event.value< -32768||event.value>32767))
@@ -112,7 +121,7 @@ std::vector<Event> read_replay(const std::string& path) {
 }
 int main(int argc,char** argv) {
     try {
-        std::string replay;uint32_t seed=848;unsigned epochs=2;
+        std::string replay;uint32_t seed=848;unsigned epochs=2;bool dip_given=false;
         for(int i=1;i<argc;++i) {
             std::string arg=argv[i];if(i+1==argc)throw std::runtime_error("Missing option value");
             const std::string value=argv[++i];
@@ -124,15 +133,17 @@ int main(int argc,char** argv) {
                 if(value=="pong")game=NOCPU_PONG;
                 else if(value=="pongdoubles")game=NOCPU_PONG_DOUBLES;
                 else if(value=="spacerace")game=NOCPU_SPACE_RACE;
+                else if(value=="breakout")game=NOCPU_BREAKOUT;
                 else throw std::runtime_error("Unsupported game");
             }
-            else if(arg=="--dip")dip=std::stoul(value);
+            else if(arg=="--dip"){dip=std::stoul(value);dip_given=true;}
             else if(arg=="--pot-ohms")pot_ohms=std::stoul(value);
             else throw std::runtime_error("Unknown option: "+arg);
         }
         if(output.empty()||replay.empty()||!epochs||epochs>16)
-            throw std::runtime_error("Usage: pong-native --output DIR --replay FILE [--game pong|pongdoubles|spacerace] [--dip 0|1] [--pot-ohms N] [--seed 848] [--epochs 2]");
+            throw std::runtime_error("Usage: pong-native --output DIR --replay FILE [--game pong|pongdoubles|spacerace|breakout] [--dip PACKED_GAME_SETTINGS] [--pot-ohms N] [--seed 848] [--epochs 2]");
         if(game==NOCPU_SPACE_RACE&&!pot_ohms)pot_ohms=970000;
+        if(game==NOCPU_BREAKOUT&&!dip_given)dip=3;
         const auto events=read_replay(replay);directory(output);nocpu_set_hooks(on_frame,on_hit);nocpu_set_event_hook(on_event);
         for(unsigned epoch=0;epoch<epochs;++epoch) {
             open_epoch(epoch);
@@ -150,6 +161,12 @@ int main(int argc,char** argv) {
                     inputs<<event.time<<','<<time_now()<<','<<event.action<<','<<event.value<<'\n';
                     if(event.action=="coin")nocpu_coin(event.value);
                     else if(event.action=="start")nocpu_start(event.value);
+                    else if(event.action=="start2"){
+                        if(!nocpu_start_player(2,event.value))throw std::runtime_error("Start2 rejected");
+                    }
+                    else if(event.action=="serve"){
+                        if(!nocpu_serve(event.value))throw std::runtime_error("Serve rejected");
+                    }
                     else if(event.action.substr(0,6)=="paddle")nocpu_paddle(event.action[6]-'1',event.value);
                     else if(event.action=="up1"||event.action=="down1"||event.action=="up2"||event.action=="down2") {
                         const unsigned slot=event.action.back()-'1',direction=event.action[0]=='u'?0:1;

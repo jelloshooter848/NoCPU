@@ -19,9 +19,11 @@ SPEC.loader.exec_module(MEDIA)
 
 
 def timing_records(game="pongdoubles", duration=130 * 10**12, alternate=False):
-    # Independently retained first phase and integer period, with the measured
-    # initial Coin-reset pair. Do not derive fault fixture values from helper.
-    time = 16652246960 if game == "pongdoubles" else 16652279880
+    # Independently retained phases/periods, including the six original
+    # Breakout pilots and Space Coin reset. No helper-derived golden values.
+    time = {"pongdoubles": 16652246960, "spacerace": 16652279880,
+            "breakout": 14018475800}[game]
+    period = 15768335520 if game == "breakout" else 16651252800
     rows = []
     while time <= duration:
         rows.append({"frame": str(len(rows)), "time_ps": str(time)})
@@ -30,7 +32,7 @@ def timing_records(game="pongdoubles", duration=130 * 10**12, alternate=False):
         elif game == "spacerace" and alternate and time == 510001034000:
             time = 616652189640
         else:
-            time += 16651252800
+            time += period
     return rows
 
 
@@ -70,6 +72,57 @@ class SelectionGateTests(unittest.TestCase):
 
     def validate(self):
         return MEDIA.validate_selection(self.path, self.manifest, repo_root=self.repo_root)
+
+    def add_breakout(self):
+        item = {"id": "breakout", "game": "breakout", "replay": "tests/replays/breakout.tsv",
+                "dip": 3, "pot_ohms": 0}
+        self.scenarios.append(item)
+        replay = self.repo_root / item["replay"]
+        replay.parent.mkdir(parents=True, exist_ok=True)
+        replay.write_text("Identity-only Breakout replay bytes; no captured gameplay fixture.\n")
+        for attempt in ("baseline", "repeat"):
+            (self.path / item["id"] / attempt / "epoch0").mkdir(parents=True)
+        return item
+
+    def test_breakout_packed_switches_preserve_full_batch_and_exact_replay_binding(self):
+        item = self.add_breakout()
+        for packed in (0, 3, 8, 16, 32, 64, 112, 120):
+            with self.subTest(packed=packed):
+                item["dip"] = packed
+                self.write_requests(self.scenarios)
+                result = self.validate()
+                self.assertEqual(result["errors"], [])
+                self.assertTrue(result["full_batch"])
+                self.assertTrue(result["source_bindings"]["replays"]["breakout"]["matches"])
+        (self.repo_root / item["replay"]).write_text("Changed identity-only bytes\n")
+        result = self.validate()
+        self.assertFalse(result["full_batch"])
+        self.assertFalse(result["source_bindings"]["replays"]["breakout"]["matches"])
+
+    def test_breakout_reserved_bonus_bits_types_and_pot_fail_closed(self):
+        item = self.add_breakout()
+        for dip, pot in ((-1, 0), (9, 0), (15, 0), (121, 0), (127, 0), (128, 0),
+                         (3, 1), (True, 0), (3.0, 0), (3, False), (3, 0.0)):
+            with self.subTest(dip=dip, pot=pot):
+                item.update(dip=dip, pot_ohms=pot)
+                self.write_requests(self.scenarios)
+                result = self.validate()
+                self.assertTrue(result["errors"])
+                self.assertFalse(result["full_batch"])
+
+    def test_breakout_requested_switches_must_match_current_and_captured_manifest(self):
+        item = self.add_breakout()
+        self.write_requests(self.scenarios)
+        self.rows[2][3] = "115"
+        self.write_rows()
+        self.assertFalse(self.validate()["full_batch"])
+        self.write_requests(self.scenarios)
+        item["dip"] = 115
+        self.rows[2][3] = "115"
+        self.write_rows()
+        result = self.validate()
+        self.assertFalse(result["full_batch"])
+        self.assertFalse(result["source_bindings"]["manifest_matches_current"])
 
     def test_complete_requested_batch_is_identified(self):
         result = self.validate()
@@ -195,6 +248,61 @@ class MediaGateTests(unittest.TestCase):
     def alternate_coverage(self, rows, **kwargs):
         kwargs.setdefault("scenario", {"game": "spacerace", "dip": 1, "pot_ohms": 470000})
         return self.coverage(rows, "spacerace", **kwargs)
+
+    def breakout_coverage(self, rows, *, samples=384002, **kwargs):
+        return MEDIA.media_coverage(rows, samples, 8 * 10**12, "breakout", **kwargs)
+
+    def test_breakout_exact_original_cold_phase_and_distinct_cadence(self):
+        rows = timing_records("breakout", 8 * 10**12)
+        result = self.breakout_coverage(rows, pcm_byte_count=768004)
+        self.assertTrue(all(result["checks"].values()))
+        self.assertEqual(result["observed_frame_count"], 507)
+        self.assertEqual(result["frame_first_time_ps"], 14018475800)
+        self.assertEqual(result["source_frame_period_ps"], 15768335520)
+        self.assertIsNone(result["source_horizontal_clock_counts"])
+        self.assertIsNone(result["source_vertical_lines"])
+        self.assertIn("measured original VBLANK", result["source_frame_period_basis"])
+        self.assertEqual(result["source_bound_coin_reset_gaps"], [])
+
+    def test_breakout_cannot_use_old_game_or_rounded_sixty_hz_clock(self):
+        for first, period in ((16652246960, 16651252800),
+                              (14018475800, 16651252800),
+                              (14018475800, 16666666667),
+                              (14018475800 - 16400, 15768335520)):
+            with self.subTest(first=first, period=period):
+                rows = [{"frame": str(i), "time_ps": str(first + i * period)} for i in range(507)]
+                self.assertFalse(all(self.breakout_coverage(rows)["checks"].values()))
+
+    def test_breakout_missing_duplicate_perturbed_and_reset_shaped_frames_fail(self):
+        rows = timing_records("breakout", 8 * 10**12)
+        missing = rows[:40] + rows[41:]
+        renumbered = [{**row, "frame": str(i)} for i, row in enumerate(missing)]
+        duplicate = [dict(row) for row in rows]
+        duplicate[40]["time_ps"] = duplicate[39]["time_ps"]
+        perturbed = [dict(row) for row in rows]
+        perturbed[40]["time_ps"] = str(int(perturbed[40]["time_ps"]) + 1)
+        for changed in (rows[1:], rows[:-1], missing, renumbered, duplicate, perturbed):
+            with self.subTest(rows=len(changed)):
+                self.assertFalse(all(self.breakout_coverage(changed)["checks"].values()))
+        # Space's measured Coin gap is never a Breakout allowance, even if
+        # a caller supplies a genuine Space settings/replay context.
+        changed = [dict(row) for row in rows]
+        for row in changed[40:]:
+            row["time_ps"] = str(int(row["time_ps"]) + 117113578560 - 15768335520)
+        result = self.breakout_coverage(changed,
+            scenario={"game": "spacerace", "dip": 0, "pot_ohms": 970000},
+            replay=[(500 * 10**9, "coin", 1), (600 * 10**9, "coin", 0)])
+        self.assertFalse(result["checks"]["native_video_cadence_complete"])
+        self.assertEqual(result["source_bound_coin_reset_gaps"], [])
+
+    def test_breakout_pcm_duration_and_container_stay_strict(self):
+        rows = timing_records("breakout", 8 * 10**12)
+        self.assertFalse(self.breakout_coverage(rows, samples=7 * 48000)
+                         ["checks"]["native_pcm_duration_complete"])
+        for byte_count in (768003, 768002):
+            with self.subTest(byte_count=byte_count):
+                self.assertFalse(self.breakout_coverage(rows, pcm_byte_count=byte_count)
+                                 ["checks"]["native_pcm_container_complete"])
 
     def test_exact_alternate_coin_split_and_default_coin_only_are_complete(self):
         result = self.alternate_coverage(timing_records("spacerace", alternate=True))

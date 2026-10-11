@@ -28,7 +28,7 @@ A ROM-dependent title may require player-supplied files. Show this before Play, 
 
 A phone must support selecting a game, understanding its controls, providing ROMs where needed, inserting a coin, starting, playing, pausing and returning to the library. Preserve all player slots; test multiplayer with suitable controllers and device layouts. Do not assume four players can comfortably share one phone screen.
 
-In-app pause/reset, volume/mute, display sizing, remapping and persistent settings are in scope. Exact desktop Qt dialogs and physical multi-mouse hardware access are replaced with browser-appropriate interfaces. Save states, rewind, netplay, new games, circuit editing/visualization and enhanced modes are outside 1.0. Home-screen/offline PWA support is a later addition unless it becomes essential to the agreed mobile experience; mobile browser play is required regardless.
+In-app pause/reset, volume/mute, display sizing, remapping and persistent settings are in scope. Exact desktop Qt dialogs and physical multi-mouse hardware access are replaced with browser-appropriate interfaces. Save states, rewind, netplay, new games, circuit editing/visualization and enhanced modes are outside 1.0. iPhone Home Screen installation and standalone usability are authorized for 0.5.0 below; offline play is a separate, optional decision. Mobile browser play remains required.
 
 ## Milestones
 
@@ -196,7 +196,7 @@ records the deployed identities and earlier failed attempts. The other eighteen
 titles remain explicitly unported. Actual phone/controller qualification and
 final tags remain pending.
 
-Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Stunt Cycle, Breakout and Indy 4 are pending candidates for exercising different paths, subject to the asset/control audit.
+Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Breakout is selected for 0.5.0 after independent source feasibility review; Stunt Cycle and Indy 4 remain subsequent candidates, subject to the asset/control audit.
 
 For each title:
 
@@ -208,6 +208,52 @@ For each title:
 - Add reproducible reports for baseline defects and separate them from port regressions.
 
 Exit: every original title has an explicit desktop/mobile/ROM/fidelity result. Building all 21 into a binary is not equivalent to validating all 21. No title is silently dropped from the 1.0 goal if it is difficult.
+
+#### 0.5.0 — Next batch and iPhone Home Screen support
+
+The user authorized [0.5.0 implementation and reviewed preview delivery](0.5.0_TASKS.md):
+Breakout alongside an online iPhone Home Screen experience. Breakout-only source
+feasibility and complete original/native/Wasm settings/media/reset comparisons
+are independently accepted; current final package/browser qualification remains
+pending. The intended local library
+has four playable circuits and seventeen remaining ports. [Current validation](0.5.0_VALIDATION.md)
+keeps local development and actual delivery stages distinct; the public site
+still serves the accepted three-game 0.4.0 preview.
+
+Home Screen and standalone must-haves:
+
+- Provide stable manifest `id: /NoCPU/`, start URL and scope under `/NoCPU/`,
+  standalone display, install PNG icons, an Apple touch icon and suitable
+  metadata. Keep new assets within package, notices and matching-source checks.
+- Put concise Safari Add to Home Screen instructions in the existing Help/About
+  menu.
+  Preserve the game-first launch; do not promise an automatic install prompt or
+  offline play from installation alone.
+- Test standalone portrait/landscape launch, safe areas and off-court controls,
+  gesture-unlocked audio, background recovery and input release independently
+  of fullscreen or orientation lock. Cold relaunch restores tested
+  navigation/preferences, not an emulator save-state.
+- Preserve versioned preferences and opt-in local ROM validation, removal,
+  re-import and export, with recovery from denied or evicted storage. Explain
+  that Safari and the installed context may keep separate local data; promise
+  neither shared storage nor permanent retention, and never redistribute ROMs.
+
+There is currently no service worker. Offline play remains optional: proceed
+only after proving a coherent verified whole-build cache/update strategy for
+hash-keyed JS/Wasm, build manifest, source and notices. Defer replacement activation during play,
+exclude private ROM/debug/report payloads from public caches, and test cold or
+incomplete caches, eviction, updates and offline recovery. Cached identity must
+not silently replace ordinary Prepare's served-byte verification; label
+cache/network/update evidence explicitly. Online Home Screen support does not
+depend on completing this investigation.
+
+Separate static/package checks and browser emulation from actual identified
+iPhone Safari and installed-app checks: portrait/landscape notch and home
+indicator clearance, file picker/menu access, held-touch rotation,
+app-switch/lock/audio interruption, cold relaunch and storage recovery. Existing
+browser foundations are not installed-device proof. Physical qualification
+remains pending until measured; the existing final-tag and broad-readiness gates
+remain in force.
 
 ### 0.8 — Performance and reliability
 
@@ -247,10 +293,13 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 ## Next concrete work package
 
 The [0.4.0 first-game batch](0.4.0_TASKS.md) is delivered and independently
-verified. Prepare the next remaining-game batch from the compatibility matrix,
-with original circuit/asset/control/settings/audio baselines and measured
-browser feasibility before selecting its implementation scope. No additional
-title or version is authorized by this outcome documentation alone.
+verified. Implement the [authorized 0.5.0 work](#050--next-batch-and-iphone-home-screen-support):
+online iPhone Home Screen/standalone usability alongside the selected Breakout
+port. Complete original circuit/asset/control/settings/audio baselines and
+measured browser qualification; source feasibility alone is not a runtime pass.
+Offline play remains a separate optional investigation and is
+excluded by default. Development and reviewed preview delivery are authorized;
+final tags and broad hardware readiness remain subject to actual device gates.
 
 Continue collecting identified Android Chrome/iPhone Safari touch, speaker,
 lifecycle and sustained-performance evidence with the [three-game device
@@ -326,7 +375,7 @@ Full candidate notes and pinned source links are in [POST_1_0_GAMES.md](POST_1_0
 
 ### Other post-1.0 improvements
 
-Consider installable/offline PWA support, controller presets, circuit visualization, educational explanations and debugging tools. Save states/rewind require proven complete engine serialization. Optional enhancement modes remain clearly separated from faithful play.
+Home Screen installation and standalone usability are authorized for 0.5.0 above. If its optional offline investigation is deferred, retain that as a later improvement rather than treating installation as an offline guarantee. Consider controller presets, circuit visualization, educational explanations and debugging tools. Save states/rewind require proven complete engine serialization. Optional enhancement modes remain clearly separated from faithful play.
 
 Reconstructing sound circuits absent from DICE 0.9 is a post-1.0 accuracy investigation. Assess the eight games without active output hookups individually, collecting schematics and cabinet audio references before modeling and comparing new sound behavior. Keep these improvements documented against the faithful DICE baseline; existing source connections and supplied ROMs do not prove the missing circuitry is complete.
 

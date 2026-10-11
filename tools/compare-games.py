@@ -27,6 +27,16 @@ def snapshot_geometry(original, native, game):
     b = analysis.snapshot_positions(native, game)
     observations = []
     passed = [row['requested_ms'] for row in a] == [row['requested_ms'] for row in b]
+    if game == 'breakout':
+        for left, right in zip(a, b):
+            check = left['sha256'] == right['sha256'] and all(left[key] == right[key]
+                for key in ('time_ps', 'paddle', 'ball', 'brick_pixels', 'palette'))
+            passed &= check
+            observations.append({'requested_ms': left['requested_ms'], 'actual_frame_time_ps': left['time_ps'],
+                                 'original_sha256': left['sha256'], 'portable_sha256': right['sha256'],
+                                 'full_RGB_bytes_and_geometry_exact': check, 'passed': check})
+        return {'passed': bool(observations) and passed, 'snapshots': observations,
+                'tolerance': None, 'scope': 'Exact clockwise portrait full RGB and source-shaped observations.'}
     keys = [f'paddle{i}_y' for i in range(1, 5)] if game == 'pongdoubles' else [f'rocket{i}_y' for i in range(1, 3)]
     for left, right in zip(a, b):
         if left['requested_ms'] < 250:
@@ -51,12 +61,20 @@ def compare_scenario(original, evidence, scenario):
     native_wasm = [compare_pair(native / f'epoch{i}', wasm / f'epoch{i}') for i in range(2)]
     reset = {label: compare_pair(path / 'epoch0', path / 'epoch1') for label, path in [('native', native), ('wasm', wasm)]}
     geometry = snapshot_geometry(fresh, native / 'epoch0', game)
+    snapshot_exact = {}
+    if game == 'breakout':
+        original_images = {image.name: digest(image) for image in fresh.glob('*ms.ppm')}
+        for label, path in [('native', native), ('wasm', wasm)]:
+            for epoch in range(2):
+                actual_images = {image.name: digest(image) for image in (path / f'epoch{epoch}').glob('*ms.ppm')}
+                snapshot_exact[f'{label}_epoch{epoch}'] = bool(original_images) and original_images == actual_images
     passed = all(original_exact.values()) and all(all(item.values()) for item in native_wasm) \
         and all(all(item.values()) for item in reset.values()) and geometry['passed'] \
-        and all(epoch['passed'] for group in epochs.values() for epoch in group)
+        and all(epoch['passed'] for group in epochs.values() for epoch in group) and all(snapshot_exact.values())
     return {'id': name, 'game': game, 'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']},
             'original_to_native_exact': original_exact, 'native_to_wasm_exact': native_wasm,
-            'same_module_reset_exact': reset, 'renderer': geometry, 'behavioral_epochs': epochs, 'passed': passed}
+            'same_module_reset_exact': reset, 'renderer': geometry, 'selected_full_RGB_snapshots_exact': snapshot_exact,
+            'behavioral_epochs': epochs, 'passed': passed}
 
 
 def compare(original, evidence):

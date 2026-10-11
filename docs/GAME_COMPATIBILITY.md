@@ -2,6 +2,15 @@
 
 NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
+Current [0.5.0 development](0.5.0_TASKS.md) selects ROM-free Breakout alongside
+online iPhone Home Screen support: four intended local playable circuits and
+seventeen remaining ports. Source feasibility and finite original geometry,
+media and gameplay characterization and the complete original sixteen-scenario
+batch are accepted. Current portable native/Wasm execution reports sixteen
+scenario passes and sixty-four behavioral epochs with both ABI gates and
+independent full-media acceptance. Final current matching-source/package/browser
+and installed-device qualification remain pending. The published three-game evidence below is still 0.4.0.
+
 The independently verified [0.4.0 browser
 preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong, Pong
 Doubles and Space Race**. All three are ROM-free; the other eighteen library
@@ -71,7 +80,8 @@ The ten external ROM sets have passed actual CRC and observed-size validation us
 | Ten ROM-dependent games plus Pong | Earlier basic rendering observed in both comparison builds |
 | Pong portable native/Wasm replay | Coin-start, independent paddles, rally contacts, scoring, coin restart and reset pass; frames/PCM and circuit observations match the original fresh baseline exactly |
 | Pong Doubles and Space Race portable native/Wasm | Six original-derived scenarios compare exact timing/events/media through both portable reset epochs; 24 behavioral epochs and 326 sampled PPM pairs pass independent review |
-| Remaining eight ROM-free titles | Source-inventoried and explicitly unported; no browser render/play claim |
+| Breakout selected for 0.5.0 | Original sixteen-scenario batch accepted; current portable sixteen-scenario execution and 64 behavioral epochs pass exact streams/RGB hashes/selected color PPMs/reset, with canonical Breakout ABI 502/502 across 70 traces and legacy ABI 295/295 across 45. Independent complete-media acceptance closed; current final package/browser qualification pending; bonus-credit threshold awards unexercised |
+| Remaining seven ROM-free titles beyond the local 0.5.0 batch | Source-inventoried and explicitly unported; no browser render/play claim |
 | Coin/start, movement, actions, scoring/end/restart | The three playable titles have their separately recorded replay/browser coverage; full acceptance across all 21 games remains pending |
 | DIP options and potentiometer adjustments | Doubles' 11/15 score and Space Race's default/alternate coinage and 470/970/1470-kilohm scenarios are checked; inherited Space credit accounting remains unproven. Remaining-title runtime settings are untested |
 | Audible audio and audio/video synchronization | All three playable titles' generated PCM and automated delivery have software evidence; physical speaker playback and synchronization remain pending |

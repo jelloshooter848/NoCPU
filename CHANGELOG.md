@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 — In development
+
+- Prepare online iPhone Home Screen installation and game-first standalone usability, with manual Safari guidance, appropriate icons/metadata, safe-area/lifecycle/audio checks and honest local storage recovery.
+- Implement the original DICE Breakout circuit alongside Pong, Pong Doubles and Space Race. The complete original/native/Wasm batch, compared media and reset/ABI checks pass independent review; current final package/browser qualification remains pending.
+- Preserve the accepted three-game foundation and all 21 original titles as the 1.0 scope. Offline play is excluded by default; physical qualification, publication and final tags remain pending. See [0.5.0 tasks](docs/0.5.0_TASKS.md) and [validation](docs/0.5.0_VALIDATION.md).
+
 ## 0.4.0 — 2026-10-11 (Pages preview)
 
 - Add original DICE Pong Doubles and Space Race alongside Pong: three playable ROM-free titles, with eighteen remaining ports clearly identified.

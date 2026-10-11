@@ -25,6 +25,13 @@ Install the pinned npm dependencies before the full regression command: the
 0.3.0 distribution tests verify actual fflate input bytes in disposable copies.
 The fixture-free Python audits above still run without Node dependencies.
 
+`make test` also checks the Home Screen icons read-only with
+`node tools/render-icons.mjs --check`. The PNGs must reproduce exactly from
+the retained SVG and recipe. After an intentional source-art change, regenerate
+them with `node tools/render-icons.mjs` before building. Production frontend
+builds repeat the read-only check and bind the recipe hash into provenance;
+packaging rejects missing or changed post-build recipe inputs.
+
 This runs repository integrity checks and source-release, game/ROM-metadata,
 browser-distribution and reference-analysis regressions. Without captured artifacts, seven actual
 reference-mutation cases are skipped while their fourteen timing/input unit
@@ -39,9 +46,18 @@ capture. It verifies that incomplete real media or altered replay logs are
 rejected, using disposable copies under ignored `build/audit-reference/`.
 Browser/core tests below have additional prerequisites.
 
-## Three-game portable core and browser
+## Portable core and browser
 
-The current [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
+Current [0.5.0 development](0.5.0_TASKS.md) selects Breakout and online iPhone
+Home Screen/standalone support. Its additive ABI 3 actions/options source
+contract is distinct from measured media, actual gameplay/performance and
+package acceptance. Follow [0.5.0 validation](0.5.0_VALIDATION.md) for current
+source/execution stages and the exact calibrated scenario/stream contract;
+initial software checks on an old core do not establish current matching source.
+The [four-game/Home Screen device draft](DEVICE_QUALIFICATION_0.5.md) keeps
+installed-iPhone checks separate from browser emulation.
+
+The delivered [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
 and authorized proportionate local browser scopes pass independent review.
 The delivered preview also passes exact-main full-matrix CI (214 passed/six
@@ -115,7 +131,8 @@ full-frame/observation equality and measured settled geometry tolerances;
 read actual results before claiming pixel equality. [PORT_PONG.md](PORT_PONG.md)
 records preserved behavior and deliberate platform adaptations.
 
-For the new batch, capture the full original Doubles/Space Race scenario set
+For the current batch, capture the complete sixteen-scenario original
+Doubles/Space Race/Breakout set
 after the fresh original build and Pong capture, then compare the actual
 portable native and Wasm outputs:
 
@@ -130,6 +147,15 @@ The new tools retain timestamped evidence under `build/reference-games/` and
 `build/core/game-evidence/`; their latest pointers are updated only after the
 complete expected scenario set passes. A short `--explore` original capture is
 explicitly unqualified calibration and cannot clear the production gate.
+The replay wrapper also requires both the existing multi-game ABI probe and
+the dedicated Breakout probe against qualified pilot/rally references. The
+seven compared streams retain full-frame RGB hashes, supplemental red-channel
+gray observations, raw PCM and input/event/telemetry records; selected full-color
+PPMs are bound to their frame hashes and compare byte-for-byte. Optional
+`NOCPU_GAME_REFERENCE_ROOT` and `NOCPU_GAME_EVIDENCE_ROOT` select reviewed local
+output roots under repository `build/` or `/tmp` when measured capacity requires
+them. CI keeps its ordinary default paths. Retain historical evidence and the
+documented storage reserve before replacing shared latest outputs.
 Read actual per-scenario reports, media coverage and failed-run history before
 claiming fidelity. Native/Wasm gameplay and physical-device results remain
 separate. Validation owns all shared builds/capture execution.

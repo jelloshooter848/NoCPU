@@ -40,7 +40,7 @@ cp -a -- "$native_dir/." "$reference_dir/source/"
 python3 "$repo_root/tools/reference/apply_adapter.py" "$reference_dir/source" "$repo_root/tools/reference"
 printf 'Building native observation/input adapter.\n'
 docker run --rm --platform linux/amd64 --network none \
-    --user "$(id -u):$(id -g)" --env HOME=/tmp \
+    --user "$(id -u):$(id -g)" \
     --mount "type=bind,source=$reference_dir/source,target=/source" \
     --workdir /source "$image" /bin/bash -euo pipefail -c 'make -j "$1"' \
     nocpu-reference-build "$jobs" > "$reference_dir/build.log" 2>&1
@@ -52,7 +52,7 @@ for run in baseline repeat; do
     # Use the image's existing root account inside this disposable container;
     # source/repository mounts remain read-only, runtime network is disabled.
     docker run --rm --platform linux/amd64 --network none \
-        --env HOME=/tmp --env SDL_AUDIODRIVER=dummy --env LIBGL_ALWAYS_SOFTWARE=1 \
+        --env SDL_AUDIODRIVER=dummy --env LIBGL_ALWAYS_SOFTWARE=1 \
         --env NOCPU_REFERENCE_OUTPUT=/artifacts \
         --env NOCPU_REFERENCE_REPLAY=/repo/tests/replays/pong.tsv \
         --env NOCPU_REFERENCE_SEED=848 \
@@ -60,7 +60,7 @@ for run in baseline repeat; do
         --mount "type=bind,source=$reference_dir/source,target=/source,readonly" \
         --mount "type=bind,source=$reference_dir/$run,target=/artifacts" \
         --workdir /source "$image" /bin/bash -euo pipefail -c \
-        'trap '\''chown -R "$2:$3" /artifacts'\'' EXIT; timeout "$1" xvfb-run -a -s "-screen 0 800x600x24 +extension GLX" ./dice pong -window' \
+        'trap '\''chown -R "$2:$3" /artifacts'\'' EXIT; python3 /repo/tools/reference/check-config-isolation.py; timeout "$1" xvfb-run -a -s "-screen 0 800x600x24 +extension GLX" ./dice pong -window' \
         nocpu-reference-run "${timeout_seconds}s" "$(id -u)" "$(id -g)" \
         > "$reference_dir/$run.log" 2>&1
 done

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_preview:
-        description: 'Deploy this explicitly reviewed commit as the three-game preview for physical-device testing'
+        description: 'Deploy this explicitly reviewed four-game/Home Screen preview for physical-device testing'
         type: boolean
         default: false
 

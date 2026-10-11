@@ -17,7 +17,37 @@ Original source, build copies, validation instrumentation, and product code have
 
 The newer DirtBagXon fork is a reference for dependency modernization, not the authority for fidelity. Earlier comparison found identical game definitions but observed rendering and logging differences that remain unresolved. See [provenance](PROVENANCE.md), [Pong reference](PONG_REFERENCE.md), and [testing](TESTING.md) for exact evidence and limits.
 
-## 0.4.0 first-game-batch boundary
+## 0.5.0 Breakout and online Home Screen boundary
+
+The [0.5.0 contract](0.5.0_TASKS.md) adds selected Breakout and online iPhone
+Home Screen/standalone usability to the accepted three-game foundation.
+Current source authors ABI 3 additively: IDs 0/1/2 and legacy exports remain,
+Breakout is ID 3, Start accepts player 1/2 where supported and Serve is a held
+Breakout-only switch. Two player starts share one absolute horizontal paddle;
+the frontend must not invent independent control slots or implicit actions.
+Four original options encode bonus credit, cabinet, coinage and ball count;
+unsupported/reserved configuration fails before changing live state.
+
+Raw per-game observations remain distinct from interpreted active play:
+Breakout exposes its source attract/credit/serve/player/ball/hit signals,
+while unsupported Pong concepts stay unavailable. The finite original pilot
+measured a cropped 324 × 432 portrait raster and positive horizontal paddle
+direction; the source boundary carries top-down opaque RGBA. Original active
+play follows `ATTRACT_n`, distinct from the raw credit latch. Clock/event
+ownership, bounded queues, release/
+reset/switch restoration and all old-three-game media require affected actual
+regression checks; source-authored contracts are not execution evidence.
+
+Home Screen identity is stable `/NoCPU/`, with manifest/Apple metadata and
+opaque icons derived reproducibly from the preferred SVG. Guidance stays in
+game panels; standalone layout/audio/lifecycle does not depend on fullscreen
+or orientation lock. Preferences/local ROM recovery remain per-context and
+opt-in; sharing and retention are not promised. There is no selected service
+worker or offline cache. Actual installed-iPhone evidence and current matching
+source/components/publication remain separate gates in
+[0.5.0 validation](0.5.0_VALIDATION.md).
+
+## Historical 0.4.0 first-game-batch boundary
 
 The user-authorized [0.4.0 contract](0.4.0_TASKS.md) extends the original-derived
 core to Pong Doubles and Space Race alongside Pong. The typed game/input/settings
@@ -34,13 +64,13 @@ Four-word event records preserve exact time and game-specific hit/crash/score
 transitions. Native active-play state is distinct from a raw credit/start latch;
 Space Race's unsupported Pong hit/attract concepts remain explicitly unavailable.
 See [core/README.md](../core/README.md) for buffer/lifetime and configuration
-contracts. Actual comparisons remain pending in the validation ledger.
+contracts. Actual comparisons passed independent review for the deployed
+0.4.0 runtime; changed 0.5.0 bytes require affected current checks.
 
-Descriptor/default restoration, exact game-specific observations and mixed-game
-lifecycle isolation require fresh original/portable/Wasm comparisons. The
-expanded analog-audio dependency/link-member inventory requires fresh browser
-component assessment and matching source. [0.4.0 validation](0.4.0_VALIDATION.md)
-records actual implementation and acceptance status; the earlier platform
+Descriptor/default restoration, exact game-specific observations, mixed-game
+lifecycle and the expanded analog-audio dependency/link-member/source inventory
+passed the recorded original/portable/Wasm/component and delivery gates.
+[0.4.0 validation](0.4.0_VALIDATION.md) records that acceptance; the earlier platform
 boundaries below describe their historical scopes. Phone/controller hardware
 readiness remains distinct from source, automation and preview publication.
 
@@ -51,7 +81,8 @@ copy and records every adaptation. The chip models, event scheduler and Pong
 netlist remain original-derived C++; the frontend does not implement replacement
 Pong rules. Native and Wasm targets compile the same prepared source.
 The original 0.2.0 [`core/nocpu.h`](../core/nocpu.h) boundary used ABI 1, with one
-live circuit per module; the current three-game boundary above uses ABI 2.
+live circuit per module; the delivered 0.4.0 three-game boundary uses ABI 2,
+and current 0.5.0 source authors the additive ABI 3 boundary above.
 Create/reset take a seed, paddle slots hold independent signed axes, and coin
 is a held switch. Time advances in bounded integer microseconds while internal
 picosecond time stays 64-bit. Exact telemetry crosses the boundary through

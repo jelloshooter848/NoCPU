@@ -8,10 +8,12 @@ check:
 	$(PYTHON) tools/check.py
 
 test: check
+	node tools/render-icons.mjs --check
 	$(PYTHON) tests/test-release-tools.py
 	$(PYTHON) tests/test-game-audits.py
 	$(PYTHON) tests/test-reference-analysis.py
 	$(PYTHON) tests/test-game-reference-analysis.py
+	$(PYTHON) tests/test-breakout-reference-analysis.py
 	$(PYTHON) tests/test-web-release.py
 
 native: check

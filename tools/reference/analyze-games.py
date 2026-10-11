@@ -14,6 +14,7 @@ import json
 import statistics
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("pong_analysis", ROOT / "tools/reference/analyze.py")
@@ -22,6 +23,9 @@ spec.loader.exec_module(pong)
 media_spec = importlib.util.spec_from_file_location("game_media", ROOT / "tools/reference/game_media.py")
 game_media = importlib.util.module_from_spec(media_spec)
 media_spec.loader.exec_module(game_media)
+breakout_spec = importlib.util.spec_from_file_location("breakout_analysis", ROOT / "tools/reference/breakout_analysis.py")
+breakout = importlib.util.module_from_spec(breakout_spec)
+breakout_spec.loader.exec_module(breakout)
 EXACT = ["audio.s16le", "telemetry.csv", "inputs.csv", "collisions.csv", "events.csv", "frames.csv", "frames.gray"]
 
 
@@ -101,6 +105,8 @@ def positions(path, game):
 
 
 def snapshot_positions(path, game):
+    if game == 'breakout':
+        return breakout.snapshot_positions(path, pong.read_rows)
     result = []
     # Measured full original GL images resolve outlines which alias into
     # disconnected single pixels in the coarse observation raster.
@@ -153,8 +159,11 @@ def active_pcm(pcm, telemetry):
     return observations
 
 
-def analyze_epoch(path, scenario):
+def analyze_epoch(path, scenario, *, original=False):
     game = scenario["game"]
+    if game == 'breakout':
+        return breakout.analyze_epoch(path, scenario, SimpleNamespace(
+            ROOT=ROOT, pong=pong, game_media=game_media, active_pcm=active_pcm), original=original)
     captured_configuration = json.loads((path.parent / "configuration.json").read_text())
     expected_configuration = {"game": game, "dip": scenario["dip"], "pot_ohms": scenario["pot_ohms"]}
     configuration_matches = captured_configuration == expected_configuration and all(
@@ -318,7 +327,7 @@ def main():
         attempts = []
         for attempt in ["baseline", "repeat"]:
             try:
-                attempts.append(analyze_epoch(path / attempt / "epoch0", scenario))
+                attempts.append(analyze_epoch(path / attempt / "epoch0", scenario, original=True))
             except (ValueError, OSError, KeyError, IndexError) as error:
                 attempts.append({"passed": False, "error": str(error)})
         exact = {}
@@ -327,8 +336,16 @@ def main():
                 exact[name] = sha256(path / "baseline/epoch0" / name) == sha256(path / "repeat/epoch0" / name)
             except OSError:
                 exact[name] = False
+        snapshots = {}
+        if scenario['game'] == 'breakout':
+            baseline, repeat = path / 'baseline/epoch0', path / 'repeat/epoch0'
+            first = {image.name: sha256(image) for image in baseline.glob('*ms.ppm')}
+            second = {image.name: sha256(image) for image in repeat.glob('*ms.ppm')}
+            snapshots = {name: first.get(name) == second.get(name) for name in set(first) | set(second)}
+            exact['selected_full_RGB_snapshots'] = bool(snapshots) and all(snapshots.values())
         result["scenarios"].append({"id": scenario["id"], "game": scenario["game"], "attempts": attempts,
-                                    "fresh_process_repeat_exact": exact, "passed": all(item["passed"] for item in attempts) and all(exact.values())})
+                                    "fresh_process_repeat_exact": exact, "full_RGB_snapshot_repeat": snapshots,
+                                    "passed": all(item["passed"] for item in attempts) and all(exact.values())})
     result["passed"] = not selection["errors"] and bool(result["scenarios"]) and all(item["passed"] for item in result["scenarios"])
     result["whole_batch_qualified"] = result["passed"] and result["full_batch"]
     (args.directory / "report.json").write_text(json.dumps(result, indent=2) + "\n")

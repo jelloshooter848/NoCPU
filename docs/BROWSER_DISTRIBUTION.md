@@ -1,8 +1,60 @@
 # Browser distribution assessment
 
-## 0.4.0 expanded component/license scope
+## 0.5.0 component/license basis
 
-The current development version adds Pong Doubles and Space Race to Pong.
+The current development scope adds online iPhone Home Screen/standalone
+metadata and reproducible icons, alongside the selected Breakout circuit.
+The [browser license audit](../tests/browser-license-audit.json) records actual
+compiled/dependency/link-member, frontend/icon and preferred-source reviews.
+The preliminary V2 local candidate is accepted within its recorded snapshot;
+the affected renderer's V3 core and fresh frontend V3 basis now pass for the
+next local candidate with current matching provenance.
+Retained 0.4.0 approval is
+historical and does not qualify changed outputs. Every local candidate still
+requires current provenance and independent actual archive/source/public-
+payload review; fidelity/browser/CI/public and physical readiness are separate.
+
+The first fresh 0.5.0 core build records 54 Wasm / 55 native translation units,
+with every recorded current input and snapshot output matching. Its actual
+Wasm map links seven archive families and 144 members, including 25 musl math
+members. Breakout adds six Sun-derived trigonometric members (`cosf`, `sinf`,
+`__cosdf`, `__sindf`, `__rem_pio2f`, `__rem_pio2_large`), Arm's `log`/`log_data`,
+and `floor`, `__math_divzero`, `__math_invalid`. The six concrete Sun headers
+carry their original notice-preservation grant; the Arm log sources/supporting
+header carry 2018 MIT SPDX notices. Their exact pinned source identities and
+verbatim headers join the retained
+[supplemental math notice](licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt).
+The latter three routines have no additional leading copyright/license header.
+Independent actual core/member/notice review accepts this concrete basis in
+`build/v050/review/core-component-v2-actual-license-review.json` (SHA-256
+`1dda5d8119e85615b999c09f2a370de31084431849db5b0f1b32a7af68b0ff5f`).
+Actual frontend/preferred-source contract review also passes in
+`build/v050/review/frontend-component-v2-actual-license-contract-review.json`
+(SHA-256 `bfc2da7157e35bb37eba641bc58417c337ab6107ee43ce82fa0409c56a6616a7`):
+54 current inputs, eleven exact runtime files, 27 applicable notices and unchanged
+17 preferred fflate / three npm inputs agree. The opaque PNGs reproduce from
+the required SVG/recipe; canonical manifest/Apple links and generated source
+identities match. This permits producing a local review candidate with current
+provenance. Independent inspection of its actual archive/source/public payload
+remains mandatory afterward, before PR/public distribution.
+
+The later generic horizontal raster correction passes actual core V3 review:
+`build/v050/review/core-component-v3-actual-license-review.json` (SHA-256
+`67d9990d40d90107745b5a77e73f3aeb6b05b36f734907790aa9d920fdbf81b5`).
+All current input/output hashes match; translation units, seven archives /
+144 members, 25 math sources and notice terms remain unchanged. Its changed
+Wasm is now bound by fresh frontend V3 review:
+`build/v050/review/frontend-component-v3-actual-license-contract-review.json`
+(SHA-256 `f73ac4b042ffd6036480ff6b74065dfec12faee414dd48126e7ba916a1eb657f`).
+All 54 unchanged compile inputs, eleven exact runtime files, current notices
+and preferred dependency/icon sources match. Runtime SHA-256 is
+`c6ded08c4a07a1521d1e67df079d409bf73afcc2421016b5d0549b3a52df7a8a`.
+This permits local candidate preparation with current provenanced outputs;
+actual source/archive/public-payload inspection remains mandatory afterward.
+
+## Historical 0.4.0 expanded component/license scope
+
+The delivered 0.4.0 version adds Pong Doubles and Space Race to Pong.
 The old Pong-only assessment does not approve this expanded executable:
 fresh compiled translation units, dependencies, linker members and frontend
 provenance must be independently reviewed. The actual successful local Wasm
@@ -29,9 +81,11 @@ review remains mandatory next. The
 affected renderer core independently retains exactly the same seven archives,
 133 members and fourteen math routines, with all recorded current native/Wasm
 input/output hashes matching; no speculative new component term is introduced.
-No 0.4.0 preview has been distributed. Final current package/source, gameplay/fidelity,
-browser/committed CI and public acceptance remain separate mandatory delivery
-gates; component approval does not clear stale runtime correspondence.
+The [0.4.0 validation outcome](0.4.0_VALIDATION.md) records the independently
+accepted matching package/source, gameplay/fidelity, committed/exact-main CI
+and public/live delivery. Physical qualification and final tags remain pending.
+These component snapshots remain historical; every later artifact still needs
+current matching provenance and independent acceptance.
 The original source, existing component notices and historical assessments
 below remain identifiable. Source-only licensing and pending physical-device
 qualification are separate from this compiled-distribution gate.
@@ -71,10 +125,10 @@ inventory and attribution.
 
 | Component | Distribution basis | Retained material |
 | --- | --- | --- |
-| DICE Pong netlist, scheduler and chip models; maintained adapters/frontend | DICE GPL-3.0-or-later, combined conservatively under GPLv3 | Root GPL text, DICE author credit, matching original and maintained source |
+| DICE four-game netlists, scheduler and chip models; maintained adapters/frontend/SVG-derived icons | DICE GPL-3.0-or-later, combined conservatively under GPLv3 | Root GPL text, DICE author credit, matching original and maintained source, preferred icon SVG/recipe |
 | Emscripten 3.1.74 generated loader/runtime and support code | MIT option of its MIT/NCSA dual grant | Exact installed LICENSE and AUTHORS plus runtime copyright headers |
 | Bundled LLVM libc++, libc++abi and compiler-rt portions | Apache 2.0 with LLVM exception | Exact installed LICENSE.TXT and CREDITS.TXT for each family |
-| Bundled musl libc and math routines | MIT; current linked routines have no additional per-file terms | Exact installed COPYRIGHT and concrete linked-member inspection |
+| Bundled musl libc and math routines | MIT for musl/Arm portions; six concrete Sun-derived trigonometric routines retain their permissive notice-preservation grant | Exact installed COPYRIGHT, supplemental verbatim headers and concrete linked-member inspection |
 | dlmalloc 2.8.6 allocator | Doug Lea's CC0/public-domain dedication; Emscripten modifications MIT | Original dedication excerpt and Emscripten support notices |
 | Vite 7.3.1 injected browser helpers | MIT | Exact package LICENSE.md |
 | fflate 0.8.2 ZIP deflate helper | MIT | Exact Arjun Barrett license; preferred TypeScript/build source and exact npm imported-file identity |
@@ -83,7 +137,7 @@ inventory and attribution.
 Emscripten's license explicitly names its bundled musl copy and optional
 third-party components. An SDK's presence is not proof that an optional library
 was linked. The release inventory uses the actual compilation/dependency list,
-linker inputs and production output. Thirty-one Pong/adapters translation units and
+linker inputs and production output. The historical thirty-one Pong/adapters translation units and
 their project dependencies exclude Qt, SDL, OpenGL, X11, ManyMouse, nall and
 Phoenix. The minimal owned `phoenix::Keyboard` type stub is not the archived
 Phoenix library. Native reference toolchain licenses remain separate from
@@ -97,12 +151,13 @@ permission to redistribute an SDK container.
 
 The installed Emscripten/LLVM/musl notices were compared byte-for-byte with the
 3.1.74 SDK copy. Their SHA-256 values are retained in the audits. Vite's notice
-matches the frozen npm dependency. The linked musl math members are
+matches the frozen npm dependency. The historical Pong-only musl math members were
 `__fpclassifyl`, `copysignl`, `fabsl`, `fmodl`, `frexp`, `lroundf`, `roundf`,
 `scalbn` and `scalbnl`. Their concrete source files have no additional license
 headers and fall under the overall musl COPYRIGHT. Separately licensed
-Sun/FreeBSD/Arm math implementations are not linked in this target; revisiting
-the member inventory is required if that changes.
+Sun/FreeBSD/Arm math implementations were not linked in that historical target.
+The expanded current inventory and required supplemental terms are recorded
+above; every affected build must revisit the actual member inventory.
 
 ## Exact source identities and inventory
 
@@ -176,6 +231,8 @@ evidence and must not be inferred from one another.
 Record the actual compiled input inventory and independent review outcome
 before changing the browser audit to ready. Changes to the compiler version,
 compiled library set, runtime options or frontend dependencies require another
-assessment of affected components. This assessment covers the concrete Pong
-browser artifact; it does not qualify native executables, toolchain container
-redistribution, other games or ROM bundling.
+assessment of affected components. The current component assessment covers the
+four selected browser circuits and online Home Screen assets within the accepted
+component/source-contract scope above. It does not qualify
+native executables, toolchain container redistribution, the other seventeen
+games, ROM bundling, gameplay or physical readiness.

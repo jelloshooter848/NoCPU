@@ -8,7 +8,9 @@ import json
 import shutil
 import tempfile
 import subprocess
+import struct
 import unittest
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -178,7 +180,7 @@ class BrowserReleaseTests(unittest.TestCase):
         for directory in ('core', 'upstream'):
             shutil.copytree(ROOT / directory, self.root / directory)
         (self.root / 'tools').mkdir(exist_ok=True)
-        for filename in ('prepare-core.py', 'build-core.sh'):
+        for filename in ('prepare-core.py', 'build-core.sh', 'render-icons.mjs'):
             shutil.copyfile(ROOT / 'tools' / filename, self.root / 'tools' / filename)
         shutil.copyfile(ROOT / 'tests/source-manifest.json', self.root / 'tests/source-manifest.json')
         for name in ('VERSION', 'tsconfig.json', 'vite.config.ts'):
@@ -203,13 +205,97 @@ class BrowserReleaseTests(unittest.TestCase):
                 'outputs': {name: web.sha256(self.dist / 'core' / name) for name in ('nocpu.js', 'nocpu.wasm')}}
         (self.root / 'build/core/wasm').mkdir()
         (self.root / 'build/core/wasm/build-provenance.json').write_text(json.dumps(core))
-        frontend_inputs = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html', 'web/src/main.ts']
+        frontend_inputs = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html', 'web/src/main.ts', 'tools/render-icons.mjs']
         frontend_inputs += sorted(web.verify_frontend_dependency(self.root))
         frontend = {'schema_version': 1, 'base': '/NoCPU/', 'inputs': {name: web.sha256(self.root / name) for name in frontend_inputs},
                     'outputs': {entry['path']: entry['sha256'] for entry in web.runtime_files(self.dist)},
                     'core': {'core/' + name: web.sha256(self.dist / 'core' / name) for name in ('nocpu.js', 'nocpu.wasm')}}
         (self.root / 'build/web-provenance.json').write_text(json.dumps(frontend))
         return core, frontend
+
+    def test_icon_recipe_is_required_and_changes_after_build_are_rejected(self):
+        _, frontend = self.prepare_provenance_fixture()
+        files = web.runtime_files(self.dist)
+        web.verify_build_provenance(self.root, self.dist, files)
+        recipe = self.root / 'tools/render-icons.mjs'
+        original = recipe.read_bytes()
+        provenance = self.root / 'build/web-provenance.json'
+        for fault in ('unrecorded', 'changed', 'missing'):
+            with self.subTest(fault=fault):
+                altered = copy.deepcopy(frontend)
+                if fault == 'unrecorded':
+                    altered['inputs'].pop('tools/render-icons.mjs')
+                elif fault == 'changed':
+                    recipe.write_bytes(original + b'\n// Change made after the frontend build.\n')
+                else:
+                    recipe.unlink()
+                provenance.write_text(json.dumps(altered))
+                try:
+                    expected = 'omits required source inputs' if fault == 'unrecorded' else 'Stale frontend build source input'
+                    with self.assertRaisesRegex(ValueError, expected):
+                        web.verify_build_provenance(self.root, self.dist, files)
+                finally:
+                    recipe.write_bytes(original)
+                    provenance.write_text(json.dumps(frontend))
+
+    def test_install_icon_check_rejects_missing_and_stale_valid_png_without_writing(self):
+        public = self.root / 'web/public'
+        public.mkdir(parents=True)
+        shutil.copyfile(ROOT / 'web/public/icon.svg', public / 'icon.svg')
+        shutil.copytree(ROOT / 'web/public/icons', public / 'icons')
+        (self.root / 'tools').mkdir()
+        recipe = self.root / 'tools/render-icons.mjs'
+        shutil.copyfile(ROOT / 'tools/render-icons.mjs', recipe)
+
+        def files():
+            return {path.relative_to(public).as_posix(): web.sha256(path)
+                    for path in public.rglob('*') if path.is_file()}
+
+        def check():
+            before = files()
+            result = subprocess.run(['node', str(recipe), '--check'], cwd=self.root,
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(files(), before, '--check must preserve every source/icon byte even on failure')
+            return result
+
+        self.assertEqual(check().returncode, 0)
+        png = public / 'icons/apple-touch-icon.png'
+        original = png.read_bytes()
+        png.unlink()
+        self.assertNotEqual(check().returncode, 0)
+        png.write_bytes(original)
+
+        # Keep a genuine 180x180 opaque PNG, but change one pixel. This tests
+        # stale generated content rather than an invalid container signature.
+        position, header, compressed = 8, None, b''
+        while position < len(original):
+            size = struct.unpack('>I', original[position:position + 4])[0]
+            name = original[position + 4:position + 8]
+            data = original[position + 8:position + 8 + size]
+            if name == b'IHDR':
+                header = data
+            elif name == b'IDAT':
+                compressed += data
+            position += size + 12
+        self.assertEqual(struct.unpack('>IIBBBBB', header), (180, 180, 8, 2, 0, 0, 0))
+        pixels = bytearray(zlib.decompress(compressed))
+        pixels[1] ^= 1
+
+        def chunk(name, data):
+            return struct.pack('>I', len(data)) + name + data + struct.pack('>I', zlib.crc32(name + data) & 0xffffffff)
+
+        stale = original[:8] + chunk(b'IHDR', header) + chunk(b'IDAT', zlib.compress(pixels)) + chunk(b'IEND', b'')
+        png.write_bytes(stale)
+        result = check()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('does not match its retained source recipe', result.stderr)
+        png.write_bytes(original)
+        svg = public / 'icon.svg'
+        source = svg.read_text()
+        edited = source.replace('#edf3f5', '#ff0000')
+        self.assertNotEqual(edited, source)
+        svg.write_text(edited)
+        self.assertNotEqual(check().returncode, 0, 'A source mark edit must invalidate its old valid PNGs')
 
     def test_catalog_and_every_audited_dependency_input_are_required_in_provenance(self):
         _, frontend = self.prepare_provenance_fixture()

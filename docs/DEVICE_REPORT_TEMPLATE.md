@@ -18,15 +18,18 @@ results apply separately to each tested pairing. Send no ROM bytes/private archi
 | Tested game ID and actual settings/options | |
 | Manifest/export filenames and artifact validation/loaded-byte scope | |
 | Orientations; fullscreen or normal tab | |
+| Launch context: Safari/browser tab or installed Home Screen; observed standalone mode | |
 | Charging, thermal and other conditions | |
 | Screenshots/clips filenames | |
 
 ## Required phone checks
 
-The existing rows below describe Pong. For a 0.4.0 report, copy one record
-per tested game/options and add the title-specific observations in the
-[three-game packet](DEVICE_QUALIFICATION_0.4.md); Pong checks alone cannot
-qualify Doubles or Space Race. Mixed-game metrics do not qualify a title.
+The existing rows below describe Pong. Copy one record per tested game/options
+and launch context; use the [0.4.0 three-game packet](DEVICE_QUALIFICATION_0.4.md)
+or [0.5.0 four-game/Home Screen draft](DEVICE_QUALIFICATION_0.5.md) for its actual
+runtime. Pong checks alone cannot qualify Doubles, Space Race or Breakout.
+Mixed-game metrics do not qualify a title; report installed-mode observations
+manually rather than assuming the JSON export proves them.
 
 | Check | Result | Steps and observed evidence |
 | --- | --- | --- |
@@ -42,7 +45,7 @@ qualify Doubles or Space Race. Mixed-game metrics do not qualify a title.
 ## App observations
 
 Record separate title-specific controls, settings, scoring/end behavior and
-implemented sound evidence for Pong Doubles and Space Race when tested.
+implemented sound evidence for Pong Doubles, Space Race and Breakout when tested.
 Keep untested titles/options pending rather than marking the whole library
 qualified from one successful game.
 
@@ -53,6 +56,7 @@ qualified from one successful game.
 | Preferences after reload | pending | |
 | Storage unavailable/cleared recovery | pending | Setup or reason unavailable |
 | Fullscreen or usable normal-tab fallback | pending | |
+| Installed launch, safe areas, file-picker/menu, cold relaunch and audio/input recovery | pending | Actual identified iPhone; retain Safari-versus-installed storage scope |
 | Own compatible ROM picker/import/Remember/remove/re-import | pending | Conditional; only hashes/sizes, or reason unavailable |
 
 ## Sustained active-play measurements
@@ -61,7 +65,7 @@ Session seconds include excluded time. Wall/simulation seconds cover the same
 accepted foreground/native-running segments. Copy measured values from the
 export and preserve raw readings/limitations. Missing fields remain blank.
 The 600-second/0.95 thresholds are the retained Pong phone baseline. For
-Doubles and Space Race, record actual duration/speed and measured/manual scope;
+Doubles, Space Race and Breakout, record actual duration/speed and measured/manual scope;
 this template adds no mandatory per-title ten-minute threshold.
 
 | Field | Actual value | Source / units / limitation |

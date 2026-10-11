@@ -6,7 +6,8 @@ export type CoreCommand =
   | { type: 'inputs'; axes: (number | null)[]; revision: number }
   | { type: 'keys'; directions: number[] }
   | { type: 'coin' }
-  | { type: 'start' }
+  | { type: 'start'; player?: 1 | 2 }
+  | { type: 'serve'; held: boolean }
   | { type: 'release' }
   | { type: 'frame'; epoch: number }
   | { type: 'ack'; epoch: number; sequence: number }
@@ -21,6 +22,8 @@ export interface CoreSnapshot {
   frame: number;
   hits: number | null;
   crashes: [number, number] | null;
+  breakout: { attractPin: number; attractN: number; creditN: number; serveWait: number;
+    player2: number; ballCounter: number; brickHits: number; paddleHits: number; wallHits: number } | null;
   scores: [number, number];
   run: boolean;
   attract: boolean | null;
@@ -29,6 +32,12 @@ export interface CoreSnapshot {
   coin: boolean;
   coinsQueued: number;
   start: boolean;
+  startPlayer: 1 | 2 | null;
+  startsQueued: number;
+  serve: boolean;
+  width: number;
+  height: number;
+  pixelFormat: 'rgba8888';
   inputRevision: number;
   wasmMemoryCapacityBytes: number;
   audioOverruns: number;

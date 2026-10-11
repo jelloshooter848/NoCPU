@@ -1,0 +1,11 @@
+# Original-source calibrated Breakout independent horizontal controls; seed 848.
+500 coin 1
+600 coin 0
+1000 start 1
+1100 start 0
+1500 serve 1
+1600 serve 0
+2200 paddle1 -32768
+3000 paddle1 32767
+3800 paddle1 0
+8000 recreate 1

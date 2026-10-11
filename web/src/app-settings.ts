@@ -1,7 +1,7 @@
 // NoCPU contextual settings interface, GPL-3.0-or-later.
 import { GAMES } from './catalog';
 import { escapeText } from './shell-ui';
-import { actionsForGame, ACTION_LABELS, cloneBindings, defaultBindings, keyLabel, validateBindings, type ActionId } from './control-schema';
+import { actionsForGame, actionLabel, cloneBindings, defaultBindings, keyLabel, validateBindings, type ActionId } from './control-schema';
 import { gameBindings, withGameBindings, loadPreferences, savePreferences, type Preferences } from './preferences';
 import { createRomLibrary, type RomEntry } from './roms';
 import type { ConnectedGamepad } from './controls';
@@ -23,6 +23,7 @@ export function createSettingsUI(options: SettingsOptions) {
   let controlGameId: PlayableGameId = 'pong';
   let activeGameId: PlayableGameId | undefined;
   const selectedBindings = () => gameBindings(preferences, controlGameId);
+  const label = (action: ActionId) => actionLabel(action, controlGameId);
   let capture: Capture | undefined;
   let captureFocusId: string | undefined;
   const blocked = new Set<string>();
@@ -54,16 +55,18 @@ export function createSettingsUI(options: SettingsOptions) {
     const actions = actionsForGame(controlGameId);
     find('#controls-heading').textContent = `${gameSpec(controlGameId).title} controls`;
     const focusId = document.activeElement?.getAttribute('data-testid');
-    find('#keyboard-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-key="${action}" data-testid="binding-${action}" aria-label="Assign key for ${escapeText(ACTION_LABELS[action])}">${bindings.keyboard[action].map(keyLabel).map(escapeText).join(' / ') || 'Unassigned'}</button></div>`).join('');
-    find('#gamepad-players').innerHTML = bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>Player ${slot + 1} joystick</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick up</button></fieldset>`).join('');
-    find('#gamepad-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-button="${action}" data-testid="gamepad-binding-${action}" aria-label="Assign controller button for ${escapeText(ACTION_LABELS[action])}">${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</button></div>`).join('');
+    find('#keyboard-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(label(action))}</span><button data-bind-key="${action}" data-testid="binding-${action}" aria-label="Assign key for ${escapeText(label(action))}">${bindings.keyboard[action].map(keyLabel).map(escapeText).join(' / ') || 'Unassigned'}</button></div>`).join('');
+    find('#gamepad-players').innerHTML = bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>${controlGameId === 'breakout' ? 'Shared paddle joystick' : `Player ${slot + 1} joystick`}</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick ${controlGameId === 'breakout' ? 'left' : 'up'}</button></fieldset>`).join('');
+    find('#gamepad-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(label(action))}</span><button data-bind-button="${action}" data-testid="gamepad-binding-${action}" aria-label="Assign controller button for ${escapeText(label(action))}">${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</button></div>`).join('');
     if (focusId && /^(binding-|gamepad-binding-|gamepad-p|bind-axis-p)/.test(focusId)) {
       document.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus({ preventScroll: true });
     }
   }
   function renderOptions(): void {
     const options = preferences.optionsByGame[controlGameId];
-    find('#game-options').innerHTML = 'winningScore' in options
+    find('#game-options').innerHTML = 'bonusCredit' in options
+      ? `<label for="bonus-credit">Bonus credit score</label><select id="bonus-credit" data-testid="bonus-credit">${[0, 100, 200, 300, 400, 500, 600, 700, 800].map((score) => `<option value="${score}"${score === options.bonusCredit ? ' selected' : ''}>${score || 'None'}</option>`).join('')}</select><label for="cabinet">Cabinet</label><select id="cabinet" data-testid="cabinet"><option value="normal"${options.cabinet === 'normal' ? ' selected' : ''}>Normal</option><option value="cocktail"${options.cabinet === 'cocktail' ? ' selected' : ''}>Cocktail</option></select><label for="coinage">Coinage</label><select id="coinage" data-testid="coinage"><option value="1"${options.coinage === 1 ? ' selected' : ''}>1 coin / 1 credit</option><option value="2"${options.coinage === 2 ? ' selected' : ''}>1 coin / 2 credits</option></select><label for="balls">Ball count</label><select id="balls" data-testid="balls"><option value="3"${options.balls === 3 ? ' selected' : ''}>3</option><option value="5"${options.balls === 5 ? ' selected' : ''}>5</option></select>`
+      : 'winningScore' in options
       ? `<label for="winning-score">Winning score</label><select id="winning-score" data-testid="winning-score"><option value="11"${options.winningScore === 11 ? ' selected' : ''}>11</option><option value="15"${options.winningScore === 15 ? ' selected' : ''}>15</option></select>`
       : `<label for="coinage">Coinage</label><select id="coinage" data-testid="coinage"><option value="1"${options.coinage === 1 ? ' selected' : ''}>1 coin / 1 credit</option><option value="2"${options.coinage === 2 ? ' selected' : ''}>1 coin / 2 credits</option></select><label for="playtime">Play time <span data-testid="playtime-value">${(options.playtimeOhms - 470000) / 10000}%</span></label><input id="playtime" data-testid="playtime" type="range" min="0" max="100" step="0.1" value="${(options.playtimeOhms - 470000) / 10000}" aria-label="Play time" /><p class="panel-note">A higher setting allows more time. The original default is 50%.</p>`;
     const running = activeGameId === controlGameId;
@@ -104,9 +107,9 @@ export function createSettingsUI(options: SettingsOptions) {
       pad.buttons.forEach((button, index) => { if (button.pressed || button.value > .5) blocked.add(`b${pad.index}:${index}`); });
     }
     cancelButton.hidden = false;
-    bindingMessage.textContent = next.kind === 'keyboard' ? `Press a key for ${ACTION_LABELS[next.action]}. Escape cancels.`
-      : next.kind === 'button' ? `Press a controller button for ${ACTION_LABELS[next.action]}. Escape cancels.`
-        : `Move the joystick up for player ${next.slot + 1}. Escape cancels.`;
+    bindingMessage.textContent = next.kind === 'keyboard' ? `Press a key for ${label(next.action)}. Escape cancels.`
+      : next.kind === 'button' ? `Press a controller button for ${label(next.action)}. Escape cancels.`
+        : controlGameId === 'breakout' ? 'Move the shared joystick left. Escape cancels.' : `Move the joystick up for player ${next.slot + 1}. Escape cancels.`;
   }
   function applyBindings(candidate: Preferences['bindings'], message: string): boolean {
     const result = validateBindings(candidate, controlGameId);
@@ -130,7 +133,7 @@ export function createSettingsUI(options: SettingsOptions) {
     if (capture.kind !== 'keyboard') return true;
     const candidate = cloneBindings(selectedBindings());
     candidate.keyboard[capture.action] = [event.code];
-    applyBindings(candidate, `${ACTION_LABELS[capture.action]} uses ${keyLabel(event.code)}.`);
+    applyBindings(candidate, `${label(capture.action)} uses ${keyLabel(event.code)}.`);
     return true;
   }
   function pollCapture(): void {
@@ -153,7 +156,7 @@ export function createSettingsUI(options: SettingsOptions) {
         const action = capture.action;
         candidate.gamepad.buttons[action] = [{ pad: pad.index, button }];
         blocked.add(`b${pad.index}:${button}`);
-        applyBindings(candidate, `${ACTION_LABELS[action]} controller button assigned.`);
+        applyBindings(candidate, `${label(action)} controller button assigned.`);
       }
       return;
     }
@@ -254,7 +257,7 @@ export function createSettingsUI(options: SettingsOptions) {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
     const slot = Number(input.dataset.slot) ;
     const property = input.dataset.playerSetting;
-    if (!property || !Number.isInteger(slot) || slot < 0 || slot >= gameSpec(controlGameId).playerCount) return;
+    if (!property || !Number.isInteger(slot) || slot < 0 || slot >= gameSpec(controlGameId).controlSlotCount) return;
     const candidate = cloneBindings(selectedBindings());
     if (property === 'invert') candidate.gamepad.players[slot].invert = (input as HTMLInputElement).checked;
     else if (property === 'pad' || property === 'axis') candidate.gamepad.players[slot][property] = Number(input.value);
@@ -268,7 +271,10 @@ export function createSettingsUI(options: SettingsOptions) {
   find('#game-options').addEventListener('change', (event) => {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
     const current = preferences.optionsByGame[controlGameId];
-    const changed = input.id === 'winning-score' ? { ...current, winningScore: Number(input.value) }
+    const changed = input.id === 'bonus-credit' ? { ...current, bonusCredit: Number(input.value) }
+      : input.id === 'cabinet' ? { ...current, cabinet: input.value }
+        : input.id === 'balls' ? { ...current, balls: Number(input.value) }
+          : input.id === 'winning-score' ? { ...current, winningScore: Number(input.value) }
       : input.id === 'coinage' ? { ...current, coinage: Number(input.value) }
         : input.id === 'playtime' ? { ...current, playtimeOhms: Math.round(470000 + Number(input.value) * 10000) } : current;
     const options = normalizeGameOptions(controlGameId, changed);

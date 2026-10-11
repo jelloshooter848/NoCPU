@@ -41,7 +41,8 @@
       "sha256": "5f631fae467c82b8cd28fd1ec425c816895a35f9d94e36bee0e0164570e8e0f6"
     },
     {
-      "path": "THIRD_PARTY_NOTICES.md"
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "835301df427d528105a2cc7da62dc5ad7982e66da363d164e50c0685d2bb7f65"
     },
     {
       "path": "upstream/dice-0.9/README.txt"
@@ -110,7 +111,7 @@
     },
     {
       "path": "docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt",
-      "sha256": "fa295884e8fa66e7531540572344ac97fcb39ce854997f052f52a3af810c5ae0"
+      "sha256": "b32eaa7132a1bc914b481a4d79c3c89691eaf2d999e4f66508826ae022d29d7f"
     }
   ],
   "evidence": [

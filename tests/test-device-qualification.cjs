@@ -342,7 +342,8 @@ test('actual Vite compile pins reject inconsistent provenance and core changes b
   async function fixture(callback) {
     const directory = fs.mkdtempSync(path.join(root, 'build/qualification-provenance-test-'));
     try {
-      const needed = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web',
+      // Copy the real icon recipe and web assets so the icon guard runs unchanged.
+      const needed = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web', 'tools/render-icons.mjs',
         'tests/fflate-source-manifest.json', 'tests/fixtures/game-manifest.json', 'upstream/fflate-0.8.2',
         'node_modules/fflate', 'docs/licenses/fflate-0.8.2-LICENSE.txt'];
       for (const name of needed) { fs.mkdirSync(path.dirname(path.join(directory, name)), { recursive: true }); fs.cpSync(path.join(root, name), path.join(directory, name), { recursive: true }); }
@@ -406,6 +407,7 @@ test('mixing titles or circuit settings cannot qualify a title by summing otherw
   for (const change of [
     { gameId: 'pongdoubles', gameOptions: { winningScore: 11 }, attractN: 1 },
     { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 970000 }, attractN: null },
+    { gameId: 'breakout', gameOptions: { bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 3 }, attractN: 1 },
     { gameId: 'pong', gameOptions: { winningScore: 15 }, attractN: 1 },
   ]) await using(async (h) => {
     await h.start(); await h.advance(300000, nativeAfter(h, 300));
@@ -425,10 +427,30 @@ test('unknown games, impossible settings, inconsistent activity and false Space 
     { nativeRunning: false }, { nativeRunning: 'true' },
     { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 970000 }, attractN: 1 },
     { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 1470001 }, attractN: null },
+    { gameId: 'breakout', gameOptions: { bonusCredit: 350, cabinet: 'normal', coinage: 1, balls: 3 } },
+    { gameId: 'breakout', gameOptions: { bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 4 } },
   ]) await using(async (h) => {
     await h.start(); await h.advance(601000, { ...nativeAfter(h, 601), ...patch });
     const report = await h.recorder.finish(); assert.equal(report.coverage_complete, false);
     assert.equal(report.performance.duration_requirement_met, false); assert.equal(report.performance.speed_requirement_met, false);
     assert.ok(report.collection_errors.length > 0);
+  });
+});
+
+test('Breakout reports bind source-active options while raw credit, ball counters, axes and private data are excluded', async () => {
+  const gameOptions = { bonusCredit: 800, cabinet: 'cocktail', coinage: 2, balls: 5 };
+  await using(async (h) => {
+    const initial = nativeState({ gameId: 'breakout', gameOptions,
+      breakout: { creditN: 0, ballCounter: 3, player2: 1 }, inputs: { paddle1: 12345, serve: true },
+      heldKeys: ['KeyQ'], preferences: { secret: 'private' } });
+    h.setState(initial); await h.start(); await h.advance(1200, nativeAfter(h, 1));
+    const report = await h.recorder.finish();
+    assert.deepEqual(report.game, { id: 'breakout', options: gameOptions }); assert.equal(report.game_consistent, true);
+    assert.match(report.native_run_scope, /ATTRACT_n \(E6\.9\)/); assert.match(report.native_run_scope, /credit Q_n.*separate/);
+    assert.equal(report.release_ready, false); assert.equal(report.performance.duration_requirement_met, false);
+    for (const sample of report.samples) {
+      assert.deepEqual(sample.state.gameOptions, gameOptions);
+      for (const key of ['breakout', 'inputs', 'heldKeys', 'preferences']) assert.equal(Object.hasOwn(sample.state, key), false);
+    }
   });
 });

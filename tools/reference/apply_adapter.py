@@ -32,7 +32,11 @@ edit("main.cpp", [
     ('        input->poll_input();\n\n        if(circuit && !settings.pause)',
      '        input->poll_input();\n        if(!reference_step(circuit, settings, *input, *video, [&]{ onSize(); })) return;\n\n        if(circuit && !settings.pause)'),
     ('circuit->run(2.5e-3 / Circuit::timescale); // Run 2.5 ms',
-     'circuit->run(reference_run_time(circuit)); // Advance to replay deadline, in integer picoseconds'),
+     'reference_timed_run(circuit, reference_run_time(circuit)); // Advance to replay deadline, in integer picoseconds'),
+    ('circuit = new Circuit(settings, *input, *video, g.desc, g.command_line);',
+     'circuit = reference_construct(settings, *input, *video, g.desc, g.command_line);'),
+    ('main_window.circuit = new Circuit(main_window.settings, *main_window.input, *main_window.video, g.desc, g.command_line);',
+     'main_window.circuit = reference_construct(main_window.settings, *main_window.input, *main_window.video, g.desc, g.command_line);'),
     ('    srand(time(NULL));', '    srand(reference_initialize(main_window.settings));'),
 ])
 edit("circuit.cpp", [
@@ -61,8 +65,9 @@ edit("chips/audio.cpp", [
 ])
 edit("chips/video.cpp", [
     ('#include "video.h"', '#include "video.h"\n#include "../reference_api.h"'),
+    ('    // Keep aspect ratio', '    reference_video_client(width, height);\n    // Keep aspect ratio'),
     ('        video->draw_overlays();\n        video->swap_buffers();',
-     '        video->draw_overlays();\n        reference_frame(global_time);\n        video->swap_buffers();'),
+     '        video->draw_overlays();\n        reference_frame(global_time, video->scanline_time, video->v_size, video->desc->orientation, video->desc->contrast);\n        video->swap_buffers();'),
 ])
 for name in ("reference_api.h", "reference_driver.cpp"):
     contents = (args.adapter / name).read_bytes()
