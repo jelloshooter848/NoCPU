@@ -46,6 +46,8 @@ jobs:
         run: ./tools/build-core.sh all
       - name: Compare original native, adapted native, and Wasm behavior
         run: make core-compare
+      - name: Test phone qualification collection and artifact identity
+        run: npm run test:qualification
       - name: Build production frontend at the project Pages path
         env:
           NOCPU_BASE_PATH: /NoCPU/

@@ -1,6 +1,7 @@
 // NoCPU hardware access adapter, GPL-3.0-or-later.
 // Only the C++ circuit engine advances game state; this worker copies its output.
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
+import { locateCoreAsset } from './asset-identity';
 
 class PlayerError extends Error {}
 
@@ -189,7 +190,7 @@ async function handle(command: CoreCommand): Promise<void> {
     const imported = await import(/* @vite-ignore */ command.moduleUrl);
     const factory = imported.default as (options: Record<string, unknown>) => Promise<DiceModule>;
     core = await factory({
-      locateFile: (file: string) => new URL(file, command.moduleUrl).href,
+      locateFile: (file: string) => locateCoreAsset(file, command.moduleUrl),
       print: () => {},
       printErr: () => {},
       onAbort: () => send({ type: 'error', message: 'Pong stopped unexpectedly. Reload the game to try again.' }),

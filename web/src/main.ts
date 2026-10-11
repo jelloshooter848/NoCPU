@@ -6,9 +6,12 @@ import { createShellMarkup, escapeText, gameInfoMarkup } from './shell-ui';
 import { createSettingsUI } from './app-settings';
 import { createControls } from './controls';
 import { ACTION_LABELS, keyLabel } from './control-schema';
+import { createCoreAssetUrls } from './asset-identity';
+import { annotateQualificationReport, createQualificationRecorder, type QualificationMetadata, type QualificationReport, type QualificationSnapshot } from './qualification';
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
 
 const base = import.meta.env.BASE_URL;
+const coreAssetUrls = createCoreAssetUrls(new URL(base, document.baseURI).href, __NOCPU_CORE_JS_SHA256__, __NOCPU_CORE_WASM_SHA256__);
 const source = `${base}source/nocpu-${__NOCPU_VERSION__}-source.tar.gz`;
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = createShellMarkup(base, source);
@@ -70,7 +73,8 @@ let generatedSamples = 0;
 let workerTimeMs = 0;
 let workerSteps = 0;
 let workerMaxMs = 0;
-type Screen = 'title' | 'library' | 'game-info' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error';
+let qualificationBoundary: ((reason: string) => void) | undefined;
+type Screen = 'title' | 'library' | 'game-info' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error' | 'qualification';
 let screen: Screen = 'title';
 let selectedGameId = 'pong';
 let helpGameId = 'pong';
@@ -128,7 +132,7 @@ function showScreen(next: Screen): void {
   controls.setEnabled(playing && ready && !resetting && !failed);
   pausedMenuButtons.clear();
   element('.overlay-card').scrollTop = 0;
-  backButton.hidden = !['library', 'game-info', 'settings', 'help', 'about'].includes(next);
+  backButton.hidden = !['library', 'game-info', 'settings', 'help', 'about', 'qualification'].includes(next);
   document.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.panel !== next;
   });
@@ -143,7 +147,7 @@ function showScreen(next: Screen): void {
   }
 }
 
-function openPanel(panel: 'library' | 'game-info' | 'settings' | 'help' | 'about'): void {
+function openPanel(panel: 'library' | 'game-info' | 'settings' | 'help' | 'about' | 'qualification'): void {
   if (screen === 'playing') pauseGame();
   settingsUI.cancelCapture();
   navigation.push({ screen, focus: document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
@@ -280,7 +284,7 @@ function pauseGame(message?: string): void {
   releaseInputs();
   audio.pause();
   pauseButton.setAttribute('aria-pressed', 'true');
-  if (!['library', 'game-info', 'settings', 'help', 'about'].includes(screen)) showScreen('paused');
+  if (!['library', 'game-info', 'settings', 'help', 'about', 'qualification'].includes(screen)) showScreen('paused');
   updatePads();
   showStatus(message);
 }
@@ -318,6 +322,9 @@ function failGame(message: string): void {
 }
 
 function acceptSnapshot(snapshot: CoreSnapshot): void {
+  if (lastSnapshot && (lastSnapshot.run !== snapshot.run || lastSnapshot.attract !== snapshot.attract)) {
+    qualificationBoundary?.('native_run_or_attract_transition');
+  }
   lastSnapshot = snapshot;
   snapshot.axes.forEach((axis, slot) => {
     if (snapshot.inputRevision >= axisRevisions[slot]) axes[slot] = axis;
@@ -424,14 +431,14 @@ async function startGame(): Promise<void> {
       case 'error': failGame(message.message); break;
     }
   });
-  const moduleUrl = new URL(`${base}core/nocpu.js`, document.baseURI).href;
-  send({ type: 'init', moduleUrl, seed: SEED });
+  send({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED });
   if (loadTimeout) clearTimeout(loadTimeout);
   loadTimeout = setTimeout(() => { if (generation === ownGeneration && !ready) failGame('Pong is taking too long to load. Check your connection and reload the game.'); }, 30000);
 }
 
 function insertCoin(): void {
   if (!ready || failed || resetting) return;
+  qualificationBoundary?.('insert_coin');
   // Original hardware needs an initial settled interval; the first press is retained.
   if (paused) resumeGame();
   else void trySound();
@@ -584,7 +591,7 @@ document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
   const target = event.target as HTMLElement | null;
   if (event.code === 'Escape' && !event.repeat) {
-    if (['library', 'game-info', 'settings', 'help', 'about'].includes(screen)) { event.preventDefault(); closePanel(); }
+    if (['library', 'game-info', 'settings', 'help', 'about', 'qualification'].includes(screen)) { event.preventDefault(); closePanel(); }
     else if (ready && !failed) { event.preventDefault(); if (paused) resumeGame(); else pauseGame(); }
     return;
   }
@@ -602,7 +609,7 @@ document.addEventListener('keydown', (event) => {
 });
 overlay.addEventListener('keydown', (event) => {
   if (event.code !== 'Tab') return;
-  const controls = [...overlay.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), summary')]
+  const controls = [...overlay.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary')]
     .filter((control) => !control.closest<HTMLElement>('[hidden]'));
   if (!controls.length) { event.preventDefault(); return; }
   const index = controls.indexOf(document.activeElement as HTMLElement);
@@ -672,10 +679,12 @@ showScreen('title');
 requestAnimationFrame(animationFrame);
 
 if (new URLSearchParams(location.search).has('debug')) {
-  const debugWindow = window as unknown as { __nocpuDebug: { snapshot: () => Promise<unknown> } };
+  const debugWindow = window as unknown as { __nocpuDebug: { snapshot: () => Promise<QualificationSnapshot> } };
+  const identity = () => ({ generation, resetId, clockEpoch, resetting, ready, failed });
   debugWindow.__nocpuDebug = {
     snapshot: async () => {
       if (!ready || !worker) throw new Error('Pong is not ready.');
+      const identityBefore = identity();
       const id = ++snapshotId;
       const state = await new Promise<CoreSnapshot>((resolve, reject) => {
         const timeout = setTimeout(() => { snapshotRequests.delete(id); reject(new Error('Pong did not answer.')); }, 5000);
@@ -683,6 +692,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         send({ type: 'snapshot', id });
       });
       return {
+        identityBefore, identity: identity(),
         timePs: state.timeps, frame: state.frame, hits: state.hits, scores: state.scores,
         runN: Number(!state.run), attractN: Number(!state.attract),
         inputs: { coin: Number(state.coin), paddle1: state.axes[0], paddle2: state.axes[1] },
@@ -693,4 +703,204 @@ if (new URLSearchParams(location.search).has('debug')) {
       };
     },
   };
+  installQualificationPanel(debugWindow.__nocpuDebug.snapshot);
+}
+
+function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot>): void {
+  // This entire interface and its recorder exist only after explicit ?debug opt-in.
+  element('.overlay-card').insertAdjacentHTML('beforeend', `
+    <section class="panel-section qualification-panel" data-panel="qualification" data-testid="qualification-panel" hidden>
+      <h1 id="qualification-heading">Phone qualification</h1>
+      <p>Prepare Pong first: Play Pong, Insert coin, then Menu → Qualification → Start. Play until the recorder has at least 600 active seconds; a session can take longer than ten minutes. Menu, pause, background and game-over time are excluded. Insert another coin after a game ends.</p>
+      <p>Collection starts only when you choose Start. Reports stay on this page until you download or copy them; reload closes this report. Speaker sound, touch comfort, recovery and controller behavior need your own observations.</p>
+      <p data-testid="qualification-status" role="status" aria-live="polite"></p>
+      <div class="menu-inline-actions">
+        <button data-testid="qualification-play">Play Pong</button>
+        <button data-testid="qualification-prepare">Retry build identity</button>
+        <button class="primary-button" data-testid="qualification-start" disabled>Start</button>
+        <button class="primary-button" data-testid="qualification-finish" hidden>Finish</button>
+      </div>
+      <fieldset class="qualification-details">
+        <legend>Optional device details and observations</legend>
+        <p>Leave anything you did not test or cannot identify blank. You can add or edit these details after Finish; measurements stay fixed. Download or copy again after editing. Do not include private files or account information.</p>
+        <label for="qualification-physical">Actual physical device
+          <select id="qualification-physical" data-testid="qualification-physical"><option value="">Unknown</option><option value="yes">Yes</option><option value="no">No (automation or emulation)</option></select>
+        </label>
+        <label for="qualification-platform">Platform
+          <select id="qualification-platform" data-testid="qualification-platform"><option value="">Unknown</option><option>Android</option><option>iPhone</option><option>Other</option></select>
+        </label>
+        <label for="qualification-model">Device model<input id="qualification-model" data-testid="qualification-model" type="text" maxlength="160" autocomplete="off" /></label>
+        <label for="qualification-os">OS and version<input id="qualification-os" data-testid="qualification-os" type="text" maxlength="160" autocomplete="off" /></label>
+        <label for="qualification-browser">Browser<input id="qualification-browser" data-testid="qualification-browser" type="text" maxlength="160" autocomplete="off" /></label>
+        <label for="qualification-browser-version">Browser version<input id="qualification-browser-version" data-testid="qualification-browser-version" type="text" maxlength="160" autocomplete="off" /></label>
+        <label for="qualification-controller">Controller model and connection, if tested<input id="qualification-controller" data-testid="qualification-controller" type="text" maxlength="240" autocomplete="off" /></label>
+        <label for="qualification-observations">Observed checks: touch, portrait/landscape, speaker sound, pause/reset, interruptions, menus/settings and controller tests<textarea id="qualification-observations" data-testid="qualification-observations" rows="5" maxlength="4000"></textarea></label>
+        <label for="qualification-input-response">Observed paddle input response and how you checked it, if tested<textarea id="qualification-input-response" data-testid="qualification-input-response" rows="3" maxlength="2000"></textarea></label>
+        <label for="qualification-notes">Conditions, thermal behavior, slowdown or other notes<textarea id="qualification-notes" data-testid="qualification-notes" rows="3" maxlength="3000"></textarea></label>
+      </fieldset>
+      <section class="qualification-result" data-testid="qualification-result" hidden aria-labelledby="qualification-report-heading">
+        <h2 id="qualification-report-heading">Finished report</h2>
+        <p>Review the report before sharing it. Measurements describe this recording; they do not grant release readiness. Memory is Wasm linear-memory capacity. Frame pacing describes browser callback opportunities. Neither measures total phone memory, displayed FPS or speaker output.</p>
+        <div class="menu-inline-actions"><button data-testid="qualification-export">Download report</button><button data-testid="qualification-copy">Copy report</button></div>
+        <p data-testid="qualification-export-status" role="status" aria-live="polite">You can also select the report text below and copy it.</p>
+        <label for="qualification-report">Report JSON</label>
+        <textarea id="qualification-report" data-testid="qualification-report" rows="10" readonly spellcheck="false"></textarea>
+      </section>
+    </section>`);
+  const titleEntry = document.createElement('button');
+  titleEntry.textContent = 'Qualification';
+  titleEntry.dataset.testid = 'open-qualification';
+  element('[data-panel="title"] .menu-actions').append(titleEntry);
+  const menuEntry = document.createElement('button');
+  menuEntry.textContent = 'Qualification';
+  menuEntry.dataset.testid = 'menu-qualification';
+  element('[data-panel="paused"] .menu-actions').append(menuEntry);
+
+  const start = element<HTMLButtonElement>('[data-testid="qualification-start"]');
+  const finish = element<HTMLButtonElement>('[data-testid="qualification-finish"]');
+  const prepare = element<HTMLButtonElement>('[data-testid="qualification-prepare"]');
+  const details = element<HTMLFieldSetElement>('.qualification-details');
+  const reportText = element<HTMLTextAreaElement>('[data-testid="qualification-report"]');
+  const exportStatus = element('[data-testid="qualification-export-status"]');
+  let prepared = false;
+  let preparing = false;
+  let preparationError: string | undefined;
+  let completedReport: QualificationReport | undefined;
+  let unfinishedRun = false;
+  const recorder = createQualificationRecorder({
+    snapshot, manifestUrl: new URL(`${base}BUILD-MANIFEST.json`, document.baseURI).href,
+    expectedVersion: __NOCPU_VERSION__,
+    assetIdentity: { entryUrl: import.meta.url, ...coreAssetUrls,
+      coreJsSha256: __NOCPU_CORE_JS_SHA256__, coreWasmSha256: __NOCPU_CORE_WASM_SHA256__ },
+    activity: () => screen === 'playing' && !paused && !resetting && ready && !failed
+      && !document.hidden && document.hasFocus() && Boolean(lastSnapshot?.run) && !lastSnapshot?.attract,
+    onStatus: () => render(),
+  });
+  qualificationBoundary = recorder.boundary;
+
+  function render(): void {
+    const state = recorder.status();
+    const busy = preparing || state.phase === 'starting' || state.phase === 'finishing';
+    const recording = state.phase === 'recording';
+    const hasReport = Boolean(completedReport);
+    const activeSeconds = Math.floor(state.activeWallLowerBoundSeconds);
+    element('[data-testid="qualification-status"]').textContent = preparing ? 'Checking build identity before recording…'
+      : busy ? (state.phase === 'starting' ? 'Starting recorder…' : 'Finishing report…')
+      : recording ? `Recording: at least ${activeSeconds} active seconds, with timing uncertainty accounted for. Paused here; Back returns to Menu. Resume to continue.${state.error ? ` Collection error: ${state.error}. Finish to export limitations.` : ''}`
+      : preparationError ? `Build identity unavailable: ${preparationError}. Retry before starting.`
+      : state.error ? `Recorder error: ${state.error}.${unfinishedRun ? ' Finish to export the incomplete report.' : ' Any finished report remains available below.'}`
+      : hasReport ? `Finished: at least ${activeSeconds} active seconds, with timing uncertainty accounted for. Download or copy the report below. Start new report replaces this report.`
+      : !ready ? 'Prepare Pong first. Build identity must be available before Start.'
+      : prepared ? 'Ready. Start returns to Pong and records active play only.' : 'Check build identity before Start.';
+    start.hidden = unfinishedRun || state.phase === 'finishing';
+    start.disabled = busy || !prepared || !ready || failed || resetting;
+    start.textContent = hasReport ? 'Start new report' : 'Start';
+    finish.hidden = !unfinishedRun && state.phase !== 'finishing';
+    finish.disabled = busy;
+    prepare.hidden = unfinishedRun || state.phase === 'starting' || state.phase === 'finishing' || (prepared && !preparationError);
+    prepare.disabled = busy;
+    element('[data-testid="qualification-play"]').hidden = ready || unfinishedRun || busy;
+    details.disabled = busy;
+    element('[data-testid="qualification-result"]').hidden = !hasReport;
+    if (screen === 'qualification') {
+      const panel = element('[data-testid="qualification-panel"]');
+      const focused = document.activeElement;
+      const available = (control: HTMLElement): boolean => !control.closest('[hidden]') && !control.matches(':disabled');
+      // Rendering can hide the initial Play/Start/Finish target. Keep focus on
+      // an available pane control without stealing it from an active form field.
+      if (focused !== backButton && (!(focused instanceof HTMLElement) || !available(focused)
+        || !panel.contains(focused) || (focused === panel && !busy))) {
+        const target = [...panel.querySelectorAll<HTMLElement>('button, input, select, textarea')].find(available) ?? panel;
+        target.focus({ preventScroll: true });
+      }
+    }
+  }
+
+  async function prepareIdentity(): Promise<void> {
+    if (preparing || prepared || unfinishedRun || ['starting', 'recording', 'finishing'].includes(recorder.status().phase)) return;
+    preparing = true;
+    preparationError = undefined;
+    render();
+    try { await recorder.prepare(); prepared = true; }
+    catch (error) { preparationError = error instanceof Error ? error.message : String(error); }
+    finally { preparing = false; render(); }
+  }
+
+  function openQualification(): void {
+    openPanel('qualification');
+    render();
+    void prepareIdentity();
+  }
+
+  function metadata(): QualificationMetadata {
+    const value = (id: string): string | undefined => element<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`#qualification-${id}`).value.trim() || undefined;
+    const physical = value('physical');
+    const observations = value('observations');
+    const inputResponse = value('input-response');
+    return { physical: physical === 'yes' ? true : physical === 'no' ? false : null,
+      platform: value('platform'), model: value('model'), osVersion: value('os'), browser: value('browser'),
+      browserVersion: value('browser-version'), controller: value('controller'),
+      observations: { ...(observations ? { manual: observations } : {}), ...(inputResponse ? { input_response: inputResponse } : {}) }, notes: value('notes') };
+  }
+
+  details.addEventListener('input', () => {
+    if (!completedReport) return;
+    completedReport = annotateQualificationReport(completedReport, metadata());
+    reportText.value = `${JSON.stringify(completedReport, null, 2)}\n`;
+    exportStatus.textContent = 'Details updated; measurements unchanged. Download or copy this updated report.';
+  });
+
+  titleEntry.addEventListener('click', openQualification);
+  menuEntry.addEventListener('click', openQualification);
+  prepare.addEventListener('click', () => { prepared = false; void prepareIdentity(); });
+  element('[data-testid="qualification-play"]').addEventListener('click', () => { void startGame(); });
+  start.addEventListener('click', () => {
+    if (start.disabled) return;
+    // Preserve the phone's audio activation gesture; preflight networking is complete.
+    completedReport = undefined;
+    reportText.value = '';
+    closePanel();
+    resumeGame(true);
+    const starting = recorder.start();
+    unfinishedRun = ['starting', 'recording'].includes(recorder.status().phase);
+    render();
+    void starting.catch(() => { prepared = false; openQualification(); });
+  });
+  finish.addEventListener('click', () => {
+    if (finish.disabled) return;
+    void recorder.finish(metadata()).then((report) => {
+      completedReport = report;
+      unfinishedRun = false;
+      reportText.value = `${JSON.stringify(report, null, 2)}\n`;
+      exportStatus.textContent = 'You can also select the report text below and copy it.';
+      prepared = false;
+      render();
+    }).catch((error) => { exportStatus.textContent = `Report could not finish: ${error instanceof Error ? error.message : String(error)}.`; render(); });
+  });
+  element('[data-testid="qualification-export"]').addEventListener('click', () => {
+    if (!completedReport) return;
+    let url: string | undefined;
+    try {
+      url = URL.createObjectURL(new Blob([reportText.value], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nocpu-qualification-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      link.hidden = true;
+      shell.append(link);
+      link.click();
+      link.remove();
+      exportStatus.textContent = 'Download requested. If your browser does not save it, select and copy the report text below.';
+    } catch { exportStatus.textContent = 'Download is unavailable. Select and copy the report text below.'; }
+    finally { if (url) { const downloadUrl = url; setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000); } }
+  });
+  element('[data-testid="qualification-copy"]').addEventListener('click', () => {
+    if (!completedReport) return;
+    reportText.focus({ preventScroll: true });
+    reportText.select();
+    if (!navigator.clipboard?.writeText) { exportStatus.textContent = 'Report text selected. Use your browser’s Copy action.'; return; }
+    void navigator.clipboard.writeText(reportText.value).then(() => { exportStatus.textContent = 'Report copied.'; }, () => {
+      exportStatus.textContent = 'Clipboard is unavailable. Report text selected; use your browser’s Copy action.';
+    });
+  });
+  render();
 }

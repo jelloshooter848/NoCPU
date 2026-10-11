@@ -12,9 +12,10 @@ import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledRelea
 const version = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim();
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
-async function missingWasmServer(): Promise<{ url: string; restore: () => void; log: () => string; close: () => Promise<void> }> {
+async function missingWasmServer(): Promise<{ url: string; wasmSha256: string; restore: () => void; log: () => string; close: () => Promise<void> }> {
   const fixture = mkdtempSync(join(root, 'build/missing-wasm.'));
   const runtime = join(root, process.env.NOCPU_TEST_PACKAGED === '1' ? 'build/pages' : 'build/web');
+  const wasmSha256 = createHash('sha256').update(readFileSync(join(runtime, 'core/nocpu.wasm'))).digest('hex');
   cpSync(runtime, fixture, { recursive: true });
   rmSync(join(fixture, 'core/nocpu.wasm'));
   const server = spawn('python3', ['tools/serve-pages.py', '--directory', fixture, '--base', '/NoCPU/', '--port', '0'], {
@@ -36,6 +37,7 @@ async function missingWasmServer(): Promise<{ url: string; restore: () => void; 
     });
     return {
       url,
+      wasmSha256,
       restore: () => copyFileSync(join(runtime, 'core/nocpu.wasm'), join(fixture, 'core/nocpu.wasm')),
       log: () => log,
       close: async () => {
@@ -439,7 +441,12 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await page.goto(`${fixture.url}?debug`);
     await page.getByTestId('play-pong').click();
     await expect(page.getByTestId('error')).toBeVisible({ timeout: 30_000 });
-    expect(fixture.log()).toMatch(/GET \/NoCPU\/core\/nocpu\.wasm HTTP\/1\.1" 404/);
+    const missingRequestTarget = fixture.log().match(/"GET (\/NoCPU\/core\/nocpu\.wasm(?:\?[^ ]*)?) HTTP\/1\.1" 404/)?.[1];
+    expect(missingRequestTarget).toBeDefined();
+    const missingUrl = new URL(missingRequestTarget!, fixture.url);
+    expect(missingUrl.pathname).toBe('/NoCPU/core/nocpu.wasm');
+    expect(missingUrl.searchParams.get('nocpu_wasm_sha256')).toBe(fixture.wasmSha256);
+    expect([...missingUrl.searchParams.keys()]).toEqual(['nocpu_wasm_sha256']);
     await expect(page.getByTestId('error')).toContainText(/load|download|Wasm|WebAssembly|retry/i);
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
