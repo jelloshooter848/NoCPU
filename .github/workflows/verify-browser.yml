@@ -83,11 +83,13 @@ jobs:
             build/reference/**/*.s16le
             build/reference/**/*.gray
             build/reference/**/*.diff
+            build/reference/**/renderer-identity.txt
             build/reference-games/latest.txt
             build/reference-games/**/report.json
             build/reference-games/**/*.tsv
             build/reference-games/**/scenario-manifest.json
             build/reference-games/**/capture-image-id.txt
+            build/reference-games/**/renderer-identity.txt
             build/reference-games/**/adapter.diff
             build/reference-games/**/*.json
             build/reference-games/**/*.csv
