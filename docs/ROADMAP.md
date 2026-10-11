@@ -86,7 +86,8 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 The reviewed 0.2.0 Pong preview introduced a C++/Wasm core, TypeScript frontend,
 notices and matching source. Its published review remains historical evidence;
-the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves 0.3.0 below.
+the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves the 0.3.1
+qualification preview below.
 The viewport game shell's clean automated matrix passes 67 cases with three
 expected simultaneous-touch skips; 25 selected checks against the public site
 also pass. See
@@ -146,10 +147,10 @@ reviewed preview while retaining the actual-device final-tag gate. The library
 shows all 21 source-audited titles; only Pong is playable in the browser.
 Imported ROM compatibility is distinct from browser game availability.
 
-The app foundation is now an independently verified Pages preview. Required
-clean CI passes 132 cases with three documented CDP skips out of 135; the
-selected actual-live run passes 92 with three such skips out of 95, and all
-90 public files match the reviewed artifact. [0.3.0 validation](0.3.0_VALIDATION.md)
+The 0.3.0 app foundation completed an independently verified Pages preview.
+Its required clean CI passed 132 cases with three documented CDP skips out of
+135; the selected actual-live run passed 92 with three such skips out of 95,
+and all 90 public files matched the reviewed artifact. [0.3.0 validation](0.3.0_VALIDATION.md)
 records the exact deployed source/runtime and completed gates. This completes
 the Pong app foundation; playing and qualifying other control families follows
 their game-circuit ports in 0.4–0.7. Physical/controller hardware qualification
@@ -178,8 +179,10 @@ physical final-release qualification remain separate.
 The next step is identified physical-phone/controller qualification before
 additional game ports. The scoped [0.3.1 qualification tool](0.3.1_VALIDATION.md)
 adds an opt-in on-phone recording/export flow and a
-[test packet](DEVICE_QUALIFICATION.md). Its preview review/publication and the
-actual Android/iPhone evidence remain separate gates; final tags stay pending.
+[test packet](DEVICE_QUALIFICATION.md). Its independently verified preview passes
+167 CI cases plus three documented skips, all 50 selected live checks and all
+93 public-file comparisons. Actual Android/iPhone evidence remains a separate
+gate; controller hardware evidence and final tags stay pending.
 
 ### 0.4–0.7 — Full DICE library and compatibility
 
@@ -235,13 +238,13 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 The [0.3.0 app foundation](0.3.0_TASKS.md) has completed independent automated,
 source/artifact and actual-live preview reviews. Pong remains the only browser
-game. Next, independently review and publish the scoped
-[0.3.1 phone collector](0.3.1_VALIDATION.md), then use its
-[packet](DEVICE_QUALIFICATION.md) to collect identified Android Chrome/iPhone
-Safari touch, speaker, lifecycle and sustained-performance evidence for that
+game. The scoped [0.3.1 phone collector](0.3.1_VALIDATION.md) is now published
+and independently verified. Use its [packet](DEVICE_QUALIFICATION.md) to
+collect identified Android Chrome/iPhone Safari touch, speaker, lifecycle and
+sustained-performance evidence for that
 exact reviewed runtime, plus app-panel/storage/fullscreen observations. Declare
 the supported device floor from actual results. Controller hardware receives
-separate support evidence; the current 0.3.0 preview stays historical when replaced.
+separate support evidence; the replaced 0.3.0 preview remains historical.
 
 Then select the first 0.4–0.7 game-port batch using the audited capability
 matrix, beginning with simpler ROM-free circuits and their control/replay
