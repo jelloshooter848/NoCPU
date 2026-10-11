@@ -27,6 +27,7 @@ The frontend is a viewport-filling game: a title screen, library, the original P
 
 ## Start here
 
+- [Physical phone/controller procedure](docs/DEVICE_QUALIFICATION.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
 - [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
 - [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — preview candidate
+
+- Add an opt-in phone qualification collector with Start, Finish and Export, preserving normal Pong play and explicit measurement limits.
+- Add an identified-device test packet and separate real-controller report; physical results and a final tag remain pending.
+
 ## 0.3.0 — 2026-10-11 (Pages preview)
 
 - Show the build's version number unobtrusively on the title screen, beginning with this release.

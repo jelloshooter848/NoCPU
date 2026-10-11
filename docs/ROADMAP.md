@@ -175,6 +175,12 @@ unavailable games stay clearly identified. Resizing, orientation changes and
 audio interruption recover cleanly. Automated preview qualification and
 physical final-release qualification remain separate.
 
+The next step is identified physical-phone/controller qualification before
+additional game ports. The scoped [0.3.1 qualification tool](0.3.1_VALIDATION.md)
+adds an opt-in on-phone recording/export flow and a
+[test packet](DEVICE_QUALIFICATION.md). Its preview review/publication and the
+actual Android/iPhone evidence remain separate gates; final tags stay pending.
+
 ### 0.4–0.7 — Full DICE library and compatibility
 
 Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Pong Doubles, Space Race, Stunt Cycle, Breakout and Indy 4 are useful candidates for exercising different paths, subject to the asset/control audit.
@@ -229,10 +235,13 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 The [0.3.0 app foundation](0.3.0_TASKS.md) has completed independent automated,
 source/artifact and actual-live preview reviews. Pong remains the only browser
-game. Next, collect identified Android Chrome/iPhone Safari touch, speaker,
-lifecycle and sustained-performance evidence for the deployed 0.3.0 runtime,
-plus app-panel/storage/fullscreen observations, and declare the supported device
-floor. Actual controller hardware also needs separate testing.
+game. Next, independently review and publish the scoped
+[0.3.1 phone collector](0.3.1_VALIDATION.md), then use its
+[packet](DEVICE_QUALIFICATION.md) to collect identified Android Chrome/iPhone
+Safari touch, speaker, lifecycle and sustained-performance evidence for that
+exact reviewed runtime, plus app-panel/storage/fullscreen observations. Declare
+the supported device floor from actual results. Controller hardware receives
+separate support evidence; the current 0.3.0 preview stays historical when replaced.
 
 Then select the first 0.4–0.7 game-port batch using the audited capability
 matrix, beginning with simpler ROM-free circuits and their control/replay

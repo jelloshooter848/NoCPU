@@ -9,8 +9,12 @@ assessment hashes remain identified as that baseline. The 0.3.0 app foundation
 adds the pinned fflate ROM-import helper, exact MIT and supplemental UZIP
 notices, preferred library source and imported-byte provenance. Its affected
 component/source assessment and first actual 0.3.0 production inventory passed
-independent review, so the browser license audit is ready. This local component
-assessment does not establish packaged browser, committed CI, deployment or
+independent review for that 0.3.0 artifact. The initial 0.3.1 collector/loading
+source and actual production inventory also pass independent affected-component
+review: 47 frontend inputs, seven runtime outputs and the unchanged linked
+families/notices verify. No new dependency is added, and the browser license
+audit is ready within that scope. This local component
+assessment does not establish current packaged browser, committed CI, deployment or
 physical-device acceptance. Current artifacts always require fresh provenance
 and matching source.
 Previews and final releases must both pass this gate before distribution.
@@ -98,7 +102,7 @@ Every distributed Pages preview or final artifact must contain:
 
 - The original GPL text and applicable copyright/license/credit notices,
   accessible from the application.
-- `source/nocpu-0.3.0-source.tar.gz`, built from the same checkout as the runtime
+- `source/nocpu-0.3.1-source.tar.gz`, built from the same checkout as the runtime
   and linked directly from the application. A future tag link is not a
   substitute for an available source download during preview testing.
 - The source, browser and toolchain manifests identifying the build revision,

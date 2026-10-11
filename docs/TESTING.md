@@ -110,6 +110,9 @@ meaningful suite after dependency installation. Its temporary synthetic
 archives contain no private ROM payloads and do not establish other-game
 loading or gameplay. Browser tests independently exercise the actual app,
 gamepad/IndexedDB interactions and existing circuit/audio/touch behavior.
+After the core build, run `npm run test:qualification` for native-time/active-interval collection,
+measurement limits and artifact-identity failure cases. Controlled test inputs
+remain separate from actual physical-device observations. CI requires both suites.
 
 On this Debian 13 amd64 cloud environment, the installer can also download the
 exact Playwright 1.58.2 engines and signed, locally extracted browser libraries:
@@ -146,6 +149,12 @@ records current app-foundation qualification and the physical-phone procedure;
 the separately verified public preview and partial actual-iPhone feedback
 remain in [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
 [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
+
+The [physical-device packet](DEVICE_QUALIFICATION.md) and
+[fillable report](DEVICE_REPORT_TEMPLATE.md) cover the opt-in 0.3.1 phone
+collector and separate real-controller observations. Its implementation and
+publication status are in [0.3.1 validation](0.3.1_VALIDATION.md); no collector
+export or automated profile completes the actual-device gate by itself.
 
 The Pages packager supplies source downloads/notices omitted from an ordinary
 Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged

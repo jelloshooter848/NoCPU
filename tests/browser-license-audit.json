@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "release_ready": true,
-  "assessment_scope": "Pong-only C++/Wasm circuit and the 0.3.0 NoCPU app foundation, including audited library metadata, input/storage and the fflate ROM-import helper. Excludes native binaries, toolchain containers, ROM payloads and other unbuilt game circuits.",
+  "assessment_scope": "Pong-only C++/Wasm circuit and the NoCPU app foundation, including the 0.3.1 opt-in physical-qualification collector, audited library metadata, input/storage and the fflate ROM-import helper. Excludes native binaries, toolchain containers, ROM payloads and other unbuilt game circuits.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -161,7 +161,7 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.3.0-source.tar.gz",
+    "path": "source/nocpu-0.3.1-source.tar.gz",
     "delivery": "Included in every reviewed preview and final Pages artifact and linked visibly in app. Same-revision archive contains original DICE, maintained adapters/frontend, 17 unmodified fflate preferred-source/build files and attribution, scripts, pinned lockfiles, dependency source manifest and complete notices."
   },
   "evidence": [
@@ -289,6 +289,27 @@
       "sha256": "cfa44e2c090ca2a571072a101f500290352b15edbaee490068d884ff9bbdffaa",
       "assessment_version": "0.3.0",
       "detail": "Independent review verifies both exact LF-only repairs, fresh provenance, unchanged outputs and official preferred-source/notice continuity. This is a local integration review, not committed CI or live deployment evidence."
+    },
+    {
+      "kind": "initial-0.3.1-production-component-inventory",
+      "path": "build/device-qualification/validation/component-inventory.json",
+      "sha256": "8291ba1f1f02e670b385dbc3e61ca8e21a9e7eb1ad31ec3a52947dad092939f0",
+      "assessment_version": "0.3.1",
+      "detail": "Independently recomputed runtime e055cde1e5ebb00144574f0d5139680b6b118b14c3610d893453b419a095fbc4; seven runtime files, 47 frontend inputs, 31 Wasm/32 native Pong/adapters, unchanged seven archive families/nine math members, 26 notice hashes and pinned fflate imported/preferred source bytes. Fresh portable native/Wasm compare the preserved original capture; required clean CI recaptures original."
+    },
+    {
+      "kind": "independent-0.3.1-affected-component-approval-message-ledger",
+      "path": "build/device-qualification/independent-component-approval-ledger.json",
+      "sha256": "951ba64865465b3226e471a192042abfe2910ddd42a86c384ca125b3fc3f284b",
+      "assessment_version": "0.3.1",
+      "detail": "Verbatim independent approval message retained by delivery owner. At that original approval, the reviewer had not authored a report file; the subsequent independently authored report is recorded separately. Scope is affected source/component/local production inventory only; other delivery/device gates remain separate."
+    },
+    {
+      "kind": "independently-authored-0.3.1-local-production-review",
+      "path": "build/device-qualification/review/local-production-review.json",
+      "sha256": "9259145e0fb81db64d34d44c649a38fd730e26197ce8e9801956acff7bf768e7",
+      "assessment_version": "0.3.1",
+      "detail": "Independent actual input/output/source/linked component and notice review. Supplements the original verbatim approval ledger without replacing it; package/CI/live and physical acceptance remain separate."
     }
   ],
   "excluded_components": [
@@ -306,9 +327,14 @@
   ],
   "independent_review": {
     "result": "approved",
-    "scope": "Affected 0.3.0 linked browser-helper/component/source assessment and actual local production inventory; historical engine/SDK assessment retained separately.",
-    "evidence": "build/ui-030-audit/production-inventory-review.json and official-fflate-source-review.json; product source/notices review at build/ui-030-audit/provisional-review.md. Final committed artifact and actual-live reviews remain separate mandatory delivery gates."
+    "scope": "Affected 0.3.1 owned GPL collector/content-keyed loading source and actual local production component inventory. No new dependency/component; historical engine/SDK and fflate assessments retained separately. This does not approve package, committed CI, deployment/live or physical qualification.",
+    "evidence": "Independent reviewer collaboration approval at 2026-10-11 02:17:13 UTC, recorded verbatim by delivery owner in build/device-qualification/independent-component-approval-ledger.json (SHA-256 951ba64865465b3226e471a192042abfe2910ddd42a86c384ca125b3fc3f284b); exact reviewed build/device-qualification/validation/component-inventory.json (SHA-256 8291ba1f1f02e670b385dbc3e61ca8e21a9e7eb1ad31ec3a52947dad092939f0). Subsequent independently authored build/device-qualification/review/local-production-review.json (SHA-256 9259145e0fb81db64d34d44c649a38fd730e26197ce8e9801956acff7bf768e7) supplements that original message ledger."
   },
   "evidence_baseline_version": "0.2.0",
-  "assessment_continuity": "The Pong circuit, SDK runtime families, compiler and existing toolchain notices retain the explicitly historical 0.2.0 assessment basis. The 0.3.0 app adds fflate 0.8.2: its MIT notice, explicit UZIP attribution, preferred source, pinned npm identity and actual imported-byte/output inventory passed independent affected-component review. Current local evidence is recorded separately; historical hashes do not qualify current outputs. Every subsequent artifact requires fresh provenance and matching source; committed CI/Pages and actual-live verification remain mandatory. Physical-device qualification is separate and pending."
+  "assessment_continuity": "The Pong circuit, SDK runtime families, compiler and existing toolchain notices retain the explicitly historical 0.2.0 assessment basis. The 0.3.0 app adds fflate 0.8.2: its MIT notice, explicit UZIP attribution, preferred source, pinned npm identity and actual imported-byte/output inventory passed independent affected-component review. Current local evidence is recorded separately; historical hashes do not qualify current outputs. Every subsequent artifact requires fresh provenance and matching source; committed CI/Pages and actual-live verification remain mandatory. Physical-device qualification is separate and pending. The 0.3.1 owned GPL collector and content-keyed loading helpers introduce no dependency/component. Their actual current 47-input/seven-output production inventory and existing compiled/runtime/notice families received independent affected-source/component approval. Its exact hashes are recorded as initial 0.3.1 evidence; every final committed artifact still requires fresh provenance, matching source and independent actual acceptance.",
+  "historical_independent_review_0_3_0": {
+    "result": "approved",
+    "scope": "Affected 0.3.0 linked browser-helper/component/source assessment and actual local production inventory; historical engine/SDK assessment retained separately.",
+    "evidence": "build/ui-030-audit/production-inventory-review.json and official-fflate-source-review.json; product source/notices review at build/ui-030-audit/provisional-review.md. Final committed artifact and actual-live reviews remain separate mandatory delivery gates."
+  }
 }
