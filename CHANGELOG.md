@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — In development (preview)
+
+- Port original DICE Pong Doubles and Space Race alongside Pong, preserving four independent Doubles paddles and two digital Space Race sticks.
+- Add exact game selection, distinct Coin/Start and original supported settings, with game-specific controls/help and touch controls outside the raster.
+- Preserve the app foundation and truthful diagnostic reports; complete implementation, fidelity, browser, component/source and publication qualification before claiming delivery.
+- Physical phone/controller qualification and a final tag remain pending. See [0.4.0 tasks](docs/0.4.0_TASKS.md) and [validation](docs/0.4.0_VALIDATION.md).
+
 ## 0.3.1 — 2026-10-11 (Pages preview)
 
 - Add an opt-in phone qualification collector with Start, Finish and Export, preserving normal Pong play and explicit measurement limits.

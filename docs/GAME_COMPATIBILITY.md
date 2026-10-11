@@ -2,9 +2,27 @@
 
 NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
-The live [0.2.0 browser preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong only**. Its original/native/Wasm replay comparison, clean automated browser matrix and selected live-site checks pass; physical Android Chrome/iPhone Safari results remain pending. See [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) for the measured results and automation limits. The other twenty games retain the inventory and native evidence below.
+The live [0.3.1 browser preview](https://jelloshooter848.github.io/NoCPU/)
+implements **Pong only** and has independently reviewed automated/public
+evidence; physical Android Chrome/iPhone Safari results remain pending.
+The user-authorized [0.4.0 batch](0.4.0_TASKS.md) adds **Pong Doubles and Space
+Race** as ROM-free original-derived circuits, with four independent vertical
+paddles and two digital sticks respectively. That implementation and its
+fresh original/native/Wasm per-game fidelity pass independent actual review.
+The authorized proportionate local browser scopes also pass independent review;
+final matching-source, committed full-matrix CI and publication qualification
+remain in progress. No 0.4.0 public deployment or physical-device pass is
+claimed yet. See [0.4.0
+validation](0.4.0_VALIDATION.md) and the historical [0.3.1
+report](0.3.1_VALIDATION.md) for actual results and limits.
 
 The machine-readable [game manifest](../tests/fixtures/game-manifest.json) contains every labeled input, active DIP setting/default, exposed potentiometer range, rotation, overlay geometry, audio declaration, and required ROM descriptor. [The source audit](../tools/audit-games.py) compares those fields against the preserved C++ source without requiring ROMs.
+
+The new-game calibration records inherited Space Race behavior: original
+Start activates `GAME_ON` without credit. Its alternate coinage remains a
+source-declared setting; repeated Start/timer restart does not prove two-credit
+consumption. This is a documented original limitation, preserved separately
+from port comparisons and future physical results.
 
 ```sh
 python3 tools/audit-games.py

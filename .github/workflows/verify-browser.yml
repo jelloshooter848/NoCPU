@@ -1,4 +1,4 @@
-name: Verify Pong browser distribution
+name: Verify DICE browser distribution
 
 on:
   workflow_call:
@@ -16,7 +16,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Six original/native/Wasm scenarios plus five browser profiles need bounded headroom.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,6 +41,8 @@ jobs:
         run: ./tools/build-native.sh --jobs 2
       - name: Capture original ROM-free Pong behavior
         run: ./tools/capture-pong.sh
+      - name: Capture original Pong Doubles and Space Race scenarios
+        run: ./tools/capture-games.sh
       - name: Check that qualification rejects incomplete actual reference evidence
         run: python3 tests/test-reference-analysis.py --reference-dir build/reference
       - name: Build portable native and Wasm cores
@@ -78,6 +81,18 @@ jobs:
             build/reference/**/*.ppm
             build/reference/**/*.wav
             build/reference/**/*.diff
+            build/reference-games/latest.txt
+            build/reference-games/**/report.json
+            build/reference-games/**/scenarios.tsv
+            build/reference-games/**/scenario-manifest.json
+            build/reference-games/**/capture-image-id.txt
+            build/reference-games/**/adapter.diff
+            build/reference-games/**/*.json
+            build/reference-games/**/*.csv
+            build/reference-games/**/*.ppm
+            build/reference-games/**/*.wav
+            build/reference-games/**/*.diff
+            build/reference-games/*/*.log
             build/native/toolchain-provenance/**
             build/core/comparison.json
             build/core/native/build-provenance.json
@@ -88,6 +103,14 @@ jobs:
             build/core/wasm/linker.map
             build/core/native-evidence/**/*.json
             build/core/wasm-evidence/**/*.json
+            build/core/game-evidence/latest.txt
+            build/core/game-evidence/**/*.json
+            build/core/game-evidence/**/*.csv
+            build/core/game-evidence/**/*.ppm
+            build/core/game-evidence/**/*.wav
+            build/core/game-evidence/*/*.txt
+            build/core/game-evidence/*/*.tsv
+            build/core/game-evidence/*/*.log
             build/pages/BUILD-MANIFEST.json
             build/web-provenance.json
             build/playwright-report/**

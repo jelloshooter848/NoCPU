@@ -24,7 +24,7 @@ function nativeState(patch = {}) {
   const identity = { generation: 1, resetId: 0, clockEpoch: 1, resetting: false, ready: true, failed: false };
   const audio = { generatedSamples: 100, scheduledSamples: 100, underruns: 3, discardedQueues: 2,
     coreOverruns: 0, transportDroppedSamples: 0, queueDepth: 1, queuedMs: 55, contextState: 'running' };
-  return { timePs: '9007199254740993123', frame: 10, runN: 0, attractN: 1, paused: false, screen: 'playing',
+  return { gameId: 'pong', gameOptions: { winningScore: 11 }, nativeRunning: true, timePs: '9007199254740993123', frame: 10, runN: 0, attractN: 1, paused: false, screen: 'playing',
     identityBefore: { ...identity }, identity: { ...identity }, audio,
     worker: { wasmMemoryCapacityBytes: 33554432 }, ...patch };
 }
@@ -167,7 +167,7 @@ test('rapid hidden-visible lifecycle transitions split intervals even when both 
 }));
 
 test('pause, attract, unready and failed states never count foreground elapsed time as active play', async () => {
-  for (const patch of [{ paused: true }, { screen: 'paused' }, { runN: 1, attractN: 0 },
+  for (const patch of [{ paused: true }, { screen: 'paused' }, { nativeRunning: false, runN: 1, attractN: 0 },
     { identity: { ...nativeState().identity, ready: false } }, { identity: { ...nativeState().identity, failed: true } }]) {
     await using(async (h) => {
       await h.start(); await h.advance(300000, nativeAfter(h, 300, patch));
@@ -377,5 +377,58 @@ test('actual Vite compile pins reject inconsistent provenance and core changes b
   await fixture(async (directory, plugin) => {
     plugin.buildStart(); fs.appendFileSync(path.join(directory, 'build/core/wasm/build-provenance.json'), '\n');
     assert.throws(() => plugin.closeBundle(), /Core provenance changed/);
+  });
+});
+
+
+test('all three reports retain canonical circuit identity and settings while excluding unrelated private metadata', async () => {
+  for (const [gameId, gameOptions, attractN] of [
+    ['pong', { winningScore: 15 }, 1], ['pongdoubles', { winningScore: 11 }, 1],
+    ['spacerace', { coinage: 2, playtimeOhms: 470000 }, null],
+  ]) await using(async (h) => {
+    h.setState(nativeState({ gameId, gameOptions: { ...gameOptions, privateKey: 'unrelated-private-option' }, attractN,
+      preferences: { bindings: 'never-export-personal-controls' } }));
+    await h.start(); await h.advance(1000, nativeAfter(h, 1)); const report = await h.recorder.finish();
+    assert.deepEqual(report.game, { id: gameId, options: gameOptions }); assert.equal(report.game_consistent, true);
+    assert.deepEqual(report.game_sessions, [{ id: gameId, options: gameOptions, generation: 1 }]);
+    assert.equal(report.coverage_complete, true); assert.equal(report.release_ready, false);
+    assert.equal(report.performance.duration_requirement_met, false);
+    for (const sample of report.samples) {
+      assert.equal(sample.state.gameId, gameId); assert.deepEqual(sample.state.gameOptions, gameOptions);
+      assert.equal(sample.state.nativeRunning, true); assert.equal(sample.state.attractN, attractN);
+    }
+    assert.ok(!JSON.stringify(report).includes('unrelated-private-option'));
+    assert.ok(!JSON.stringify(report).includes('never-export-personal-controls'));
+  });
+});
+
+test('mixing titles or circuit settings cannot qualify a title by summing otherwise eligible intervals', async () => {
+  for (const change of [
+    { gameId: 'pongdoubles', gameOptions: { winningScore: 11 }, attractN: 1 },
+    { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 970000 }, attractN: null },
+    { gameId: 'pong', gameOptions: { winningScore: 15 }, attractN: 1 },
+  ]) await using(async (h) => {
+    await h.start(); await h.advance(300000, nativeAfter(h, 300));
+    await h.advance(1000, nativeAfter(h, 1, change)); await h.advance(300000, nativeAfter(h, 300));
+    const report = await h.recorder.finish(); assert.equal(report.performance.wall_seconds, 600);
+    assert.equal(report.game_consistent, false); assert.equal(report.coverage_complete, false);
+    assert.equal(report.performance.duration_requirement_met, false); assert.equal(report.performance.speed_requirement_met, false);
+    assert.equal(report.game_sessions.length, 2); assert.equal(report.game.id, 'pong');
+    assert.ok(report.excluded_intervals.some((item) => item.reason === 'game_or_settings_boundary'));
+    assert.match(report.collection_errors.join(' '), /changed game or game settings/i);
+  });
+});
+
+test('unknown games, impossible settings, inconsistent activity and false Space Race attract flags fail closed', async () => {
+  for (const patch of [
+    { gameId: 'unported' }, { gameOptions: { winningScore: 12 } }, { gameOptions: undefined },
+    { nativeRunning: false }, { nativeRunning: 'true' },
+    { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 970000 }, attractN: 1 },
+    { gameId: 'spacerace', gameOptions: { coinage: 1, playtimeOhms: 1470001 }, attractN: null },
+  ]) await using(async (h) => {
+    await h.start(); await h.advance(601000, { ...nativeAfter(h, 601), ...patch });
+    const report = await h.recorder.finish(); assert.equal(report.coverage_complete, false);
+    assert.equal(report.performance.duration_requirement_met, false); assert.equal(report.performance.speed_requirement_met, false);
+    assert.ok(report.collection_errors.length > 0);
   });
 });

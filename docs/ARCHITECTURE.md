@@ -17,13 +17,41 @@ Original source, build copies, validation instrumentation, and product code have
 
 The newer DirtBagXon fork is a reference for dependency modernization, not the authority for fidelity. Earlier comparison found identical game definitions but observed rendering and logging differences that remain unresolved. See [provenance](PROVENANCE.md), [Pong reference](PONG_REFERENCE.md), and [testing](TESTING.md) for exact evidence and limits.
 
+## 0.4.0 first-game-batch boundary
+
+The user-authorized [0.4.0 contract](0.4.0_TASKS.md) extends the original-derived
+core to Pong Doubles and Space Race alongside Pong. The typed game/input/settings
+contract is shared between worker and interface: four independent absolute
+paddles for Doubles, two digital sticks for Space Race and distinct Coin/Start
+where defined by the original cabinet. The frontend launches the selected
+circuit and supplies its supported settings and physical-control adaptations.
+No additional game rules or substitute sound belong in the frontend.
+
+This batch uses ABI 2 with game IDs 0/1/2 for Pong/Doubles/Space Race. Selection
+and configuration are validated before changing a live machine; reset retains
+the selected title/settings, and applying settings recreates that circuit.
+Four-word event records preserve exact time and game-specific hit/crash/score
+transitions. Native active-play state is distinct from a raw credit/start latch;
+Space Race's unsupported Pong hit/attract concepts remain explicitly unavailable.
+See [core/README.md](../core/README.md) for buffer/lifetime and configuration
+contracts. Actual comparisons remain pending in the validation ledger.
+
+Descriptor/default restoration, exact game-specific observations and mixed-game
+lifecycle isolation require fresh original/portable/Wasm comparisons. The
+expanded analog-audio dependency/link-member inventory requires fresh browser
+component assessment and matching source. [0.4.0 validation](0.4.0_VALIDATION.md)
+records actual implementation and acceptance status; the earlier platform
+boundaries below describe their historical scopes. Phone/controller hardware
+readiness remains distinct from source, automation and preview publication.
+
 ## 0.2.0 platform boundary
 
 [`tools/prepare-core.py`](../tools/prepare-core.py) generates a disposable source
 copy and records every adaptation. The chip models, event scheduler and Pong
 netlist remain original-derived C++; the frontend does not implement replacement
 Pong rules. Native and Wasm targets compile the same prepared source.
-[`core/nocpu.h`](../core/nocpu.h) defines ABI 1, with one live circuit per module.
+The original 0.2.0 [`core/nocpu.h`](../core/nocpu.h) boundary used ABI 1, with one
+live circuit per module; the current three-game boundary above uses ABI 2.
 Create/reset take a seed, paddle slots hold independent signed axes, and coin
 is a held switch. Time advances in bounded integer microseconds while internal
 picosecond time stays 64-bit. Exact telemetry crosses the boundary through

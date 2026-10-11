@@ -1,5 +1,14 @@
 # NoCPU browser application
 
+The current [0.4.0 development contract](../docs/0.4.0_TASKS.md) adds faithful
+Pong Doubles and Space Race alongside Pong, with four independent paddles,
+two digital sticks and original supported settings. The other eighteen
+circuits remain unported. [0.4.0 validation](../docs/0.4.0_VALIDATION.md) records
+actual qualification and publication status. Until that delivery completes,
+the public site remains the verified [0.3.1 preview](../docs/0.3.1_VALIDATION.md);
+the app-foundation description and counts below are historical 0.3.0 evidence.
+
+
 The independently verified [0.3.0 app foundation](../docs/0.3.0_TASKS.md) preview adds
 game-first library/info, shared controls/remapping, persistent preferences and
 optional local ROM management. All 21 games have source-derived metadata, but

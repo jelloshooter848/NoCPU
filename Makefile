@@ -2,7 +2,7 @@ PYTHON ?= python3
 JOBS ?= 2
 VERSION := $(shell cat VERSION)
 
-.PHONY: check test native pong source source-candidate web-toolchain core core-compare web web-preview web-release browser
+.PHONY: check test native pong reference-games source source-candidate web-toolchain core core-compare web web-preview web-release browser
 
 check:
 	$(PYTHON) tools/check.py
@@ -11,6 +11,7 @@ test: check
 	$(PYTHON) tests/test-release-tools.py
 	$(PYTHON) tests/test-game-audits.py
 	$(PYTHON) tests/test-reference-analysis.py
+	$(PYTHON) tests/test-game-reference-analysis.py
 	$(PYTHON) tests/test-web-release.py
 
 native: check
@@ -18,6 +19,9 @@ native: check
 
 pong:
 	./tools/capture-pong.sh
+
+reference-games:
+	./tools/capture-games.sh
 
 source: check
 	$(PYTHON) tools/package-release.py --tag v$(VERSION)
@@ -35,6 +39,7 @@ core-compare:
 	build/core/native/pong-runner --output build/core/native-evidence --replay tests/replays/pong.tsv --seed 848 --epochs 2
 	node tools/replay-core.mjs
 	$(PYTHON) tools/compare-core.py
+	./tools/replay-games.sh
 
 web:
 	npm run build:web

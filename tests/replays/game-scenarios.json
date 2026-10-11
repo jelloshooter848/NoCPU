@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "seed": 848,
+  "scenarios": [
+    {
+      "id": "pongdoubles-default",
+      "game": "pongdoubles",
+      "core_id": 1,
+      "replay": "tests/replays/pongdoubles.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "winning_score": 11,
+      "restart_ms": 71000
+    },
+    {
+      "id": "pongdoubles-15",
+      "game": "pongdoubles",
+      "core_id": 1,
+      "replay": "tests/replays/pongdoubles-15.tsv",
+      "dip": 1,
+      "pot_ohms": 0,
+      "winning_score": 15,
+      "restart_ms": 84000
+    },
+    {
+      "id": "spacerace-default",
+      "game": "spacerace",
+      "core_id": 2,
+      "replay": "tests/replays/spacerace.tsv",
+      "dip": 0,
+      "pot_ohms": 970000,
+      "credits": 1
+    },
+    {
+      "id": "spacerace-two-credits",
+      "game": "spacerace",
+      "core_id": 2,
+      "replay": "tests/replays/spacerace-two-credits.tsv",
+      "dip": 1,
+      "pot_ohms": 470000,
+      "credits": 2,
+      "restart_ms": 71000,
+      "control_windows": {
+        "1": [
+          4000,
+          4250,
+          4500,
+          4750
+        ],
+        "2": [
+          3200,
+          3500,
+          3600,
+          3900
+        ]
+      }
+    },
+    {
+      "id": "spacerace-max-time",
+      "game": "spacerace",
+      "core_id": 2,
+      "replay": "tests/replays/spacerace-max-time.tsv",
+      "dip": 0,
+      "pot_ohms": 1470000,
+      "credits": 1
+    },
+    {
+      "id": "spacerace-coin-only",
+      "game": "spacerace",
+      "core_id": 2,
+      "replay": "tests/replays/spacerace-coin-only.tsv",
+      "dip": 0,
+      "pot_ohms": 970000,
+      "kind": "coin_only"
+    }
+  ]
+}

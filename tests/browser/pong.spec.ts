@@ -265,7 +265,7 @@ test('external paddle tracks cover the native range while labels and court gestu
     await page.mouse.up();
     await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
     const released = await snapshot(page);
-    await page.getByText(`P${slot + 1}`, { exact: true }).click();
+    await page.locator(`#paddle-p${slot + 1}-label`).click();
     expect((await snapshot(page)).pointerCount).toBe(0);
     expect((await snapshot(page)).axes).toEqual(released.axes);
     // Keyboard access remains available on each external slider.

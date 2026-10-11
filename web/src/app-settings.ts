@@ -1,23 +1,28 @@
 // NoCPU contextual settings interface, GPL-3.0-or-later.
 import { GAMES } from './catalog';
 import { escapeText } from './shell-ui';
-import { ACTION_IDS, ACTION_LABELS, cloneBindings, keyLabel, validateBindings, type ActionId } from './control-schema';
-import { loadPreferences, savePreferences, type Preferences } from './preferences';
+import { actionsForGame, ACTION_LABELS, cloneBindings, defaultBindings, keyLabel, validateBindings, type ActionId } from './control-schema';
+import { gameBindings, withGameBindings, loadPreferences, savePreferences, type Preferences } from './preferences';
 import { createRomLibrary, type RomEntry } from './roms';
 import type { ConnectedGamepad } from './controls';
+import { gameSpec, isPlayableGameId, normalizeGameOptions, type PlayableGameId } from './game-contract';
 
 interface SettingsOptions {
   onPreferences: (preferences: Preferences) => void;
   onBindings: (preferences: Preferences) => void;
   onCaptureStarted: () => void;
   onMetadataChanged: () => void;
+  onApplyGameOptions: (gameId: PlayableGameId) => void;
 }
-type Capture = { kind: 'keyboard'; action: ActionId } | { kind: 'button'; action: ActionId } | { kind: 'axis'; slot: 0 | 1 };
+type Capture = { kind: 'keyboard'; action: ActionId } | { kind: 'button'; action: ActionId } | { kind: 'axis'; slot: number };
 
 export function createSettingsUI(options: SettingsOptions) {
   const find = <T extends HTMLElement>(selector: string): T => document.querySelector<T>(selector)!;
   let loaded = loadPreferences();
   let preferences = loaded.preferences;
+  let controlGameId: PlayableGameId = 'pong';
+  let activeGameId: PlayableGameId | undefined;
+  const selectedBindings = () => gameBindings(preferences, controlGameId);
   let capture: Capture | undefined;
   let captureFocusId: string | undefined;
   const blocked = new Set<string>();
@@ -37,7 +42,7 @@ export function createSettingsUI(options: SettingsOptions) {
       ? 'Settings are saved on this device.' : loaded.message ?? 'Settings work for this session; saving is unavailable.';
   }
   function setPreferences(next: Preferences): void {
-    const bindingsChanged = JSON.stringify(next.bindings) !== JSON.stringify(preferences.bindings);
+    const bindingsChanged = JSON.stringify([next.bindings, next.bindingsByGame]) !== JSON.stringify([preferences.bindings, preferences.bindingsByGame]);
     loaded = savePreferences(next);
     preferences = loaded.preferences;
     preferencesStatus();
@@ -45,13 +50,32 @@ export function createSettingsUI(options: SettingsOptions) {
     if (bindingsChanged) options.onBindings(preferences);
   }
   function renderBindings(): void {
+    const bindings = selectedBindings();
+    const actions = actionsForGame(controlGameId);
+    find('#controls-heading').textContent = `${gameSpec(controlGameId).title} controls`;
     const focusId = document.activeElement?.getAttribute('data-testid');
-    find('#keyboard-bindings').innerHTML = ACTION_IDS.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-key="${action}" data-testid="binding-${action}" aria-label="Assign key for ${escapeText(ACTION_LABELS[action])}">${preferences.bindings.keyboard[action].map(keyLabel).map(escapeText).join(' / ') || 'Unassigned'}</button></div>`).join('');
-    find('#gamepad-players').innerHTML = preferences.bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>Player ${slot + 1} joystick</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick up</button></fieldset>`).join('');
-    find('#gamepad-bindings').innerHTML = ACTION_IDS.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-button="${action}" data-testid="gamepad-binding-${action}" aria-label="Assign controller button for ${escapeText(ACTION_LABELS[action])}">${preferences.bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</button></div>`).join('');
+    find('#keyboard-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-key="${action}" data-testid="binding-${action}" aria-label="Assign key for ${escapeText(ACTION_LABELS[action])}">${bindings.keyboard[action].map(keyLabel).map(escapeText).join(' / ') || 'Unassigned'}</button></div>`).join('');
+    find('#gamepad-players').innerHTML = bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>Player ${slot + 1} joystick</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick up</button></fieldset>`).join('');
+    find('#gamepad-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(ACTION_LABELS[action])}</span><button data-bind-button="${action}" data-testid="gamepad-binding-${action}" aria-label="Assign controller button for ${escapeText(ACTION_LABELS[action])}">${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</button></div>`).join('');
     if (focusId && /^(binding-|gamepad-binding-|gamepad-p|bind-axis-p)/.test(focusId)) {
       document.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus({ preventScroll: true });
     }
+  }
+  function renderOptions(): void {
+    const options = preferences.optionsByGame[controlGameId];
+    find('#game-options').innerHTML = 'winningScore' in options
+      ? `<label for="winning-score">Winning score</label><select id="winning-score" data-testid="winning-score"><option value="11"${options.winningScore === 11 ? ' selected' : ''}>11</option><option value="15"${options.winningScore === 15 ? ' selected' : ''}>15</option></select>`
+      : `<label for="coinage">Coinage</label><select id="coinage" data-testid="coinage"><option value="1"${options.coinage === 1 ? ' selected' : ''}>1 coin / 1 credit</option><option value="2"${options.coinage === 2 ? ' selected' : ''}>1 coin / 2 credits</option></select><label for="playtime">Play time <span data-testid="playtime-value">${(options.playtimeOhms - 470000) / 10000}%</span></label><input id="playtime" data-testid="playtime" type="range" min="0" max="100" step="0.1" value="${(options.playtimeOhms - 470000) / 10000}" aria-label="Play time" /><p class="panel-note">A higher setting allows more time. The original default is 50%.</p>`;
+    const running = activeGameId === controlGameId;
+    find('[data-testid="apply-game-options"]').hidden = !running;
+    find('[data-testid="game-options-status"]').textContent = running
+      ? 'Changes are saved for this game. Choose Apply & reset game to use them; this ends the current game.'
+      : 'Settings are saved for the next time this game starts.';
+  }
+  function selectControlGame(gameId: PlayableGameId): void {
+    cancelCapture(); options.onCaptureStarted(); controlGameId = gameId;
+    find<HTMLSelectElement>('#settings-game').value = gameId;
+    renderBindings(); renderOptions(); bindingMessage.textContent = '';
   }
   function cancelCapture(message = 'Assignment cancelled.'): void {
     if (!capture) return;
@@ -85,9 +109,9 @@ export function createSettingsUI(options: SettingsOptions) {
         : `Move the joystick up for player ${next.slot + 1}. Escape cancels.`;
   }
   function applyBindings(candidate: Preferences['bindings'], message: string): boolean {
-    const result = validateBindings(candidate);
+    const result = validateBindings(candidate, controlGameId);
     if (!result.ok) { bindingMessage.textContent = result.errors.join(' '); return false; }
-    setPreferences({ ...preferences, bindings: result.bindings });
+    setPreferences(withGameBindings(preferences, controlGameId, result.bindings));
     cancelCapture(message);
     renderBindings();
     bindingMessage.textContent = message;
@@ -104,7 +128,7 @@ export function createSettingsUI(options: SettingsOptions) {
       return true;
     }
     if (capture.kind !== 'keyboard') return true;
-    const candidate = cloneBindings(preferences.bindings);
+    const candidate = cloneBindings(selectedBindings());
     candidate.keyboard[capture.action] = [event.code];
     applyBindings(candidate, `${ACTION_LABELS[capture.action]} uses ${keyLabel(event.code)}.`);
     return true;
@@ -115,7 +139,7 @@ export function createSettingsUI(options: SettingsOptions) {
       if (!pad?.connected) continue;
       pad.axes.forEach((axis, index) => { if (Math.abs(axis) <= .3) blocked.delete(`a${pad.index}:${index}`); });
       pad.buttons.forEach((button, index) => { if (!button.pressed && button.value <= .5) blocked.delete(`b${pad.index}:${index}`); });
-      const candidate = cloneBindings(preferences.bindings);
+      const candidate = cloneBindings(selectedBindings());
       if (capture.kind === 'axis') {
         const axis = pad.axes.findIndex((value, index) => Math.abs(value) >= .65 && !blocked.has(`a${pad.index}:${index}`));
         if (axis === -1) continue;
@@ -222,26 +246,44 @@ export function createSettingsUI(options: SettingsOptions) {
     button.focus({ preventScroll: true });
     if (button.dataset.bindKey) beginCapture({ kind: 'keyboard', action: button.dataset.bindKey as ActionId });
     else if (button.dataset.bindButton) beginCapture({ kind: 'button', action: button.dataset.bindButton as ActionId });
-    else if (button.dataset.bindAxis) beginCapture({ kind: 'axis', slot: Number(button.dataset.bindAxis) as 0 | 1 });
+    else if (button.dataset.bindAxis) beginCapture({ kind: 'axis', slot: Number(button.dataset.bindAxis)  });
     else if (button.dataset.removeRom) void removeRom(button.dataset.removeRom);
     else if (button.dataset.exportRom) void exportRom(button.dataset.exportRom);
   });
   find('#gamepad-players').addEventListener('change', (event) => {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
-    const slot = Number(input.dataset.slot) as 0 | 1;
+    const slot = Number(input.dataset.slot) ;
     const property = input.dataset.playerSetting;
-    if (!property || ![0, 1].includes(slot)) return;
-    const candidate = cloneBindings(preferences.bindings);
+    if (!property || !Number.isInteger(slot) || slot < 0 || slot >= gameSpec(controlGameId).playerCount) return;
+    const candidate = cloneBindings(selectedBindings());
     if (property === 'invert') candidate.gamepad.players[slot].invert = (input as HTMLInputElement).checked;
     else if (property === 'pad' || property === 'axis') candidate.gamepad.players[slot][property] = Number(input.value);
     else if (property === 'deadzone') candidate.gamepad.players[slot].deadzone = Number(input.value) / 100;
     if (!applyBindings(candidate, 'Controller settings saved.')) renderBindings();
   });
+  find<HTMLSelectElement>('#settings-game').addEventListener('change', (event) => {
+    const gameId = (event.target as HTMLSelectElement).value;
+    if (isPlayableGameId(gameId)) selectControlGame(gameId);
+  });
+  find('#game-options').addEventListener('change', (event) => {
+    const input = event.target as HTMLInputElement | HTMLSelectElement;
+    const current = preferences.optionsByGame[controlGameId];
+    const changed = input.id === 'winning-score' ? { ...current, winningScore: Number(input.value) }
+      : input.id === 'coinage' ? { ...current, coinage: Number(input.value) }
+        : input.id === 'playtime' ? { ...current, playtimeOhms: Math.round(470000 + Number(input.value) * 10000) } : current;
+    const options = normalizeGameOptions(controlGameId, changed);
+    setPreferences({ ...preferences, optionsByGame: { ...preferences.optionsByGame, [controlGameId]: options } });
+    if (input.id === 'playtime' && 'playtimeOhms' in options) find('[data-testid="playtime-value"]').textContent = `${(options.playtimeOhms - 470000) / 10000}%`;
+  });
+  find('[data-testid="apply-game-options"]').addEventListener('click', () => {
+    cancelCapture(); options.onApplyGameOptions(controlGameId);
+  });
   cancelButton.addEventListener('click', () => cancelCapture());
-  find('#controls-defaults').addEventListener('click', () => applyBindings(cloneBindings(), 'Default controls restored.'));
+  find('#controls-defaults').addEventListener('click', () => applyBindings(defaultBindings(controlGameId), 'Default controls restored.'));
   romFile.addEventListener('change', () => { void importRom(); });
   preferencesStatus();
   renderBindings();
+  renderOptions();
   void refreshRoms();
   return {
     get preferences() { return preferences; },
@@ -249,6 +291,9 @@ export function createSettingsUI(options: SettingsOptions) {
     setVolume: (volume: number) => setPreferences({ ...preferences, volume }),
     setMuted: (muted: boolean) => setPreferences({ ...preferences, muted }),
     cancelCapture, handleCaptureKey, pollCapture, syncGamepads, refreshRoms, romDescription,
+    selectControlGame,
+    setActiveGame: (gameId: PlayableGameId | undefined) => { activeGameId = gameId; renderOptions(); },
+    bindingsFor: (gameId: PlayableGameId) => gameBindings(preferences, gameId),
     selectRomGame: (gameId: string) => { if (GAMES.find((game) => game.id === gameId)?.roms.length) romGame.value = gameId; },
   };
 }

@@ -15,5 +15,7 @@ struct NoCPUOutputObservation {
 // Native replay only; optional callbacks, never called across the Wasm boundary.
 typedef void (*NoCPUFrameHook)(uint64_t);
 typedef void (*NoCPUHitHook)(uint64_t, int);
+typedef void (*NoCPUEventHook)(uint64_t, unsigned, int);
 void nocpu_set_hooks(NoCPUFrameHook frame, NoCPUHitHook hit);
+void nocpu_set_event_hook(NoCPUEventHook event);
 #endif

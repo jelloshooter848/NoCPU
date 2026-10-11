@@ -107,6 +107,10 @@
     {
       "path": "docs/licenses/UZIP-MIT-LICENSE.txt",
       "sha256": "786adae9320db47cd483f9a8774ebd3edab8876d714caa4fb0aee8e5b2c3edc0"
+    },
+    {
+      "path": "docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt",
+      "sha256": "fa295884e8fa66e7531540572344ac97fcb39ce854997f052f52a3af810c5ae0"
     }
   ],
   "evidence": [

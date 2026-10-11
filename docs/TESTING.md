@@ -39,7 +39,14 @@ capture. It verifies that incomplete real media or altered replay logs are
 rejected, using disposable copies under ignored `build/audit-reference/`.
 Browser/core tests below have additional prerequisites.
 
-## Pong portable core and browser
+## Three-game portable core and browser
+
+The current [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
+Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
+and authorized proportionate local browser scopes pass independent review;
+committed full-matrix CI/public qualification remains in progress in
+[0.4.0 validation](0.4.0_VALIDATION.md). The older Pong
+instructions and measured results below retain their historical scope.
 
 The browser tools require Node.js 22.12 or newer, npm, Python 3.10 or newer,
 Bash 4 or newer, Git and a native C++14 compiler such as GCC. Emscripten 3.1.74
@@ -77,9 +84,11 @@ paddles, external simultaneous touch tracks, pause/resume, reset, mute and
 volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
 remapping, preferences and optional local ROM management. Only Pong is
 playable and requires no ROM import; compatibility/import results do not
-qualify the other twenty circuits. The public site serves the reviewed 0.3.0
-preview; exact deployment identity and pending physical qualification are in
-[0.3.0 validation](0.3.0_VALIDATION.md).
+qualify the other twenty circuits in that historical preview. The public site
+currently serves the reviewed 0.3.1 preview; its exact deployment identity and
+pending physical qualification are in [0.3.1 validation](0.3.1_VALIDATION.md).
+The new 0.4.0 candidate adds the two circuits described above and remains subject
+to its separate qualification and publication gates.
 
 ### Original, portable-native and Wasm comparison
 
@@ -101,6 +110,25 @@ retained static state and is not its fresh-reset baseline. Render reports name
 full-frame/observation equality and measured settled geometry tolerances;
 read actual results before claiming pixel equality. [PORT_PONG.md](PORT_PONG.md)
 records preserved behavior and deliberate platform adaptations.
+
+For the new batch, capture the full original Doubles/Space Race scenario set
+after the fresh original build and Pong capture, then compare the actual
+portable native and Wasm outputs:
+
+```sh
+./tools/capture-games.sh
+./tools/replay-games.sh
+```
+
+`make reference-games` selects the original new-game capture. `make core-compare`
+retains the Pong commands above and then runs the new-game replay comparison.
+The new tools retain timestamped evidence under `build/reference-games/` and
+`build/core/game-evidence/`; their latest pointers are updated only after the
+complete expected scenario set passes. A short `--explore` original capture is
+explicitly unqualified calibration and cannot clear the production gate.
+Read actual per-scenario reports, media coverage and failed-run history before
+claiming fidelity. Native/Wasm gameplay and physical-device results remain
+separate. Validation owns all shared builds/capture execution.
 
 ### Browser checks
 

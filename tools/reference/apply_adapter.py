@@ -40,6 +40,10 @@ edit("circuit.cpp", [
     ('        ChipDescPair cd(chips.back(), d);',
      '        reference_register_chip(name.c_str(), d->output_pin, chips.back());\n        ChipDescPair cd(chips.back(), d);'),
 ])
+edit("game_config.cpp", [
+    ('#include "game_config.h"', '#include "game_config.h"\n#include "reference_api.h"'),
+    ('    if(has_config) load();', '    if(has_config) load();\n    reference_configure(desc, name);'),
+])
 edit("chip.cpp", [
     ('void Chip::update_output()\n{', 'void Chip::update_output()\n{\n    ReferenceObserver observation(this);'),
     ('#include "chip.h"', '#include "chip.h"\n#include "reference_api.h"'),

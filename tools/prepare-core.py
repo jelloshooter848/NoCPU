@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an auditable, disposable Pong-only portable copy of DICE 0.9.
+"""Prepare an auditable, disposable three-game portable copy of DICE 0.9.
 
 Original scheduler/netlist/chip logic remain unchanged. Exact replacements fail
 closed if upstream differs. Complete changed-file diffs accompany the build.
@@ -77,7 +77,7 @@ contents=contents.replace('#include "../manymouse/manymouse.h"\n#include <SDL/SD
 write("chips/input.cpp",contents)
 edit("chips/input.h",[('#include <SDL/SDL_joystick.h>',''),
     ('    std::vector<SDL_Joystick*> joysticks;',''),
-    ('    Input();','    bool coin;\n    int16_t axes[2];\n    Input();')])
+    ('    Input();','    bool coin, start;\n    int16_t axes[4];\n    bool up[2],down[2];\n    Input();')])
 
 # SDL only transported already-synthesized samples. The graph and all sample
 # arithmetic are preserved; the queue now drains explicitly through the C ABI.
@@ -122,7 +122,7 @@ edit('chips/video.h',[
      '    enum { WIDTH=576, HEIGHT=432 };\n    const uint8_t* pixels() const { return front.data(); }')])
 
 # DICE stores mutable hardware descriptors statically. A portable reset creates
-# a fresh machine, so restore all Pong descriptor objects before construction.
+# a fresh machine, so restore custom descriptor objects before construction.
 reset='''
 void nocpu_reset_pong_descriptors() {
     a9_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
@@ -133,13 +133,77 @@ void nocpu_reset_pong_descriptors() {
     pad2_desc=Paddle2VerticalDesc(17000.0,145000.0,&a9_555_desc);
     dipswitch1_desc=DipswitchDesc("winning_score","Winning Score",0,"11","15");
 }
+void nocpu_configure_pong(unsigned dip) {
+    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
+}
 '''
 write('games/pong.cpp',(out/'games/pong.cpp').read_text()+reset)
 
-sources=['chip.cpp','circuit.cpp','games/pong.cpp']
-chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','7474','7483','7486','7490','7493','74107','74153','9316','555mono','clock','latch','clk_gate','input','audio','video','dipswitch']
+reset_doubles='''
+void nocpu_reset_pongdoubles_descriptors() {
+    a3_555_desc=Mono555Desc(K_OHM(100.0),U_FARAD(0.1));
+    a10_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
+    b10_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
+    b9a_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
+    b9b_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
+    f5_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
+    g5_555_desc=Mono555Desc(K_OHM(220.0),U_FARAD(1.0));
+    c33_desc=SeriesRCDesc(K_OHM(1.0),U_FARAD(0.1));
+    pad1_desc=Paddle1VerticalDesc(17000.0,145000.0,&b10_555_desc);
+    pad2_desc=Paddle2VerticalDesc(17000.0,145000.0,&a10_555_desc);
+    pad3_desc=Paddle3VerticalDesc(17000.0,145000.0,&b9a_555_desc);
+    pad4_desc=Paddle4VerticalDesc(17000.0,145000.0,&b9b_555_desc);
+    dipswitch1_desc=DipswitchDesc("winning_score","Winning Score",0,"11","15");
+}
+void nocpu_configure_pongdoubles(unsigned dip) {
+    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
+}
+'''
+write('games/pongdoubles.cpp',(out/'games/pongdoubles.cpp').read_text()+reset_doubles)
+
+# Static cold templates receive C++ zero-initialization before constructors.
+# In particular PWM555Desc leaves two scalar fields uninitialized in automatic
+# temporaries; copying a static cold template preserves the original cold zero
+# values without introducing indeterminate values. The templates never run.
+reset_space='''
+static const PWM555Desc nocpu_cold_d9(K_OHM(151.0),U_FARAD(0.1));
+static const RCFilterDesc nocpu_cold_c25(K_OHM(470.0),K_OHM(470.0),U_FARAD(0.1));
+static const RCFilterDesc nocpu_cold_c19(K_OHM(470.0),K_OHM(470.0),U_FARAD(0.1));
+static const RCFilterDesc nocpu_cold_c32(K_OHM(25.2),K_OHM(25.2),U_FARAD(4.7));
+static const NE566Desc nocpu_cold_a4(K_OHM(6.8),U_FARAD(0.1));
+static const NE566Desc nocpu_cold_b4(K_OHM(10.0),U_FARAD(0.1));
+static const NE566Desc nocpu_cold_c4(K_OHM(10.0),U_FARAD(0.1));
+static const MixerDesc nocpu_cold_mixer({K_OHM(10.0),K_OHM(10.0),K_OHM(4.7)},0.0,U_FARAD(0.1));
+void nocpu_reset_spacerace_descriptors() {
+    a3_555_desc=Mono555Desc(K_OHM(6.8)+K_OHM(6.8),U_FARAD(4.7));
+    a6_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
+    a9_555_desc=Mono555Desc(K_OHM(100.0),U_FARAD(0.1));
+    b6_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
+    c9_555_desc=Mono555Desc(K_OHM(1000.0),U_FARAD(100.0));
+    d9_555_desc=nocpu_cold_d9;
+    l4_desc=Mono9602Desc(K_OHM(10.0),P_FARAD(100.0),K_OHM(10.0),P_FARAD(100.0));
+    dipswitch1_desc=DipswitchDesc("coinage","Coinage",0,"1 Coin / 1 Credit","1 Coin / 2 Credits");
+    // Preserve the original reference binding. The original potentiometer
+    // chip updates C9.r at initialization and on its subsequent 250 ms polls.
+    ((PotentiometerBase*)&pot1_desc)->current_val=K_OHM(970.0);
+    coin_cap_desc=SeriesRCDesc(K_OHM(1.0),U_FARAD(0.1));
+    c25_filter_desc=nocpu_cold_c25;c19_filter_desc=nocpu_cold_c19;c32_filter_desc=nocpu_cold_c32;
+    a4_566_desc=nocpu_cold_a4;b4_566_desc=nocpu_cold_b4;c4_566_desc=nocpu_cold_c4;
+    mixer_desc=nocpu_cold_mixer;
+}
+void nocpu_configure_spacerace(unsigned dip,unsigned pot_ohms) {
+    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
+    ((PotentiometerBase*)&pot1_desc)->current_val=double(pot_ohms);
+}
+'''
+write('games/spacerace.cpp',(out/'games/spacerace.cpp').read_text()+reset_space)
+
+sources=['chip.cpp','circuit.cpp','games/pong.cpp','games/pongdoubles.cpp','games/spacerace.cpp']
+chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','7474','7483','7486','7490','7493','74107','74153','9316','555mono','clock','latch','clk_gate','input','audio','video','dipswitch',
+       'capacitor','555pwm','566','9602','diode_matrix','mixer','9311','9312','9322']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))
-(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':1},indent=2)+'\n')
-print('Prepared portable Pong core:',out)
+(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':2,
+    'games':['pong','pongdoubles','spacerace']},indent=2)+'\n')
+print('Prepared portable three-game core:',out)

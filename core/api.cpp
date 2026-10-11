@@ -11,10 +11,18 @@
 #include <vector>
 
 extern const CircuitDesc* circuit_pong();
+extern const CircuitDesc* circuit_pongdoubles();
+extern const CircuitDesc* circuit_spacerace();
 extern void nocpu_reset_pong_descriptors();
+extern void nocpu_reset_pongdoubles_descriptors();
+extern void nocpu_reset_spacerace_descriptors();
+extern void nocpu_configure_pong(unsigned);
+extern void nocpu_configure_pongdoubles(unsigned);
+extern void nocpu_configure_spacerace(unsigned,unsigned);
 namespace {
 constexpr size_t AUDIO_LIMIT=96000; // two seconds; consumers normally drain every tick.
 constexpr size_t COLLISION_LIMIT=4096;
+constexpr size_t EVENT_LIMIT=4096;
 struct Engine {
     Settings settings;
     Input input;
@@ -22,39 +30,74 @@ struct Engine {
     std::unique_ptr<Circuit> circuit;
     std::map<std::string,Chip*> chips;
     Chip* hit=nullptr;
+    Chip* observed[5]={nullptr,nullptr,nullptr,nullptr,nullptr};
+    uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0,crashes[2]={0,0};
     uint64_t deadline=0,frame_time=0;
-    uint32_t frames=0,hits=0,audio_overruns=0;
+    uint32_t frames=0,hits=0,audio_overruns=0,event_overruns=0;
     std::vector<int16_t> pcm;
     std::vector<uint32_t> collisions;
+    std::vector<uint32_t> events;
 };
 std::unique_ptr<Engine> engine;
 NoCPUFrameHook frame_hook=nullptr;
 NoCPUHitHook hit_hook=nullptr;
+NoCPUEventHook event_hook=nullptr;
 int pin(const std::string& name) {
     if(!engine) return 0;
     auto it=engine->chips.find(name);
     return it==engine->chips.end()?0:it->second->output;
 }
 uint64_t now() {return engine&&engine->circuit?engine->circuit->global_time:0;}
+bool valid_options(uint32_t game,uint32_t dip,uint32_t pot) {
+    if(game>NOCPU_SPACE_RACE||dip>1)return false;
+    return game==NOCPU_SPACE_RACE?pot>=470000&&pot<=1470000:pot==0;
+}
+uint32_t bcd(const std::string& name) {
+    return pin(name+".12")+2*pin(name+".9")+4*pin(name+".8")+8*pin(name+".11");
+}
 }
 void nocpu_set_hooks(NoCPUFrameHook frame,NoCPUHitHook hit){frame_hook=frame;hit_hook=hit;}
+void nocpu_set_event_hook(NoCPUEventHook event){event_hook=event;}
 void nocpu_register_chip(const char* name,unsigned output_pin,Chip* chip) {
     if(!engine) return;
     auto key=std::string(name)+"."+std::to_string(output_pin);
     engine->chips[key]=chip;
-    if(key=="B2.8")engine->hit=chip;
+    if(engine->game==NOCPU_PONG&&key=="B2.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
+    else if(engine->game==NOCPU_PONG_DOUBLES&&key=="B3.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
+    else if(engine->game==NOCPU_SPACE_RACE) {
+        const char* keys[]={"D5.8","D5.10","H2.8","K2.8"};
+        for(unsigned i=0;i<4;++i)if(key==keys[i])engine->observed[i+1]=chip;
+    }
 }
 NoCPUOutputObservation::NoCPUOutputObservation(Chip* value):chip(value),previous(value->output){}
 NoCPUOutputObservation::~NoCPUOutputObservation(){
-    if(!engine||chip!=engine->hit||chip->output==previous)return;
+    if(!engine||chip->output==previous)return;
     uint64_t time=chip->circuit->global_time;
-    if(chip->output)++engine->hits;
-    if(engine->collisions.size()/3<COLLISION_LIMIT) {
-        engine->collisions.push_back(uint32_t(time));
-        engine->collisions.push_back(uint32_t(time>>32));
-        engine->collisions.push_back(uint32_t(chip->output));
+    if(chip==engine->hit) {
+        if(chip->output)++engine->hits;
+        if(engine->collisions.size()/3<COLLISION_LIMIT) {
+            engine->collisions.push_back(uint32_t(time));
+            engine->collisions.push_back(uint32_t(time>>32));
+            engine->collisions.push_back(uint32_t(chip->output));
+        }
+        if(hit_hook)hit_hook(time,chip->output);
     }
-    if(hit_hook)hit_hook(time,chip->output);
+    // Generic events begin after circuit construction, matching the original
+    // reference observer's active capture boundary. Legacy Pong HIT capture
+    // above retains its established behavior exactly.
+    if(!engine->circuit)return;
+    for(unsigned signal=0;signal<5;++signal)if(chip==engine->observed[signal]) {
+        if((signal==NOCPU_CRASH1_N||signal==NOCPU_CRASH2_N)&&!chip->output)
+            ++engine->crashes[signal-NOCPU_CRASH1_N];
+        if(engine->events.size()/4<EVENT_LIMIT) {
+            engine->events.push_back(uint32_t(time));
+            engine->events.push_back(uint32_t(time>>32));
+            engine->events.push_back(signal);
+            engine->events.push_back(uint32_t(chip->output));
+        } else ++engine->event_overruns;
+        if(event_hook)event_hook(time,signal,chip->output);
+        break;
+    }
 }
 void nocpu_capture_frame(uint64_t time){
     if(!engine)return;
@@ -72,23 +115,59 @@ void nocpu_capture_audio(uint64_t,int16_t sample){
     engine->pcm.push_back(sample);
 }
 extern "C" {
-uint32_t nocpu_abi_version(){return 1;}
-uint32_t nocpu_create(uint32_t seed){
-    if(engine)return 0;
+uint32_t nocpu_abi_version(){return 2;}
+uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot_ohms){
+    if(engine||!valid_options(game,dip,pot_ohms))return 0;
     try {
         std::srand(seed);
-        nocpu_reset_pong_descriptors();
+        // Each selected machine starts with cold original custom descriptors.
+        // The original Space Race potentiometer updates C9 in its initial
+        // custom-update callback and subsequent 250 ms polls. Configuration
+        // changes current_val; the original chip still performs the C9.r write.
+        const CircuitDesc* desc=nullptr;const char* name=nullptr;
+        if(game==NOCPU_PONG) {
+            nocpu_reset_pong_descriptors();nocpu_configure_pong(dip);
+            desc=circuit_pong();name="pong";
+        } else if(game==NOCPU_PONG_DOUBLES) {
+            nocpu_reset_pongdoubles_descriptors();nocpu_configure_pongdoubles(dip);
+            desc=circuit_pongdoubles();name="pongdoubles";
+        } else {
+            nocpu_reset_spacerace_descriptors();nocpu_configure_spacerace(dip,pot_ohms);
+            desc=circuit_spacerace();name="spacerace";
+        }
         engine.reset(new Engine);
+        engine->game=game;engine->dip=dip;engine->pot_ohms=pot_ohms;
         engine->pcm.reserve(8192);
-        engine->circuit.reset(new Circuit(engine->settings,engine->input,engine->video,circuit_pong(),"pong"));
+        engine->events.reserve(1024);
+        engine->circuit.reset(new Circuit(engine->settings,engine->input,engine->video,desc,name));
         engine->video.video_init(Video::WIDTH,Video::HEIGHT,engine->settings.video);
         return 1;
     } catch(...) {engine.reset();return 0;}
 }
+uint32_t nocpu_create(uint32_t seed){return nocpu_create_game(NOCPU_PONG,seed,0,0);}
 void nocpu_destroy(){engine.reset();}
-uint32_t nocpu_reset(uint32_t seed){nocpu_destroy();return nocpu_create(seed);}
+uint32_t nocpu_reset(uint32_t seed){
+    if(!engine)return 0;
+    return nocpu_reset_config(seed,engine->dip,engine->pot_ohms);
+}
+uint32_t nocpu_reset_config(uint32_t seed,uint32_t dip,uint32_t pot_ohms){
+    if(!engine||!valid_options(engine->game,dip,pot_ohms))return 0;
+    uint32_t game=engine->game;nocpu_destroy();return nocpu_create_game(game,seed,dip,pot_ohms);
+}
+uint32_t nocpu_game(){return engine?engine->game:UINT32_MAX;}
+uint32_t nocpu_dip(){return engine?engine->dip:0;}
+uint32_t nocpu_pot_ohms(){return engine?engine->pot_ohms:0;}
 void nocpu_coin(uint32_t held){if(engine)engine->input.coin=held!=0;}
-void nocpu_paddle(uint32_t slot,int32_t axis){if(engine&&slot<2)engine->input.axes[slot]=int16_t(std::max(-32768,std::min(32767,axis)));}
+void nocpu_start(uint32_t held){if(engine&&engine->game!=NOCPU_PONG)engine->input.start=held!=0;}
+void nocpu_paddle(uint32_t slot,int32_t axis){
+    if(engine&&engine->game!=NOCPU_SPACE_RACE&&slot<(engine->game==NOCPU_PONG?2u:4u))
+        engine->input.axes[slot]=int16_t(std::max(-32768,std::min(32767,axis)));
+}
+void nocpu_joystick(uint32_t slot,uint32_t up_held,uint32_t down_held){
+    if(engine&&engine->game==NOCPU_SPACE_RACE&&slot<2) {
+        engine->input.up[slot]=up_held!=0;engine->input.down[slot]=down_held!=0;
+    }
+}
 uint32_t nocpu_advance(uint32_t microseconds){
     if(!engine||microseconds>100000)return 0;
     const uint64_t duration=uint64_t(microseconds)*1000000ULL;
@@ -113,16 +192,31 @@ void nocpu_audio_clear(){if(engine)engine->pcm.clear();}
 uint32_t nocpu_sample_rate(){return 48000;}
 uint32_t nocpu_audio_overruns(){return engine?engine->audio_overruns:0;}
 uint32_t nocpu_score(uint32_t slot){
-    if(slot>1)return 0;
-    const std::string name=slot==0?"C7":"D7";
-    return pin(name+".12")+2*pin(name+".9")+4*pin(name+".8")+8*pin(name+".11")+10*pin(slot==0?"C8.3":"C8.5");
+    if(!engine||slot>1)return 0;
+    if(engine->game==NOCPU_PONG)return bcd(slot==0?"C7":"D7")+10*pin(slot==0?"C8.3":"C8.5");
+    if(engine->game==NOCPU_PONG_DOUBLES)return bcd(slot==0?"C8":"D8")+10*pin(slot==0?"C9.3":"C9.5");
+    return bcd(slot==0?"J9":"L9")+10*bcd(slot==0?"H9":"K9");
 }
 uint32_t nocpu_hits(){return engine?engine->hits:0;}
-uint32_t nocpu_run_n(){return pin("LATCH.3");}
-uint32_t nocpu_attract_n(){return pin("D2.1");}
+uint32_t nocpu_run_n(){return engine&&engine->game==NOCPU_SPACE_RACE?!pin("C9.3"):pin("LATCH.3");}
+uint32_t nocpu_attract_n(){
+    if(engine&&engine->game==NOCPU_SPACE_RACE)return UINT32_MAX;
+    return pin(engine&&engine->game==NOCPU_PONG_DOUBLES?"D2.4":"D2.1");
+}
+uint32_t nocpu_active(){
+    if(!engine)return 0;
+    if(engine->game==NOCPU_PONG_DOUBLES)return pin("D2.4")!=0;
+    if(engine->game==NOCPU_SPACE_RACE)return pin("C9.3")!=0;
+    return pin("LATCH.3")==0;
+}
+uint32_t nocpu_crashes(uint32_t slot){return engine&&engine->game==NOCPU_SPACE_RACE&&slot<2?engine->crashes[slot]:0;}
 uint32_t nocpu_time_lo(){return uint32_t(now());}
 uint32_t nocpu_time_hi(){return uint32_t(now()>>32);}
 const uint32_t* nocpu_collisions(){return engine&&!engine->collisions.empty()?engine->collisions.data():nullptr;}
 uint32_t nocpu_collision_count(){return engine?uint32_t(engine->collisions.size()/3):0;}
 void nocpu_collisions_clear(){if(engine)engine->collisions.clear();}
+const uint32_t* nocpu_events(){return engine&&!engine->events.empty()?engine->events.data():nullptr;}
+uint32_t nocpu_event_count(){return engine?uint32_t(engine->events.size()/4):0;}
+void nocpu_events_clear(){if(engine)engine->events.clear();}
+uint32_t nocpu_event_overruns(){return engine?engine->event_overruns:0;}
 }

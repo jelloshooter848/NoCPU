@@ -1,4 +1,4 @@
-name: Verified Pong release and Pages
+name: Verified DICE release and Pages
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
       - name: Check downloaded asset integrity
         working-directory: release-assets
         run: sha256sum --check *.sha256
-      - name: Publish qualified Pong release
+      - name: Publish qualified DICE release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

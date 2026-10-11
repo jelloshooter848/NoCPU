@@ -5,9 +5,10 @@ import { GAMES, getGame } from './catalog';
 import { createShellMarkup, escapeText, gameInfoMarkup } from './shell-ui';
 import { createSettingsUI } from './app-settings';
 import { createControls } from './controls';
-import { ACTION_LABELS, keyLabel } from './control-schema';
+import { ACTION_LABELS, directionAction, keyLabel } from './control-schema';
 import { createCoreAssetUrls } from './asset-identity';
 import { annotateQualificationReport, createQualificationRecorder, type QualificationMetadata, type QualificationReport, type QualificationSnapshot } from './qualification';
+import { gameSpec, isPlayableGameId, type PlayableGameId } from './game-contract';
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
 
 const base = import.meta.env.BASE_URL;
@@ -29,6 +30,7 @@ void fetch(`${base}BUILD-MANIFEST.json`, { cache: 'no-store' }).then(async (resp
   element('#release-stage').hidden = metadata.stage === 'release';
 }).catch(() => { /* Local development or offline metadata: retain the preview label. */ });
 const playButton = element<HTMLButtonElement>('[data-testid="play-pong"]');
+const startButton = element<HTMLButtonElement>('[data-testid="start-game"]');
 const coinButton = element<HTMLButtonElement>('[data-testid="insert-coin"]');
 const pauseButton = element<HTMLButtonElement>('[data-testid="pause"]');
 const resetButton = element<HTMLButtonElement>('[data-testid="reset"]');
@@ -43,13 +45,15 @@ const shell = element('.game-shell');
 const gameStage = element('.game-stage');
 const hud = element('.game-hud');
 const context = canvas.getContext('2d', { alpha: false });
-const pads = [element('[data-testid="paddle-p1"]'), element('[data-testid="paddle-p2"]')];
+const pads = [1, 2, 3, 4].map((slot) => element(`[data-testid="paddle-p${slot}"]`));
 const audio = new CircuitAudio(() => pauseGame('Sound interrupted — tap Resume.'));
 const AXIS_MIN = -32768;
 const AXIS_MAX = 32767;
 const SEED = 848;
 const pointers = new Map<number, number>();
-let axes: [number, number] = [0, 0];
+let axes: number[] = [0, 0];
+const releaseDirectionActivation: (() => void)[] = [];
+const directionPointers = new Map<number, { slot: number; direction: 'up' | 'down'; target: HTMLElement }>();
 let worker: Worker | undefined;
 let ready = false;
 let paused = false;
@@ -58,7 +62,7 @@ let framePending = false;
 let latestPixels: ArrayBuffer | undefined;
 let clockEpoch = 0;
 let inputRevision = 0;
-let axisRevisions: [number, number] = [0, 0];
+let axisRevisions: number[] = [0, 0];
 let resetting = false;
 let resetId = 0;
 let muted = false;
@@ -77,6 +81,7 @@ let qualificationBoundary: ((reason: string) => void) | undefined;
 type Screen = 'title' | 'library' | 'game-info' | 'loading' | 'playing' | 'paused' | 'settings' | 'help' | 'about' | 'error' | 'qualification';
 let screen: Screen = 'title';
 let selectedGameId = 'pong';
+let activeGameId: PlayableGameId = 'pong';
 let helpGameId = 'pong';
 const navigation: { screen: Screen; focus?: HTMLElement; scrollTop?: number }[] = [];
 const pausedMenuButtons = new Map<string, { armed: boolean; pressed: boolean }>();
@@ -88,9 +93,10 @@ const settingsUI = createSettingsUI({
     audio.setVolume(preferences.volume);
     updateSoundButton();
   },
-  onBindings: (preferences) => { releaseInputs(); controls.setBindings(preferences.bindings); renderHelp(); },
+  onBindings: () => { releaseInputs(); controls.setBindings(settingsUI.bindingsFor(activeGameId)); renderHelp(); },
   onCaptureStarted: releaseInputs,
   onMetadataChanged: () => { renderGameInfo(true); },
+  onApplyGameOptions: (gameId) => { if (ready && gameId === activeGameId) resetGame(); },
 });
 const controls = createControls({
   bindings: settingsUI.preferences.bindings,
@@ -107,6 +113,7 @@ const controls = createControls({
   onAction: (action) => {
     if (!ready || failed || resetting || screen !== 'playing') return;
     if (action === 'coin') insertCoin();
+    else if (action === 'start') startRound();
     else if (action === 'menu') pauseGame();
     else if (action === 'reset') resetGame();
     else if (action === 'mute') muteButton.click();
@@ -152,7 +159,10 @@ function openPanel(panel: 'library' | 'game-info' | 'settings' | 'help' | 'about
   settingsUI.cancelCapture();
   navigation.push({ screen, focus: document.activeElement instanceof HTMLElement ? document.activeElement : undefined,
     scrollTop: element('.overlay-card').scrollTop });
-  if (panel === 'settings') void settingsUI.refreshRoms();
+  if (panel === 'settings') {
+    settingsUI.selectControlGame(ready ? activeGameId : isPlayableGameId(selectedGameId) ? selectedGameId : 'pong');
+    void settingsUI.refreshRoms();
+  }
   if (panel === 'help') renderHelp();
   showScreen(panel);
 }
@@ -184,12 +194,43 @@ function renderGameInfo(metadataOnly = false): void {
 function renderHelp(): void {
   const game = getGame(helpGameId);
   const actions = game.controlSchema.keyboardActions;
-  canvas.setAttribute('aria-label', `Pong game display. Player 1 uses ${settingsUI.preferences.bindings.keyboard.p1Up.map(keyLabel).join(' / ')} and ${settingsUI.preferences.bindings.keyboard.p1Down.map(keyLabel).join(' / ')}; player 2 uses ${settingsUI.preferences.bindings.keyboard.p2Up.map(keyLabel).join(' / ')} and ${settingsUI.preferences.bindings.keyboard.p2Down.map(keyLabel).join(' / ')}. On touchscreens use the separate P1 and P2 sliders outside the court.`);
-  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${settingsUI.preferences.bindings.gamepad.players.map((player, slot) => `<li>Player ${slot + 1}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${settingsUI.preferences.bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.</p>`;
-  element('#help-heading').textContent = game.playable ? 'How to play' : `${game.name} controls`;
-  element('#game-help-content').innerHTML = game.playable
-    ? `<p>Insert a coin to start a two-player game. Return the ball with your paddle. First to 11 wins.</p><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${settingsUI.preferences.bindings.keyboard[action].map((code) => `<kbd>${escapeText(keyLabel(code))}</kbd>`).join(' ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>Drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.</p>${gamepadHelp}<p>Keyboard and gamepad assignments can be changed in Settings. Escape opens the menu or goes back.</p>`
-    : `<p>${escapeText(game.name)} uses ${game.controlFamilies.map(escapeText).join(', ').toLowerCase()} controls in DICE.</p><ul>${game.controlSchema.controls.map((control) => `<li>${escapeText(control.label)}</li>`).join('')}</ul><p>Its browser port is pending. Browser controls and touch layouts will be available with that port.</p>`;
+  const playingBindings = settingsUI.bindingsFor(activeGameId);
+  const playingSpec = gameSpec(activeGameId);
+  canvas.setAttribute('aria-label', `${playingSpec.title} game display. ${playingBindings.gamepad.players.map((_, slot) => `Player ${slot + 1} uses ${playingBindings.keyboard[directionAction(slot, 'Up')].map(keyLabel).join(' / ')} and ${playingBindings.keyboard[directionAction(slot, 'Down')].map(keyLabel).join(' / ')} for ${playingSpec.controlLabels[slot].toLowerCase()}.`).join(' ')} On touchscreens use the separate controls outside the court.`);
+  element('#help-heading').textContent = game.playable ? `${game.name}: How to play` : `${game.name} controls`;
+  if (!isPlayableGameId(game.id)) {
+    element('#game-help-content').innerHTML = `<p>${escapeText(game.name)} uses ${game.controlFamilies.map(escapeText).join(', ').toLowerCase()} controls in DICE.</p><ul>${game.controlSchema.controls.map((control) => `<li>${escapeText(control.label)}</li>`).join('')}</ul><p>Its browser port is pending. Browser controls and touch layouts will be available with that port.</p>`;
+    return;
+  }
+  const bindings = settingsUI.bindingsFor(game.id);
+  const spec = gameSpec(game.id);
+  const options = ready && game.id === activeGameId && lastSnapshot ? lastSnapshot.options : settingsUI.preferences.optionsByGame[game.id];
+  const rules = game.id === 'pong' ? `Insert a coin to start a two-player game. Return the ball with your paddle. First to ${'winningScore' in options ? options.winningScore : 11} wins.`
+    : game.id === 'pongdoubles' ? `Insert one coin for two players or two coins for four players, then press Start. In four-player mode, left and right teams each have an outer and inner paddle. P1 is outer left, P2 outer right, P3 inner left and P4 inner right. First team to ${'winningScore' in options ? options.winningScore : 11} wins.`
+      : 'Insert a coin, then press Start. Move your rocket up or down through the moving obstacles. Reach the top to score before time runs out.';
+  const touchHelp = game.id === 'spacerace' ? 'Hold the separate Up or Down buttons for your rocket outside the court. Release to stop. Both players can move at once.'
+    : game.id === 'pongdoubles' ? 'Drag the four separate sliders outside the court. All four paddles have independent controls. For shared play, use suitable controllers or a larger screen.'
+      : 'Drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.';
+  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${bindings.gamepad.players.map((player, slot) => `<li>Player ${slot + 1} (${escapeText(spec.controlLabels[slot].toLowerCase())}): controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${game.id === 'spacerace' ? 'A moved joystick holds Up or Down. Center it to release. Opposing directions cancel each other.' : 'A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.'} Return joysticks and buttons to neutral after a menu, reset or reconnect.</p>`;
+  element('#game-help-content').innerHTML = `<p>${rules}</p><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(ACTION_LABELS[action])}</dt><dd>${bindings.keyboard[action].map((code) => `<kbd>${escapeText(keyLabel(code))}</kbd>`).join(' ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${touchHelp}</p>${gamepadHelp}<p>Keyboard and gamepad assignments can be changed for each game in Settings. Game settings take effect when starting or explicitly resetting that game. Escape opens the menu or goes back.</p>`;
+}
+function configureGameControls(): void {
+  const spec = gameSpec(activeGameId);
+  gameStage.dataset.game = activeGameId;
+  gameStage.dataset.inputKind = spec.inputKind;
+  pads.forEach((pad, slot) => {
+    const controller = pad.closest<HTMLElement>('.paddle-controller')!;
+    controller.hidden = slot >= spec.paddleCount;
+    pad.setAttribute('aria-label', activeGameId === 'pong' ? `Player ${slot + 1} paddle position` : `Player ${slot + 1} ${spec.controlLabels[slot] ?? 'paddle'} position`);
+    element(`#paddle-p${slot + 1}-label`).textContent = activeGameId === 'pongdoubles'
+      ? `P${slot + 1} · ${slot < 2 ? 'OUTER' : 'INNER'}` : `P${slot + 1}`;
+  });
+  document.querySelectorAll<HTMLElement>('.direction-controller').forEach((controller) => { controller.hidden = spec.inputKind !== 'joystick'; });
+  startButton.hidden = !spec.hasStart;
+  element('#loading-heading').textContent = `Loading ${spec.title}`;
+  element('#error-heading').textContent = `Unable to load ${spec.title}`;
+  hud.setAttribute('aria-label', `${spec.title} game actions`);
+  renderHelp();
 }
 
 function focusSettingsSection(id: string): void {
@@ -223,8 +264,8 @@ function send(command: CoreCommand): void { worker?.postMessage(command); }
 function sendInputs(slot?: number): void {
   if (!ready) return;
   const revision = ++inputRevision;
-  const changes: [number | null, number | null] = [null, null];
-  for (let index = 0; index < 2; index += 1) {
+  const changes: (number | null)[] = Array(axes.length).fill(null);
+  for (let index = 0; index < axes.length; index += 1) {
     if (slot === undefined || slot === index) { changes[index] = axes[index]; axisRevisions[index] = revision; }
   }
   send({ type: 'inputs', axes: changes, revision });
@@ -253,27 +294,32 @@ async function trySound(): Promise<void> {
 }
 
 function updatePads(): void {
+  document.querySelectorAll<HTMLButtonElement>('.direction-button').forEach((button) => { button.disabled = !ready || paused || resetting || failed || activeGameId !== 'spacerace'; });
   pads.forEach((pad, slot) => {
-    const fraction = (axes[slot] - AXIS_MIN) / (AXIS_MAX - AXIS_MIN);
+    const fraction = ((axes[slot] ?? 0) - AXIS_MIN) / (AXIS_MAX - AXIS_MIN);
     pad.style.setProperty('--paddle-position', `${fraction * 100}%`);
     pad.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
-    pad.setAttribute('aria-disabled', String(!ready || paused || resetting || failed));
-    pad.tabIndex = ready && !paused && !resetting && !failed ? 0 : -1;
+    pad.setAttribute('aria-disabled', String(!ready || paused || resetting || failed || slot >= axes.length));
+    pad.tabIndex = ready && !paused && !resetting && !failed && slot < axes.length ? 0 : -1;
   });
 }
 
 function releaseInputs(): void {
   controls.release();
+  releaseDirectionActivation.forEach((release) => release());
   pausedMenuButtons.clear();
   for (const [id, slot] of pointers) if (pads[slot].hasPointerCapture(id)) pads[slot].releasePointerCapture(id);
   pointers.clear();
+  for (const [id, pointer] of directionPointers) if (id >= 0 && pointer.target.hasPointerCapture(id)) pointer.target.releasePointerCapture(id);
+  directionPointers.clear();
+  document.querySelectorAll('.direction-button').forEach((button) => button.classList.remove('active'));
   pads.forEach((pad) => pad.classList.remove('active'));
   if (ready) send({ type: 'release' });
 }
 
 function showStatus(message?: string): void {
   if (message) { status.textContent = message; return; }
-  status.textContent = paused ? 'Paused — tap Resume.' : !ready ? 'Loading Pong…' : lastSnapshot?.run ? 'Game on' : 'Insert a coin to play';
+  status.textContent = paused ? 'Paused — tap Resume.' : !ready ? `Loading ${gameSpec(activeGameId).title}…` : lastSnapshot?.run ? 'Game on' : activeGameId === 'pongdoubles' ? 'Insert one coin for two players or two coins for four players, then Start' : gameSpec(activeGameId).hasStart ? 'Insert a coin, then Start to play' : 'Insert a coin to play';
 }
 
 function pauseGame(message?: string): void {
@@ -313,21 +359,23 @@ function failGame(message: string): void {
   for (const request of snapshotRequests.values()) { clearTimeout(request.timeout); request.reject(new Error(message)); }
   snapshotRequests.clear();
   coinButton.disabled = true;
+  startButton.disabled = true;
   pauseButton.disabled = true;
   resetButton.disabled = true;
   element('#error-message').textContent = message;
   showScreen('error');
   updatePads();
-  showStatus('Pong could not load');
+  showStatus(`${gameSpec(activeGameId).title} could not load`);
 }
 
 function acceptSnapshot(snapshot: CoreSnapshot): void {
+  if (snapshot.gameId !== activeGameId) { failGame('The game download did not match your selection. Reload the game.'); return; }
   if (lastSnapshot && (lastSnapshot.run !== snapshot.run || lastSnapshot.attract !== snapshot.attract)) {
     qualificationBoundary?.('native_run_or_attract_transition');
   }
   lastSnapshot = snapshot;
   snapshot.axes.forEach((axis, slot) => {
-    if (snapshot.inputRevision >= axisRevisions[slot]) axes[slot] = axis;
+    if (snapshot.inputRevision >= (axisRevisions[slot] ?? 0)) axes[slot] = axis;
   });
   updatePads();
   element('[data-testid="score-p1"]').textContent = String(snapshot.scores[0]);
@@ -335,51 +383,60 @@ function acceptSnapshot(snapshot: CoreSnapshot): void {
   showStatus();
 }
 
-async function startGame(): Promise<void> {
-  selectedGameId = 'pong';
-  helpGameId = 'pong';
+async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
+  activeGameId = gameId;
+  selectedGameId = gameId;
+  helpGameId = gameId;
+  qualificationBoundary?.('game_launch');
   navigation.length = 0;
   settingsUI.cancelCapture();
   generation += 1;
   soundAttempt += 1;
   const ownGeneration = generation;
+  if (loadTimeout) clearTimeout(loadTimeout);
+  for (const request of snapshotRequests.values()) { clearTimeout(request.timeout); request.reject(new Error('A new game started.')); }
+  snapshotRequests.clear();
   worker?.terminate();
   ready = false;
   failed = false;
   paused = false;
   framePending = false;
   resetting = false;
-  axes = [0, 0];
+  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
   releaseInputs();
   latestPixels = undefined;
   inputRevision = 0;
-  axisRevisions = [0, 0];
+  axisRevisions = Array(axes.length).fill(0);
   generatedSamples = 0;
   workerTimeMs = 0;
   workerSteps = 0;
   workerMaxMs = 0;
   lastSnapshot = undefined;
+  settingsUI.setActiveGame(undefined);
+  controls.setGame(activeGameId, settingsUI.bindingsFor(activeGameId));
+  configureGameControls();
   audio.pause();
   soundAvailable = false;
   updateSoundButton();
   updatePads();
   showScreen('loading');
-  overlayLabel.textContent = 'Loading Pong…';
+  overlayLabel.textContent = `Loading ${gameSpec(activeGameId).title}…`;
   showStatus();
   coinButton.disabled = true;
+  startButton.disabled = true;
   pauseButton.disabled = true;
   pauseButton.setAttribute('aria-pressed', 'false');
   resetButton.disabled = true;
   element('[data-testid="score-p1"]').textContent = '0';
   element('[data-testid="score-p2"]').textContent = '0';
   if (!context || typeof WebAssembly === 'undefined' || typeof Worker === 'undefined') {
-    failGame('This browser cannot run Pong. Try a recent version of Chrome, Firefox, Edge or Safari.');
+    failGame(`This browser cannot run ${gameSpec(activeGameId).title}. Try a recent version of Chrome, Firefox, Edge or Safari.`);
     return;
   }
   // This call happens directly within the player's gesture, before loading awaits.
   void trySound();
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
-  worker.addEventListener('error', () => { if (generation === ownGeneration) failGame('Pong could not load. Check your connection and reload the game.'); });
+  worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
     if (generation !== ownGeneration || failed) return;
     const message = event.data;
@@ -391,6 +448,8 @@ async function startGame(): Promise<void> {
         sampleRate = message.sampleRate;
         ready = true;
         coinButton.disabled = false;
+        startButton.disabled = false;
+        settingsUI.setActiveGame(activeGameId);
         pauseButton.disabled = false;
         resetButton.disabled = false;
         updatePads();
@@ -421,6 +480,7 @@ async function startGame(): Promise<void> {
         latestPixels = undefined;
         updatePads();
         acceptSnapshot(message.snapshot);
+        renderHelp();
         controls.setEnabled(!paused && screen === 'playing' && !document.hidden);
         break;
       case 'snapshot': {
@@ -431,9 +491,9 @@ async function startGame(): Promise<void> {
       case 'error': failGame(message.message); break;
     }
   });
-  send({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED });
+  send({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED, gameId: activeGameId, options: settingsUI.preferences.optionsByGame[activeGameId] });
   if (loadTimeout) clearTimeout(loadTimeout);
-  loadTimeout = setTimeout(() => { if (generation === ownGeneration && !ready) failGame('Pong is taking too long to load. Check your connection and reload the game.'); }, 30000);
+  loadTimeout = setTimeout(() => { if (generation === ownGeneration && !ready) failGame(`${gameSpec(activeGameId).title} is taking too long to load. Check your connection and reload the game.`); }, 30000);
 }
 
 function insertCoin(): void {
@@ -446,10 +506,18 @@ function insertCoin(): void {
   focusGame();
 }
 
+function startRound(): void {
+  if (!ready || failed || resetting || !gameSpec(activeGameId).hasStart) return;
+  qualificationBoundary?.('start_game_switch');
+  if (paused) resumeGame(); else void trySound();
+  send({ type: 'start' }); focusGame();
+}
+
 function resetGame(): void {
-  if (!ready || failed) return;
+  if (!ready || failed || resetting) return;
+  qualificationBoundary?.('reset');
   releaseInputs();
-  axes = [0, 0];
+  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
   updatePads();
   audio.clear();
   resetting = true;
@@ -458,7 +526,7 @@ function resetGame(): void {
   clockEpoch += 1;
   framePending = false;
   latestPixels = undefined;
-  send({ type: 'reset', id: ++resetId, seed: SEED, epoch: clockEpoch, running: !paused && !document.hidden });
+  send({ type: 'reset', id: ++resetId, seed: SEED, epoch: clockEpoch, running: !paused && !document.hidden, options: settingsUI.preferences.optionsByGame[activeGameId] });
 }
 
 function disposeGame(destination: 'title' | 'library'): void {
@@ -481,9 +549,11 @@ function disposeGame(destination: 'title' | 'library'): void {
   framePending = false;
   latestPixels = undefined;
   lastSnapshot = undefined;
-  axes = [0, 0];
+  settingsUI.setActiveGame(undefined);
+  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
   soundAvailable = false;
   coinButton.disabled = true;
+  startButton.disabled = true;
   pauseButton.disabled = true;
   pauseButton.setAttribute('aria-pressed', 'false');
   resetButton.disabled = true;
@@ -506,7 +576,7 @@ function pollPausedMenu(): void {
   let activate = false;
   try {
     const pads = navigator.getGamepads?.() ?? [];
-    for (const binding of settingsUI.preferences.bindings.gamepad.buttons.menu) {
+    for (const binding of settingsUI.bindingsFor(activeGameId).gamepad.buttons.menu) {
       const pad = pads[binding.pad];
       if (!pad?.connected) continue;
       const button = pad.buttons[binding.button];
@@ -558,7 +628,7 @@ pads.forEach((pad, slot) => {
     sendInputs(slot);
   }
   pad.addEventListener('pointerdown', (event) => {
-    if (!ready || paused || failed || resetting || [...pointers.values()].includes(slot)) return;
+    if (!ready || paused || failed || resetting || slot >= axes.length || [...pointers.values()].includes(slot)) return;
     event.preventDefault();
     pointers.set(event.pointerId, slot);
     pad.setPointerCapture(event.pointerId);
@@ -575,7 +645,7 @@ pads.forEach((pad, slot) => {
   pad.addEventListener('pointercancel', release);
   pad.addEventListener('lostpointercapture', release);
   pad.addEventListener('keydown', (event) => {
-    if (!ready || paused || failed || resetting || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.code)) return;
+    if (!ready || paused || failed || resetting || slot >= axes.length || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.code)) return;
     event.preventDefault();
     event.stopPropagation();
     if (event.code === 'Home') axes[slot] = AXIS_MIN;
@@ -583,6 +653,52 @@ pads.forEach((pad, slot) => {
     else axes[slot] = Math.max(AXIS_MIN, Math.min(AXIS_MAX, axes[slot] + (event.code === 'ArrowUp' ? -2048 : 2048)));
     updatePads();
     sendInputs(slot);
+  });
+});
+
+document.querySelectorAll<HTMLButtonElement>('.direction-button').forEach((button) => {
+  const slot = Number(button.dataset.slot);
+  const direction = button.dataset.direction as 'up' | 'down';
+  function sync(): void {
+    const held = [...directionPointers.values()].filter((pointer) => pointer.slot === slot);
+    controls.setTouchButtons(slot, held.some((pointer) => pointer.direction === 'up'), held.some((pointer) => pointer.direction === 'down'));
+  }
+  button.addEventListener('pointerdown', (event) => {
+    if (!ready || paused || failed || resetting || activeGameId !== 'spacerace') return;
+    event.preventDefault();
+    directionPointers.set(event.pointerId, { slot, direction, target: button });
+    button.setPointerCapture(event.pointerId); button.classList.add('active'); sync();
+  });
+  const release = (event: PointerEvent): void => {
+    if (directionPointers.get(event.pointerId)?.target !== button) return;
+    directionPointers.delete(event.pointerId);
+    if (![...directionPointers.values()].some((pointer) => pointer.target === button)) button.classList.remove('active');
+    sync();
+  };
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+  button.addEventListener('lostpointercapture', release);
+  // Native keyboard activation gives these accessible buttons a held switch,
+  // separately from the remappable player keys handled by the input adapter.
+  const heldActivation = new Set<string>();
+  releaseDirectionActivation.push(() => heldActivation.clear());
+  button.addEventListener('keydown', (event) => {
+    if (!ready || paused || resetting || failed || activeGameId !== 'spacerace' || !['Space', 'Enter'].includes(event.code)) return;
+    event.preventDefault(); event.stopPropagation(); if (event.repeat) return; heldActivation.add(event.code);
+    directionPointers.set(-(slot * 2 + (direction === 'up' ? 1 : 2)), { slot, direction, target: button });
+    button.classList.add('active'); sync();
+  });
+  button.addEventListener('keyup', (event) => {
+    if (!heldActivation.delete(event.code)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (heldActivation.size === 0) {
+      directionPointers.delete(-(slot * 2 + (direction === 'up' ? 1 : 2)));
+      if (![...directionPointers.values()].some((pointer) => pointer.target === button)) button.classList.remove('active'); sync();
+    }
+  });
+  button.addEventListener('blur', () => {
+    heldActivation.clear(); directionPointers.delete(-(slot * 2 + (direction === 'up' ? 1 : 2)));
+    if (![...directionPointers.values()].some((pointer) => pointer.target === button)) button.classList.remove('active'); sync();
   });
 });
 
@@ -599,7 +715,7 @@ document.addEventListener('keydown', (event) => {
   // Native button activation remains available in game menus and after a click.
   if (target?.closest('button') && ['Space', 'Enter'].includes(event.code)) return;
   if (screen === 'paused') {
-    if (!event.repeat && settingsUI.preferences.bindings.keyboard.menu.includes(event.code)) {
+    if (!event.repeat && settingsUI.bindingsFor(activeGameId).keyboard.menu.includes(event.code)) {
       event.preventDefault(); resumeGame();
     }
     return;
@@ -622,18 +738,19 @@ window.addEventListener('blur', () => { settingsUI.cancelCapture(); pauseGame('P
 window.addEventListener('resize', () => {
   // A captured touch belongs to the old control geometry. Require a fresh
   // contact after rotation/viewport resizing instead of moving the paddle.
-  if (pointers.size) releaseInputs();
+  if (pointers.size || directionPointers.size) releaseInputs();
 });
 window.addEventListener('pagehide', () => { pauseGame('Paused while you were away.'); releaseInputs(); audio.pause(); });
 playButton.addEventListener('click', () => { void startGame(); });
-element('#retry').addEventListener('click', () => { void startGame(); });
+element('#retry').addEventListener('click', () => { void startGame(activeGameId); });
 coinButton.addEventListener('click', insertCoin);
+startButton.addEventListener('click', startRound);
 pauseButton.addEventListener('click', () => { if (paused) void resumeGame(); else pauseGame(); });
 resumeButton.addEventListener('click', () => resumeGame());
 backButton.addEventListener('click', closePanel);
 element('#return-title').addEventListener('click', returnToTitle);
 element('#return-library').addEventListener('click', returnToLibrary);
-element('[data-testid="play-selected"]').addEventListener('click', () => { if (getGame(selectedGameId).playable) void startGame(); });
+element('[data-testid="play-selected"]').addEventListener('click', () => { if (isPlayableGameId(selectedGameId)) void startGame(selectedGameId); });
 element('.library-list').addEventListener('click', (event) => {
   const item = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-game-id]');
   if (!item) return;
@@ -652,7 +769,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) =
       settingsUI.selectRomGame(selectedGameId); openPanel('settings'); focusSettingsSection('rom-section');
     } else if (action === 'game-help') { helpGameId = selectedGameId; openPanel('help'); }
     else if (action === 'settings' || action === 'help' || action === 'about') {
-      if (action === 'help') helpGameId = 'pong';
+      if (action === 'help') helpGameId = ready ? activeGameId : isPlayableGameId(selectedGameId) ? selectedGameId : 'pong';
       openPanel(action);
     }
   });
@@ -683,20 +800,22 @@ if (new URLSearchParams(location.search).has('debug')) {
   const identity = () => ({ generation, resetId, clockEpoch, resetting, ready, failed });
   debugWindow.__nocpuDebug = {
     snapshot: async () => {
-      if (!ready || !worker) throw new Error('Pong is not ready.');
+      if (!ready || !worker) throw new Error(`${gameSpec(activeGameId).title} is not ready.`);
       const identityBefore = identity();
       const id = ++snapshotId;
       const state = await new Promise<CoreSnapshot>((resolve, reject) => {
-        const timeout = setTimeout(() => { snapshotRequests.delete(id); reject(new Error('Pong did not answer.')); }, 5000);
+        const timeout = setTimeout(() => { snapshotRequests.delete(id); reject(new Error(`${gameSpec(activeGameId).title} did not answer.`)); }, 5000);
         snapshotRequests.set(id, { resolve, reject, timeout });
         send({ type: 'snapshot', id });
       });
       return {
         identityBefore, identity: identity(),
+        gameId: state.gameId, gameOptions: state.options, nativeRunning: state.run,
         timePs: state.timeps, frame: state.frame, hits: state.hits, scores: state.scores,
-        runN: Number(!state.run), attractN: Number(!state.attract),
-        inputs: { coin: Number(state.coin), paddle1: state.axes[0], paddle2: state.axes[1] },
-        heldKeys: controls.getState().heldKeys, pointerCount: pointers.size, paused, screen, selectedGame: selectedGameId,
+        runN: Number(!state.run), attractN: state.attract === null ? null : Number(!state.attract),
+        inputs: { coin: Number(state.coin), start: Number(state.start), paddle1: state.axes[0], paddle2: state.axes[1], paddle3: state.axes[2], paddle4: state.axes[3], directions: state.directions },
+        crashes: state.crashes,
+        heldKeys: controls.getState().heldKeys, pointerCount: pointers.size + directionPointers.size, paused, screen, selectedGame: selectedGameId,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,
           wasmMemoryCapacityBytes: state.wasmMemoryCapacityBytes },
@@ -711,7 +830,7 @@ function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot
   element('.overlay-card').insertAdjacentHTML('beforeend', `
     <section class="panel-section qualification-panel" data-panel="qualification" data-testid="qualification-panel" hidden>
       <h1 id="qualification-heading">Phone qualification</h1>
-      <p>Prepare Pong first: Play Pong, Insert coin, then Menu → Qualification → Start. Play until the recorder has at least 600 active seconds; a session can take longer than ten minutes. Menu, pause, background and game-over time are excluded. Insert another coin after a game ends.</p>
+      <p>Prepare a game first: choose Play, Insert coin and, for Pong Doubles or Space Race, the game’s Start button. Use two coins before Start to test all four Pong Doubles paddles. Then Menu → Qualification → Start recording. For the Pong baseline, play until the recorder has at least 600 active seconds; a session can take longer than ten minutes. New-title checks can be shorter; the report’s ten-minute comparison does not set their release requirement. Menu, pause, background and game-over time are excluded. Start another game after it ends. Record each title separately; switching titles or game settings makes the recording incomplete.</p>
       <p>Collection starts only when you choose Start. Reports stay on this page until you download or copy them; reload closes this report. Speaker sound, touch comfort, recovery and controller behavior need your own observations.</p>
       <p data-testid="qualification-status" role="status" aria-live="polite"></p>
       <div class="menu-inline-actions">
@@ -723,6 +842,7 @@ function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot
       <fieldset class="qualification-details">
         <legend>Optional device details and observations</legend>
         <p>Leave anything you did not test or cannot identify blank. You can add or edit these details after Finish; measurements stay fixed. Download or copy again after editing. Do not include private files or account information.</p>
+        <p>Device details stay between reports. Each new recording clears observations, input response and notes; enter them for that recording after Finish.</p>
         <label for="qualification-physical">Actual physical device
           <select id="qualification-physical" data-testid="qualification-physical"><option value="">Unknown</option><option value="yes">Yes</option><option value="no">No (automation or emulation)</option></select>
         </label>
@@ -735,7 +855,7 @@ function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot
         <label for="qualification-browser-version">Browser version<input id="qualification-browser-version" data-testid="qualification-browser-version" type="text" maxlength="160" autocomplete="off" /></label>
         <label for="qualification-controller">Controller model and connection, if tested<input id="qualification-controller" data-testid="qualification-controller" type="text" maxlength="240" autocomplete="off" /></label>
         <label for="qualification-observations">Observed checks: touch, portrait/landscape, speaker sound, pause/reset, interruptions, menus/settings and controller tests<textarea id="qualification-observations" data-testid="qualification-observations" rows="5" maxlength="4000"></textarea></label>
-        <label for="qualification-input-response">Observed paddle input response and how you checked it, if tested<textarea id="qualification-input-response" data-testid="qualification-input-response" rows="3" maxlength="2000"></textarea></label>
+        <label for="qualification-input-response">Observed player input response and how you checked it, if tested<textarea id="qualification-input-response" data-testid="qualification-input-response" rows="3" maxlength="2000"></textarea></label>
         <label for="qualification-notes">Conditions, thermal behavior, slowdown or other notes<textarea id="qualification-notes" data-testid="qualification-notes" rows="3" maxlength="3000"></textarea></label>
       </fieldset>
       <section class="qualification-result" data-testid="qualification-result" hidden aria-labelledby="qualification-report-heading">
@@ -791,7 +911,7 @@ function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot
       : state.error ? `Recorder error: ${state.error}.${unfinishedRun ? ' Finish to export the incomplete report.' : ' Any finished report remains available below.'}`
       : hasReport ? `Finished: at least ${activeSeconds} active seconds, with timing uncertainty accounted for. Download or copy the report below. Start new report replaces this report.`
       : !ready ? 'Prepare Pong first. Build identity must be available before Start.'
-      : prepared ? 'Ready. Start returns to Pong and records active play only.' : 'Check build identity before Start.';
+      : prepared ? `Ready. Start returns to ${gameSpec(activeGameId).title} and records active play only.` : 'Check build identity before Start.';
     start.hidden = unfinishedRun || state.phase === 'finishing';
     start.disabled = busy || !prepared || !ready || failed || resetting;
     start.textContent = hasReport ? 'Start new report' : 'Start';
@@ -859,6 +979,11 @@ function installQualificationPanel(snapshot: () => Promise<QualificationSnapshot
     // Preserve the phone's audio activation gesture; preflight networking is complete.
     completedReport = undefined;
     reportText.value = '';
+    // Device identity may stay on the same browser, but manual observations
+    // describe one recording and must not carry into another game's report.
+    for (const id of ['observations', 'input-response', 'notes']) {
+      element<HTMLTextAreaElement>(`#qualification-${id}`).value = '';
+    }
     closePanel();
     resumeGame(true);
     const starting = recorder.start();

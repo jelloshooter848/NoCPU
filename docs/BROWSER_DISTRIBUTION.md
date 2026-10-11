@@ -1,4 +1,42 @@
-# Pong browser distribution assessment
+# Browser distribution assessment
+
+## 0.4.0 expanded component/license scope
+
+The current development version adds Pong Doubles and Space Race to Pong.
+The old Pong-only assessment does not approve this expanded executable:
+fresh compiled translation units, dependencies, linker members and frontend
+provenance must be independently reviewed. The actual successful local Wasm
+build has 42 translation units, seven runtime archive families and 133 linked
+members. Fourteen concrete musl math members include the prior nine plus
+`exp`, `exp_data`, `__math_oflow`, `__math_uflow` and `__math_xflow`.
+The exp/exp_data source and supporting header carry Arm's 2018 MIT notice;
+their [verbatim headers and MIT grant](licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt)
+are retained. Independent review accepts that actual core/member/license basis.
+The three math helpers have no additional copyright/license header and remain
+covered by the complete musl COPYRIGHT. Independent actual frontend/component
+review also accepts seven exact runtime files, 48 inputs, 27 notices and the
+unchanged MIT fflate preferred/runtime source, together with the matching-source
+packaging contract. The browser **license** audit is ready for local candidate
+preparation within that scope. A later owned GPL interface-copy change adds no
+license blocker; the initial affected frontend rebuild and independent actual
+48-input/seven-output provenance read close that initial stale-source limitation.
+The preliminary local package and actual archive/notices/source review pass
+within their recorded scope. Subsequent report-scope and host-raster repairs
+require fresh frontend provenance and final matching-source packaging. The
+refreshed frontend v3 now passes independent actual 48-input/seven-output/
+27-notice review and permits current local packaging; actual archive/source
+review remains mandatory next. The
+affected renderer core independently retains exactly the same seven archives,
+133 members and fourteen math routines, with all recorded current native/Wasm
+input/output hashes matching; no speculative new component term is introduced.
+No 0.4.0 preview has been distributed. Final current package/source, gameplay/fidelity,
+browser/committed CI and public acceptance remain separate mandatory delivery
+gates; component approval does not clear stale runtime correspondence.
+The original source, existing component notices and historical assessments
+below remain identifiable. Source-only licensing and pending physical-device
+qualification are separate from this compiled-distribution gate.
+
+## Historical Pong/app assessment through 0.3.1
 
 The source-only assessment in [license-audit.json](../tests/license-audit.json)
 does not clear a compiled browser artifact. The separate
@@ -103,7 +141,7 @@ Every distributed Pages preview or final artifact must contain:
 
 - The original GPL text and applicable copyright/license/credit notices,
   accessible from the application.
-- `source/nocpu-0.3.1-source.tar.gz`, built from the same checkout as the runtime
+- `source/nocpu-0.4.0-source.tar.gz`, built from the same checkout as the runtime
   and linked directly from the application. A future tag link is not a
   substitute for an available source download during preview testing.
 - The source, browser and toolchain manifests identifying the build revision,

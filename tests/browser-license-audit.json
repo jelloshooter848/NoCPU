@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "release_ready": true,
-  "assessment_scope": "Pong-only C++/Wasm circuit and the NoCPU app foundation, including the 0.3.1 opt-in physical-qualification collector, audited library metadata, input/storage and the fflate ROM-import helper. Excludes native binaries, toolchain containers, ROM payloads and other unbuilt game circuits.",
+  "assessment_scope": "Original-derived Pong, Pong Doubles and Space Race C++/Wasm circuits and the NoCPU app, including controls/settings, opt-in qualification, audited library metadata, local storage and the fflate ROM-import helper. Excludes native binaries, toolchain containers, ROM payloads and the other eighteen unbuilt game circuits.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -40,7 +40,7 @@
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "sha256": "8bfb859ef90563e83512fe7d68f8438f78ebd6f7f93e61555e8627b4492d764b"
+      "sha256": "62ad03bb63142095c6848202043b9543f38e0ef7a0db4b7580baed16bdaadee6"
     },
     {
       "path": "upstream/dice-0.9/README.txt",
@@ -109,11 +109,15 @@
     {
       "path": "docs/licenses/UZIP-MIT-LICENSE.txt",
       "sha256": "786adae9320db47cd483f9a8774ebd3edab8876d714caa4fb0aee8e5b2c3edc0"
+    },
+    {
+      "path": "docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt",
+      "sha256": "fa295884e8fa66e7531540572344ac97fcb39ce854997f052f52a3af810c5ae0"
     }
   ],
   "components": [
     {
-      "scope": "Original-derived Pong circuit, portable adapters and browser frontend",
+      "scope": "Original-derived Pong, Pong Doubles and Space Race circuits, portable adapters and browser frontend",
       "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
       "basis": "tests/license-audit.json and docs/PROVENANCE.md"
     },
@@ -135,8 +139,8 @@
     {
       "scope": "musl libc and linked math routines",
       "version": "bundled with Emscripten 3.1.74",
-      "license": "MIT with individual permissive notices retained where linked",
-      "basis": "Exact installed COPYRIGHT; current linker math members __fpclassifyl, copysignl, fabsl, fmodl, frexp, lroundf, roundf, scalbn, scalbnl have no additional license headers and are covered by musl COPYRIGHT. No separately licensed Arm/Sun math routines in current linker map."
+      "license": "MIT with individual Arm copyright/SPDX headers retained for concrete linked exp/exp_data portions",
+      "basis": "Fresh 0.4.0 actual linker map contains 14 math members: __fpclassifyl, copysignl, fabsl, fmodl, frexp, lroundf, roundf, scalbn, scalbnl, exp, exp_data, __math_oflow, __math_uflow, __math_xflow. exp.c/exp_data.c and supporting exp_data.h carry Copyright (c) 2018, Arm Limited, SPDX MIT; exact headers and the pinned musl MIT grant are retained in docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt. The three __math_* helpers and prior nine source members have no additional copyright/license headers and are covered by the complete musl COPYRIGHT. Independent actual core-component reviews accept the initial v2 and affected renderer v4 source/member/notice basis. V4 has the identical fourteen math members; no additional fmod.o is linked. Current frontend/source-package and all delivery/hardware gates remain separate."
     },
     {
       "scope": "Vite injected browser helpers",
@@ -161,7 +165,7 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.3.1-source.tar.gz",
+    "path": "source/nocpu-0.4.0-source.tar.gz",
     "delivery": "Included in every reviewed preview and final Pages artifact and linked visibly in app. Same-revision archive contains original DICE, maintained adapters/frontend, 17 unmodified fflate preferred-source/build files and attribution, scripts, pinned lockfiles, dependency source manifest and complete notices."
   },
   "evidence": [
@@ -310,6 +314,97 @@
       "sha256": "9259145e0fb81db64d34d44c649a38fd730e26197ce8e9801956acff7bf768e7",
       "assessment_version": "0.3.1",
       "detail": "Independent actual input/output/source/linked component and notice review. Supplements the original verbatim approval ledger without replacing it; package/CI/live and physical acceptance remain separate."
+    },
+    {
+      "kind": "initial-0.4.0-wasm-build-provenance",
+      "path": "build/v040/setup-release/core-component-v2/wasm/build-provenance.json",
+      "sha256": "6b2b2c5e228a1e39f68f62351dd8652caa085647dc653746687184b42d41af51",
+      "assessment_version": "0.4.0",
+      "detail": "Actual successful local Wasm v2 build: 42 translation units (40 original-derived + maintained API/input). This is compiled inventory only, not fidelity/browser/package approval."
+    },
+    {
+      "kind": "initial-0.4.0-linked-runtime-inventory",
+      "path": "build/v040/setup-release/core-component-v2/wasm/linker.map",
+      "sha256": "11b93c4c7d72f1848fac0f5841825abceb1d9b8bd575db410cb72b69f7b2edd2",
+      "assessment_version": "0.4.0",
+      "detail": "Seven runtime archive families, 133 concrete members; 14 musl math members including exp/exp_data plus three __math_* helpers. Exact Arm MIT source headers retained; independent component approval pending."
+    },
+    {
+      "kind": "initial-0.4.0-musl-math-source-inspection",
+      "path": "build/v040/setup-release/core-component-v2/musl-math-source-inventory.json",
+      "sha256": "0e27cb5f6368bb39cc732ee448523300d15108c2b49ccc7e26cc807f90f002ed",
+      "assessment_version": "0.4.0",
+      "detail": "Exact installed pinned SDK source-file hashes and any additional copyright/license headers for all 14 actual linked math members plus supporting exp_data.h."
+    },
+    {
+      "kind": "independent-0.4.0-core-component-notice-source-review",
+      "path": "build/v040/review/core-component-v2-review.json",
+      "sha256": "8beebf41c769937f3e993c0a4944c2dd0c7165e73110244cdfea88e090cba3cf",
+      "assessment_version": "0.4.0",
+      "detail": "Independent reviewer accepts actual 42-Wasm/43-native-TU inventory, seven linked archives/133 members, all 14 math source identities and exact Arm MIT supplemental notice/hash registrations. Wasm input hashes current; native runner requires later affected rebuild. Closes affected core license basis only, not browser-package/source, gameplay/fidelity, CI, publication or hardware readiness."
+    },
+    {
+      "kind": "initial-0.4.0-frontend-production-component-inventory",
+      "path": "build/v040/setup-release/frontend-component-v1/component-inventory.json",
+      "sha256": "95bd06171a5bcc3ebcbe81980e17acf9f61355a0d1451ac81bc4af160ee75e02",
+      "assessment_version": "0.4.0",
+      "detail": "Actual initial production snapshot: 48 frontend input hashes, seven exact runtime files and canonical digest, 27 applicable notices, unchanged 17 preferred fflate files and three actual npm inputs. A later owned GPL main.ts copy change requires affected frontend rebuild; this snapshot is historical initial component evidence, not current runtime-source/package acceptance."
+    },
+    {
+      "kind": "independent-0.4.0-frontend-component-license-and-source-contract-review",
+      "path": "build/v040/review/frontend-component-v1-license-contract-review.json",
+      "sha256": "78fb834945336766c93fd099b242ebafba5d818dd19761f142f61f10bf1b592d",
+      "assessment_version": "0.4.0",
+      "detail": "Independent concrete runtime/notices/fflate preferred-source/input and packaging contract acceptance, with source-stale main.ts exception explicit. Clears license gate for local candidate preparation using refreshed current provenance; does not clear actual package/source, fidelity/browser/CI, public delivery or hardware."
+    },
+    {
+      "kind": "independent-0.4.0-current-frontend-provenance-and-unit-closure",
+      "path": "build/v040/review/frontend-v2-provenance-and-unit-closure.json",
+      "sha256": "b1eeb147f567520fd1d4c3de39d6a02e5719bc028b2957aef38095d32da8dc65",
+      "assessment_version": "0.4.0",
+      "detail": "Independent actual current-v2 read: all 48 source input hashes and seven generated runtime files match, closing initial stale-main limitation. Canonical runtime d69f0fec602f24c068c4b3bec675ee57566a85f2d1ec7e00ef67afd48c47f947. Foundation/collector focused actual results also read; actual package/archive, full game fidelity/browser/CI/public/hardware acceptance remains separate."
+    },
+    {
+      "kind": "affected-0.4.0-renderer-core-build-provenance",
+      "path": "build/v040/setup-release/core-component-v4/wasm/build-provenance.json",
+      "sha256": "179afc83ccedc6364d68cfd01c5bb9aeb34989f8d8307721f16fb92fcdc79929",
+      "assessment_version": "0.4.0",
+      "detail": "Actual successful renderer v4 Wasm build; all579 current input hashes and recorded outputs match,42 compiled units. Native companion has43 units/580 matching inputs. This is component/source identity, not whole-game fidelity."
+    },
+    {
+      "kind": "affected-0.4.0-renderer-linked-runtime-inventory",
+      "path": "build/v040/setup-release/core-component-v4/wasm/linker.map",
+      "sha256": "92ab40baf71eadbacab7e4eebe3c34afedf8fabaffa2a9c74f12f910c06e43ad",
+      "assessment_version": "0.4.0",
+      "detail": "Exactly unchanged seven archives/133 concrete members and fourteen math members compared with the independently accepted v2 map; no fmod.o addition. Existing exact math notices apply."
+    },
+    {
+      "kind": "independent-0.4.0-renderer-core-component-source-notice-review",
+      "path": "build/v040/review/core-component-v4-review.json",
+      "sha256": "22ecc6afd1418c75923f75f3f7522ff953ff5e7cb3f75e6bb97049c2dadeff62",
+      "assessment_version": "0.4.0",
+      "detail": "Independent actual current native/Wasm source/output/member/math-header/notice acceptance. Applies Wasm ba27086f65842fe4989b9340c272cb4c2343b4de017fad2e657b90ffccd4a71b for local packaging; requires refreshed frontend and actual source/package, fidelity/browser/CI/public acceptance. Physical readiness remains pending."
+    },
+    {
+      "kind": "affected-0.4.0-frontend-v3-actual-inventory",
+      "path": "build/v040/setup-release/frontend-component-v3/component-inventory.json",
+      "sha256": "a3b93ffb470ff75344f08e58bcfe7dd2495d5d3cade215059f19cab555a1a3e0",
+      "assessment_version": "0.4.0",
+      "detail": "Actual frontend v3 report-scope repair plus renderer v4 core:48 current source inputs/seven exact runtime files/27notice hashes match, no extra output. Canonical runtime16eb7312c00b46ae7286f4153c87574faca5445a67f5e0a89e1e81d6d1304acb."
+    },
+    {
+      "kind": "independent-0.4.0-frontend-v3-actual-component-review",
+      "path": "build/v040/review/frontend-v3-actual-component-review.json",
+      "sha256": "03c862c208992fd4f2b1718b357eb5e5446a1a2e26a74e957e1c576a57532f59",
+      "assessment_version": "0.4.0",
+      "detail": "Independent actual current frontend source/output/file-set/notice acceptance:main70719ebc and current v4Wasm ba27086f source identities match. GO local current packaging under accepted license gate; actual archive/source/notices/public-payload review remains mandatory next. Does not approve whole-game fidelity/browser/CI/public/device readiness."
+    },
+    {
+      "kind": "independent-0.4.0-preferred-validation-source-review",
+      "path": "build/v040/review/reference-reset-and-report-source-review.json",
+      "sha256": "59bd14f797a421cdfa868af113c8b53ddfaafe01999766d927e568c0489c2bf9",
+      "assessment_version": "0.4.0",
+      "detail": "Final maintained helper23-method fault suite, strict actual scenario configuration binding, measured Coin/reset media oracle and failure-report retention source reviewed. These owned validation tools add no runtime component; their current preferred source must appear in the next matching archive. Actual original6/6 reanalysis and portable/browser/public acceptance are distinct stages."
     }
   ],
   "excluded_components": [
@@ -321,20 +416,25 @@
     "Phoenix library",
     "nall library",
     "game ROMs",
-    "other twenty DICE game circuits",
+    "other eighteen DICE game circuits",
     "SDK/compiler/container payloads",
     "Node/TypeScript/Playwright executables"
   ],
   "independent_review": {
     "result": "approved",
-    "scope": "Affected 0.3.1 owned GPL collector/content-keyed loading source and actual local production component inventory. No new dependency/component; historical engine/SDK and fflate assessments retained separately. This does not approve package, committed CI, deployment/live or physical qualification.",
-    "evidence": "Independent reviewer collaboration approval at 2026-10-11 02:17:13 UTC, recorded verbatim by delivery owner in build/device-qualification/independent-component-approval-ledger.json (SHA-256 951ba64865465b3226e471a192042abfe2910ddd42a86c384ca125b3fc3f284b); exact reviewed build/device-qualification/validation/component-inventory.json (SHA-256 8291ba1f1f02e670b385dbc3e61ca8e21a9e7eb1ad31ec3a52947dad092939f0). Subsequent independently authored build/device-qualification/review/local-production-review.json (SHA-256 9259145e0fb81db64d34d44c649a38fd730e26197ce8e9801956acff7bf768e7) supplements that original message ledger."
+    "scope": "Affected 0.4.0 actual three-circuit compiled/dependency/link-member and frontend component/license basis, exact retained Arm MIT notices and unchanged preferred fflate source, plus matching-source packaging contract. Permits local candidate packaging with current refreshed provenance; does not approve stale runtime correspondence, actual package/archive, gameplay/fidelity, browser/CI, public delivery or physical readiness.",
+    "evidence": "Independently authored build/v040/review/core-component-v2-review.json (SHA-256 8beebf41c769937f3e993c0a4944c2dd0c7165e73110244cdfea88e090cba3cf) and frontend-component-v1-license-contract-review.json (SHA-256 78fb834945336766c93fd099b242ebafba5d818dd19761f142f61f10bf1b592d). Frontend-v1 identifies one later owned GPL main.ts copy change: no license blocker, but fresh provenance required by the packager before actual package/source review. The initial v2 source/provenance was independently closed by build/v040/review/frontend-v2-provenance-and-unit-closure.json (SHA-256 b1eeb147f567520fd1d4c3de39d6a02e5719bc028b2957aef38095d32da8dc65); its refreshed 48 inputs/seven output hashes matched that source at its recorded stage. Actual package/archive and all later acceptance gates remain separate. Subsequent narrow GPL report-scope and renderer repairs require refreshed frontend provenance/source packaging. The affected renderer core is independently closed by core-component-v4-review.json (SHA-256 22ecc6afd1418c75923f75f3f7522ff953ff5e7cb3f75e6bb97049c2dadeff62), with identical seven archives/133 members/fourteen math routines and every recorded current native/Wasm input/output verified. Refreshed actual frontend-v3-actual-component-review.json (SHA-256 03c862c208992fd4f2b1718b357eb5e5446a1a2e26a74e957e1c576a57532f59) now verifies all48 current inputs/seven outputs/27notice hashes at canonical runtime16eb7312c00b46ae7286f4153c87574faca5445a67f5e0a89e1e81d6d1304acb, closing the affected frontend provenance requirement for local current packaging. Subsequent actual source/archive and full delivery gates remain separate."
   },
   "evidence_baseline_version": "0.2.0",
-  "assessment_continuity": "The Pong circuit, SDK runtime families, compiler and existing toolchain notices retain the explicitly historical 0.2.0 assessment basis. The 0.3.0 app adds fflate 0.8.2: its MIT notice, explicit UZIP attribution, preferred source, pinned npm identity and actual imported-byte/output inventory passed independent affected-component review. Current local evidence is recorded separately; historical hashes do not qualify current outputs. Every subsequent artifact requires fresh provenance and matching source; committed CI/Pages and actual-live verification remain mandatory. Physical-device qualification is separate and pending. The 0.3.1 owned GPL collector and content-keyed loading helpers introduce no dependency/component. Their actual current 47-input/seven-output production inventory and existing compiled/runtime/notice families received independent affected-source/component approval. Its exact hashes are recorded as initial 0.3.1 evidence; every final committed artifact still requires fresh provenance, matching source and independent actual acceptance.",
+  "assessment_continuity": "The Pong circuit, SDK runtime families, compiler and existing toolchain notices retain the explicitly historical 0.2.0 assessment basis. The 0.3.0 app adds fflate 0.8.2: its MIT notice, explicit UZIP attribution, preferred source, pinned npm identity and actual imported-byte/output inventory passed independent affected-component review. Current local evidence is recorded separately; historical hashes do not qualify current outputs. Every subsequent artifact requires fresh provenance and matching source; committed CI/Pages and actual-live verification remain mandatory. Physical-device qualification is separate and pending. The 0.3.1 owned GPL collector and content-keyed loading helpers introduce no dependency/component. Their actual current 47-input/seven-output production inventory and existing compiled/runtime/notice families received independent affected-source/component approval. Its exact hashes are recorded as initial 0.3.1 evidence; every final committed artifact still requires fresh provenance, matching source and independent actual acceptance. The 0.4.0 first-game batch is a new compiled scope: prior Pong-only evidence does not approve the two additional circuits or their analog-audio/link-member dependencies. Fresh actual provenance and independent component/source review are required before preview distribution. Fresh 0.4.0 core and frontend component/license/source-contract reviews now accept the concrete 42-TU Wasm scope, seven archives/133 members/14 math members, retained exact Arm MIT notices and unchanged MIT fflate preferred source. The license gate permits local packaging only with current source/provenance; initial component snapshots do not qualify later outputs. Actual matching archive/source, fidelity, browser, committed CI and public acceptance remain mandatory separate gates.",
   "historical_independent_review_0_3_0": {
     "result": "approved",
     "scope": "Affected 0.3.0 linked browser-helper/component/source assessment and actual local production inventory; historical engine/SDK assessment retained separately.",
     "evidence": "build/ui-030-audit/production-inventory-review.json and official-fflate-source-review.json; product source/notices review at build/ui-030-audit/provisional-review.md. Final committed artifact and actual-live reviews remain separate mandatory delivery gates."
+  },
+  "historical_independent_review_0_3_1": {
+    "result": "approved",
+    "scope": "Affected 0.3.1 owned GPL collector/content-keyed loading source and actual local production component inventory. No new dependency/component; historical engine/SDK and fflate assessments retained separately. This does not approve package, committed CI, deployment/live or physical qualification.",
+    "evidence": "Independent reviewer collaboration approval at 2026-10-11 02:17:13 UTC, recorded verbatim by delivery owner in build/device-qualification/independent-component-approval-ledger.json (SHA-256 951ba64865465b3226e471a192042abfe2910ddd42a86c384ca125b3fc3f284b); exact reviewed build/device-qualification/validation/component-inventory.json (SHA-256 8291ba1f1f02e670b385dbc3e61ca8e21a9e7eb1ad31ec3a52947dad092939f0). Subsequent independently authored build/device-qualification/review/local-production-review.json (SHA-256 9259145e0fb81db64d34d44c649a38fd730e26197ce8e9801956acff7bf768e7) supplements that original message ledger."
   }
 }

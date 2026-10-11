@@ -1,0 +1,58 @@
+Supplemental musl math notices for the NoCPU 0.4.0 Wasm distribution.
+Source: Emscripten 3.1.74, commit 1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5.
+Concrete exp.o and exp_data.o members are linked; exp_data.h is their
+supporting source header. The following copyright/license headers are
+retained verbatim from those pinned SDK files.
+
+system/lib/libc/musl/src/math/exp.c
+Source SHA-256: 7db56f21ca9b8915d36dd5099b707aafeb6a736eae798e19b76b074764e75f34
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/exp.c
+/*
+ * Double-precision e^x function.
+ *
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
+
+system/lib/libc/musl/src/math/exp_data.c
+Source SHA-256: c55dff64e369fe816cd8ce367064989bb119f85783599680d1a329031c660689
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/exp_data.c
+/*
+ * Shared data between exp, exp2 and pow.
+ *
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
+
+system/lib/libc/musl/src/math/exp_data.h
+Source SHA-256: df77fca837edd02b260dd09a2914202775909ae67a059218ae38cfab104e6d16
+https://github.com/emscripten-core/emscripten/blob/1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5/system/lib/libc/musl/src/math/exp_data.h
+/*
+ * Copyright (c) 2018, Arm Limited.
+ * SPDX-License-Identifier: MIT
+ */
+
+The MIT grant is retained from the same pinned musl COPYRIGHT below.
+The complete musl COPYRIGHT and contributor terms accompany this notice
+in musl-emscripten-3.1.74-COPYRIGHT.txt.
+
+Copyright © 2005-2020 Rich Felker, et al.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

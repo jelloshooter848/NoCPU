@@ -5,7 +5,7 @@ import { screen, titleSettings, installGamepads, padState, padPresent } from './
 import { snapshot, start, waitSimulation, paddles, initialRenderedPaddles, installAudioProbe,
   openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectExternalLayout, noInsets } from './helpers';
 
-test('all audited games have truthful library, ROM, sound and control information with only Pong playable', async ({ page }) => {
+test('all audited games have truthful library, ROM, sound and control information with three original circuits playable', async ({ page }) => {
   await page.addInitScript(() => {
     const native = IDBFactory.prototype.open;
     IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
@@ -38,19 +38,19 @@ test('all audited games have truthful library, ROM, sound and control informatio
     await page.getByTestId(`game-${game.id}`).click();
     await screen(page, 'game-info');
     await expect(page.locator('#game-info-heading')).toHaveText(game.display_name);
-    await expect(page.getByTestId('game-port-status')).toHaveText(game.id === 'pong' ? 'Ready to play' : 'Browser port pending');
+    await expect(page.getByTestId('game-port-status')).toHaveText(['pong', 'pongdoubles', 'spacerace'].includes(game.id) ? 'Ready to play' : 'Browser port pending');
     await expect(page.getByTestId('game-rom-status')).toHaveText(game.roms.length ? 'ROM required · not imported' : 'No ROM needed');
     await expect(page.getByTestId('game-audio-status')).toHaveText(game.audio.mono_output_wired
-      ? game.id === 'pong' ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
+      ? ['pong', 'pongdoubles', 'spacerace'].includes(game.id) ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
       : 'Inherited audio unavailable in DICE');
-    if (game.id === 'pong') await expect(page.getByTestId('play-selected')).toBeEnabled();
+    if (['pong', 'pongdoubles', 'spacerace'].includes(game.id)) await expect(page.getByTestId('play-selected')).toBeEnabled();
     else await expect(page.getByTestId('play-selected')).toBeDisabled();
     if (game.roms.length) {
       await page.getByText('Required ROM files', { exact: true }).click();
       for (const requirement of game.roms) await expect(page.locator('.rom-requirements')).toContainText(requirement.expected_member);
     }
     await page.getByRole('button', { name: 'Controls & help', exact: true }).click();
-    if (game.id !== 'pong') for (const control of game.controls) {
+    if (!['pong', 'pongdoubles', 'spacerace'].includes(game.id)) for (const control of game.controls) {
       await expect(page.locator('#game-help-content')).toContainText(control.label);
     }
     await page.getByTestId('back').click();
@@ -244,7 +244,7 @@ test('gamepad capture rejects conflicts, assigns independent axes and consumes t
   await expect(page.getByTestId('gamepad-p2-axis')).toHaveValue('1');
   await page.getByTestId('back').click();
   await page.getByRole('button', { name: 'How to play', exact: true }).click();
-  await expect(page.locator('#game-help-content')).toContainText('Player 1: controller 1, axis 3');
+  await expect(page.locator('#game-help-content')).toContainText('Player 1 (left paddle): controller 1, axis 3');
   await expect(page.locator('#game-help-content')).toContainText('Controller 1 · button 3');
   await page.getByTestId('back').click();
   await page.getByTestId('play-pong').click();

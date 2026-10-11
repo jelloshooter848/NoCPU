@@ -1,29 +1,38 @@
 // NoCPU browser adapter, GPL-3.0-or-later. Circuit behavior comes from DICE.
+import type { GameOptions, PlayableGameId } from './game-contract';
 export type CoreCommand =
-  | { type: 'init'; moduleUrl: string; seed: number }
+  | { type: 'init'; moduleUrl: string; seed: number; gameId: PlayableGameId; options: GameOptions }
   | { type: 'clock'; running: boolean; epoch: number }
-  | { type: 'inputs'; axes: [number | null, number | null]; revision: number }
-  | { type: 'keys'; directions: [number, number] }
+  | { type: 'inputs'; axes: (number | null)[]; revision: number }
+  | { type: 'keys'; directions: number[] }
   | { type: 'coin' }
+  | { type: 'start' }
   | { type: 'release' }
   | { type: 'frame'; epoch: number }
   | { type: 'ack'; epoch: number; sequence: number }
-  | { type: 'reset'; id: number; seed: number; epoch: number; running: boolean }
+  | { type: 'reset'; id: number; seed: number; epoch: number; running: boolean; options: GameOptions }
   | { type: 'snapshot'; id: number }
   | { type: 'destroy' };
 
 export interface CoreSnapshot {
+  gameId: PlayableGameId;
+  options: GameOptions;
   timeps: string;
   frame: number;
-  hits: number;
+  hits: number | null;
+  crashes: [number, number] | null;
   scores: [number, number];
   run: boolean;
-  attract: boolean;
-  axes: [number, number];
+  attract: boolean | null;
+  axes: number[];
+  directions: number[];
   coin: boolean;
+  coinsQueued: number;
+  start: boolean;
   inputRevision: number;
   wasmMemoryCapacityBytes: number;
   audioOverruns: number;
+  eventOverruns: number;
   audioTransportDroppedSamples: number;
 }
 

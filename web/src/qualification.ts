@@ -1,6 +1,7 @@
 // Optional device measurement, GPL-3.0-or-later. No circuit or playback controls.
 import { CORE_JS_QUERY, CORE_WASM_QUERY, createCoreAssetUrls } from './asset-identity';
 import type { QualificationAssetIdentity } from './asset-identity';
+import { isGameOptions, isPlayableGameId, normalizeGameOptions, type GameOptions, type PlayableGameId } from './game-contract';
 export interface QualificationIdentity {
   generation: number;
   resetId: number;
@@ -11,10 +12,13 @@ export interface QualificationIdentity {
 }
 
 export interface QualificationSnapshot {
+  gameId: PlayableGameId;
+  gameOptions: GameOptions;
+  nativeRunning: boolean;
   timePs: string;
   frame: number;
   runN: number;
-  attractN: number;
+  attractN: number | null;
   paused: boolean;
   screen: string;
   identityBefore: QualificationIdentity;
@@ -88,6 +92,10 @@ interface ManifestIdentity {
 
 export interface QualificationReport {
   schema_version: number;
+  game: { id: PlayableGameId; options: GameOptions } | null;
+  game_consistent: boolean;
+  game_sessions: { id: PlayableGameId; options: GameOptions; generation: number }[];
+  native_run_scope: string;
   scope: string;
   release_ready: false;
   tested_at: string;
@@ -185,8 +193,11 @@ export function annotateQualificationReport(report: QualificationReport, metadat
 }
 
 function cleanSnapshot(value: QualificationSnapshot): QualificationSnapshot {
-  if (!/^\d+$/.test(value.timePs) || !Number.isSafeInteger(value.frame) || value.frame < 0
-    || ![0, 1].includes(value.runN) || ![0, 1].includes(value.attractN)
+  if (!isPlayableGameId(value.gameId) || !isGameOptions(value.gameId, value.gameOptions)
+    || typeof value.nativeRunning !== 'boolean' || value.runN !== Number(!value.nativeRunning)
+    || (value.gameId === 'spacerace' ? value.attractN !== null : ![0, 1].includes(value.attractN as number))
+    || !/^\d+$/.test(value.timePs) || !Number.isSafeInteger(value.frame) || value.frame < 0
+    || ![0, 1].includes(value.runN)
     || typeof value.paused !== 'boolean' || typeof value.screen !== 'string') {
     throw new Error('Invalid native clock or frame observation.');
   }
@@ -212,7 +223,8 @@ function cleanSnapshot(value: QualificationSnapshot): QualificationSnapshot {
   // metadata, controller identifiers and unrelated debug properties.
   const identity = (item: QualificationIdentity): QualificationIdentity => ({ generation: item.generation,
     resetId: item.resetId, clockEpoch: item.clockEpoch, ready: item.ready, resetting: item.resetting, failed: item.failed });
-  return { timePs: value.timePs, frame: value.frame, runN: value.runN, attractN: value.attractN,
+  return { gameId: value.gameId, gameOptions: normalizeGameOptions(value.gameId, value.gameOptions), nativeRunning: value.nativeRunning,
+    timePs: value.timePs, frame: value.frame, runN: value.runN, attractN: value.attractN,
     paused: value.paused, screen: value.screen,
     identityBefore: identity(value.identityBefore), identity: identity(value.identity), audio,
     worker: { wasmMemoryCapacityBytes: value.worker.wasmMemoryCapacityBytes } };
@@ -345,7 +357,7 @@ export function createQualificationRecorder(options: QualificationRecorderOption
   function active(sample: Sample): boolean {
     const state = sample.state;
     return sample.visible && sample.focused && state.screen === 'playing' && !state.paused
-      && state.runN === 0 && state.attractN === 1 && state.identity.ready && !state.identity.failed && !state.identity.resetting;
+      && state.nativeRunning && state.runN === 0 && (state.gameId === 'spacerace' || state.attractN === 1) && state.identity.ready && !state.identity.failed && !state.identity.resetting;
   }
   async function readSample(): Promise<Sample> {
     const before = now();
@@ -369,6 +381,8 @@ export function createQualificationRecorder(options: QualificationRecorderOption
       if (phase === 'finishing' && sample.after_ms > stopWall) reason = 'finish_crossing_query';
       else if (sample.boundary_before !== sample.boundary_after || previous.boundary_before !== previous.boundary_after
         || sample.boundary_after !== previous.boundary_after) reason = 'foreground_boundary';
+      else if (previous.state.gameId !== sample.state.gameId
+        || JSON.stringify(previous.state.gameOptions) !== JSON.stringify(sample.state.gameOptions)) reason = 'game_or_settings_boundary';
       else if (!sameIdentity(previous.state.identityBefore, previous.state.identity)
         || !sameIdentity(sample.state.identityBefore, sample.state.identity)
         || !sameIdentity(previous.state.identity, sample.state.identity)) reason = 'generation_reset_or_clock_boundary';
@@ -486,9 +500,19 @@ export function createQualificationRecorder(options: QualificationRecorderOption
       const allAudio = samples.length > 1 && !counterDiscontinuity ? Object.fromEntries(AUDIO_COUNTERS.map((key) =>
         [key, Number(samples.at(-1)!.state.audio[key]) - Number(samples[0].state.audio[key]) - audio[key]])) : null;
       const initialAudio = samples[0] ? Object.fromEntries(AUDIO_COUNTERS.map((key) => [key, Number(samples[0].state.audio[key])])) : null;
-      const complete = errors.length === 0 && samples.length > 1 && unchanged;
+      const initialGame = samples[0] ? { id: samples[0].state.gameId, options: structuredClone(samples[0].state.gameOptions) } : null;
+      const gameConsistent = Boolean(initialGame && samples.every((sample) => sample.state.gameId === initialGame.id
+        && JSON.stringify(sample.state.gameOptions) === JSON.stringify(initialGame.options)));
+      const gameSessions = [...new Map(samples.map((sample) => [
+        `${sample.state.identity.generation}:${sample.state.gameId}:${JSON.stringify(sample.state.gameOptions)}`,
+        { id: sample.state.gameId, options: structuredClone(sample.state.gameOptions), generation: sample.state.identity.generation },
+      ])).values()];
+      if (!gameConsistent) fail('The recording changed game or game settings, or has no identified circuit. Record each game separately.');
+      const complete = errors.length === 0 && samples.length > 1 && unchanged && gameConsistent;
       const report: QualificationReport = {
-        schema_version: 1, scope: 'Instrumented measurement only. Human device identity, speaker/touch/lifecycle observations and independent artifact verification remain required.',
+        schema_version: 1, game: initialGame, game_consistent: gameConsistent, game_sessions: gameSessions,
+        native_run_scope: 'Pong uses its original RUN_n and ATTRACT_n signals. Pong Doubles uses original ATTRACT_n (D2.4) for game-active status. Space Race uses the original GAME_ON timer signal (C9.3), preserving its inherited coin/start behavior; it has no equivalent ATTRACT signal, so attractN is null. No activity is inferred from input events or displayed scores.',
+        scope: 'Instrumented measurement only. Human device identity, speaker/touch/lifecycle observations and independent artifact verification remain required.',
         release_ready: false, tested_at: startedAt, finished_at: finishedAt,
         device: { physical: metadata.physical ?? null, platform: text(metadata.platform), model: text(metadata.model),
           os_version: text(metadata.osVersion), browser: text(metadata.browser), browser_version: text(metadata.browserVersion), controller: text(metadata.controller) },
@@ -500,7 +524,7 @@ export function createQualificationRecorder(options: QualificationRecorderOption
           conservative_simulation_speed_ratio: conservativeRatio, timing_uncertainty_seconds: measured.uncertainty,
           duration_requirement_met: complete && measured.wall - measured.uncertainty >= MIN_SECONDS,
           speed_requirement_met: complete && conservativeRatio !== null && conservativeRatio >= MIN_RATIO,
-          duration_scope: 'Aggregate same-generation/reset/clock foreground native-running play. Menus, pause, hidden, attract and transition intervals excluded; stalls within eligible intervals remain counted.',
+          duration_scope: 'Aggregate one identified game with unchanged circuit settings; accepted intervals retain same-generation/reset/clock foreground native-running play. Menus, pause, hidden, attract and transition intervals excluded; stalls within eligible intervals remain counted.',
           frame_pacing: pacingReport(), native_frames: segments.reduce((sum, item) => sum + item.native_frames, 0),
           audio_underruns: audio.underruns, audio_deltas: audio,
           audio_counter_scope: 'Adapter/core differences over accepted active intervals. generatedSamples counts PCM received by the UI, not transport-discarded circuit PCM; scheduledSamples counts WebAudio submissions including gain-muted audio. underruns counts push-time output lead falling behind currentTime; discardedQueues counts lead-over-180ms flushes; coreOverruns and transportDroppedSamples are separate. Excluded deltas cover only the sampled session and are null across generation/counter discontinuity. Initial cumulative counters are a premeasurement baseline, not a startup measurement. No speaker or sound-accuracy claim.',
@@ -510,7 +534,7 @@ export function createQualificationRecorder(options: QualificationRecorderOption
           memory_scope: 'Allocated Wasm linear-memory capacity; not used heap, total browser-process memory or phone RAM.',
           input_response: null },
         samples: [...samples], segments: structuredClone(segments), excluded_intervals: [...excluded], events: [...events],
-        privacy: 'Only supplied identity/observations (including optional controller model), build manifest, native clock/frame/session flags, audio counters and Wasm capacity. No automatic ROM payload/metadata, settings, key codes, axes, controller IDs, storage dumps, secrets or remote upload.' };
+        privacy: 'Only supplied identity/observations (including optional controller model), build manifest, allowlisted circuit game ID/options, native clock/frame/session flags, audio counters and Wasm capacity. No automatic ROM payload/metadata, personal preferences or control mappings, key codes, axes, controller IDs, storage dumps, secrets or remote upload.' };
       sessionOpen = false; phase = 'complete'; publish();
       return annotateQualificationReport(report, metadata);
     },

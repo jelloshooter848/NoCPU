@@ -1,0 +1,409 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Black-box UI/native observations; no circuit state or media is injected.
+import { expect, type Page } from '@playwright/test';
+import type { GameOptions, PlayableGameId } from '../../web/src/game-contract';
+import type { Bounds, Insets } from './helpers';
+
+export interface GameObservation {
+  gameId: PlayableGameId; options: GameOptions; generation: number; resetId: number; clockEpoch: number;
+  timeps: string; frame: number; hits: number | null; crashes: [number, number] | null;
+  scores: [number, number]; run: boolean; attract: boolean | null; axes: number[]; directions: number[];
+  coin: boolean; start: boolean; heldKeys: string[]; pointerCount: number; paused: boolean;
+  audio: { generatedSamples: number; [key: string]: number | string };
+}
+export async function gameSnapshot(page: Page): Promise<GameObservation> {
+  return page.evaluate(async () => {
+    const state = await (window as any).__nocpuDebug.snapshot();
+    return { gameId: state.gameId, options: state.gameOptions, generation: state.identity.generation,
+      resetId: state.identity.resetId, clockEpoch: state.identity.clockEpoch,
+      timeps: state.timePs, frame: state.frame, hits: state.hits, crashes: state.crashes,
+      scores: state.scores, run: state.nativeRunning, attract: state.attractN === null ? null : state.attractN === 0,
+      axes: state.gameId === 'spacerace' ? [] : [state.inputs.paddle1, state.inputs.paddle2,
+        ...(state.gameId === 'pongdoubles' ? [state.inputs.paddle3, state.inputs.paddle4] : [])],
+      directions: state.inputs.directions, coin: state.inputs.coin !== 0, start: state.inputs.start !== 0,
+      heldKeys: state.heldKeys, pointerCount: state.pointerCount, paused: state.paused, audio: state.audio };
+  });
+}
+export async function waitGameTime(page: Page, target: bigint): Promise<void> {
+  await expect.poll(async () => BigInt((await gameSnapshot(page)).timeps) >= target, { timeout: 30_000 }).toBe(true);
+}
+export async function advanceGame(page: Page, microseconds: number): Promise<void> {
+  const state = await gameSnapshot(page);
+  await waitGameTime(page, BigInt(state.timeps) + BigInt(microseconds) * 1_000_000n);
+}
+export async function launchFromLibrary(page: Page, gameId: PlayableGameId, initial: boolean | 'library' = true): Promise<void> {
+  if (initial === true) { await page.goto('./?debug'); await page.getByTestId('open-library').click(); }
+  else if (initial !== 'library') {
+    const state = await gameSnapshot(page);
+    if (!state.paused) await page.getByTestId('pause').click();
+    await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'paused');
+    await page.getByTestId('return-library').click();
+  }
+  await page.getByTestId(`game-${gameId}`).click();
+  await page.getByTestId('play-selected').click();
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await expect.poll(async () => (await gameSnapshot(page)).gameId).toBe(gameId);
+  await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'playing');
+  await waitGameTime(page, 800_000_000_000n);
+}
+export async function activateGame(page: Page, gameId: PlayableGameId): Promise<void> {
+  await page.getByTestId('insert-coin').click();
+  if (gameId === 'pongdoubles') {
+    // Original Doubles has a distinct four-player credit/start configuration.
+    // These are two user coin presses, never a synthetic circuit mode change.
+    await page.getByTestId('insert-coin').click();
+  }
+  if (gameId !== 'pong') await page.getByTestId('start-game').click();
+  await expect.poll(async () => (await gameSnapshot(page)).run, { timeout: 30_000 }).toBe(true);
+  await advanceGame(page, 150000);
+}
+export async function gamePause(page: Page): Promise<void> {
+  if (!(await gameSnapshot(page)).paused) await page.getByTestId('pause').click();
+  await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'paused');
+}
+export async function gameSettings(page: Page): Promise<void> {
+  await gamePause(page); await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'settings');
+}
+export async function resumeFromSettings(page: Page): Promise<void> {
+  await page.getByTestId('back').click(); await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'paused');
+  await page.getByTestId('resume').click(); await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'playing');
+}
+export async function installFourGamepads(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const target = window as any;
+    target.__testPads = Array.from({ length: 4 }, (_, index) => ({ index, id: `Synthetic platform controller ${index + 1}`,
+      connected: true, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0],
+      buttons: Array.from({ length: 32 }, () => ({ pressed: false, touched: false, value: 0 })) }));
+    Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => target.__testPads });
+  });
+}
+export async function externalControls(page: Page, gameId: PlayableGameId, insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 }): Promise<unknown> {
+  const viewport = page.viewportSize()!;
+  const raster = (await page.getByTestId('game-canvas').boundingBox())!;
+  expect(raster).not.toBeNull(); expect(raster.width / raster.height).toBeCloseTo(4 / 3, 2);
+  const ids = gameId === 'pongdoubles' ? [1, 3, 4, 2].map((slot) => `paddle-p${slot}`)
+    : gameId === 'spacerace' ? ['direction-p1-up', 'direction-p1-down', 'direction-p2-up', 'direction-p2-down'] : ['paddle-p1', 'paddle-p2'];
+  const bounds: { id: string; target: Bounds; track?: Bounds }[] = [];
+  for (const id of ids) {
+    const control = page.getByTestId(id); await expect(control).toBeVisible();
+    const target = (await control.boundingBox())!; expect(target).not.toBeNull();
+    expect(target.width + .001).toBeGreaterThanOrEqual(64); expect(target.height + .001).toBeGreaterThanOrEqual(44);
+    for (const item of [target, raster]) {
+      expect(item.x).toBeGreaterThanOrEqual(insets.left - .001); expect(item.y).toBeGreaterThanOrEqual(insets.top - .001);
+      expect(item.x + item.width).toBeLessThanOrEqual(viewport.width - insets.right + .001);
+      expect(item.y + item.height).toBeLessThanOrEqual(viewport.height - insets.bottom + .001);
+    }
+    const separation = Math.max(target.x - raster.x - raster.width, raster.x - target.x - target.width,
+      target.y - raster.y - raster.height, raster.y - target.y - target.height);
+    expect(separation + .001, `${id} stays outside the raster`).toBeGreaterThanOrEqual(8);
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'),
+      { x: target.x + target.width / 2, y: target.y + target.height / 2 })).toBe(id);
+    if (id.startsWith('paddle')) {
+      const track = (await control.locator('.control-track').boundingBox())!; expect(track).not.toBeNull();
+      const compact = viewport.width <= 360 || viewport.height <= 620;
+      expect(track.height + .001).toBeGreaterThanOrEqual(compact ? 120 : 144); bounds.push({ id, target, track });
+    } else bounds.push({ id, target });
+  }
+  // Controls themselves cannot overlap, independently of implementation grid formulas.
+  for (let left = 0; left < bounds.length; left++) for (let right = left + 1; right < bounds.length; right++) {
+    const a = bounds[left].target, b = bounds[right].target;
+    const overlapWidth = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+    const overlapHeight = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+    expect(overlapWidth <= 0 || overlapHeight <= 0, `${bounds[left].id} and ${bounds[right].id} remain independently hit-testable`).toBe(true);
+  }
+  if (gameId === 'pongdoubles') {
+    const byId = Object.fromEntries(bounds.map((entry) => [entry.id, entry.target]));
+    if (viewport.width > viewport.height) {
+      for (const id of ['paddle-p1', 'paddle-p3']) expect(byId[id].x + byId[id].width + 8).toBeLessThanOrEqual(raster.x + .001);
+      for (const id of ['paddle-p4', 'paddle-p2']) expect(byId[id].x).toBeGreaterThanOrEqual(raster.x + raster.width + 8 - .001);
+    } else {
+      for (const entry of bounds) expect(entry.target.y).toBeGreaterThanOrEqual(raster.y + raster.height + 8 - .001);
+      expect(bounds.map((entry) => entry.target.x)).toEqual([...bounds.map((entry) => entry.target.x)].sort((a, b) => a - b));
+    }
+  }
+  for (const fx of [.05, .5, .95]) for (const fy of [.05, .5, .95]) {
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+      { x: raster.x + raster.width * fx, y: raster.y + raster.height * fy })).toBe('CANVAS');
+  }
+  return { gameId, viewport, simulatedSafeInsets: insets, raster, controls: bounds };
+}
+
+/** Original DICE calibration, not CSS geometry or worker-reported input values.
+ * Doubles: build/reference-games/20261011T054438379290328Z/pongdoubles-default/baseline/epoch0/6500ms.ppm
+ * and calibration-hardware.json, two separate coins before Start. Space motion:
+ * build/reference-games/20261011T055400597425800Z/calibration-short-directions.json.
+ * Doubles fixed columns are isolated from original score glyphs: both baseline
+ * and build/reference-games/20261011T060201757660291Z-options-calibration/pongdoubles-15/baseline/epoch0/15000ms.ppm
+ * preserve 25–27 px paddles in strips75..79,469..474,174..178,371..375.
+ * Whole-frame components would merge P2/P3 with adjacent original score digits
+ * at the upper endpoint; only the authentic paddle columns belong to this ROI.
+ * Source slot
+ * order is outer-left, outer-right, inner-left, inner-right. Original Space
+ * Race rocket glyphs are 15–40 px high; its 55 px score zeros are excluded.
+ */
+export async function renderedGameObjects(page: Page, gameId: 'pongdoubles' | 'spacerace'): Promise<{ x: number; y: number; width: number; height: number; area: number }[]> {
+  return page.getByTestId('game-canvas').evaluate((element, gameId) => {
+    const canvas = element as HTMLCanvasElement, { width, height } = canvas;
+    if (width !== 576 || height !== 432) throw new Error('Unexpected original circuit raster dimensions');
+    const rgba = canvas.getContext('2d')!.getImageData(0, 0, width, height).data;
+    function componentsWithin(left: number, right: number) {
+      const visited = new Uint8Array(width * height);
+      const components: { x: number; y: number; width: number; height: number; area: number }[] = [];
+      for (let row = 0; row < height; row++) for (let column = left; column <= right; column++) {
+        const initial = row * width + column;
+        if (visited[initial] || rgba[initial * 4] < 150) continue;
+        visited[initial] = 1; const stack = [initial]; let count = 0, sx = 0, sy = 0;
+        let minX = width, minY = height, maxX = 0, maxY = 0;
+        while (stack.length) {
+          const pixel = stack.pop()!, x = pixel % width, y = Math.floor(pixel / width);
+          count++; sx += x; sy += y; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          // Eight-way adjacency preserves diagonal rocket glyph fragments.
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if ((!dx && !dy) || x + dx < left || x + dx > right || y + dy < 0 || y + dy >= height) continue;
+            const next = (y + dy) * width + x + dx;
+            if (!visited[next] && rgba[next * 4] >= 150) { visited[next] = 1; stack.push(next); }
+          }
+        }
+        components.push({ x: sx / count, y: sy / count, width: maxX - minX + 1, height: maxY - minY + 1, area: count });
+      }
+      return components;
+    }
+    const bands = gameId === 'pongdoubles' ? [[60, 95], [450, 495], [155, 195], [355, 390]] : [[172, 200], [345, 373]];
+    const originalPaddleColumns = [[75, 79], [469, 474], [174, 178], [371, 375]];
+    const wholeFrame = gameId === 'spacerace' ? componentsWithin(0, width - 1) : undefined;
+    return bands.map(([left, right], slot) => {
+      const components = wholeFrame ?? componentsWithin(originalPaddleColumns[slot][0], originalPaddleColumns[slot][1]);
+      const candidates = components.filter((part) => part.x >= left && part.x <= right && part.height >= 15 && part.height <= 40
+        && (gameId === 'pongdoubles' ? part.width >= 1 && part.width <= 8 : part.width >= 12 && part.width <= 30));
+      if (!candidates.length) throw new Error(`No original-shaped ${gameId === 'pongdoubles' ? 'paddle' : 'rocket'} ${slot + 1}`);
+      candidates.sort((a, b) => b.area - a.area); return candidates[0];
+    });
+  }, gameId);
+}
+export async function initialGameObjects(page: Page, gameId: 'pongdoubles' | 'spacerace'): Promise<Awaited<ReturnType<typeof renderedGameObjects>>> {
+  let observed: Awaited<ReturnType<typeof renderedGameObjects>> | undefined;
+  await expect.poll(async () => {
+    try { observed = await renderedGameObjects(page, gameId); return true; }
+    catch (error) { if (!(error instanceof Error) || !error.message.includes('No original-shaped')) throw error; return false; }
+  }, { timeout: 15_000, message: 'Every original-shaped player object must be present in real circuit output' }).toBe(true);
+  return observed!;
+}
+
+/** Bracket visible original rocket sprites with native state observations.
+ * Reject any clock/session/activity or crash-counter discontinuity rather than
+ * counting a collision reset as joystick movement.
+ */
+export interface RocketObservationEvidence {
+  before: GameObservation; after?: GameObservation;
+  objects?: Awaited<ReturnType<typeof renderedGameObjects>>;
+  reference: GameObservation; accepted: boolean; missingSprite?: string;
+}
+export async function continuousRocketObservation(page: Page, baseline?: GameObservation,
+  record?: (observation: RocketObservationEvidence) => void): Promise<{
+  before: GameObservation; after: GameObservation; objects: Awaited<ReturnType<typeof renderedGameObjects>>;
+} | null> {
+  const before = await gameSnapshot(page);
+  let objects: Awaited<ReturnType<typeof renderedGameObjects>>;
+  try { objects = await renderedGameObjects(page, 'spacerace'); }
+  catch (error) {
+    if (error instanceof Error && error.message.includes('No original-shaped')) {
+      record?.({ before, reference: baseline ?? before, accepted: false, missingSprite: error.message });
+      return null;
+    }
+    throw error;
+  }
+  const after = await gameSnapshot(page), reference = baseline ?? before;
+  const same = (state: GameObservation) => state.gameId === 'spacerace' && state.run && !state.paused
+    && state.generation === reference.generation && state.resetId === reference.resetId && state.clockEpoch === reference.clockEpoch
+    && JSON.stringify(state.crashes) === JSON.stringify(reference.crashes);
+  const accepted = same(before) && same(after);
+  record?.({ before, after, reference, objects, accepted });
+  return accepted ? { before, after, objects } : null;
+}
+
+/** Source-calibrated, ordinary-UI Space trajectory with all timing observations
+ * local to the page. Synthetic DOM events are explicitly labelled; later
+ * browser-driver keyboard, pointer and controller cases remain independent.
+ * The detector body duplicates the accepted original-pixel oracle unchanged
+ * to keep existing Doubles rendering/control paths byte-identical.
+ * Candidate original trajectory evidence: build/v040/space-motion-exploration-v4-actual-v2.
+ */
+interface SpaceMovementNativeState extends GameObservation { resetting: boolean; ready: boolean; failed: boolean; }
+export async function sourceCalibratedSpaceMovement(page: Page) {
+  return page.evaluate(async () => {
+    const observations: unknown[] = [], events: unknown[] = [];
+    const coinSamples: { phase: string; state: SpaceMovementNativeState }[] = [];
+    const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="game-canvas"]')!;
+    let lastNative: SpaceMovementNativeState | undefined;
+    const read = async (): Promise<SpaceMovementNativeState> => {
+      const state = await (window as any).__nocpuDebug.snapshot();
+      const observation: SpaceMovementNativeState = { gameId: state.gameId, options: state.gameOptions, generation: state.identity.generation,
+        resetting: state.identity.resetting, ready: state.identity.ready, failed: state.identity.failed,
+        resetId: state.identity.resetId, clockEpoch: state.identity.clockEpoch,
+        timeps: state.timePs, frame: state.frame, hits: state.hits, crashes: state.crashes,
+        scores: state.scores, run: state.nativeRunning, attract: state.attractN === null ? null : state.attractN === 0,
+        axes: [], directions: state.inputs.directions, coin: state.inputs.coin !== 0, start: state.inputs.start !== 0,
+        heldKeys: state.heldKeys, pointerCount: state.pointerCount, paused: state.paused, audio: state.audio };
+      lastNative = observation; return observation;
+    };
+    const detect = (element: Element, gameId: 'pongdoubles' | 'spacerace') => {
+    const canvas = element as HTMLCanvasElement, { width, height } = canvas;
+    if (width !== 576 || height !== 432) throw new Error('Unexpected original circuit raster dimensions');
+    const rgba = canvas.getContext('2d')!.getImageData(0, 0, width, height).data;
+    function componentsWithin(left: number, right: number) {
+      const visited = new Uint8Array(width * height);
+      const components: { x: number; y: number; width: number; height: number; area: number }[] = [];
+      for (let row = 0; row < height; row++) for (let column = left; column <= right; column++) {
+        const initial = row * width + column;
+        if (visited[initial] || rgba[initial * 4] < 150) continue;
+        visited[initial] = 1; const stack = [initial]; let count = 0, sx = 0, sy = 0;
+        let minX = width, minY = height, maxX = 0, maxY = 0;
+        while (stack.length) {
+          const pixel = stack.pop()!, x = pixel % width, y = Math.floor(pixel / width);
+          count++; sx += x; sy += y; minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+          // Eight-way adjacency preserves diagonal rocket glyph fragments.
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if ((!dx && !dy) || x + dx < left || x + dx > right || y + dy < 0 || y + dy >= height) continue;
+            const next = (y + dy) * width + x + dx;
+            if (!visited[next] && rgba[next * 4] >= 150) { visited[next] = 1; stack.push(next); }
+          }
+        }
+        components.push({ x: sx / count, y: sy / count, width: maxX - minX + 1, height: maxY - minY + 1, area: count });
+      }
+      return components;
+    }
+    const bands = gameId === 'pongdoubles' ? [[60, 95], [450, 495], [155, 195], [355, 390]] : [[172, 200], [345, 373]];
+    const originalPaddleColumns = [[75, 79], [469, 474], [174, 178], [371, 375]];
+    const wholeFrame = gameId === 'spacerace' ? componentsWithin(0, width - 1) : undefined;
+    return bands.map(([left, right], slot) => {
+      const components = wholeFrame ?? componentsWithin(originalPaddleColumns[slot][0], originalPaddleColumns[slot][1]);
+      const candidates = components.filter((part) => part.x >= left && part.x <= right && part.height >= 15 && part.height <= 40
+        && (gameId === 'pongdoubles' ? part.width >= 1 && part.width <= 8 : part.width >= 12 && part.width <= 30));
+      if (!candidates.length) throw new Error(`No original-shaped ${gameId === 'pongdoubles' ? 'paddle' : 'rocket'} ${slot + 1}`);
+      candidates.sort((a, b) => b.area - a.area); return candidates[0];
+    });
+    };
+    const millis = (ms: number) => BigInt(ms) * 1_000_000_000n;
+    const now = (s: GameObservation) => BigInt(s.timeps);
+    const sleep = () => new Promise<void>(resolve => setTimeout(resolve, 10));
+    const check = (valid: boolean, reason: string) => { if (!valid) throw new Error(reason); };
+    let reference: SpaceMovementNativeState | undefined;
+    const continuous = (state: GameObservation) => state.gameId === 'spacerace' && state.run && !state.paused
+      && (!reference || (state.generation === reference.generation && state.resetId === reference.resetId
+        && state.clockEpoch === reference.clockEpoch && JSON.stringify(state.crashes) === JSON.stringify(reference.crashes)));
+    const wait = async (phase: string, condition: (state: SpaceMovementNativeState) => boolean): Promise<SpaceMovementNativeState> => {
+      const deadline = performance.now() + 10000;
+      while (true) {
+        const state = await read(); observations.push({ phase, state });
+        if (phase === 'coin_held' || phase === 'coin_released') coinSamples.push({ phase, state });
+        if (reference) check(continuous(state), 'Session/activity/crash discontinuity during ' + phase);
+        if (condition(state)) return state;
+        check(performance.now() < deadline, 'Native observation budget exceeded during ' + phase);
+        await sleep();
+      }
+    };
+    const at = async (phase: string, target: bigint) => {
+      const state = await wait(phase, state => now(state) >= target);
+      observations.push({ phase: 'edge_timing', edge: phase, targetPs: target.toString(), state,
+        overshootPs: (now(state) - target).toString() });
+      // The bounded probe must actually stay within its local 25ms scheduling
+      // observation window; it cannot pretend a delayed phase was canonical.
+      check(now(state) - target <= millis(25), 'Overshot exploratory scheduled edge ' + phase);
+      return state;
+    };
+    const key = (kind: 'keydown' | 'keyup', code: string) => {
+      const value = code === 'KeyW' ? 'w' : code === 'KeyS' ? 's' : code;
+      const event = new KeyboardEvent(kind, { key: value, code, bubbles: true, cancelable: true });
+      events.push({ kind, code, isTrusted: event.isTrusted, wallMs: performance.now() });
+      canvas.dispatchEvent(event);
+    };
+    const bracket = async (phase: string) => {
+      const before = await read();
+      let objects: ReturnType<typeof detect> | undefined, failure: string | undefined;
+      try { objects = detect(canvas, 'spacerace'); } catch (error) { failure = String(error); }
+      const after = await read(), accepted = continuous(before) && continuous(after) && Boolean(objects);
+      const observation = { phase, before, after, objects, failure, accepted };
+      observations.push(observation);
+      check(accepted, 'Rejected original rocket bracket ' + phase);
+      return observation as typeof observation & { objects: ReturnType<typeof detect> };
+    };
+    const raster = async (phase: string, predicate: (objects: ReturnType<typeof detect>) => boolean) => {
+      const deadline = performance.now() + 10000;
+      while (true) {
+        const observation = await bracket(phase);
+        if (predicate(observation.objects)) return observation;
+        check(performance.now() < deadline, 'Original-raster predicate budget exceeded during ' + phase);
+        await sleep();
+      }
+    };
+    const click = (id: string) => {
+      const button = document.querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!;
+      const bounds = button?.getBoundingClientRect();
+      check(Boolean(button && !button.disabled && bounds.width && bounds.height && !button.closest('[hidden]')), 'Ordinary control unavailable: ' + id);
+      check(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)?.closest('button') === button, 'Ordinary control occluded: ' + id);
+      events.push({ kind: 'button_click', target: id, isTrusted: false, wallMs: performance.now() }); button.click();
+    };
+    let loaded: SpaceMovementNativeState | undefined, reset: SpaceMovementNativeState | undefined;
+    let coinHeld: SpaceMovementNativeState | undefined, coinReleased: SpaceMovementNativeState | undefined;
+    let failure: string | undefined;
+    try {
+      loaded = await read();
+      click('pause'); click('reset');
+      reset = await wait('fresh_reset', state => state.resetId === loaded!.resetId + 1 && state.clockEpoch !== loaded!.clockEpoch
+        && !state.resetting && state.ready && !state.failed && state.paused);
+      check(reset.generation === loaded.generation && now(reset) === 0n, 'Visible Reset did not acknowledge a fresh same-module native clock');
+      click('resume'); click('insert-coin');
+      const queued = await read(); observations.push({ phase: 'coin_queued_before_guard', state: queued });
+      check(now(queued) < millis(500), 'Initial post-reset Coin window missed');
+      coinHeld = await wait('coin_held', state => state.coin);
+      coinReleased = await wait('coin_released', state => !state.coin);
+      // Snapshots observe states after complete native slices, not switch edges.
+      // Keep the measured transition brackets separate from source-derived500/600ms edges.
+      const lastFalse = [...coinSamples].reverse().find(sample => !sample.state.coin && now(sample.state) <= now(coinHeld!))?.state;
+      const lastTrue = [...coinSamples].reverse().find(sample => sample.state.coin && now(sample.state) <= now(coinReleased!))?.state;
+      observations.push({ phase: 'coin_transition_brackets', sourceHeldEdgePs: millis(500).toString(), sourceReleaseEdgePs: millis(600).toString(),
+        lastFalse, firstTrue: coinHeld, lastTrue, firstFalse: coinReleased, exactEdgesDirectlyObserved: false });
+      check(now(coinHeld) >= millis(500) && now(coinHeld) < millis(600), 'Coin held observation outside original held window');
+      check(now(coinReleased) >= millis(600) && now(coinReleased) < millis(700), 'Coin release observation outside original released window');
+      check(Boolean(lastFalse && now(lastFalse) <= millis(500) && now(coinHeld) >= millis(500)), 'Observed Coin-on transition did not bracket the source guard');
+      check(Boolean(lastTrue && now(lastTrue) < millis(600) && now(coinReleased) >= millis(600)), 'Observed Coin-off transition did not bracket the source release');
+      const anchor = 0n;
+      await at('start_phase', millis(1000)); click('start-game');
+      reference = await wait('active', state => state.run);
+      await at('cold_phase', millis(1800));
+      const cold = await bracket('cold');
+      for (const [slot, upMs, downMs] of [[0, 2000, 2400], [1, 3200, 3600]] as const) {
+        const pulse = async (direction: -1 | 1, phaseMs: number) => {
+          const code = slot === 0 ? (direction < 0 ? 'KeyW' : 'KeyS') : (direction < 0 ? 'ArrowUp' : 'ArrowDown');
+          const expected = slot === 0 ? [direction, 0] : [0, direction];
+          await at(`p${slot + 1}_${direction < 0 ? 'up' : 'down'}_begin`, anchor + millis(phaseMs));
+          let acknowledged: GameObservation | undefined, released: GameObservation | undefined;
+          try {
+            key('keydown', code);
+            acknowledged = await wait('held_ack', state => JSON.stringify(state.directions) === JSON.stringify(expected));
+            await at(`p${slot + 1}_pulse_end`, anchor + millis(phaseMs + 300));
+          } finally {
+            key('keyup', code);
+            try { released = await wait('neutral_ack', state => state.directions.every(direction => direction === 0)); }
+            finally {
+              const last = released ?? lastNative;
+              observations.push({ phase: 'native_pulse', slot, direction, scheduledBeginPs: (anchor + millis(phaseMs)).toString(),
+                scheduledEndPs: (anchor + millis(phaseMs + 300)).toString(), acknowledged, released: last, neutralAcknowledged: Boolean(released),
+                acknowledgedDurationPs: acknowledged && last ? (now(last) - now(acknowledged)).toString() : null });
+            }
+          }
+        };
+        await pulse(-1, upMs);
+        const raised = await raster(`p${slot + 1}_raised`, objects => cold.objects[slot].y - objects[slot].y > 25);
+        await pulse(1, downMs);
+        await raster(`p${slot + 1}_lowered`, objects => objects[slot].y - raised.objects[slot].y > 5);
+      }
+    } catch (error) { failure = String(error); }
+    finally { for (const code of ['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown']) key('keyup', code); }
+    return { stage: 'software motion assertion', physicalQualification: false, inputSource: 'synthetic DOM events; isTrusted=false; actual application handlers',
+      phaseLimit: 'Ordinary visible fresh Reset restores the configured native machine before the startup Coin guard; every actual phase is recorded and overshot edges fail.',
+      replayDifference: 'The original retained replay includes a no-credit Start at200ms. This ordinary Coin-then-Start probe omits it; existing UI startup guard prevents emitting that early edge. It is a candidate source-calibrated trajectory, not an identical full replay.',
+      loaded, reset, coinHeld, coinReleased, reference, events, observations, failure };
+  });
+}

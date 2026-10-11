@@ -2,6 +2,12 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
+The user-authorized [0.4.0 work](docs/0.4.0_TASKS.md) is in development:
+original-derived **Pong Doubles and Space Race** join Pong as the first
+three-game preview. The other eighteen titles remain explicitly unported.
+Implementation, independent qualification and publication are tracked in
+[0.4.0 validation](docs/0.4.0_VALIDATION.md); no 0.4.0 deployment is claimed yet.
+
 **[Play the NoCPU browser preview](https://jelloshooter848.github.io/NoCPU/).**
 The independently verified 0.3.1 preview adds an opt-in phone qualification
 recorder to the game-first library, remapping, preferences and optional local
@@ -30,6 +36,7 @@ The frontend is a viewport-filling game: a title screen, library, the original P
 
 ## Start here
 
+- [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
 - [Physical phone/controller procedure](docs/DEVICE_QUALIFICATION.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
 - [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
