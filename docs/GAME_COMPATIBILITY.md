@@ -2,19 +2,16 @@
 
 NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
-The live [0.3.1 browser preview](https://jelloshooter848.github.io/NoCPU/)
-implements **Pong only** and has independently reviewed automated/public
-evidence; physical Android Chrome/iPhone Safari results remain pending.
-The user-authorized [0.4.0 batch](0.4.0_TASKS.md) adds **Pong Doubles and Space
-Race** as ROM-free original-derived circuits, with four independent vertical
-paddles and two digital sticks respectively. That implementation and its
-fresh original/native/Wasm per-game fidelity pass independent actual review.
-The authorized proportionate local browser scopes also pass independent review;
-final matching-source, committed full-matrix CI and publication qualification
-remain in progress. No 0.4.0 public deployment or physical-device pass is
-claimed yet. See [0.4.0
-validation](0.4.0_VALIDATION.md) and the historical [0.3.1
-report](0.3.1_VALIDATION.md) for actual results and limits.
+The independently verified [0.4.0 browser
+preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong, Pong
+Doubles and Space Race**. All three are ROM-free; the other eighteen library
+circuits remain explicitly unported. Original/native/Wasm per-game comparisons,
+current components/notices and matching source pass independent review.
+Exact-main browser CI records 214 passes and six existing annotated CDP skips
+out of 220, with all 15 selected public-site cases passing separately. Actual
+Android Chrome/iPhone Safari and controller qualification remains pending.
+See [0.4.0 validation](0.4.0_VALIDATION.md) and the historical
+[0.3.1 report](0.3.1_VALIDATION.md) for exact identities, coverage and limits.
 
 The machine-readable [game manifest](../tests/fixtures/game-manifest.json) contains every labeled input, active DIP setting/default, exposed potentiometer range, rotation, overlay geometry, audio declaration, and required ROM descriptor. [The source audit](../tools/audit-games.py) compares those fields against the preserved C++ source without requiring ROMs.
 
@@ -73,14 +70,19 @@ The ten external ROM sets have passed actual CRC and observed-size validation us
 | Ten ROM-dependent games | Private ZIP bytes pass required CRC and observed-size checks |
 | Ten ROM-dependent games plus Pong | Earlier basic rendering observed in both comparison builds |
 | Pong portable native/Wasm replay | Coin-start, independent paddles, rally contacts, scoring, coin restart and reset pass; frames/PCM and circuit observations match the original fresh baseline exactly |
-| Remaining ROM-free games | Inventoried; no per-game render claim in this manifest |
-| Coin/start, movement, all actions, scoring/end/restart | Full acceptance across all 21 games remains pending; Pong has the narrower replay and browser evidence recorded here |
-| Every DIP option and potentiometer adjustment | Source declarations inventoried; runtime behavior untested |
-| Audible audio and audio/video synchronization | Physical playback pending; Pong's generated PCM and automated browser delivery are checked |
+| Pong Doubles and Space Race portable native/Wasm | Six original-derived scenarios compare exact timing/events/media through both portable reset epochs; 24 behavioral epochs and 326 sampled PPM pairs pass independent review |
+| Remaining eight ROM-free titles | Source-inventoried and explicitly unported; no browser render/play claim |
+| Coin/start, movement, actions, scoring/end/restart | The three playable titles have their separately recorded replay/browser coverage; full acceptance across all 21 games remains pending |
+| DIP options and potentiometer adjustments | Doubles' 11/15 score and Space Race's default/alternate coinage and 470/970/1470-kilohm scenarios are checked; inherited Space credit accounting remains unproven. Remaining-title runtime settings are untested |
+| Audible audio and audio/video synchronization | All three playable titles' generated PCM and automated delivery have software evidence; physical speaker playback and synchronization remain pending |
 | Browser, Android, iPhone/iPad in 0.1.0 | Not implemented in that foundation milestone |
 | Pong browser in 0.2.0 | Public preview verified; clean CI has 57 passes/3 expected CDP touch skips, ten selected live-site cases pass; physical phones pending |
 
-The manifest's `validation` fields distinguish these limits. The separate Pong reference artifact records whatever narrower native checks its command actually performs; it does not upgrade all 21 games to verified gameplay.
+The manifest's `validation` fields retain the historical 0.1.0 source/native
+audit scope. Current three-game replay/browser results are recorded separately
+in [0.4.0 validation](0.4.0_VALIDATION.md); they do not upgrade all 21 games to
+verified gameplay. The historical Pong browser rows above retain their original
+version/attempt scope.
 
 ## Inputs and adjustable settings
 

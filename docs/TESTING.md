@@ -43,9 +43,12 @@ Browser/core tests below have additional prerequisites.
 
 The current [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
-and authorized proportionate local browser scopes pass independent review;
-committed full-matrix CI/public qualification remains in progress in
-[0.4.0 validation](0.4.0_VALIDATION.md). The older Pong
+and authorized proportionate local browser scopes pass independent review.
+The delivered preview also passes exact-main full-matrix CI (214 passed/six
+existing annotated CDP skips), matching-source/component review, every public
+file and all 15 selected live cases, as recorded in
+[0.4.0 validation](0.4.0_VALIDATION.md). Physical qualification remains pending.
+The older Pong
 instructions and measured results below retain their historical scope.
 
 The browser tools require Node.js 22.12 or newer, npm, Python 3.10 or newer,
@@ -84,11 +87,12 @@ paddles, external simultaneous touch tracks, pause/resume, reset, mute and
 volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
 remapping, preferences and optional local ROM management. Only Pong is
 playable and requires no ROM import; compatibility/import results do not
-qualify the other twenty circuits in that historical preview. The public site
-currently serves the reviewed 0.3.1 preview; its exact deployment identity and
-pending physical qualification are in [0.3.1 validation](0.3.1_VALIDATION.md).
-The new 0.4.0 candidate adds the two circuits described above and remains subject
-to its separate qualification and publication gates.
+qualify the other twenty circuits in that historical preview. The later
+[0.3.1 preview](0.3.1_VALIDATION.md) adds the qualification recorder and remains
+historical evidence. The public site now serves the independently verified
+three-game 0.4.0 preview described above; its exact deployed identity, software
+results and pending physical qualification are in
+[0.4.0 validation](0.4.0_VALIDATION.md).
 
 ### Original, portable-native and Wasm comparison
 
@@ -173,16 +177,19 @@ viewport and an emulated iPhone viewport. They exercise actual production Wasm
 loading and frontend behavior. An emulated phone viewport is not a physical
 phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
 audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](0.3.0_VALIDATION.md)
-records current app-foundation qualification and the physical-phone procedure;
-the separately verified public preview and partial actual-iPhone feedback
-remain in [0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
+records historical app-foundation qualification; the earlier public preview
+and partial actual-iPhone feedback remain in
+[0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
 [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
 
-The [physical-device packet](DEVICE_QUALIFICATION.md) and
-[fillable report](DEVICE_REPORT_TEMPLATE.md) cover the opt-in 0.3.1 phone
-collector and separate real-controller observations. Its implementation and
-publication status are in [0.3.1 validation](0.3.1_VALIDATION.md); no collector
-export or automated profile completes the actual-device gate by itself.
+The current [three-game physical-device packet](DEVICE_QUALIFICATION_0.4.md)
+and [fillable report](DEVICE_REPORT_TEMPLATE.md) bind the selected title/options
+and actual phone/controller observations to the tested runtime. The historical
+[0.3.1 recorder report](0.3.1_VALIDATION.md) and [Pong baseline
+packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
+[0.4.0 validation](0.4.0_VALIDATION.md) records publication and hardware limits;
+no collector export or automated profile completes the actual-device gate by
+itself.
 
 The Pages packager supplies source downloads/notices omitted from an ordinary
 Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged

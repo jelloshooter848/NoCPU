@@ -2,42 +2,50 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
-The user-authorized [0.4.0 work](docs/0.4.0_TASKS.md) is in development:
-original-derived **Pong Doubles and Space Race** join Pong as the first
-three-game preview. The other eighteen titles remain explicitly unported.
-Implementation, independent qualification and publication are tracked in
-[0.4.0 validation](docs/0.4.0_VALIDATION.md); no 0.4.0 deployment is claimed yet.
+**[Play NoCPU 0.4.0](https://jelloshooter848.github.io/NoCPU/).** The
+independently verified Pages preview has three playable original-derived,
+ROM-free games: **Pong, Pong Doubles and Space Race**. The game-first library,
+remapping, preferences, optional local ROM management and qualification
+recorder are preserved. The other eighteen titles remain explicitly unported;
+compatible imported ROMs do not unlock them.
 
-**[Play the NoCPU browser preview](https://jelloshooter848.github.io/NoCPU/).**
-The independently verified 0.3.1 preview adds an opt-in phone qualification
-recorder to the game-first library, remapping, preferences and optional local
-ROM management. Pong remains the only playable browser game; compatible
-imported ROMs do not unlock unported games. The original circuit, court,
-off-court paddle tracks and generated sound are preserved.
+Exact-main CI passes 214 cases with six existing annotated CDP touch skips out
+of 220. All 15 selected live cases pass across five browser profiles, and all
+97 public files plus the canonical root match the reviewed artifact. Original,
+portable native and Wasm scenario comparisons, actual component notices and
+matching-source delivery pass independent review. The [0.4.0 validation
+report](docs/0.4.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and
+[changelog](CHANGELOG.md) record the deployed identities and preserved failed
+attempts. The [0.3.1 qualification-tooling preview](docs/0.3.1_VALIDATION.md)
+remains historical evidence.
 
-Clean CI records 167 passes and 3 documented CDP touch skips out of 170 cases.
-All 50 selected checks against the actual public site pass; all 93 public files
-and both hash-keyed core responses match the independently reviewed artifact.
-The [0.3.1 validation report](docs/0.3.1_VALIDATION.md),
-[roadmap](docs/ROADMAP.md) and [changelog](CHANGELOG.md) record the deployed
-source/runtime and completed reviews. Open the
-[qualification page](https://jelloshooter848.github.io/NoCPU/?debug) and follow
-the [phone/controller packet](docs/DEVICE_QUALIFICATION.md) to record
-actual-device evidence. Physical Android Chrome/iPhone Safari
-and controller hardware qualification remain pending; no final browser tag or
-release has been published.
+Open the [qualification page](https://jelloshooter848.github.io/NoCPU/?debug)
+and follow the [three-game phone/controller
+packet](docs/DEVICE_QUALIFICATION_0.4.md) to record actual-device evidence.
+Physical Android Chrome/iPhone Safari and controller qualification remain
+pending; no final browser tag or release has been published.
 
 The earlier touch-control preview received a user report of two full iPhone
 games, one portrait and one landscape, both playing well with sound that seems
 to work well. This [partial 0.2.1 device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback)
-does not qualify the 0.3.1 runtime or complete the physical-device gate.
+does not qualify the current 0.4.0 runtime or complete the physical-device gate.
 
-The frontend is a viewport-filling game: a title screen, library, the original Pong court and in-game menus. Choose **Play Pong**, then **Insert coin**. Default keys are **W/S** for player 1 and **Up/Down** for player 2; Settings can change assignments. Drag the labeled **P1/P2 tracks outside the court**, below it in portrait and beside it in landscape; both players can move at once. Court touches do not move paddles. **Menu** pauses play and opens resume, reset, settings, help and About. Sound and volume are in Settings; DICE credit, build identity, licenses and the matching source download are in About. Pong needs no ROM file.
+The frontend fills the viewport with a title screen, library, original game
+raster and in-game menus. Choose a title from the library. Pong needs **Insert
+coin**; default keys are **W/S** for player 1 and **Up/Down** for player 2.
+For Pong Doubles, insert one coin then **Start** for the two outer paddles, or
+two separate coins then **Start** for all four independent paddles. Space Race
+has separate **Coin/Start** and two Up/Down sticks. Settings and Help show each
+game's assignments. Touch tracks and digital controls sit outside the raster,
+below it in portrait and beside it in landscape. **Menu** pauses play and
+opens resume, reset, settings, help and About. Sound and volume are in Settings;
+DICE credit, build identity, licenses and the matching source download are in
+About. None of these three games needs a ROM file.
 
 ## Start here
 
 - [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
-- [Physical phone/controller procedure](docs/DEVICE_QUALIFICATION.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
+- [Three-game physical phone/controller procedure](docs/DEVICE_QUALIFICATION_0.4.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
 - [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
 - [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
 - [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)
@@ -89,8 +97,8 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 | Path | Purpose |
 | --- | --- |
 | `upstream/dice-0.9/` | Original DICE source, kept independently identifiable and checked against an inventory |
-| `core/` | Headless Pong interface and documented adaptations of the original engine |
-| `web/` | Pong browser frontend, touch/keyboard controls, rendering and audio delivery |
+| `core/` | Headless three-game interface and documented adaptations of the original engine |
+| `web/` | Game-first browser frontend, touch/keyboard/gamepad controls, rendering and audio delivery |
 | `tools/` | Source/game/ROM audits, native builds, reference capture, and release checks |
 | `tests/` | Audited metadata and controlled reference scenarios |
 | `docs/` | Architecture, provenance, compatibility, testing, releases, and roadmap |
