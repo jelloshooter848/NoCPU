@@ -86,8 +86,8 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 The reviewed 0.2.0 Pong preview introduced a C++/Wasm core, TypeScript frontend,
 notices and matching source. Its published review remains historical evidence;
-the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves the 0.3.1
-qualification preview below.
+the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves the verified
+0.4.0 three-game preview below.
 The viewport game shell's clean automated matrix passes 67 cases with three
 expected simultaneous-touch skips; 25 selected checks against the public site
 also pass. See
@@ -186,13 +186,17 @@ gate; controller hardware evidence and final tags stay pending.
 
 ### 0.4–0.7 — Full DICE library and compatibility
 
-The user authorized proceeding to the [0.4.0 first batch](0.4.0_TASKS.md):
-Pong Doubles and Space Race, alongside Pong, for a reviewed three-game preview.
-All are ROM-free. The other eighteen titles remain explicitly unported; actual
-phone/controller qualification remains pending and no final tag is authorized.
-The [0.4.0 validation ledger](0.4.0_VALIDATION.md) records its actual progress.
+The [0.4.0 first batch](0.4.0_TASKS.md) is delivered as an independently
+verified Pages preview: Pong Doubles and Space Race alongside Pong. All three
+are ROM-free. Exact-main CI passes 214 cases with six existing annotated CDP
+skips out of 220; all 15 selected live cases and all 97 public-file checks pass.
+Original/native/Wasm fidelity, compiled components/notices and matching source
+are independently accepted. The [0.4.0 validation ledger](0.4.0_VALIDATION.md)
+records the deployed identities and earlier failed attempts. The other eighteen
+titles remain explicitly unported. Actual phone/controller qualification and
+final tags remain pending.
 
-Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Pong Doubles, Space Race, Stunt Cycle, Breakout and Indy 4 are useful candidates for exercising different paths, subject to the asset/control audit.
+Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Stunt Cycle, Breakout and Indy 4 are pending candidates for exercising different paths, subject to the asset/control audit.
 
 For each title:
 
@@ -242,21 +246,20 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-Deliver the user-authorized [0.4.0 first-game batch](0.4.0_TASKS.md): faithful
-Pong Doubles and Space Race alongside Pong, original/native/Wasm comparisons,
-four-player analog and two-player digital controls, original settings,
-independent frontend/component/source reviews and exact-main/public preview
-qualification. The public site still serves the independently verified
-[0.3.1 preview](0.3.1_VALIDATION.md) until 0.4.0 completes those gates.
+The [0.4.0 first-game batch](0.4.0_TASKS.md) is delivered and independently
+verified. Prepare the next remaining-game batch from the compatibility matrix,
+with original circuit/asset/control/settings/audio baselines and measured
+browser feasibility before selecting its implementation scope. No additional
+title or version is authorized by this outcome documentation alone.
 
 Continue collecting identified Android Chrome/iPhone Safari touch, speaker,
-lifecycle and sustained-performance evidence with the [device
-packet](DEVICE_QUALIFICATION.md), matched to the actual tested runtime and game.
-Record actual controller support separately. The user's move-on decision
-authorizes this preview development and delivery while those results remain
-pending; broad-game-support readiness and final tags retain the physical gate.
-Do not reuse an earlier runtime's results to qualify changed bytes or declare
-a supported device floor without actual results.
+lifecycle and sustained-performance evidence with the [three-game device
+packet](DEVICE_QUALIFICATION_0.4.md), matched to the actual tested runtime and
+game. Record actual controller support separately. The user's move-on decision
+permitted the delivered preview while those results remain pending;
+broad-game-support readiness and final tags retain the physical gate. Do not
+reuse an earlier runtime's results to qualify changed bytes or declare a
+supported device floor without actual results.
 
 ## After 1.0 — preservation and expansion
 

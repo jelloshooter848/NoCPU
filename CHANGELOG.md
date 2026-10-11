@@ -1,11 +1,13 @@
 # Changelog
 
-## 0.4.0 — In development (preview)
+## 0.4.0 — 2026-10-11 (Pages preview)
 
-- Port original DICE Pong Doubles and Space Race alongside Pong, preserving four independent Doubles paddles and two digital Space Race sticks.
-- Add exact game selection, distinct Coin/Start and original supported settings, with game-specific controls/help and touch controls outside the raster.
-- Preserve the app foundation and truthful diagnostic reports; complete implementation, fidelity, browser, component/source and publication qualification before claiming delivery.
-- Physical phone/controller qualification and a final tag remain pending. See [0.4.0 tasks](docs/0.4.0_TASKS.md) and [validation](docs/0.4.0_VALIDATION.md).
+- Add original DICE Pong Doubles and Space Race alongside Pong: three playable ROM-free titles, with eighteen remaining ports clearly identified.
+- Preserve four independent Doubles paddles, its original coin-selected modes, two digital Space Race sticks, distinct Coin/Start, original settings, game-specific help and external touch controls.
+- Preserve app preferences/ROM management and title-bound qualification reports; keep original circuit, integer clock and PCM behavior with exact original/native/Wasm comparisons.
+- Pass independently reviewed clean exact-main CI: 214 browser passes and six existing annotated CDP skips out of 220; ABI checks pass 295/295 across 45 traces.
+- Publish the exact-main preview and verify all 97 public files plus canonical root, both separately labelled hash-keyed core response proofs, and all 15 selected live browser cases. Preserve prior failed/cancelled attempts in [0.4.0 validation](docs/0.4.0_VALIDATION.md).
+- Physical phone/controller qualification and final tags remain pending; the existing Pong phone baseline does not qualify the new titles automatically.
 
 ## 0.3.1 — 2026-10-11 (Pages preview)
 
