@@ -80,6 +80,8 @@ jobs:
             build/reference/**/*.csv
             build/reference/**/*.ppm
             build/reference/**/*.wav
+            build/reference/**/*.s16le
+            build/reference/**/*.gray
             build/reference/**/*.diff
             build/reference-games/latest.txt
             build/reference-games/**/report.json
@@ -91,6 +93,8 @@ jobs:
             build/reference-games/**/*.csv
             build/reference-games/**/*.ppm
             build/reference-games/**/*.wav
+            build/reference-games/**/*.s16le
+            build/reference-games/**/*.gray
             build/reference-games/**/*.diff
             build/reference-games/*/*.log
             build/native/toolchain-provenance/**
@@ -102,12 +106,24 @@ jobs:
             build/core/wasm/dependencies.mk
             build/core/wasm/linker.map
             build/core/native-evidence/**/*.json
+            build/core/native-evidence/**/*.csv
+            build/core/native-evidence/**/*.s16le
+            build/core/native-evidence/**/*.gray
+            build/core/native-evidence/**/*.ppm
+            build/core/native-evidence/**/*.wav
             build/core/wasm-evidence/**/*.json
+            build/core/wasm-evidence/**/*.csv
+            build/core/wasm-evidence/**/*.s16le
+            build/core/wasm-evidence/**/*.gray
+            build/core/wasm-evidence/**/*.ppm
+            build/core/wasm-evidence/**/*.wav
             build/core/game-evidence/latest.txt
             build/core/game-evidence/**/*.json
             build/core/game-evidence/**/*.csv
             build/core/game-evidence/**/*.ppm
             build/core/game-evidence/**/*.wav
+            build/core/game-evidence/**/*.s16le
+            build/core/game-evidence/**/*.gray
             build/core/game-evidence/*/*.txt
             build/core/game-evidence/*/*.tsv
             build/core/game-evidence/*/*.log
