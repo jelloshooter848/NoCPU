@@ -1,7 +1,7 @@
 # Physical qualification for the six-game 0.6.0 preview
 
 Physical results remain pending. Use this packet with the
-[report template](DEVICE_REPORT_TEMPLATE.md), [retained Pong procedure](DEVICE_QUALIFICATION.md)
+[report template](../DEVICE_REPORT_TEMPLATE.md), [retained Pong procedure](../DEVICE_QUALIFICATION.md)
 and [Home Screen procedure](DEVICE_QUALIFICATION_0.5.md). Identify the actual
 runtime SHA-256, build/source ID, title/options, device model, OS, browser,
 tested date and input method. Browser viewport automation is separate evidence.

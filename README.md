@@ -1,71 +1,21 @@
 # NoCPU
 
-NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
+NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is accurate play of all 21 games in DICE 0.9 in **desktop browsers**, using keyboard and mouse with a minimal interface: a game picker, the original game raster, controls help and user-supplied ROM loading.
 
-Development [0.6.0](docs/0.6.0_TASKS.md) selects **Stunt Cycle and Indy 4**
-with player-supplied ROMs, targeting six playable circuits. Their inherited
-missing DICE audio remains disclosed. [Current validation](docs/0.6.0_VALIDATION.md)
-and the [six-game device packet](docs/DEVICE_QUALIFICATION_0.6.md) distinguish
-work in progress from the accepted public runtime below.
+**Restart, version 0.1.0 (in development).** NoCPU has restarted with a desktop-first plan; see the [roadmap](docs/ROADMAP.md). Mobile/touch play, phone device qualification and iPhone Home Screen support are deferred until after desktop accuracy. Versions up to 0.6.0 belong to the legacy line, preserved at tag `legacy-0.6.0` with its records under [docs/legacy/](docs/legacy/).
 
-**[Play NoCPU 0.5.0](https://jelloshooter848.github.io/NoCPU/).** The
-independently verified Pages preview has four playable original-derived,
-ROM-free games: **Pong, Pong Doubles, Space Race and Breakout**. It adds online
-iPhone Home Screen support, manual Safari installation guidance and game-first
-standalone layout/lifecycle handling. The library, remapping, preferences,
-optional local ROM management and qualification recorder are preserved. The
-other seventeen titles remain explicitly unported; imported ROMs do not unlock
-them. Offline play is excluded.
-
-Exact-main CI passes 281 cases with nine existing annotated CDP touch skips out
-of 290. All 20 selected live cases pass across five browser profiles. All 104
-public files, the canonical root and both hash-keyed core URLs match the
-reviewed artifact. Original/native/Wasm comparisons, components/notices and
-matching-source delivery pass independent review. The [0.5.0 validation
-report](docs/0.5.0_VALIDATION.md), [roadmap](docs/ROADMAP.md) and
-[changelog](CHANGELOG.md) record exact identities and retained failed attempts.
-Earlier previews remain historical evidence.
-
-Open the [qualification page](https://jelloshooter848.github.io/NoCPU/?debug)
-and follow the [four-game/Home Screen device
-packet](docs/DEVICE_QUALIFICATION_0.5.md) to record actual-device evidence.
-Physical Android Chrome, iPhone Safari, installed-iPhone and controller
-qualification remain pending; no final browser tag has been published.
-
-The earlier touch-control preview received a user report of two full iPhone
-games, one portrait and one landscape, both playing well with sound that seems
-to work well. This [partial 0.2.1 device feedback](docs/0.2.1_VALIDATION.md#partial-actual-iphone-feedback)
-does not qualify the current 0.5.0 runtime or complete the physical-device gate.
-
-The frontend fills the viewport with a title screen, library, original game
-raster and in-game menus. Choose a title from the library. Pong needs **Insert
-coin**; default keys are **W/S** for player 1 and **Up/Down** for player 2.
-For Pong Doubles, insert one coin then **Start** for the two outer paddles, or
-two separate coins then **Start** for all four independent paddles. Space Race
-has separate **Coin/Start** and two Up/Down sticks. Breakout has one shared
-horizontal paddle and held **Serve**: use one credit for **Start 1P**, or two
-credits for **Start 2P** (two separate coins at the default coinage). Settings
-and Help show each game's assignments. Touch tracks and digital controls sit outside the raster,
-below it in portrait and beside it in landscape. **Menu** pauses play and
-opens resume, reset, settings, help and About. Sound and volume are in Settings;
-DICE credit, build identity, licenses and the matching source download are in
-About. None of these four games needs a ROM file.
+The C++/Wasm core currently compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The current frontend is the legacy app and still contains mobile/touch, qualification and Home Screen code that the next restart phase removes. The public Pages site still serves a legacy preview; no 0.1.0 build has been published.
 
 ## Start here
 
-- [0.6.0 selected-game contract](docs/0.6.0_TASKS.md) and [validation status](docs/0.6.0_VALIDATION.md)
-- [0.5.0 delivered contract](docs/0.5.0_TASKS.md) and [validation/qualification status](docs/0.5.0_VALIDATION.md)
-- [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
-- [Four-game/Home Screen physical procedure](docs/DEVICE_QUALIFICATION_0.5.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
-- [0.2.1 touch-control tasks](docs/0.2.1_TASKS.md) and [qualification status](docs/0.2.1_VALIDATION.md)
-- [0.3.0 app-foundation contract](docs/0.3.0_TASKS.md) and [qualification status](docs/0.3.0_VALIDATION.md)
-- [0.2.0 task breakdown](docs/0.2.0_TASKS.md) and [validation results](docs/0.2.0_VALIDATION.md)
-- [Build and validation instructions](docs/TESTING.md) and [0.1.0 native foundation results](docs/0.1.0_VALIDATION.md)
+- [Roadmap](docs/ROADMAP.md) and [coding-agent rules](AGENTS.md)
+- [Build and validation instructions](docs/TESTING.md)
 - [Game compatibility and validation matrix](docs/GAME_COMPATIBILITY.md)
 - [ROM requirements and private test fixtures](docs/ROMS.md)
 - [Architecture and platform boundaries](docs/ARCHITECTURE.md)
 - [Source provenance](docs/PROVENANCE.md) and [third-party notices](THIRD_PARTY_NOTICES.md)
 - [Contributing](CONTRIBUTING.md), [bug reports](bug-reports/README.md), and [releasing](docs/RELEASING.md)
+- Legacy line records (0.1.0–0.6.0): [changelog](docs/legacy/CHANGELOG.md), per-version task and validation ledgers in [docs/legacy/](docs/legacy/)
 
 ## Browser development
 

@@ -1,29 +1,37 @@
 # Instructions for coding agents
 
-## Scope and fidelity
+## Direction and scope
 
-- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. The user-authorized [0.6.0 contract](docs/0.6.0_TASKS.md) selects original Stunt Cycle and Indy 4 with player-supplied ROMs. Preserve the delivered [0.5.0 four-game/Home Screen foundation](docs/0.5.0_TASKS.md), off-court touch controls and opt-in qualification collector. Physical qualification remains pending; it gates final tags and broad-game-support readiness, not this explicitly authorized development or independently reviewed preview delivery. Offline/service-worker delivery is excluded by default pending a concrete reviewed scope decision. Both selected ROM-backed titles inherit unavailable audio; do not fabricate replacement sound.
+- Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. NoCPU restarted desktop-first at version 0.1.0. Versions up to 0.6.0 belong to the legacy line (tag `legacy-0.6.0`); records under [docs/legacy/](docs/legacy/) are historical evidence, not current contracts.
+- The goal is all 21 DICE 0.9 games running accurately in desktop browsers, played with keyboard and mouse through a minimal interface: game picker, game canvas, controls help and user-supplied ROM loading. Accuracy comes before features and polish.
 - Preserve all 21 DICE 0.9 games as the 1.0 scope. A difficult game is a recorded blocker, not permission to remove it.
+- Mobile/touch UI, phone device qualification, iPhone Home Screen/PWA support and any physical-device gate are deferred to a post-accuracy phase. They must not gate, block or be added to desktop milestones unless the user explicitly re-authorizes them.
+- A native desktop app (an SDL2 front end over the same core) is an optional later item, not a 1.0 requirement.
+- Rust, assembly or other rewrites of the emulator are out of scope. Performance work means profiling and optimising the existing C++ core, with every change verified behind the original/native/Wasm comparison harness.
+- Treat [docs/POST_1_0_GAMES.md](docs/POST_1_0_GAMES.md) as research, not authorization to expand the release scope.
+
+## Fidelity
+
 - Keep `upstream/dice-0.9/` byte-identical to its audited source inventory. Build from a disposable copy. Place NoCPU adapters and instrumentation elsewhere, documenting any derived-source patches and attribution.
 - Preserve the circuit scheduler, integer simulation time, video geometry, PCM generation, and supported physical inputs. Browser adaptations must change access to the hardware, with behavior verified against the native reference.
-- Treat [docs/POST_1_0_GAMES.md](docs/POST_1_0_GAMES.md) as research, not authorization to expand the release scope.
+- Keep picosecond time inside C++/Wasm integer values and respect the ABI's frame/PCM ownership and bounded stepping rules.
+- Reproduce sound that DICE implements and record inherited absent audio; never fabricate replacement sound.
 
 ## Assets and generated output
 
-- Never commit or publish ROM payloads, private fixture archives, credentials, or secrets. Checksum/size metadata is permitted. Keep fixtures outside the checkout or in explicitly ignored local storage.
-- Keep binaries, build copies, runtime settings, frame/audio captures, and temporary reports under ignored `build/` output. Release packaging must exclude private fixtures and generated local evidence unless specifically reviewed for distribution.
+- Never commit or publish ROM payloads, private fixture archives, credentials, or secrets. Checksum/size metadata is permitted. Keep fixtures outside the checkout or in explicitly ignored local storage. ROMs are supplied by the player at runtime.
+- Keep binaries, build copies, runtime settings, frame/audio captures, and temporary reports under ignored `build/` output. Packaging must exclude private fixtures and generated local evidence unless specifically reviewed for distribution.
 - Audit the applicable component notices before distributing code or binaries. Preserve existing copyright and license texts.
-- Source-release and browser-distribution license gates are separate. A source-ready assessment does not clear generated JS/Wasm, native binaries or toolchain containers. Browser output must include applicable notices and a matching corresponding-source archive.
+- Any published browser build must ship the applicable license notices and a matching corresponding-source archive. Source-release and browser-distribution license gates are separate: a source-ready assessment does not clear generated JS/Wasm, native binaries or toolchain containers.
 
 ## Required checks and reporting
 
 - Run `python3 tools/check.py` for repository changes. Run `./tools/build-native.sh` and `./tools/capture-pong.sh` for changes affecting compilation, the native toolchain, simulation, input replay, or captured evidence.
+- For core or browser changes, run the documented core build and original/native/Wasm comparison plus the desktop browser checks in [docs/TESTING.md](docs/TESTING.md). A newly ported game is not accepted until its original/native/Wasm comparison passes.
 - Use `python3 tools/audit-games.py` and `python3 tools/audit-roms.py` when changing game or ROM metadata. Validate actual fixtures separately with `python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures` when authorized access exists.
 - Add or run meaningful tests for changed behavior; do not manufacture tests that merely repeat the implementation. Inspect failed checks and fix the cause before claiming success.
 - ROM-dependent checks without fixtures are skipped or blocked. A fixture-free metadata audit is not a ROM-loading or gameplay pass.
-- Distinguish build, checksum, basic rendering, scenario coverage, audio capture, full gameplay, and real-device results. Never infer phone performance from a native build or sound accuracy from a dummy audio device.
-- For browser changes, run the documented core build/comparison and browser checks in [docs/TESTING.md](docs/TESTING.md). Keep picosecond time inside C++/Wasm integer values and respect the ABI's frame/PCM ownership and bounded stepping rules.
-- Physical Android/iPhone evidence must identify the tested runtime and actual model/browser. Automation with a mobile viewport is separate evidence. A preview may support device testing; final release-readiness must reflect the agreed device gate honestly.
+- Distinguish build, checksum, basic rendering, scenario coverage, audio capture, full gameplay and performance results. Never infer browser performance from a native build or sound accuracy from a dummy audio device. Name the actual desktop browser and version for browser evidence.
 - Record actual commands and limitations in the final report. Do not claim publication, repository settings changes, deployment, or release creation unless verified.
 
 ## Collaboration

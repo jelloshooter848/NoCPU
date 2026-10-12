@@ -65,4 +65,4 @@ media before the next modifying call, drain bounded queues each tick, and pause
 by stopping advances. Device playback remains a host responsibility: a PCM
 capture verifies generated samples, while real-device tests verify audibility
 and interruptions. See [the core boundary](../core/README.md) and
-[0.2.0 validation](0.2.0_VALIDATION.md) for ownership and measured limits.
+[0.2.0 validation](legacy/0.2.0_VALIDATION.md) for ownership and measured limits.

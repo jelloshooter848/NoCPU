@@ -2,8 +2,8 @@
 
 `VERSION` is **0.6.0**, in development for original Stunt Cycle and Indy 4
 with player-supplied ROMs alongside the delivered four circuits and online
-iPhone Home Screen support. The [contract](0.6.0_TASKS.md) and
-[validation ledger](0.6.0_VALIDATION.md) distinguish intended six-title scope,
+iPhone Home Screen support. The [contract](legacy/0.6.0_TASKS.md) and
+[validation ledger](legacy/0.6.0_VALIDATION.md) distinguish intended six-title scope,
 actual software acceptance/publication and pending physical qualification.
 Offline and final hardware-readiness tags are not included.
 
@@ -17,11 +17,11 @@ Later outcome-documentation commits record this delivery without republishing
 or relabeling its source archive; preparing files or passing checks alone does
 not publish a final release.
 
-The [0.4.0 preview](0.4.0_VALIDATION.md), published from
+The [0.4.0 preview](legacy/0.4.0_VALIDATION.md), published from
 `f8b035173bc33cdcbf5e5bc04a05033cf90c93d9`, the
-[0.3.1 preview](0.3.1_VALIDATION.md) from
+[0.3.1 preview](legacy/0.3.1_VALIDATION.md) from
 `4005e3cb1a20d328a8ea9a2196438a52c43e2095`, the
-[0.3.0 preview](0.3.0_VALIDATION.md) from
+[0.3.0 preview](legacy/0.3.0_VALIDATION.md) from
 `ee7f78e57278bc318dc52820d1606b3ec3fa2917`, and earlier deployments remain
 historical. No final browser release tag through 0.5.0 has been published.
 The user authorized development and independently reviewed previews while
@@ -125,11 +125,11 @@ changed final bytes.
 
 The maintained eight phone-check keys and 600-active-second/0.95 requirements
 retain their Pong baseline meaning. [The three-game device
-packet](DEVICE_QUALIFICATION_0.4.md) records additional title/options-specific
+packet](legacy/DEVICE_QUALIFICATION_0.4.md) records additional title/options-specific
 manual and performance scope without introducing a mandatory ten-minute gate
 for each new title. A Pong baseline pass cannot qualify four Doubles paddles,
 Space Race's digital controls, Breakout or broad-game support. The current
-[four-game/Home Screen draft](DEVICE_QUALIFICATION_0.5.md) records separate
+[four-game/Home Screen draft](legacy/DEVICE_QUALIFICATION_0.5.md) records separate
 Safari/installed-mode and additional title/options-specific procedures; it does
 not report a physical pass or add a ten-minute threshold for each title.
 Actual new-title coverage

@@ -2,7 +2,7 @@
 
 ## Historical original reference and Pong port
 
-NoCPU keeps an independently auditable copy of DICE 0.9 under `upstream/dice-0.9/`. Its 0.1.0 native reference is built in an isolated Qt4/SDL 1.2 toolchain from a generated source copy. The 0.2.0 work adds a Pong-only portable core and browser frontend. Implementation and actual qualification results are recorded in [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md); the existence of a browser build does not establish final release or physical-phone qualification.
+NoCPU keeps an independently auditable copy of DICE 0.9 under `upstream/dice-0.9/`. Its 0.1.0 native reference is built in an isolated Qt4/SDL 1.2 toolchain from a generated source copy. The 0.2.0 work adds a Pong-only portable core and browser frontend. Implementation and actual qualification results are recorded in [0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md); the existence of a browser build does not establish final release or physical-phone qualification.
 
 Original source, build copies, validation instrumentation, and product code have separate roles:
 
@@ -19,7 +19,7 @@ The newer DirtBagXon fork is a reference for dependency modernization, not the a
 
 ## 0.6.0 staged ROM and six-circuit boundary
 
-The selected [0.6.0 contract](0.6.0_TASKS.md) adds original Stunt Cycle and
+The selected [0.6.0 contract](legacy/0.6.0_TASKS.md) adds original Stunt Cycle and
 Indy 4 as stable game IDs 4 and 5, retaining IDs 0–3 and earlier exports in
 ABI 4. The browser validates player-supplied ZIP members and transfers exact
 descriptor bytes to bounded module-owned staging buffers. The core independently
@@ -39,12 +39,12 @@ comparison cannot qualify it. Both circuits inherit absent mono-output hookups;
 the frontend discloses unavailable audio without synthesizing a replacement.
 
 These are authored boundaries pending independent source/runtime acceptance.
-The [validation ledger](0.6.0_VALIDATION.md) separates local trusted-fixture
+The [validation ledger](legacy/0.6.0_VALIDATION.md) separates local trusted-fixture
 execution, fixture-free CI, package identity and public delivery.
 
 ## Historical 0.5.0 Breakout and online Home Screen boundary
 
-The [0.5.0 contract](0.5.0_TASKS.md) adds selected Breakout and online iPhone
+The [0.5.0 contract](legacy/0.5.0_TASKS.md) adds selected Breakout and online iPhone
 Home Screen/standalone usability to the accepted three-game foundation.
 The delivered source uses ABI 3 additively: IDs 0/1/2 and legacy exports remain,
 Breakout is ID 3, Start accepts player 1/2 where supported and Serve is a held
@@ -70,11 +70,11 @@ or orientation lock. Preferences/local ROM recovery remain per-context and
 opt-in; sharing and retention are not promised. There is no selected service
 worker or offline cache. Actual installed-iPhone evidence and current matching
 source/components/publication remain separate gates in
-[0.5.0 validation](0.5.0_VALIDATION.md).
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md).
 
 ## Historical 0.4.0 first-game-batch boundary
 
-The user-authorized [0.4.0 contract](0.4.0_TASKS.md) extends the original-derived
+The user-authorized [0.4.0 contract](legacy/0.4.0_TASKS.md) extends the original-derived
 core to Pong Doubles and Space Race alongside Pong. The typed game/input/settings
 contract is shared between worker and interface: four independent absolute
 paddles for Doubles, two digital sticks for Space Race and distinct Coin/Start
@@ -95,7 +95,7 @@ contracts. Actual comparisons passed independent review for the deployed
 Descriptor/default restoration, exact game-specific observations, mixed-game
 lifecycle and the expanded analog-audio dependency/link-member/source inventory
 passed the recorded original/portable/Wasm/component and delivery gates.
-[0.4.0 validation](0.4.0_VALIDATION.md) records that acceptance; the earlier platform
+[0.4.0 validation](legacy/0.4.0_VALIDATION.md) records that acceptance; the earlier platform
 boundaries below describe their historical scopes. Phone/controller hardware
 readiness remains distinct from source, automation and preview publication.
 
@@ -157,7 +157,7 @@ runtime; final releases require the agreed device evidence for those bytes.
 
 ## 0.3.0 app-foundation boundary
 
-The authorized [0.3.0 work](0.3.0_TASKS.md) extends the game shell with library
+The authorized [0.3.0 work](legacy/0.3.0_TASKS.md) extends the game shell with library
 and information screens, shared controls/remapping, preferences and local ROM
 management. The source-audited `tests/fixtures/game-manifest.json` supplies all
 21 metadata entries; only Pong has a playable browser circuit. ROM compatibility
@@ -182,7 +182,7 @@ uses the browser capability with a usable ordinary-viewport fallback.
 This foundation preserves the worker-owned clock, circuit PCM, original raster
 and external paddle tracks. It does not port the other game circuits or waive
 pending actual-phone gates. Candidate and deployment results are recorded
-separately in [0.3.0 qualification](0.3.0_VALIDATION.md).
+separately in [0.3.0 qualification](legacy/0.3.0_VALIDATION.md).
 
 ## Full-library implementation
 

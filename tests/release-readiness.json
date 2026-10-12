@@ -1,13 +1,11 @@
 {
   "schema_version": 1,
-  "version": "0.6.0",
+  "version": "0.1.0",
   "release_stage": "preview",
   "release_ready": false,
   "runtime_sha256": null,
   "blockers": [
-    "Physical Android Chrome qualification for the complete 0.6.0 runtime and six selected playable circuits remains pending.",
-    "Physical iPhone Safari and installed Home Screen qualification for the complete 0.6.0 runtime remain pending; historical partial feedback and browser emulation do not qualify changed runtime bytes.",
-    "Actual title/options-specific Stunt Cycle and four-player Indy 4 controller qualification remains pending; both inherit unavailable audio from DICE 0.9."
+    "Restarted 0.1.0 desktop-first runtime: desktop browser acceptance (original/native/Wasm comparison and desktop browser checks for the selected games) is pending. Physical phone qualification is deferred to the post-1.0 mobile phase and does not gate desktop milestones; the device entries below are retained legacy schema fields pending Phase 2 removal of the physical-device release gate."
   ],
   "devices": [
     {

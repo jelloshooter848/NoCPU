@@ -48,11 +48,11 @@ Browser/core tests below have additional prerequisites.
 
 ## Portable core and browser
 
-The selected [0.6.0 contract](0.6.0_TASKS.md) adds original Stunt Cycle and
+The selected [0.6.0 contract](legacy/0.6.0_TASKS.md) adds original Stunt Cycle and
 Indy 4, requiring compatible player-supplied ROMs. Reuse the existing pinned
 toolchain and frozen dependencies. The
-[0.6.0 validation ledger](0.6.0_VALIDATION.md) governs actual acceptance;
-the [six-game device packet](DEVICE_QUALIFICATION_0.6.md) retains separate
+[0.6.0 validation ledger](legacy/0.6.0_VALIDATION.md) governs actual acceptance;
+the [six-game device packet](legacy/DEVICE_QUALIFICATION_0.6.md) retains separate
 physical and installed-mode evidence. All heavy execution has one owner;
 do not run competing builds/captures or duplicate an active validator job.
 The new titles inherit missing active DICE audio hookups. Actual compatible
@@ -68,24 +68,24 @@ coexist with one original constructor zero sample. Measure initialization and
 ongoing counts separately, compare complete original/native/Wasm PCM without
 dropping/coercing samples, and keep physical speaker claims separate.
 
-The delivered [0.5.0 contract](0.5.0_TASKS.md) compiles original-derived Pong,
+The delivered [0.5.0 contract](legacy/0.5.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles, Space Race and Breakout with online Home Screen/standalone support.
 The complete sixteen-scenario original/native/Wasm batch, reset/ABI, components
 and matching-source delivery pass independent review. Exact-main full CI
 accounts for 290 instances: 281 passes/nine existing annotated CDP skips. All
 107 HTTP bodies and the separate 20 live cases pass, as recorded in
-[0.5.0 validation](0.5.0_VALIDATION.md). The [four-game/Home Screen physical
-packet](DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md). The [four-game/Home Screen physical
+packet](legacy/DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
 from browser emulation. Initial old-core Home checks and incomplete/scoped local
 matrices retain their recorded stage identities.
 
-The historical delivered [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
+The historical delivered [0.4.0 contract](legacy/0.4.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
 and authorized proportionate local browser scopes pass independent review.
 The delivered preview also passes exact-main full-matrix CI (214 passed/six
 existing annotated CDP skips), matching-source/component review, every public
 file and all 15 selected live cases, as recorded in
-[0.4.0 validation](0.4.0_VALIDATION.md). Physical qualification remains pending.
+[0.4.0 validation](legacy/0.4.0_VALIDATION.md). Physical qualification remains pending.
 The older Pong
 instructions and measured results below retain their historical scope.
 
@@ -130,11 +130,11 @@ volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
 remapping, preferences and optional local ROM management. Only Pong is
 playable and requires no ROM import; compatibility/import results do not
 qualify the other twenty circuits in that historical preview. The later
-[0.3.1 preview](0.3.1_VALIDATION.md) adds the qualification recorder and remains
+[0.3.1 preview](legacy/0.3.1_VALIDATION.md) adds the qualification recorder and remains
 historical evidence. The public site now serves the independently verified
 four-game 0.5.0 preview described above; its exact deployed identity, software
 results and pending physical qualification are in
-[0.5.0 validation](0.5.0_VALIDATION.md).
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md).
 
 ### Original, portable-native and Wasm comparison
 
@@ -228,18 +228,18 @@ The configured projects cover Chromium, Firefox, WebKit, an emulated Android
 viewport and an emulated iPhone viewport. They exercise actual production Wasm
 loading and frontend behavior. An emulated phone viewport is not a physical
 phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
-audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](0.3.0_VALIDATION.md)
+audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](legacy/0.3.0_VALIDATION.md)
 records historical app-foundation qualification; the earlier public preview
 and partial actual-iPhone feedback remain in
-[0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
-[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
+[0.2.1_VALIDATION.md](legacy/0.2.1_VALIDATION.md), and earlier checks remain in
+[0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md).
 
-The current [four-game/Home Screen physical-device packet](DEVICE_QUALIFICATION_0.5.md)
+The current [four-game/Home Screen physical-device packet](legacy/DEVICE_QUALIFICATION_0.5.md)
 and [fillable report](DEVICE_REPORT_TEMPLATE.md) bind the selected title/options
 and actual phone/controller observations to the tested runtime. The historical
-[0.3.1 recorder report](0.3.1_VALIDATION.md) and [Pong baseline
+[0.3.1 recorder report](legacy/0.3.1_VALIDATION.md) and [Pong baseline
 packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
-[0.5.0 validation](0.5.0_VALIDATION.md) records publication and hardware limits;
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md) records publication and hardware limits;
 no collector export or automated profile completes the actual-device gate by
 itself.
 
@@ -311,4 +311,4 @@ Public CI source binding verifies continuity, not private-fixture execution.
 
 Earlier comparison builds and basic render checks are historical observations, not a full regression suite. The original 21-game list remains incompletely tested for controls, audio, scoring, DIP switches, multiplayer, reset, and historical fidelity. Eight games have no active mono-output hookup in the original source; inherited absent audio and untested playback are separate statuses. Browser, touch, Android/iPhone, and mobile performance results do not exist in 0.1.0. Record each result with its build, scenario, and actual environment instead of generalizing from Pong.
 
-The [0.1.0 validation report](0.1.0_VALIDATION.md) records the integrated milestone results and remaining limitations. Report failures using the [bug-report template](../bug-reports/TEMPLATE.md). Release qualification and packaging have additional checks in [RELEASING.md](RELEASING.md).
+The [0.1.0 validation report](legacy/0.1.0_VALIDATION.md) records the integrated milestone results and remaining limitations. Report failures using the [bug-report template](../bug-reports/TEMPLATE.md). Release qualification and packaging have additional checks in [RELEASING.md](RELEASING.md).

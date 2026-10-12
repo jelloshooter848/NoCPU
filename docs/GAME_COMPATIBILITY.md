@@ -2,10 +2,10 @@
 
 NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
-The selected [0.6.0 contract](0.6.0_TASKS.md) adds Stunt Cycle and Indy 4,
+The selected [0.6.0 contract](legacy/0.6.0_TASKS.md) adds Stunt Cycle and Indy 4,
 targeting six playable games and fifteen remaining ports. Trusted actual ROM,
 original/native/Wasm, source/package/browser and publication acceptance are
-pending in the [0.6.0 ledger](0.6.0_VALIDATION.md). Both selected games inherit
+pending in the [0.6.0 ledger](legacy/0.6.0_VALIDATION.md). Both selected games inherit
 no active DICE mono-output hookup; expected silence and historical unfinished
 audio are separate from port regressions. The public runtime below remains the
 accepted 0.5.0 preview until actual new delivery is verified.
@@ -22,8 +22,8 @@ and both content-keyed core URLs match the accepted package.
 
 Actual Android Chrome, iPhone Safari/installed mode and controller qualification
 remain pending. Bonus-credit threshold awards and event overflow are
-unexercised. See [0.5.0 validation](0.5.0_VALIDATION.md) for exact identities,
-coverage and limits; [0.4.0 results](0.4.0_VALIDATION.md) retain their historical
+unexercised. See [0.5.0 validation](legacy/0.5.0_VALIDATION.md) for exact identities,
+coverage and limits; [0.4.0 results](legacy/0.4.0_VALIDATION.md) retain their historical
 three-game scope. A manifest or emulated viewport does not prove installation
 on a physical iPhone.
 
@@ -95,7 +95,7 @@ The ten external ROM sets have passed actual CRC and observed-size validation us
 
 The manifest's `validation` fields retain the historical 0.1.0 source/native
 audit scope. Current four-game replay/browser results are recorded separately
-in [0.5.0 validation](0.5.0_VALIDATION.md); they do not upgrade all 21 games to
+in [0.5.0 validation](legacy/0.5.0_VALIDATION.md); they do not upgrade all 21 games to
 verified gameplay. The historical Pong browser rows above retain their original
 version/attempt scope.
 

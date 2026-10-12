@@ -1,6 +1,6 @@
 # Contributing to NoCPU
 
-Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). The current [0.3.0 app foundation](docs/0.3.0_TASKS.md) adds the game-first library, remapping, preferences and optional local ROM management while Pong remains the only playable browser game. Preserve its measured native/Wasm behavior and external touch controls. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
+Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). NoCPU has restarted desktop-first at 0.1.0: the target is accurate play of every DICE 0.9 game in desktop browsers with keyboard and mouse, while mobile/touch UI and phone qualification are deferred until after desktop accuracy. Preserve the measured original/native/Wasm behavior of the six ported circuits. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
 
 ## Make a reviewable change
 

@@ -1,7 +1,7 @@
 # Physical phone and controller qualification
 
 Use the independently reviewed
-[0.3.1 preview and its exact identity](0.3.1_VALIDATION.md). Check that the
+[0.3.1 preview and its exact identity](legacy/0.3.1_VALIDATION.md). Check that the
 manifest still identifies that tested source/runtime before recording.
 Test an actual Android phone in Chrome and an actual iPhone in Safari. Pong is
 the only playable browser game and needs no ROM. Copy the

@@ -19,7 +19,7 @@ credentials absent from corresponding source, notices, packages and CI logs.
 Both games' inherited absent active audio hookups do not authorize synthesized
 replacement sound. Current component review permits local candidate packaging;
 actual archive review remains pending, and
-the [validation ledger](0.6.0_VALIDATION.md) records acceptance as it occurs.
+the [validation ledger](legacy/0.6.0_VALIDATION.md) records acceptance as it occurs.
 
 The actual v4 compiled snapshot links seven archive families and 145 concrete
 members (libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1,
@@ -134,7 +134,7 @@ review remains mandatory next. The
 affected renderer core independently retains exactly the same seven archives,
 133 members and fourteen math routines, with all recorded current native/Wasm
 input/output hashes matching; no speculative new component term is introduced.
-The [0.4.0 validation outcome](0.4.0_VALIDATION.md) records the independently
+The [0.4.0 validation outcome](legacy/0.4.0_VALIDATION.md) records the independently
 accepted matching package/source, gameplay/fidelity, committed/exact-main CI
 and public/live delivery. Physical qualification and final tags remain pending.
 These component snapshots remain historical; every later artifact still needs
@@ -159,7 +159,7 @@ source and actual production inventory also pass independent affected-component
 review: 47 frontend inputs, seven runtime outputs and the unchanged linked
 families/notices verify. No new dependency is added, and the browser license
 audit is ready within that scope. Subsequent independent
-[0.3.1 exact-main/public reviews](0.3.1_VALIDATION.md#published-preview-outcome)
+[0.3.1 exact-main/public reviews](legacy/0.3.1_VALIDATION.md#published-preview-outcome)
 verify the actual 93 public files, 725 preferred-source files and corresponding
 provenance/notices. Physical-device acceptance remains separate. Current
 artifacts always require fresh provenance and matching source.

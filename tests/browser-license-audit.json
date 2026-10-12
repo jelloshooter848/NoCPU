@@ -1,10 +1,12 @@
 {
   "schema_version": 1,
-  "version": "0.6.0",
-  "release_ready": true,
+  "version": "0.1.0",
+  "release_ready": false,
   "assessment_scope": "0.6.0 current ownership-repaired six-circuit browser component/source contract: original-derived Pong/Pong Doubles/Space Race/Breakout plus Stunt Cycle and Indy 4, original chip-ROM adapter, online iPhone Home Screen frontend and existing controls/settings/qualification/storage/fflate import. Independent actual current core/member/notice/frontend/preferred-source review accepts local candidate packaging eligibility only. Actual produced corresponding-source/archive/privacy/package, gameplay/fidelity, browser, committed CI and public delivery remain separate mandatory gates. Native binaries, toolchain containers, ROM payloads and the other fifteen DICE circuits remain excluded.",
   "combined_distribution_license": "GPL-3.0-only",
-  "blockers": [],
+  "blockers": [
+    "Restart 0.1.0: the component, notice and corresponding-source assessment below was performed for legacy 0.6.0 (tag legacy-0.6.0). It must be re-reviewed against the actual 0.1.0 desktop-first browser output before any browser publication."
+  ],
   "notices": [
     {
       "path": "docs/licenses/Apple-HID-Utilities.txt",
