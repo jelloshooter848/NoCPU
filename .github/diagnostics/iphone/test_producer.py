@@ -72,4 +72,14 @@ class Producer(unittest.TestCase):
   with extra.open('wb')as stream:stream.truncate(m.LIMIT-m.RECEIPT_LIMIT+1)
   with self.assertRaises(SystemExit):m.report()
   receipt=json.loads((m.OUTPUT/'receipt.json').read_text());self.assertEqual(receipt['case_outcome'],'failed');self.assertFalse(receipt['media_retained']);self.assertEqual(receipt['evidence_bound_category'],'EVIDENCE_OVER_8MIB');self.assertLessEqual(sum(p.stat().st_size for p in m.OUTPUT.rglob('*')if p.is_file()),m.LIMIT)
+ def test_runtime_missing_audits_all_eleven(self):
+  (m.BASE/'pages/assets/0.js').unlink()
+  with self.assertRaisesRegex(ValueError,'RUNTIME_BYTES'):m.verify()
+  audit=json.loads((m.BASE/'runtime-audit.json').read_text());self.assertEqual(len(audit['records']),11);self.assertFalse(audit['all_eleven_match']);self.assertFalse(audit['records'][0]['present'])
+ def test_input_diagnostic_keeps_specific_phase_and_unrun(self):
+  (m.BASE/'input-diagnostic.json').write_text(json.dumps({'phase':'stage','safe_category':'RUNTIME_BYTES','arbitrary':'SECRET_PAYLOAD'}))
+  with self.assertRaises(SystemExit):m.report()
+  receipt=json.loads((m.OUTPUT/'receipt.json').read_text());self.assertEqual(receipt['case_outcome'],'unrun');self.assertEqual(receipt['input_diagnostic'],{'phase':'stage','safe_category':'RUNTIME_BYTES'});self.assertNotIn('SECRET_PAYLOAD',json.dumps(receipt))
+ def test_source_inputs_missing_rejected(self):
+  with self.assertRaisesRegex(ValueError,'CORE_MISSING'):m.core_inputs()
 if __name__=='__main__':unittest.main()

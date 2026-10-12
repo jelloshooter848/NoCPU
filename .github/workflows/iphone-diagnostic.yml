@@ -11,7 +11,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: 21c161a9cca7da90f98909f441ecf189061501b1
+        ref: 9e7af75c0e2ad882e0eefbdb348e31f7fcd8711e
         path: source
         persist-credentials: false
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -39,7 +39,7 @@ jobs:
     - name: Verify producer failure and privacy boundaries
       working-directory: source
       run: python3 ../policy/.github/diagnostics/iphone/test_producer.py
-    - name: Fetch the exact retained failed-run package
+    - name: Fetch exact failed manifest and same-run tested core transfer
       env:
         GH_TOKEN: ${{ github.token }}
       working-directory: source
@@ -47,9 +47,25 @@ jobs:
 
         gh api repos/jelloshooter848/NoCPU/actions/artifacts/11758913240/zip > build/iphone-package-input/evidence.zip
 
+        gh api repos/jelloshooter848/NoCPU/actions/artifacts/11756324672/zip > build/iphone-package-input/core.zip
+
         python3 ../policy/.github/diagnostics/iphone/producer.py prepare
 
         '
+    - name: Regenerate exact preferred inputs and install the tested core without
+        compilation
+      working-directory: source
+      run: 'python3 tools/prepare-core.py --output build/core/source
+
+        python3 tools/core-handoff.py --verify build/core/core-transfer.json --install-runtime'
+    - name: Build only the frontend and require all eleven exact failed-package runtime
+        bytes
+      working-directory: source
+      env:
+        NOCPU_BASE_PATH: /NoCPU/
+      run: 'npm run build:web
+
+        python3 ../policy/.github/diagnostics/iphone/producer.py stage'
     - name: Discover exactly the original one-case iPhone profile
       working-directory: source
       env:
