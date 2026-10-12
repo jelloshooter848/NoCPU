@@ -5,8 +5,15 @@ import { screen, titleSettings, installGamepads, padState, padPresent } from './
 import { snapshot, start, waitSimulation, paddles, initialRenderedPaddles, installAudioProbe,
   openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectExternalLayout, noInsets } from './helpers';
 
-test('all audited games have truthful library, ROM, sound and control information with four original circuits playable', async ({ page }) => {
+test('all audited games have truthful library, ROM, sound and control information with six implemented circuits and player-ROM launch gates', async ({ page }) => {
   await page.addInitScript(() => {
+    (window as any).__libraryWorkers = 0;
+    const NativeWorker = window.Worker;
+    window.Worker = class extends NativeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options); (window as any).__libraryWorkers += 1;
+      }
+    };
     const native = IDBFactory.prototype.open;
     IDBFactory.prototype.open = function (...args: Parameters<IDBFactory['open']>) {
       const request = native.apply(this, args);
@@ -38,19 +45,38 @@ test('all audited games have truthful library, ROM, sound and control informatio
     await page.getByTestId(`game-${game.id}`).click();
     await screen(page, 'game-info');
     await expect(page.locator('#game-info-heading')).toHaveText(game.display_name);
-    await expect(page.getByTestId('game-port-status')).toHaveText(['pong', 'pongdoubles', 'spacerace', 'breakout'].includes(game.id) ? 'Ready to play' : 'Browser port pending');
+    await expect(page.getByTestId('game-port-status')).toHaveText(['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id) ? 'Ready to play' : 'Browser port pending');
     await expect(page.getByTestId('game-rom-status')).toHaveText(game.roms.length ? 'ROM required · not imported' : 'No ROM needed');
     await expect(page.getByTestId('game-audio-status')).toHaveText(game.audio.mono_output_wired
-      ? ['pong', 'pongdoubles', 'spacerace', 'breakout'].includes(game.id) ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
+      ? ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id) ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
       : 'Inherited audio unavailable in DICE');
-    if (['pong', 'pongdoubles', 'spacerace', 'breakout'].includes(game.id)) await expect(page.getByTestId('play-selected')).toBeEnabled();
+    if (['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id)) await expect(page.getByTestId('play-selected')).toBeEnabled();
     else await expect(page.getByTestId('play-selected')).toBeDisabled();
+    if (['stuntcycle', 'indy4'].includes(game.id)) {
+      await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
+      await page.getByTestId('play-selected').click();
+      await screen(page, 'game-info');
+      await expect(page.getByTestId('rom-launch-message')).toBeVisible();
+      await expect(page.getByTestId('game-rom-status')).toHaveText('ROM required · not imported');
+      expect(await page.evaluate(() => (window as any).__libraryWorkers),
+        'An unimported selected game must fail before constructing a core worker').toBe(0);
+      await expect(page.getByRole('button', { name: 'Local ROMs', exact: true })).toBeEnabled();
+    }
+
     if (game.roms.length) {
       await page.getByText('Required ROM files', { exact: true }).click();
       for (const requirement of game.roms) await expect(page.locator('.rom-requirements')).toContainText(requirement.expected_member);
     }
     await page.getByRole('button', { name: 'Controls & help', exact: true }).click();
-    if (!['pong', 'pongdoubles', 'spacerace', 'breakout'].includes(game.id)) for (const control of game.controls) {
+    if (game.id === 'stuntcycle') {
+      await expect(page.locator('#game-help-content')).toContainText('alternating turns');
+      await expect(page.locator('#game-help-content')).toContainText('shared throttle');
+    } else if (game.id === 'indy4') {
+      await expect(page.locator('#game-help-content')).toContainText('There is no Start button');
+      await expect(page.locator('#game-help-content')).toContainText('Gas and Hand Brake');
+    }
+
+    if (!['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id)) for (const control of game.controls) {
       await expect(page.locator('#game-help-content')).toContainText(control.label);
     }
     await page.getByTestId('back').click();

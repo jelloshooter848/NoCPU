@@ -1,8 +1,61 @@
 # Browser distribution assessment
 
-## 0.5.0 component/license basis
+## 0.6.0 current assessment
 
-The current development scope adds online iPhone Home Screen/standalone
+The user-selected browser scope adds original Stunt Cycle and Indy 4 to the
+delivered four circuits, including a core ROM adapter and player-supplied local
+file launch. The selected source/metadata is not distribution approval. The
+[current audit](../tests/browser-license-audit.json) requires fresh actual
+compiler/dependency/link-member/frontend/preferred-source evidence before
+packaging. Retained 0.5.0 findings below remain identified historical evidence;
+they do not qualify changed output hashes.
+
+Audit new chip-ROM and selected-game source inputs, actual native/Wasm linker
+members, frontend/fflate source and all applicable notices. Observer-only native
+zlib linkage used to retain lossless selected-game full-RGB evidence is distinct
+from the actual browser-linked inventory. A source-package assessment does not
+clear native binaries or containers for distribution. Keep private ROMs and
+credentials absent from corresponding source, notices, packages and CI logs.
+Both games' inherited absent active audio hookups do not authorize synthesized
+replacement sound. Current component review permits local candidate packaging;
+actual archive review remains pending, and
+the [validation ledger](0.6.0_VALIDATION.md) records acceptance as it occurs.
+
+The actual v4 compiled snapshot links seven archive families and 145 concrete
+members (libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1,
+stubs 1). Its 26 musl math members add only `fmod.o`
+to the historical 25-math/144-member set. The pinned SDK's `src/math/fmod.c` has no
+additional leading copyright/license header (SHA-256
+`33fb61093e04783081b9e8f8a8a303456b2f919c215cd0c378c1ed0acf41934c`);
+existing complete musl COPYRIGHT and Emscripten MIT notices cover it. The
+historical 25-member basis below remains separately identified. Independent
+build-only review verified the v4 input/output hashes. Those bytes were later
+superseded by observation/ownership repairs and did not qualify complete
+component/frontend/source archive acceptance. License readiness was false at
+that snapshot; the current contract acceptance below records the refresh.
+Narrow independent v4 core component/notices acceptance is recorded in
+`build/v060-review/core-component-actual-notices-v1.json`, SHA-256
+`67772458a84da232162f69f4a9350cf80b0761bbf2710b260e8c71e576398dc6`.
+It verifies all 27 notice hashes and exact pinned SDK license/author bytes;
+fresh repaired runtime/member binding and current frontend/preferred-source/
+archive/privacy/package acceptance remain separate requirements.
+
+Current ownership-repaired core/member closure and production frontend/
+preferred-source contract now pass independent review for **local candidate
+packaging eligibility**. Receipt:
+`build/v060-review/current-components-frontend-preferredsource-contract-v2.json`,
+SHA-256 `b41deddb7bc91bb1d598cfb2bf43acc94bd48fa2ee008ad260f15ad74dcdd56d`.
+It verifies all 582 current Wasm source inputs and outputs, unchanged 145
+members/26 math sources, 54 frontend inputs/11 runtime outputs, 17 preferred
+and three imported fflate identities, all 27 notices and current icon recipe/
+assets. The browser license audit may therefore permit local packaging.
+Actual produced archive/source/privacy/package, gameplay/fidelity, browser,
+committed CI and public delivery remain mandatory separate acceptance gates.
+Overall release/device readiness remains false.
+
+## Historical 0.5.0 component/license basis
+
+That development scope added online iPhone Home Screen/standalone
 metadata and reproducible icons, alongside the selected Breakout circuit.
 The [browser license audit](../tests/browser-license-audit.json) records actual
 compiled/dependency/link-member, frontend/icon and preferred-source reviews.
@@ -231,7 +284,7 @@ evidence and must not be inferred from one another.
 Record the actual compiled input inventory and independent review outcome
 before changing the browser audit to ready. Changes to the compiler version,
 compiled library set, runtime options or frontend dependencies require another
-assessment of affected components. The current component assessment covers the
+assessment of affected components. The historical 0.5.0 assessment covers the
 four selected browser circuits and online Home Screen assets within the accepted
 component/source-contract scope above. It does not qualify
 native executables, toolchain container redistribution, the other seventeen

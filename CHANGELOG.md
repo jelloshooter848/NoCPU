@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — In development
+
+- Select original Stunt Cycle and Indy 4 for the next independently reviewed preview, with player-supplied ROMs, exact core descriptor validation and original controls/settings. Preserve four delivered ROM-free games and online iPhone Home Screen support.
+- Preserve the two selected games' inherited missing DICE audio hookups; no replacement sound, ROM bundling or offline support is introduced.
+- Software validation/publication, physical phone/controller qualification and final tags remain pending. The [0.6.0 ledger](docs/0.6.0_VALIDATION.md) records actual completed gates separately from the accepted deployed 0.5.0 runtime.
+
 ## 0.5.0 — 2026-10-11 (Pages preview)
 
 - Add online iPhone Home Screen installation and game-first standalone usability: manual Safari guidance, stable `/NoCPU/` identity, reproducible icons, safe-area/lifecycle handling and local-storage recovery. Installation does not promise offline play, shared Safari/installed storage or permanent retention.

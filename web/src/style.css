@@ -740,3 +740,58 @@ kbd { display: inline-block; min-width: 28px; max-width: 100%; padding: 4px; bor
 .game-stage[data-game="spacerace"] + .game-hud { gap: 8px; }
 .game-stage[data-game="pongdoubles"] + .game-hud .hud-button,
 .game-stage[data-game="spacerace"] + .game-hud .hud-button { padding-inline: 8px; }
+
+/* Selected driving circuits retain the raster, with controls in a separate grid. */
+.game-stage[data-game="stuntcycle"] {
+  --control-width: clamp(150px, 28vw, 280px);
+  --court-width: min(calc(var(--stage-width) - var(--control-width) - var(--court-gap)), calc(var(--stage-height) * var(--court-aspect, 1.333333)));
+  grid-template-columns: var(--court-width) var(--control-width);
+  justify-content: center;
+}
+.game-stage[data-game="stuntcycle"] .screen-frame { grid-column: 1; }
+.game-stage[data-game="stuntcycle"] .touch-controls {
+  display: grid; grid-column: 2; grid-row: 1; width: var(--control-width);
+}
+.game-stage[data-game="stuntcycle"] .paddle-controller { grid-column: 1; width: 100%; height: 108px; min-height: 0; }
+.game-stage[data-game="stuntcycle"] .paddle-control { min-height: 56px; cursor: ew-resize; }
+.game-stage[data-game="stuntcycle"] .control-track { top: 50%; bottom: auto; left: 12px; right: 12px; width: auto; height: 4px; transform: translateY(-50%); }
+.game-stage[data-game="stuntcycle"] .control-thumb { top: 50%; left: var(--paddle-position, 0%); width: 12px; height: 36px; }
+.game-stage[data-game="indy4"] {
+  --control-width: clamp(132px, 21vw, 210px);
+  --court-width: min(calc(var(--stage-width) - var(--control-width) * 2 - var(--court-gap) * 2), calc(var(--stage-height) * var(--court-aspect, 1.333333)));
+}
+.game-stage[data-game="indy4"] .touch-controls { display: contents; }
+.wheel-controller {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  width: var(--control-width); align-self: center; justify-self: center;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.wheel-controller .control-player { grid-column: 1 / -1; font-size: 10px; letter-spacing: 0; }
+.wheel-controller[data-wheel-slot="0"], .wheel-controller[data-wheel-slot="1"] { grid-column: 1; }
+.wheel-controller[data-wheel-slot="2"], .wheel-controller[data-wheel-slot="3"] { grid-column: 3; }
+.wheel-controller[data-wheel-slot="0"], .wheel-controller[data-wheel-slot="2"] { grid-row: 1; align-self: start; }
+.wheel-controller[data-wheel-slot="1"], .wheel-controller[data-wheel-slot="3"] { grid-row: 1; align-self: end; }
+.driving-button { min-height: 44px; min-width: 44px; padding: 6px; font-size: 12px; letter-spacing: 0; border: 1px solid var(--line); touch-action: none; -webkit-touch-callout: none; }
+.driving-button.active { color: #000; background: var(--ink); }
+.wheel-controller[data-wheel-slot="0"] .control-player { color: #55ed55; }
+.wheel-controller[data-wheel-slot="1"] .control-player { color: #55eded; }
+.wheel-controller[data-wheel-slot="2"] .control-player { color: #d88aff; }
+.wheel-controller[data-wheel-slot="3"] .control-player { color: #ff7777; }
+.game-shell[data-game="indy4"] .game-hud { gap: 4px; }
+.game-shell[data-game="indy4"] .hud-button { padding-inline: 5px; font-size: 10px; letter-spacing: 0; }
+@media (orientation: portrait) {
+  .game-stage[data-game="stuntcycle"], .game-stage[data-game="indy4"] {
+    --control-row-height: 108px;
+    --court-width: min(var(--stage-width), calc((var(--stage-height) - var(--control-row-height) - var(--court-gap)) * var(--court-aspect, 1.333333)));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: calc(var(--court-width) / var(--court-aspect, 1.333333)) var(--control-row-height);
+  }
+  .game-stage[data-game="stuntcycle"] .touch-controls { grid-column: 1; grid-row: 2; width: min(100%, 440px); }
+  .game-stage[data-game="indy4"] { --control-row-height: 248px; }
+  .game-stage[data-game="indy4"] .screen-frame { grid-column: 1; }
+  .game-stage[data-game="indy4"] .touch-controls {
+    display: grid; grid-column: 1; grid-row: 2; grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(100%, 480px); height: var(--control-row-height);
+  }
+  .game-stage[data-game="indy4"] .wheel-controller { grid-column: auto; grid-row: auto; width: 100%; align-self: center; }
+}

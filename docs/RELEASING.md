@@ -1,11 +1,11 @@
 # Releasing NoCPU
 
-`VERSION` is **0.5.0**, delivered as an independently reviewed online Pages
-preview: Pong, Pong Doubles, Space Race and Breakout, with iPhone Home Screen/
-standalone support. Seventeen library circuits remain unported. The
-[contract](0.5.0_TASKS.md) and [validation ledger](0.5.0_VALIDATION.md) distinguish
-software acceptance/publication from pending actual-device readiness. Offline
-and final hardware-readiness tags are not included.
+`VERSION` is **0.6.0**, in development for original Stunt Cycle and Indy 4
+with player-supplied ROMs alongside the delivered four circuits and online
+iPhone Home Screen support. The [contract](0.6.0_TASKS.md) and
+[validation ledger](0.6.0_VALIDATION.md) distinguish intended six-title scope,
+actual software acceptance/publication and pending physical qualification.
+Offline and final hardware-readiness tags are not included.
 
 The verified public site serves exact source
 `5d57abe35081451cc0c5d7b48b118a531a0cc930`, published by
@@ -53,6 +53,15 @@ private ROM credentials. Never package ROM bytes, private fixtures, secrets,
 generated source copies or unrelated build output. Known-path/type checks are
 useful guards; they cannot identify arbitrary secret text.
 
+The 0.6.0 new-game actual ROM/reference/gameplay/browser gates require trusted
+local fixtures. Public CI must retain complete four-game gates, run meaningful
+new loader/error/lifecycle checks and explicitly skip/block fixture-dependent
+coverage when files are absent. Any independently accepted local attestation
+must bind exact source/scenario/report/media identities and be labeled as such;
+source continuity checks are not an actual private-fixture CI execution.
+Review measured job/storage/artifact capacity before expanding the batch. A
+timeout or artifact budget cannot silently remove an accepted assertion.
+
 ## Pages preview for phone testing
 
 GitHub Pages **Source: GitHub Actions** is the correct repository setting.
@@ -70,7 +79,7 @@ python3 tools/package-web.py --preview
 
 `build/pages/` contains the runtime, visible preview identification,
 `BUILD-MANIFEST.json`, complete applicable notices and
-`source/nocpu-0.5.0-source.tar.gz` with its checksum. The archive's manifest
+`source/nocpu-0.6.0-source.tar.gz` with its checksum. The archive's manifest
 identifies `preview-corresponding-source`; the browser manifest has stage
 `preview` and no final tag. The app links directly to the available matching
 source archive. Preserve relative notice paths so their nested links work.

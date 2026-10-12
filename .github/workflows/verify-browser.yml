@@ -1,6 +1,5 @@
 name: Verify DICE browser distribution
-
-on:
+'on':
   workflow_call:
     inputs:
       release:
@@ -9,144 +8,326 @@ on:
       release_tag:
         type: string
         default: ''
-
 permissions:
   contents: read
-
+  actions: read
 jobs:
-  verify:
+  classify:
     runs-on: ubuntu-24.04
-    # Complete original/native/Wasm scenarios plus five browser profiles need bounded headroom.
+    timeout-minutes: 10
+    outputs:
+      documentation_only: ${{ steps.mode.outputs.documentation_only }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+    - name: Classify changes and verify an exact prior FULL runtime baseline
+      id: mode
+      env:
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD_SHA: ${{ github.sha }}
+        FINAL_RELEASE: ${{ inputs.release }}
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |-
+        mkdir -p build
+        python3 tools/classify-ci-change.py --event "$EVENT" --ref "$REF" --base "$BASE_SHA" --head "$HEAD_SHA" > build/ci-classification.json
+        python3 - <<'PY_CLASSIFY'
+        import json,os,pathlib,subprocess
+        root=pathlib.Path('build/ci-baseline'); root.mkdir(parents=True,exist_ok=True)
+        mode=False
+        try:
+            if json.load(open('build/ci-classification.json'))['documentation_only'] and os.environ['FINAL_RELEASE'] != 'true':
+                repo=os.environ['GH_REPO']; base=os.environ['BASE_SHA']
+                def api(path):
+                    return json.loads(subprocess.run(['gh','api',path],check=True,capture_output=True,text=True).stdout)
+                runs=api(f'repos/{repo}/actions/workflows/ci.yml/runs?head_sha={base}&status=completed&per_page=100')['workflow_runs']
+                run=next(r for r in runs if r.get('conclusion')=='success' and r.get('head_branch')=='main' and r.get('event') in {'push','workflow_dispatch'})
+                jobs=api(f'repos/{repo}/actions/runs/{run["id"]}/attempts/{run["run_attempt"]}/jobs?per_page=100')
+                if jobs.get('total_count',0)>100: raise ValueError('Incomplete baseline job API inventory')
+                artifacts=api(f'repos/{repo}/actions/runs/{run["id"]}/artifacts?per_page=100')
+                if artifacts.get('total_count',0)>100: raise ValueError('Incomplete baseline artifact API inventory')
+                name=f'core-runtime-transfer-{base}-{run["run_attempt"]}'
+                matching=[a for a in artifacts['artifacts'] if a.get('name')==name]
+                if len(matching)!=1: raise ValueError('Missing/duplicate baseline transfer artifact')
+                artifact=matching[0]
+                for label,data in [('run',run),('jobs',jobs),('artifact',artifact)]:
+                    (root/(label+'.json')).write_text(json.dumps(data))
+                with (root/'core.zip').open('wb') as output:
+                    subprocess.run(['gh','api',f'repos/{repo}/actions/artifacts/{artifact["id"]}/zip'],check=True,stdout=output)
+                proof=subprocess.run(['python3','tools/ci-runtime-baseline.py','--base',base,'--run',str(root/'run.json'),'--jobs',str(root/'jobs.json'),'--artifact',str(root/'artifact.json'),'--archive',str(root/'core.zip')],check=True,capture_output=True,text=True).stdout
+                (root/'verified-baseline.json').write_text(proof)
+                mode=True
+        except Exception as error:
+            print('No verified prior FULL baseline; full checks required:',type(error).__name__)
+        with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+            output.write('documentation_only='+str(mode).lower()+'\n')
+        PY_CLASSIFY
+    - name: Retain classifier and payload-free baseline identity
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ci-mode-and-baseline
+        path: |-
+          build/ci-classification.json
+          build/ci-baseline/verified-baseline.json
+        if-no-files-found: warn
+        retention-days: 14
+  core-reference:
+    needs: classify
+    if: needs.classify.outputs.documentation_only != 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: '22.22.0'
-      - name: Install pinned web toolchain and browser engines
-        run: |
-          ./tools/install-web-toolchain.sh --browsers
-          PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox webkit
-      - name: Check preservation, source tooling, and failure-injection tests
-        run: make test
-      - name: Test web control, preferences and ROM foundations
-        run: npm run test:foundations
-      - name: Install a signed-package audio sink for real headless browser audio
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
-      - name: Build original desktop reference
-        run: ./tools/build-native.sh --jobs 2
-      - name: Capture original ROM-free Pong behavior
-        run: ./tools/capture-pong.sh
-      - name: Capture original Pong Doubles, Space Race and Breakout scenarios
-        run: ./tools/capture-games.sh
-      - name: Check that qualification rejects incomplete actual reference evidence
-        run: python3 tests/test-reference-analysis.py --reference-dir build/reference
-      - name: Build portable native and Wasm cores
-        run: ./tools/build-core.sh all
-      - name: Compare original native, adapted native, and Wasm behavior
-        run: make core-compare
-      - name: Test phone qualification collection and artifact identity
-        run: npm run test:qualification
-      - name: Build production frontend at the project Pages path
-        env:
-          NOCPU_BASE_PATH: /NoCPU/
-        run: npm run build:web
-      - name: Package source-matched browser preview or qualified release
-        env:
-          FINAL_RELEASE: ${{ inputs.release }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          if [ "$FINAL_RELEASE" = true ]; then
-            python3 tools/package-web.py --tag "$RELEASE_TAG" --archive-dir build/release
-          else
-            python3 tools/package-web.py --preview --archive-dir build/release
-          fi
-      - name: Test packaged gameplay, controls, audio, and delivery in browser engines
-        env:
-          NOCPU_TEST_PACKAGED: '1'
-        run: npm run test:browser
-      - name: Retain verification evidence without executable native builds or private fixtures
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: pong-verification-evidence
-          path: |
-            build/reference/report.json
-            build/reference/**/evidence.json
-            build/reference/**/*.csv
-            build/reference/**/*.ppm
-            build/reference/**/*.wav
-            build/reference/**/*.s16le
-            build/reference/**/*.gray
-            build/reference/**/*.diff
-            build/reference/**/renderer-identity.txt
-            build/reference-games/latest.txt
-            build/reference-games/**/report.json
-            build/reference-games/**/*.tsv
-            build/reference-games/**/scenario-manifest.json
-            build/reference-games/**/capture-image-id.txt
-            build/reference-games/**/renderer-identity.txt
-            build/reference-games/**/adapter.diff
-            build/reference-games/**/*.json
-            build/reference-games/**/*.csv
-            build/reference-games/**/*.ppm
-            build/reference-games/**/*.wav
-            build/reference-games/**/*.s16le
-            build/reference-games/**/*.gray
-            build/reference-games/**/*.diff
-            build/reference-games/**/*.log
-            build/native/toolchain-provenance/**
-            build/core/comparison.json
-            build/core/native/build-provenance.json
-            build/core/native/dependencies.mk
-            build/core/native/linker.map
-            build/core/wasm/build-provenance.json
-            build/core/wasm/dependencies.mk
-            build/core/wasm/linker.map
-            build/core/native-evidence/**/*.json
-            build/core/native-evidence/**/*.csv
-            build/core/native-evidence/**/*.s16le
-            build/core/native-evidence/**/*.gray
-            build/core/native-evidence/**/*.ppm
-            build/core/native-evidence/**/*.wav
-            build/core/wasm-evidence/**/*.json
-            build/core/wasm-evidence/**/*.csv
-            build/core/wasm-evidence/**/*.s16le
-            build/core/wasm-evidence/**/*.gray
-            build/core/wasm-evidence/**/*.ppm
-            build/core/wasm-evidence/**/*.wav
-            build/core/game-evidence/latest.txt
-            build/core/game-evidence/**/*.json
-            build/core/game-evidence/**/*.csv
-            build/core/game-evidence/**/*.ppm
-            build/core/game-evidence/**/*.wav
-            build/core/game-evidence/**/*.s16le
-            build/core/game-evidence/**/*.gray
-            build/core/game-evidence/*/*.txt
-            build/core/game-evidence/*/*.tsv
-            build/core/game-evidence/*/*.log
-            build/pages/BUILD-MANIFEST.json
-            build/web-provenance.json
-            build/playwright-report/**
-            build/browser-results/**
-            build/browser-matrix.json
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Retain verified matching source and browser release assets
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: verified-release-assets
-          path: build/release/
-          if-no-files-found: error
-          retention-days: 7
-      - name: Prepare the tested Pages artifact
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        with:
-          path: build/pages
-          retention-days: 7
-
-# No private ROM checkout or repository-write permission belongs in verification.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned web compiler toolchain
+      run: ./tools/install-web-toolchain.sh
+    - name: Check preservation, source tooling, and failure-injection tests
+      run: make test
+    - name: Test web control, preferences and ROM foundations
+      run: npm run test:foundations
+    - name: Build original desktop reference
+      run: ./tools/build-native.sh --jobs 2
+    - name: Build portable native and Wasm cores
+      run: ./tools/build-core.sh all
+    - name: Capture and compare every old-four scenario with a measured disk preflight and monitored reserve
+      run: |-
+        python3 - <<'PY_SPACE'
+        import json,os,pathlib,shutil,signal,subprocess,time
+        free=shutil.disk_usage('.').free
+        pathlib.Path('build/ci-capacity.json').write_text(json.dumps({'free_before_capture_bytes':free,'required_before_bytes':16*1024**3,'reserve_bytes':1024**3,'runner_peak':'not previously measured'})+'\n')
+        if free<16*1024**3: raise SystemExit('Insufficient disk for complete retained evidence; no deletion or gate reduction permitted')
+        commands='./tools/capture-pong.sh && ./tools/capture-games.sh && python3 tests/test-reference-analysis.py --reference-dir build/reference && make core-compare'
+        process=subprocess.Popen(['bash','-eu','-c',commands],start_new_session=True)
+        while process.poll() is None:
+            if shutil.disk_usage('.').free<1024**3:
+                os.killpg(process.pid,signal.SIGTERM)
+                try: process.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid,signal.SIGKILL); process.wait()
+                raise SystemExit('Evidence reserve breached; retained partial evidence, no deletion')
+            try: process.wait(timeout=15)
+            except subprocess.TimeoutExpired: pass
+        if shutil.disk_usage('.').free<1024**3: raise SystemExit('Evidence reserve breached at completion; retained evidence')
+        raise SystemExit(process.returncode)
+        PY_SPACE
+    - name: Record selected-title private gameplay as explicitly skipped in public CI
+      run: python3 -c 'import json,pathlib; pathlib.Path("build/selected-private-fixture-status.json").write_text(json.dumps({"games":["stuntcycle","indy4"],"actual_private_fixture_gameplay":"skipped","reason":"Public
+        CI has no authorized cross-repository fixture access; mandatory independently reviewed exact-source private local
+        gates remain separate."},indent=2)+"\n")'
+    - name: Bind the five tested Wasm transfer files to this exact clean checkout
+      run: python3 tools/core-handoff.py --write build/core/core-transfer.json
+    - name: Upload the exact-run tested core transfer
+      id: core-transfer
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        path: |-
+          build/core/core-transfer.json
+          build/core/wasm/nocpu.js
+          build/core/wasm/nocpu.wasm
+          build/core/wasm/build-provenance.json
+          build/core/wasm/dependencies.mk
+          build/core/wasm/linker.map
+        if-no-files-found: error
+        retention-days: 7
+    - name: Retain verification evidence without executable native builds or private fixtures
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: pong-verification-evidence
+        path: |
+          build/reference/report.json
+          build/reference/**/evidence.json
+          build/reference/**/*.csv
+          build/reference/**/*.ppm
+          build/reference/**/*.wav
+          build/reference/**/*.s16le
+          build/reference/**/*.gray
+          build/reference/**/*.diff
+          build/reference/**/renderer-identity.txt
+          build/reference-games/latest.txt
+          build/reference-games/**/report.json
+          build/reference-games/**/*.tsv
+          build/reference-games/**/scenario-manifest.json
+          build/reference-games/**/capture-image-id.txt
+          build/reference-games/**/renderer-identity.txt
+          build/reference-games/**/adapter.diff
+          build/reference-games/**/*.json
+          build/reference-games/**/*.csv
+          build/reference-games/**/*.ppm
+          build/reference-games/**/*.wav
+          build/reference-games/**/*.s16le
+          build/reference-games/**/*.gray
+          build/reference-games/**/*.diff
+          build/reference-games/**/*.log
+          build/native/toolchain-provenance/**
+          build/core/comparison.json
+          build/core/native/build-provenance.json
+          build/core/native/dependencies.mk
+          build/core/native/linker.map
+          build/core/wasm/build-provenance.json
+          build/core/wasm/dependencies.mk
+          build/core/wasm/linker.map
+          build/core/native-evidence/**/*.json
+          build/core/native-evidence/**/*.csv
+          build/core/native-evidence/**/*.s16le
+          build/core/native-evidence/**/*.gray
+          build/core/native-evidence/**/*.ppm
+          build/core/native-evidence/**/*.wav
+          build/core/wasm-evidence/**/*.json
+          build/core/wasm-evidence/**/*.csv
+          build/core/wasm-evidence/**/*.s16le
+          build/core/wasm-evidence/**/*.gray
+          build/core/wasm-evidence/**/*.ppm
+          build/core/wasm-evidence/**/*.wav
+          build/core/game-evidence/latest.txt
+          build/core/game-evidence/**/*.json
+          build/core/game-evidence/**/*.csv
+          build/core/game-evidence/**/*.ppm
+          build/core/game-evidence/**/*.wav
+          build/core/game-evidence/**/*.s16le
+          build/core/game-evidence/**/*.gray
+          build/core/game-evidence/*/*.txt
+          build/core/game-evidence/*/*.tsv
+          build/core/game-evidence/*/*.log
+          build/ci-capacity.json
+          build/selected-private-fixture-status.json
+          build/core/core-transfer.json
+        if-no-files-found: warn
+        retention-days: 14
+  browser:
+    needs:
+    - classify
+    - core-reference
+    if: needs.classify.outputs.documentation_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned web toolchain and browser engines
+      run: |
+        ./tools/install-web-toolchain.sh --browsers
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox webkit
+    - name: Install a signed-package audio sink for real headless browser audio
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+    - name: Fetch only the tested core from this same workflow run
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        path: build/core
+    - name: Reject checkout, tree, version, provenance or byte drift before using the transferred core
+      run: python3 tools/core-handoff.py --verify build/core/core-transfer.json --install-runtime
+    - name: Test phone qualification collection and artifact identity
+      run: npm run test:qualification
+    - name: Build production frontend at the project Pages path
+      env:
+        NOCPU_BASE_PATH: /NoCPU/
+      run: npm run build:web
+    - name: Package source-matched browser preview or qualified release
+      env:
+        FINAL_RELEASE: ${{ inputs.release }}
+        RELEASE_TAG: ${{ inputs.release_tag }}
+      run: |
+        if [ "$FINAL_RELEASE" = true ]; then
+          python3 tools/package-web.py --tag "$RELEASE_TAG" --archive-dir build/release
+        else
+          python3 tools/package-web.py --preview --archive-dir build/release
+        fi
+    - name: Test packaged gameplay, controls, audio, and delivery in browser engines
+      env:
+        NOCPU_TEST_PACKAGED: '1'
+      run: npm run test:browser
+    - name: Retain all browser diagnostics and tested package identities
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: browser-verification-evidence
+        path: |-
+          build/pages/BUILD-MANIFEST.json
+          build/web-provenance.json
+          build/playwright-report/**
+          build/browser-results/**
+          build/browser-matrix.json
+        if-no-files-found: warn
+        retention-days: 14
+    - name: Retain verified matching source and browser release assets
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: verified-release-assets
+        path: build/release/
+        if-no-files-found: error
+        retention-days: 7
+    - name: Prepare the tested Pages artifact
+      uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+      with:
+        path: build/pages
+        retention-days: 7
+  narrative:
+    needs: classify
+    if: needs.classify.outputs.documentation_only == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install frozen JavaScript dependencies without runtime builds
+      run: npm ci --cache ./build/npm-cache --no-audit --no-fund
+    - name: Check preservation, source tooling, and failure-injection tests
+      run: make test
+    - name: Test web control, preferences and ROM foundations
+      run: npm run test:foundations
+  verify:
+    needs:
+    - classify
+    - core-reference
+    - browser
+    - narrative
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Require every applicable exact-source verification job
+      env:
+        CLASSIFY: ${{ needs.classify.result }}
+        DOCS: ${{ needs.classify.outputs.documentation_only }}
+        CORE: ${{ needs.core-reference.result }}
+        BROWSER: ${{ needs.browser.result }}
+        NARRATIVE: ${{ needs.narrative.result }}
+      run: |-
+        python3 - <<'PY_VERIFY'
+        import os
+        r=os.environ
+        if r['CLASSIFY']!='success': raise SystemExit('Classification did not succeed')
+        if r['DOCS']=='true':
+            if not (r['NARRATIVE']=='success' and r['CORE']=='skipped' and r['BROWSER']=='skipped'): raise SystemExit('Incomplete verified narrative path')
+        elif r['DOCS']=='false':
+            if not (r['CORE']=='success' and r['BROWSER']=='success' and r['NARRATIVE']=='skipped'): raise SystemExit('Incomplete FULL verification path')
+        else: raise SystemExit('Missing verification mode')
+        PY_VERIFY

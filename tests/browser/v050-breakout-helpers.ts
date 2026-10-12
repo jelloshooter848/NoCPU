@@ -67,13 +67,13 @@ export async function breakoutRaster(page: Page): Promise<{ width: number; heigh
     const visited = new Uint8Array(c.width * c.height), candidates: Bounds[] = [];
     const cyan = (pixel: number) => rgba[pixel * 4] === 10 && rgba[pixel * 4 + 1] === 133 && rgba[pixel * 4 + 2] === 194;
     for (let y = 382; y <= 388; y++) for (let x = 5; x <= 292; x++) {
-      const first = y * c.width + x; if (visited[first] || !cyan(first)) continue;
-      const queue = [first]; visited[first] = 1; let xmin = x, xmax = x, ymin = y, ymax = y, count = 0;
+      const first: number = y * c.width + x; if (visited[first] || !cyan(first)) continue;
+      const queue: number[] = [first]; visited[first] = 1; let xmin = x, xmax = x, ymin = y, ymax = y, count = 0;
       while (queue.length) {
-        const pixel = queue.pop()!, px = pixel % c.width, py = Math.floor(pixel / c.width); count++;
+        const pixel: number = queue.pop()!, px: number = pixel % c.width, py: number = Math.floor(pixel / c.width); count++;
         xmin = Math.min(xmin, px); xmax = Math.max(xmax, px); ymin = Math.min(ymin, py); ymax = Math.max(ymax, py);
         for (const dy of [-1, 0, 1]) for (const dx of [-1, 0, 1]) {
-          const nx = px + dx, ny = py + dy, next = ny * c.width + nx;
+          const nx: number = px + dx, ny: number = py + dy, next: number = ny * c.width + nx;
           if ((dx || dy) && nx >= 5 && nx <= 292 && ny >= 382 && ny <= 388 && !visited[next] && cyan(next)) { visited[next] = 1; queue.push(next); }
         }
       }

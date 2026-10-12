@@ -57,13 +57,13 @@ function forged(size, target) {
 function central(bytes) { const offset = bytes.length - 22; return new DataView(bytes.buffer, bytes.byteOffset).getUint32(offset + 16, true); }
 function patchSize(bytes, size) { const copy = bytes.slice(); const view = new DataView(copy.buffer); view.setUint32(22, size, true); view.setUint32(central(copy) + 24, size, true); return copy; }
 
-test('audited controls describe all 21 circuits while four implemented games have runtime mappings', () => {
+test('audited controls describe all 21 circuits while six implemented games have runtime mappings', () => {
   const inventory = require('../tests/fixtures/game-manifest.json');
   assert.equal(inventory.games.length, 21);
   for (const game of inventory.games) {
     const help = schema.getControlSchema(game.id); assert.equal(help.players, game.max_players_indicated);
     assert.deepEqual(help.controls.map((control) => control.label), game.controls.map((control) => control.label));
-    assert.equal(help.keyboardActions.length > 0, ['pong', 'pongdoubles', 'spacerace', 'breakout'].includes(game.id));
+    assert.equal(help.keyboardActions.length > 0, ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id));
   }
   assert.equal(schema.getControlSchema('missing'), undefined);
   assert.deepEqual(schema.getControlSchema('pong').keyboardActions, ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute']);
@@ -263,7 +263,7 @@ test('version-1 migration preserves custom Pong keys, pad axes, buttons and soun
   assert.deepEqual(migrated.preferences.bindingsByGame.pongdoubles, schema.defaultBindings('pongdoubles'));
   assert.deepEqual(migrated.preferences.bindingsByGame.spacerace, schema.defaultBindings('spacerace'));
   assert.equal(prefs.savePreferences(migrated.preferences, old).status, 'available');
-  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 3);
+  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 4);
   assert.deepEqual(prefs.loadPreferences(old).preferences, migrated.preferences);
 });
 
@@ -354,7 +354,7 @@ test('version-2 migration preserves arbitrary three-game mappings, options and s
   assert.deepEqual(migrated.preferences.bindingsByGame.breakout, schema.defaultBindings('breakout'));
   assert.deepEqual(migrated.preferences.optionsByGame.breakout, { bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 3 });
   assert.equal(prefs.savePreferences(migrated.preferences, storage).status, 'available');
-  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 3);
+  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 4);
   assert.deepEqual(prefs.loadPreferences(storage).preferences, migrated.preferences);
 });
 
@@ -369,4 +369,55 @@ test('malformed Breakout controls and one invalid DIP recover without discarding
   assert.equal(result.preferences.optionsByGame.pong.winningScore, 15);
   assert.deepEqual(result.preferences.bindingsByGame.breakout, schema.defaultBindings('breakout'));
   assert.deepEqual(result.preferences.optionsByGame.breakout, { bonusCredit: 300, cabinet: 'cocktail', coinage: 2, balls: 5 });
+});
+
+test('Driving controls retain independent analog/digital channels, pedals, coins and neutral rearming', () => {
+  const events = { axes: [], keys: [], buttons: [], actions: [] };
+  const controls = createControls({ gameId: 'indy4', bindings: schema.defaultBindings('indy4'),
+    onAxes: (value) => events.axes.push(value), onDirections: (value) => events.keys.push(value),
+    onButtons: (gas, brake) => events.buttons.push({ gas, brake }), onAction: (value) => events.actions.push(value) });
+  controls.setEnabled(true);
+  const pads = (axis = 0, buttons = []) => [0, 1, 2, 3].map((index) => ({ ...gamepad(index, 0, index === 1 ? buttons : []), axes: [index === 0 ? axis : 0, 0] }));
+  controls.pollGamepads(pads()); controls.pollGamepads(pads(1));
+  assert.deepEqual(events.axes.at(-1), [32767, null, null, null]);
+  controls.handleKeyDown(keyboard('KeyA')); controls.pollGamepads(pads(-1));
+  assert.deepEqual(controls.getState().directions, [-1, 0, 0, 0]);
+  assert.deepEqual(events.axes.at(-1), [-32768, null, null, null]);
+  controls.handleKeyUp(keyboard('KeyA'));
+  assert.deepEqual(controls.getState().directions, [0, 0, 0, 0]);
+  controls.setTouchButtons(3, false, true); controls.handleKeyDown(keyboard('ArrowLeft'));
+  assert.deepEqual(controls.getState().directions, [0, -1, 0, 1]);
+  controls.setTouchPedals(0, true, false); controls.handleKeyDown(keyboard('KeyK'));
+  controls.pollGamepads(pads(-1, [0]));
+  assert.deepEqual(controls.getState().gas, [true, true, false, false]);
+  assert.deepEqual(controls.getState().brake, [false, false, true, false]);
+  for (const code of ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5']) { controls.handleKeyDown(keyboard(code)); controls.handleKeyUp(keyboard(code)); }
+  assert.deepEqual(events.actions, ['coin1', 'coin2', 'coin3', 'coin4', 'coinDollar']);
+  controls.setEnabled(false); assert.deepEqual(controls.getState().gas, [false, false, false, false]);
+  assert.deepEqual(controls.getState().brake, [false, false, false, false]);
+  controls.setEnabled(true); const count = events.axes.length;
+  controls.pollGamepads(pads(1, [0]));
+  // Held slot0 cannot rearm itself; neutral slots send their actual stop once.
+  assert.equal(events.axes.length, count + 1);
+  assert.deepEqual(events.axes.at(-1), [null, 0, 0, 0]);
+  controls.pollGamepads(pads(1, [0])); assert.equal(events.axes.length, count + 1);
+  assert.deepEqual(controls.getState().gas, [false, false, false, false]);
+  controls.pollGamepads(pads()); controls.pollGamepads(pads(1, [0]));
+  assert.equal(events.axes.at(-1)[0], 32767); assert.equal(controls.getState().gas[1], true);
+  controls.pollGamepads([]); assert.deepEqual(controls.getState().directions, [0, 0, 0, 0]);
+});
+
+test('Version 3 preferences preserve delivered games and default independent selected-game maps', () => {
+  const previous = prefs.clonePreferences(); previous.volume = 0.3;
+  previous.bindingsByGame.breakout.keyboard.serve = ['KeyQ'];
+  previous.optionsByGame.breakout.balls = 5;
+  delete previous.bindingsByGame.stuntcycle; delete previous.bindingsByGame.indy4;
+  delete previous.optionsByGame.stuntcycle; delete previous.optionsByGame.indy4;
+  const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 3, preferences: previous })));
+  assert.equal(result.preferences.volume, 0.3);
+  assert.deepEqual(result.preferences.bindingsByGame.breakout.keyboard.serve, ['KeyQ']);
+  assert.equal(result.preferences.optionsByGame.breakout.balls, 5);
+  assert.equal(result.preferences.bindingsByGame.indy4.gamepad.players.length, 4);
+  assert.equal(result.preferences.bindingsByGame.stuntcycle.gamepad.players.length, 1);
+  assert.equal(schema.validateBindings(result.preferences.bindingsByGame.indy4, 'indy4').ok, true);
 });

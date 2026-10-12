@@ -86,6 +86,17 @@ Steeplechase's two active horse-video descriptors are required. The source's bug
 
 ## Evidence and distribution
 
+The selected [0.6.0 batch](0.6.0_TASKS.md) integrates Stunt Cycle and Indy 4
+with player-supplied compatible files. The browser validates exact descriptors
+and the core independently checks actual staged size/CRC; trusted fixture
+gameplay, loader failure paths and metadata audits have separate coverage.
+Reset retains circuit-owned ROMs; destroy clears staged/live buffers. Imports
+remain local and optional retention is the player's choice. No ROM retrieval
+service, public fixture checkout, bundled ROM or credential-bearing public job
+is authorized. Fixture-free CI must explicitly skip/block actual new-game
+gameplay and identify any source-bound independently accepted local evidence
+as a separate attestation. See [current validation](0.6.0_VALIDATION.md).
+
 All ten supplied sets have passed this audit. Earlier native comparison runs also reached basic rendered output using each set in original DICE and the modern rebuilding. Controls, audible sound, complete gameplay, cabinet accuracy, and browser/mobile behavior remain unverified.
 
 Keeping fixtures private solves repeatable access for authorized testing. It does not establish redistribution permission. Future browser ROM import should keep user-provided bytes local; no public download, bundled fixture, or ROM retrieval service is part of 0.1.0. Do not add private-repository credentials to source, workflows, reports, or releases.

@@ -1,5 +1,12 @@
 # Source provenance
 
+The selected [0.6.0 batch](0.6.0_TASKS.md) retains this immutable original
+inventory while adding original-derived Stunt Cycle and Indy 4, a core ROM
+adapter and browser launch/control integration. Fresh source/compiler/link/
+frontend inputs and corresponding-source archives must be bound to each
+accepted candidate; prior runtime/component approvals remain historical.
+Private fixture access identifies test inputs, never redistribution permission.
+
 NoCPU 0.1.0 preserves DICE 0.9 as its native reference. The browser port starts
 after this foundation release; importing source does not establish browser,
 mobile, audio, or full gameplay fidelity.

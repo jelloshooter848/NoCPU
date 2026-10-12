@@ -7,11 +7,11 @@ export function escapeText(value: string): string {
 }
 
 export function libraryMarkup(): string {
-  return GAMES.map((game) => `<button class="library-game" data-game-id="${game.id}" data-testid="game-${game.id}"><span class="game-name">${escapeText(game.name)}</span><span class="status-tag">${game.playable ? 'Ready to play' : 'Browser port pending'}</span><span class="game-summary">${game.manufacturer} · ${game.year} · ${game.roms.length ? 'ROM required' : 'No ROM needed'}</span></button>`).join('');
+  return GAMES.map((game) => `<button class="library-game" data-game-id="${game.id}" data-testid="game-${game.id}"><span class="game-name">${escapeText(game.name)}</span><span class="status-tag">${game.playable ? game.roms.length ? 'Player ROM required' : 'Ready to play' : 'Browser port pending'}</span><span class="game-summary">${game.manufacturer} · ${game.year} · ${game.roms.length ? 'ROM required' : 'No ROM needed'}</span></button>`).join('');
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
-  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
+  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : game.id === 'stuntcycle' ? '<p>Import your own compatible ROM ZIP. Start 1P uses one credit; Start 2P needs two credits for alternating turns. Coinage is in Settings. Both players use the same throttle to control motorcycle speed.</p>' : game.id === 'indy4' ? '<p>Import your own compatible ROM ZIP. Each color has its own coin, steering wheel, gas pedal and hand brake. The original game has no Start button.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
 }
 
 export function createShellMarkup(base: string, source: string): string {
@@ -32,11 +32,19 @@ export function createShellMarkup(base: string, source: string): string {
           <button class="direction-button" data-testid="direction-p${slot + 1}-up" data-direction="up" data-slot="${slot}" aria-label="Player ${slot + 1} rocket up">↑</button>
           <button class="direction-button" data-testid="direction-p${slot + 1}-down" data-direction="down" data-slot="${slot}" aria-label="Player ${slot + 1} rocket down">↓</button>
         </div>`).join('')}
+        ${['Green', 'Cyan', 'Violet', 'Red'].map((color, slot) => `<div class="wheel-controller" data-wheel-slot="${slot}" hidden>
+          <span class="control-player">P${slot + 1} · ${color.toUpperCase()}</span>
+          <button class="driving-button" data-testid="wheel-p${slot + 1}-left" data-driving="left" data-slot="${slot}" aria-label="Player ${slot + 1} ${color} turn left">←</button>
+          <button class="driving-button" data-testid="wheel-p${slot + 1}-right" data-driving="right" data-slot="${slot}" aria-label="Player ${slot + 1} ${color} turn right">→</button>
+          <button class="driving-button" data-testid="gas-p${slot + 1}" data-driving="gas" data-slot="${slot}" aria-label="Player ${slot + 1} ${color} gas pedal">Gas</button>
+          <button class="driving-button" data-testid="brake-p${slot + 1}" data-driving="brake" data-slot="${slot}" aria-label="Player ${slot + 1} ${color} hand brake">Brake</button>
+        </div>`).join('')}
         <div class="serve-controller" hidden><button class="serve-button" data-testid="serve-game" aria-label="Serve ball" disabled>Serve</button></div>
       </div>
     </div>
     <nav class="game-hud" aria-label="Game actions" hidden>
       <button class="hud-button coin-button" data-testid="insert-coin" disabled>Insert coin</button>
+      ${['Cyan', 'Violet', 'Red', 'Dollar'].map((color, index) => `<button class="hud-button indy-coin" data-testid="coin-channel-${index + 2}" data-coin-channel="${index + 2}" aria-label="${index === 3 ? 'Insert dollar bill' : `Insert coin for ${color}`}" disabled hidden>${color}</button>`).join('')}
       <button class="hud-button start-button" data-testid="start-game" disabled hidden>Start</button>
       <button class="hud-button start-button" data-testid="start-game-2" aria-label="Start 2-player game" disabled hidden>Start 2P</button>
       <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Menu <span aria-hidden="true">☰</span></button>
@@ -76,13 +84,13 @@ export function createShellMarkup(base: string, source: string): string {
         </section>
         <section class="panel-section library-panel" data-panel="library" hidden>
           <h1 id="library-heading">Library</h1>
-          <p class="panel-note">Pong, Pong Doubles, Space Race and Breakout are ready to play.</p>
+          <p class="panel-note">Pong, Pong Doubles, Space Race and Breakout need no ROM. Stunt Cycle and Indy 4 use your own compatible ROM ZIPs.</p>
           <div class="menu-inline-actions"><button data-action="settings">Settings</button><button data-action="help">How to play</button><button data-action="about">About</button></div>
           <div class="library-list" data-testid="game-library">${libraryMarkup()}</div>
         </section>
         <section class="panel-section game-info-panel" data-panel="game-info" hidden>
           <h1 id="game-info-heading">Pong</h1>
-          <div id="game-info-content" data-testid="game-info"></div>
+          <div id="game-info-content" data-testid="game-info"></div><p data-testid="rom-launch-message" role="status" hidden></p>
           <div class="menu-inline-actions">
             <button class="primary-button" data-testid="play-selected">Play Pong</button>
             <button data-action="game-help">Controls & help</button>
@@ -114,10 +122,11 @@ export function createShellMarkup(base: string, source: string): string {
           </section>
           <section class="settings-section" id="rom-section" aria-labelledby="rom-heading">
             <h2 id="rom-heading" tabindex="-1">Local ROMs</h2>
-            <p>The playable games need no ROM. Import your own compatible ZIP for a game below. Files stay in this browser; importing does not make a pending browser port playable.</p>
+            <p>Stunt Cycle and Indy 4 need your own compatible ROM ZIPs to play. Files stay in this browser and are never uploaded. Other pending ports remain unavailable after import.</p>
             <label for="rom-game">Game</label><select id="rom-game" data-testid="rom-game">${GAMES.filter((game) => game.roms.length).map((game) => `<option value="${game.id}">${escapeText(game.name)}</option>`).join('')}</select>
-            <label class="remember-roms" for="remember-roms"><input id="remember-roms" data-testid="remember-roms" type="checkbox" /> Remember on this device</label>
+            <label class="remember-roms" for="remember-roms"><input id="remember-roms" data-testid="remember-roms" type="checkbox" /> Remember on this device</label><p class="panel-note">Unchecked means this visit only. Remember stores the ZIP in this browser until you remove it or browser storage is cleared. Safari and the Home Screen app may keep separate data. Keep your original ZIP or save a backup for re-import.</p>
             <label class="rom-file-label" for="rom-file">Choose ROM ZIP</label><input id="rom-file" data-testid="rom-import" type="file" accept=".zip,application/zip" />
+            <button class="primary-button" data-testid="play-imported" hidden disabled>Play imported game</button>
             <p data-testid="rom-import-status" role="status" aria-live="polite"></p><p class="storage-status" data-testid="storage-status">Checking local ROM storage…</p>
             <div class="rom-list" data-testid="rom-list"></div>
           </section>
@@ -133,7 +142,7 @@ export function createShellMarkup(base: string, source: string): string {
         <section class="panel-section about-panel" data-panel="about" hidden>
           <h1 id="about-heading">About NoCPU</h1>
           <p>A continuation of <a href="https://sourceforge.net/projects/dice/" target="_blank" rel="noopener noreferrer">DICE</a>, the Discrete Integrated Circuit Emulator, by the DICE Team.</p>
-          <p>Pong, Pong Doubles, Space Race and Breakout run their original circuit simulation and sound. No ROM files are required for these games.</p>
+          <p>Pong, Pong Doubles, Space Race and Breakout run their original circuit simulation and sound without ROM files. Stunt Cycle and Indy 4 use player-supplied ROMs and the original DICE circuits. Both inherit unfinished audio with no connected sound output in DICE; they play silently.</p>
           <p data-testid="version">Version ${__NOCPU_VERSION__} · <span id="build-id">development</span></p>
           <p class="preview-note" id="release-stage">Browser preview · physical phone qualification pending</p>
           ${homeScreenGuideMarkup('about')}

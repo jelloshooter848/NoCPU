@@ -3,13 +3,14 @@ import type { PlayableGameId } from './game-contract';
 export type { ActionId, Bindings, KeyboardBindings, GamepadBindings, GamepadPlayerBinding, GamepadButtonBinding } from './control-schema';
 export { ACTION_IDS, ACTION_LABELS, DEFAULT_BINDINGS, cloneBindings, keyLabel, validateBindings } from './control-schema';
 export interface ConnectedGamepad { index: number; id: string; mapping: string; axes: number; buttons: number }
-export interface ControlState { heldKeys: string[]; directions: number[]; serve: boolean; gamepads: ConnectedGamepad[] }
+export interface ControlState { heldKeys: string[]; directions: number[]; serve: boolean; gas: boolean[]; brake: boolean[]; gamepads: ConnectedGamepad[] }
 export interface ControlOptions {
   bindings: Bindings; gameId?: PlayableGameId;
   onDirections: (directions: number[]) => void;
   onAxes: (axes: (number | null)[]) => void;
   onAction: (action: GameAction) => void;
   onServe?: (held: boolean) => void;
+  onButtons?: (gas: boolean[], brake: boolean[]) => void;
   onGamepads?: (gamepads: ConnectedGamepad[]) => void;
   onDisconnect?: () => void;
 }
@@ -19,9 +20,11 @@ export interface Controls {
   setGame(gameId: PlayableGameId, bindings: Bindings): void;
   setTouchButtons(slot: number, up: boolean, down: boolean): void;
   setTouchServe(held: boolean): void;
+  setTouchPedals(slot: number, gas: boolean, brake: boolean): void;
   pollGamepads(gamepads?: readonly (Gamepad | null)[]): void; getState(): ControlState;
 }
 const directional = (action: ActionId): boolean => /^p[1-4](Up|Down|Left|Right)$/.test(action);
+const pedal = (action: ActionId): boolean => /^p[1-4](Gas|Brake)$/.test(action);
 const pressed = (button: GamepadButton | undefined): boolean => !!button && (button.pressed || (Number.isFinite(button.value) && button.value >= 0.5));
 const editable = (target: EventTarget | null): boolean => typeof Element !== 'undefined' && target instanceof Element && !!target.closest('input,select,textarea,[contenteditable]:not([contenteditable="false"])');
 /** Input-only adapter; joystick games combine held switches, paddle games retain absolute positions. */
@@ -37,6 +40,9 @@ export function createControls(options: ControlOptions): Controls {
   let lastAxes: (number | undefined)[] = [];
   let axisDirections: number[] = [];
   let touchButtons: { up: boolean; down: boolean }[] = [];
+  let touchPedals: { gas: boolean; brake: boolean }[] = [];
+  let gas: boolean[] = [];
+  let brake: boolean[] = [];
   let directions: number[] = [];
   let touchServe = false;
   let serve = false;
@@ -47,6 +53,8 @@ export function createControls(options: ControlOptions): Controls {
     armedAxes = Array(count).fill(false); lastAxes = Array(count).fill(undefined);
     axisDirections = Array(count).fill(0); touchButtons = Array.from({ length: count }, () => ({ up: false, down: false }));
     directions = Array(count).fill(0);
+    touchPedals = Array.from({ length: count }, () => ({ gas: false, brake: false }));
+    gas = Array(count).fill(false); brake = Array(count).fill(false);
   }
   resetPlayers();
   function updateDirections(): void {
@@ -62,9 +70,19 @@ export function createControls(options: ControlOptions): Controls {
     const next = enabled && gameId === 'breakout' && (touchServe || heldButtons.has('serve') || bindings.keyboard.serve.some((code) => heldKeys.has(code)));
     if (next !== serve) { serve = next; options.onServe?.(next); }
   }
+  function updatePedals(): void {
+    const active = (action: ActionId): boolean => heldButtons.has(action) || bindings.keyboard[action].some((code) => heldKeys.has(code));
+    const nextGas = gas.map((_, slot) => enabled && gameId === 'indy4' && (touchPedals[slot].gas || active(`p${slot + 1}Gas` as ActionId)));
+    const nextBrake = brake.map((_, slot) => enabled && gameId === 'indy4' && (touchPedals[slot].brake || active(`p${slot + 1}Brake` as ActionId)));
+    if (nextGas.some((held, slot) => held !== gas[slot]) || nextBrake.some((held, slot) => held !== brake[slot])) {
+      gas = nextGas; brake = nextBrake; options.onButtons?.([...gas], [...brake]);
+    }
+  }
   function release(): void {
     revision += 1; heldKeys.clear(); heldButtons.clear(); armedButtons.clear(); lastButtons.clear();
-    touchServe = false; updateServe(); resetPlayers(); options.onDirections([...directions]);
+    touchServe = false; updateServe();
+    touchPedals.forEach((value) => { value.gas = false; value.brake = false; }); updatePedals();
+    resetPlayers(); options.onDirections([...directions]);
   }
   function actionFor(code: string): ActionId | undefined { return actionsForGame(gameId).find((action) => bindings.keyboard[action].includes(code)); }
   function defaultPads(): readonly (Gamepad | null)[] {
@@ -75,22 +93,26 @@ export function createControls(options: ControlOptions): Controls {
       if (!enabled || event.altKey || event.ctrlKey || event.metaKey || editable(event.target)) return false;
       const action = actionFor(event.code); if (!action) return false;
       event.preventDefault(); if (heldKeys.has(event.code) || event.repeat) return true;
-      heldKeys.add(event.code); if (directional(action)) updateDirections(); else if (action === 'serve') updateServe(); else options.onAction(action as GameAction);
+      heldKeys.add(event.code); if (directional(action)) updateDirections(); else if (action === 'serve') updateServe(); else if (pedal(action)) updatePedals(); else options.onAction(action as GameAction);
       return true;
     },
     handleKeyUp(event) {
       if (!heldKeys.delete(event.code)) return false;
-      event.preventDefault(); updateDirections(); updateServe(); return true;
+      event.preventDefault(); updateDirections(); updateServe(); updatePedals(); return true;
     },
     release,
     setEnabled(next) { if (enabled !== next) { enabled = next; release(); } },
     setBindings(next) { bindings = cloneBindings(next); release(); },
     setGame(next, nextBindings) { release(); gameId = next; bindings = cloneBindings(nextBindings); resetPlayers(); },
     setTouchButtons(slot, up, down) {
-      if (!enabled || gameId !== 'spacerace' || !Number.isInteger(slot) || slot < 0 || slot >= touchButtons.length) return;
+      if (!enabled || (gameId !== 'spacerace' && gameId !== 'indy4') || !Number.isInteger(slot) || slot < 0 || slot >= touchButtons.length) return;
       touchButtons[slot] = { up, down }; updateDirections();
     },
     setTouchServe(held) { if (!enabled || gameId !== 'breakout') return; touchServe = held; updateServe(); },
+    setTouchPedals(slot, heldGas, heldBrake) {
+      if (!enabled || gameId !== 'indy4' || !Number.isInteger(slot) || slot < 0 || slot >= touchPedals.length) return;
+      touchPedals[slot] = { gas: heldGas, brake: heldBrake }; updatePedals();
+    },
     pollGamepads(supplied) {
       const pads = supplied ?? defaultPads();
       const nextConnected = pads.filter((pad): pad is Gamepad => !!pad && pad.connected !== false).map((pad) => ({ index: pad.index, id: pad.id, mapping: pad.mapping, axes: pad.axes.length, buttons: pad.buttons.length }));
@@ -105,11 +127,19 @@ export function createControls(options: ControlOptions): Controls {
         const raw = byIndex.get(binding.pad)?.axes[binding.axis];
         if (raw === undefined || !Number.isFinite(raw)) { armedAxes[slot] = false; lastAxes[slot] = undefined; axisDirections[slot] = 0; return; }
         const value = Math.max(-1, Math.min(1, raw)) * (binding.invert ? -1 : 1);
-        if (Math.abs(value) <= binding.deadzone) { armedAxes[slot] = true; lastAxes[slot] = undefined; axisDirections[slot] = 0; return; }
+        if (Math.abs(value) <= binding.deadzone) {
+          armedAxes[slot] = true; axisDirections[slot] = 0;
+          if (gameId === 'indy4' || gameId === 'stuntcycle') {
+            if (lastAxes[slot] !== 0) axisChanges[slot] = 0;
+            lastAxes[slot] = 0;
+          } else lastAxes[slot] = undefined;
+          return;
+        }
         if (!armedAxes[slot]) { axisDirections[slot] = 0; return; }
         if (gameId === 'spacerace') { axisDirections[slot] = Math.sign(value); return; }
         const scaled = Math.sign(value) * (Math.abs(value) - binding.deadzone) / (1 - binding.deadzone);
-        const axis = Math.round(scaled * (scaled < 0 ? 32768 : 32767));
+        const axis = gameId === 'stuntcycle' ? Math.round(Math.max(0, scaled) * 32767)
+          : Math.round(scaled * (scaled < 0 ? 32768 : 32767));
         if (axis !== lastAxes[slot]) { lastAxes[slot] = axis; axisChanges[slot] = axis; }
       });
       if (axisChanges.some((axis) => axis !== null)) options.onAxes(axisChanges);
@@ -120,14 +150,14 @@ export function createControls(options: ControlOptions): Controls {
         if (!pad) { armedButtons.delete(key); lastButtons.delete(key); continue; }
         if (!down) armedButtons.set(key, true);
         if (armedButtons.get(key) === true && down) {
-          if (directional(action) || action === 'serve') heldButtons.add(action);
+          if (directional(action) || action === 'serve' || pedal(action)) heldButtons.add(action);
           else if (!lastButtons.get(key)) options.onAction(action as GameAction);
         }
         lastButtons.set(key, down);
-        if (!enabled || revision !== ownRevision) { heldButtons.clear(); updateDirections(); updateServe(); return; }
+        if (!enabled || revision !== ownRevision) { heldButtons.clear(); updateDirections(); updateServe(); updatePedals(); return; }
       }
-      updateDirections(); updateServe();
+      updateDirections(); updateServe(); updatePedals();
     },
-    getState() { return { heldKeys: [...heldKeys], directions: [...directions], serve, gamepads: structuredClone(connected) }; },
+    getState() { return { heldKeys: [...heldKeys], directions: [...directions], serve, gas: [...gas], brake: [...brake], gamepads: structuredClone(connected) }; },
   };
 }

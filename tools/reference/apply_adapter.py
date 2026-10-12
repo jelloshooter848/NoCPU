@@ -26,6 +26,35 @@ def edit(name, substitutions):
     changes.extend(difflib.unified_diff(before.splitlines(True), after.splitlines(True),
                                       fromfile="upstream/" + name, tofile="reference/" + name))
 
+edit("Makefile", [("LIBS := -s", "LIBS := -s -lz")])
+
+# Read-only observation of the original private static descriptor, no input override.
+edit("games/stuntcycle.cpp", [("static Throttle1Desc throttle_desc(&stunt_cycle_throttle_desc.throttle_pos);",
+    "static Throttle1Desc throttle_desc(&stunt_cycle_throttle_desc.throttle_pos);\nunsigned reference_stuntcycle_throttle() { return unsigned(stunt_cycle_throttle_desc.throttle_pos * 1000.0 + 0.5); }\ndouble reference_stuntcycle_cap_voltage() { return stunt_cycle_throttle_desc.cap_voltage; }\nuint64_t reference_stuntcycle_last_event_time() { return stunt_cycle_throttle_desc.last_event_time; }")])
+
+# Typed, read-only snapshots of the original public wheel state. Queue values
+# are copied through const iterators; no encoder cursor or descriptor is changed.
+edit("games/indy4.cpp", [("static Wheel4Desc wheel4_desc;", """static Wheel4Desc wheel4_desc;
+template<unsigned W> static void reference_copy_wheel(const WheelDesc<W>& wheel, double& angle, std::vector<double>& a, std::vector<double>& b) {
+    angle=wheel.angle;
+    const cirque<double>* queues[]={&wheel.wheel_events[0],&wheel.wheel_events[1]};
+    std::vector<double>* copies[]={&a,&b};
+    for(unsigned channel=0;channel<2;++channel) {
+        copies[channel]->clear(); copies[channel]->reserve(queues[channel]->size());
+        for(auto i=queues[channel]->begin();i!=queues[channel]->end();++i) copies[channel]->push_back((*queues[channel])[i]);
+    }
+}
+bool reference_indy4_wheel(unsigned slot, double& angle, std::vector<double>& a, std::vector<double>& b) {
+    switch(slot) {
+    case 0: reference_copy_wheel(wheel1_desc,angle,a,b); break;
+    case 1: reference_copy_wheel(wheel2_desc,angle,a,b); break;
+    case 2: reference_copy_wheel(wheel3_desc,angle,a,b); break;
+    case 3: reference_copy_wheel(wheel4_desc,angle,a,b); break;
+    default: return false;
+    }
+    return true;
+}""")])
+
 edit("main.cpp", [
     ('static const char VERSION_STRING[] = "DICE 0.9";',
      '#include "reference_driver.cpp"\n\nstatic const char VERSION_STRING[] = "DICE 0.9";'),
@@ -41,8 +70,9 @@ edit("main.cpp", [
 ])
 edit("circuit.cpp", [
     ('#include "circuit_desc.h"', '#include "circuit_desc.h"\n#include "reference_api.h"'),
+    ('    } while(removed);\n\n    // Make all connections', '    } while(removed);\n\n    reference_prune(chips);\n    // Make all connections'),
     ('        ChipDescPair cd(chips.back(), d);',
-     '        reference_register_chip(name.c_str(), d->output_pin, chips.back());\n        ChipDescPair cd(chips.back(), d);'),
+     '        reference_register_chip(name.c_str(), d->output_pin, chips.back(), d);\n        ChipDescPair cd(chips.back(), d);'),
 ])
 edit("game_config.cpp", [
     ('#include "game_config.h"', '#include "game_config.h"\n#include "reference_api.h"'),

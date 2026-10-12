@@ -13,7 +13,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
   if (!(key in options) || !process.argv[i + 1]) throw new Error(`Unknown or incomplete option ${process.argv[i]}`);
   options[key] = process.argv[i + 1];
 }
-// Numeric IDs retain the ABI2 access contract within ABI3; circuit descriptions,
+// Numeric IDs retain the ABI2 access contract within ABI4; circuit descriptions,
 // physical channels and setting values are audited from original DICE 0.9.
 const games = [
   { id: 0, name: 'pong', dip: 0, pot: 0, paddles: 2 },
@@ -123,7 +123,7 @@ try {
   report.original_inventory_sha256 = sha(await readFile(new URL('../tests/source-manifest.json', import.meta.url)));
   const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
   core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-  check('ABI3 required', core._nocpu_abi_version() === 3);
+  check('ABI4 required', core._nocpu_abi_version() === 4);
   check('media dimensions/sample rate preserve original contract', core._nocpu_width() === 576 && core._nocpu_height() === 432 && core._nocpu_sample_rate() === 48000);
   const uncreated = state();
   for (const args of [[4, 0, 0], [0, 2, 0], [1, 0, 1], [2, 0, 469999], [2, 0, 1470001]]) {

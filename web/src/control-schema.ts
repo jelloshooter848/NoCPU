@@ -3,17 +3,26 @@ import { gameSpec, isPlayableGameId, type PlayableGameId } from './game-contract
 
 /** The shipped Pong actions stay stable for version-1 settings migration. */
 export const ACTION_IDS = ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute'] as const;
-export const ALL_ACTION_IDS = [...ACTION_IDS, 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'start', 'p1Left', 'p1Right', 'start2', 'serve'] as const;
+export const ALL_ACTION_IDS = [...ACTION_IDS, 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'start', 'p1Left', 'p1Right', 'start2', 'serve', 'p2Left', 'p2Right', 'p3Left', 'p3Right', 'p4Left', 'p4Right', 'p1Gas', 'p1Brake', 'p2Gas', 'p2Brake', 'p3Gas', 'p3Brake', 'p4Gas', 'p4Brake', 'coin1', 'coin2', 'coin3', 'coin4', 'coinDollar'] as const;
 export type ActionId = typeof ALL_ACTION_IDS[number];
-export type GameAction = 'coin' | 'start' | 'start2' | 'menu' | 'reset' | 'mute';
+export type GameAction = 'coin' | 'coin1' | 'coin2' | 'coin3' | 'coin4' | 'coinDollar' | 'start' | 'start2' | 'menu' | 'reset' | 'mute';
 export const ACTION_LABELS: Record<ActionId, string> = {
   p1Up: 'Player 1 up', p1Down: 'Player 1 down', p2Up: 'Player 2 up', p2Down: 'Player 2 down',
   p3Up: 'Player 3 up', p3Down: 'Player 3 down', p4Up: 'Player 4 up', p4Down: 'Player 4 down',
   coin: 'Insert coin', start: 'Start game', menu: 'Pause / resume', reset: 'Reset game', mute: 'Toggle sound',
   p1Left: 'Shared paddle left', p1Right: 'Shared paddle right', start2: 'Start 2 players', serve: 'Serve ball',
+  p2Left: 'Cyan turn left', p2Right: 'Cyan turn right', p3Left: 'Violet turn left', p3Right: 'Violet turn right', p4Left: 'Red turn left', p4Right: 'Red turn right',
+  p1Gas: 'Green gas pedal', p1Brake: 'Green hand brake', p2Gas: 'Cyan gas pedal', p2Brake: 'Cyan hand brake',
+  p3Gas: 'Violet gas pedal', p3Brake: 'Violet hand brake', p4Gas: 'Red gas pedal', p4Brake: 'Red hand brake',
+  coin1: 'Green coin', coin2: 'Cyan coin', coin3: 'Violet coin', coin4: 'Red coin', coinDollar: 'Dollar bill',
 };
 export function actionLabel(action: ActionId, gameId: PlayableGameId = 'pong'): string {
-  return gameId === 'breakout' && action === 'start' ? 'Start 1 player' : ACTION_LABELS[action];
+  if ((gameId === 'breakout' || gameId === 'stuntcycle') && action === 'start') return 'Start 1 player';
+  if (gameId === 'stuntcycle' && action === 'p1Up') return 'Increase shared throttle';
+  if (gameId === 'stuntcycle' && action === 'p1Down') return 'Decrease shared throttle';
+  if (gameId === 'indy4' && action === 'p1Left') return 'Green turn left';
+  if (gameId === 'indy4' && action === 'p1Right') return 'Green turn right';
+  return ACTION_LABELS[action];
 }
 export type KeyboardBindings = Record<ActionId, string[]>;
 export interface GamepadButtonBinding { pad: number; button: number }
@@ -21,31 +30,42 @@ export interface GamepadPlayerBinding { pad: number; axis: number; invert: boole
 export interface GamepadBindings { players: GamepadPlayerBinding[]; buttons: Record<ActionId, GamepadButtonBinding[]> }
 export interface Bindings { keyboard: KeyboardBindings; gamepad: GamepadBindings }
 export function actionsForGame(gameId: PlayableGameId = 'pong'): readonly ActionId[] {
-  return gameId === 'breakout' ? ['p1Left', 'p1Right', 'coin', 'start', 'start2', 'serve', 'menu', 'reset', 'mute']
+  return gameId === 'indy4' ? ['p1Left', 'p1Right', 'p1Gas', 'p1Brake', 'p2Left', 'p2Right', 'p2Gas', 'p2Brake', 'p3Left', 'p3Right', 'p3Gas', 'p3Brake', 'p4Left', 'p4Right', 'p4Gas', 'p4Brake', 'coin1', 'coin2', 'coin3', 'coin4', 'coinDollar', 'menu', 'reset', 'mute']
+    : gameId === 'stuntcycle' ? ['p1Up', 'p1Down', 'coin', 'start', 'start2', 'menu', 'reset', 'mute']
+    : gameId === 'breakout' ? ['p1Left', 'p1Right', 'coin', 'start', 'start2', 'serve', 'menu', 'reset', 'mute']
     : gameId === 'pong' ? ACTION_IDS : gameId === 'pongdoubles'
     ? ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'coin', 'start', 'menu', 'reset', 'mute']
     : ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'start', 'menu', 'reset', 'mute'];
 }
 export function controlPlayerCount(gameId: PlayableGameId = 'pong'): number { return gameSpec(gameId).controlSlotCount; }
 export function directionAction(slot: number, direction: 'Up' | 'Down', gameId: PlayableGameId = 'pong'): ActionId {
-  return gameId === 'breakout' ? direction === 'Up' ? 'p1Left' : 'p1Right' : `p${slot + 1}${direction}` as ActionId;
+  return gameId === 'breakout' || gameId === 'indy4' ? `p${slot + 1}${direction === 'Up' ? 'Left' : 'Right'}` as ActionId : `p${slot + 1}${direction}` as ActionId;
 }
 export function defaultBindings(gameId: PlayableGameId = 'pong'): Bindings {
   const keyboard = Object.fromEntries(ALL_ACTION_IDS.map((action) => [action, [] as string[]])) as KeyboardBindings;
   Object.assign(keyboard, { p1Up: ['KeyW'], p1Down: ['KeyS'], p2Up: ['ArrowUp'], p2Down: ['ArrowDown'], coin: ['Enter'], menu: ['Space'], reset: ['KeyR'], mute: ['KeyM'] });
   if (gameId !== 'pong') keyboard.start = ['Digit1'];
   if (gameId === 'breakout') Object.assign(keyboard, { p1Left: ['ArrowLeft'], p1Right: ['ArrowRight'], start2: ['Digit2'], serve: ['KeyS'] });
+  if (gameId === 'stuntcycle') keyboard.start2 = ['Digit2'];
+  if (gameId === 'indy4') Object.assign(keyboard, { p1Left: ['KeyA'], p1Right: ['KeyD'], p1Gas: ['KeyW'], p1Brake: ['KeyS'], p2Left: ['ArrowLeft'], p2Right: ['ArrowRight'], p2Gas: ['ArrowUp'], p2Brake: ['ArrowDown'], p3Left: ['KeyJ'], p3Right: ['KeyL'], p3Gas: ['KeyI'], p3Brake: ['KeyK'], p4Left: ['Numpad4'], p4Right: ['Numpad6'], p4Gas: ['Numpad8'], p4Brake: ['Numpad5'], coin1: ['Digit1'], coin2: ['Digit2'], coin3: ['Digit3'], coin4: ['Digit4'], coinDollar: ['Digit5'] });
   if (gameId === 'pongdoubles') Object.assign(keyboard, { p3Up: ['KeyT'], p3Down: ['KeyG'], p4Up: ['KeyI'], p4Down: ['KeyK'] });
   const buttons = Object.fromEntries(ALL_ACTION_IDS.map((action) => [action, [] as GamepadButtonBinding[]])) as GamepadBindings['buttons'];
-  const players = Array.from({ length: controlPlayerCount(gameId) }, (_, pad) => ({ pad, axis: gameId === 'breakout' ? 0 : 1, invert: false, deadzone: 0.15 }));
+  const players = Array.from({ length: controlPlayerCount(gameId) }, (_, pad) => ({ pad, axis: gameId === 'breakout' || gameId === 'indy4' ? 0 : 1, invert: false, deadzone: 0.15 }));
   players.forEach((player, slot) => {
-    buttons[directionAction(slot, 'Up', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' ? 14 : 12 }];
-    buttons[directionAction(slot, 'Down', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' ? 15 : 13 }];
+    buttons[directionAction(slot, 'Up', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' || gameId === 'indy4' ? 14 : 12 }];
+    buttons[directionAction(slot, 'Down', gameId)] = [{ pad: player.pad, button: gameId === 'breakout' || gameId === 'indy4' ? 15 : 13 }];
     buttons.coin.push({ pad: player.pad, button: 0 });
     buttons.menu.push({ pad: player.pad, button: 9 });
-    if (gameId !== 'pong') buttons.start.push({ pad: player.pad, button: 1 });
+    if (gameId === 'indy4') {
+      buttons[`p${slot + 1}Gas` as ActionId] = [{ pad: player.pad, button: 0 }];
+      buttons[`p${slot + 1}Brake` as ActionId] = [{ pad: player.pad, button: 1 }];
+      buttons[`coin${slot + 1}` as ActionId] = [{ pad: player.pad, button: 2 }];
+    }
+    if (gameId !== 'pong' && gameId !== 'indy4') buttons.start.push({ pad: player.pad, button: 1 });
+    if (gameId === 'stuntcycle') buttons.start2.push({ pad: player.pad, button: 2 });
     if (gameId === 'breakout') { buttons.start2.push({ pad: player.pad, button: 2 }); buttons.serve.push({ pad: player.pad, button: 3 }); }
   });
+  if (gameId === 'indy4') buttons.coinDollar = [{ pad: 0, button: 3 }];
   return { keyboard, gamepad: { players, buttons } };
 }
 export const DEFAULT_BINDINGS: Bindings = defaultBindings();

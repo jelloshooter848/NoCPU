@@ -14,6 +14,12 @@ test: check
 	$(PYTHON) tests/test-reference-analysis.py
 	$(PYTHON) tests/test-game-reference-analysis.py
 	$(PYTHON) tests/test-breakout-reference-analysis.py
+	$(PYTHON) tests/test-full-rgb.py
+	$(PYTHON) tests/reference/test_snapshot_ppm.py
+	$(PYTHON) tests/reference/test_owned_case.py
+	$(PYTHON) tests/test-ci-change.py
+	$(PYTHON) tests/test-ci-runtime-baseline.py
+	$(PYTHON) tests/test-core-handoff.py
 	$(PYTHON) tests/test-web-release.py
 
 native: check

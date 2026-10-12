@@ -4,6 +4,7 @@
 #include <stdint.h>
 class Chip;
 void nocpu_register_chip(const char* name, unsigned pin, Chip* chip);
+void nocpu_unregister_chip(Chip* chip);
 void nocpu_capture_frame(uint64_t time);
 void nocpu_capture_audio(uint64_t time, int16_t sample);
 struct NoCPUOutputObservation {

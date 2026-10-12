@@ -213,6 +213,19 @@ class BrowserReleaseTests(unittest.TestCase):
         (self.root / 'build/web-provenance.json').write_text(json.dumps(frontend))
         return core, frontend
 
+    def test_unique_verification_preserves_existing_history(self):
+        self.prepare_provenance_fixture()
+        historical = self.root / 'build/package-source-verification/source'
+        historical.mkdir(parents=True)
+        sentinel = historical / 'retained-history.txt'
+        sentinel.write_text('retain these historical bytes')
+        isolated = self.root / 'build/candidate/pages-source-verification/source'
+        web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist), verification_dir=isolated)
+        self.assertEqual(sentinel.read_text(), 'retain these historical bytes')
+        self.assertTrue((isolated / 'chip.cpp').is_file())
+        with self.assertRaises(ValueError):
+            web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist), verification_dir=self.root / 'outside-build')
+
     def test_icon_recipe_is_required_and_changes_after_build_are_rejected(self):
         _, frontend = self.prepare_provenance_fixture()
         files = web.runtime_files(self.dist)

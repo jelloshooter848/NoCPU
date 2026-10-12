@@ -48,6 +48,26 @@ Browser/core tests below have additional prerequisites.
 
 ## Portable core and browser
 
+The selected [0.6.0 contract](0.6.0_TASKS.md) adds original Stunt Cycle and
+Indy 4, requiring compatible player-supplied ROMs. Reuse the existing pinned
+toolchain and frozen dependencies. The
+[0.6.0 validation ledger](0.6.0_VALIDATION.md) governs actual acceptance;
+the [six-game device packet](DEVICE_QUALIFICATION_0.6.md) retains separate
+physical and installed-mode evidence. All heavy execution has one owner;
+do not run competing builds/captures or duplicate an active validator job.
+The new titles inherit missing active DICE audio hookups. Actual compatible
+fixtures are required for their gameplay/reference/browser launch coverage;
+synthetic loader rejection and fixture-free metadata remain separate checks.
+`make test` also runs `python3 tests/test-full-rgb.py`: synthetic lossless
+RGB/gzip decoder fault and valid-multiframe checks. This checks the comparator,
+including equally invalid metadata, rather than exercising either ROM-backed
+circuit. Actual selected-game captures retain every decoded color frame and
+must pass the independently reviewed scenario/configuration/media contracts.
+Retain every raw PCM byte too: the selected titles' absent active audio hookups
+coexist with one original constructor zero sample. Measure initialization and
+ongoing counts separately, compare complete original/native/Wasm PCM without
+dropping/coercing samples, and keep physical speaker claims separate.
+
 The delivered [0.5.0 contract](0.5.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles, Space Race and Breakout with online Home Screen/standalone support.
 The complete sixteen-scenario original/native/Wasm batch, reset/ABI, components
@@ -74,6 +94,10 @@ Bash 4 or newer, Git and a native C++14 compiler such as GCC. Emscripten 3.1.74
 is the pinned Wasm compiler. Browser automation also needs the platform
 libraries required by Playwright Chromium, Firefox and WebKit. The historical
 Qt4 container is needed for the original comparison, not normal browser play.
+Selected-game lossless RGB observation additionally requires zlib development
+headers/library for native evidence builds. The native runner records `-lz`;
+this observer dependency is absent from the Wasm/browser link inventory and
+does not authorize distribution of native executables or toolchain containers.
 
 Install frozen npm dependencies and the pinned Wasm toolchain, then build:
 
@@ -273,6 +297,15 @@ python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures --game antiaircr
 The validator accepts original DICE runtime ZIP basenames and documented short archive aliases. It reads members in memory and checks CRCs and audited byte sizes; missing, corrupt, or incompatible sets fail validation. It does not extract or copy payloads into the repository. See [ROMS.md](ROMS.md) for retrieval/access expectations and exact requirements.
 
 Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Public pull-request checks must not receive private fixture credentials. Compatible bytes do not establish distribution permission.
+
+For 0.6.0, audit the actual Stunt Cycle and Indy 4 fixtures separately with
+`--game stuntcycle` and `--game indy4`. Keep them outside this public checkout,
+including during original-reference preparation. Public CI retains the full
+four-game reference/regression gates and fixture-free new-game error/metadata
+coverage; it must not claim actual new-game gameplay when fixtures are absent.
+Any independently accepted local reference attestation is identified separately
+and bound to the exact compiler/frontend/scenario inputs and measured reports.
+Public CI source binding verifies continuity, not private-fixture execution.
 
 ## What is still untested
 

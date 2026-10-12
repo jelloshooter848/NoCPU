@@ -5,16 +5,16 @@ export interface Preferences {
   volume: number; muted: boolean;
   /** Shipped Pong map kept at its original location for explicit version-1 migration. */
   bindings: Bindings;
-  bindingsByGame: { pongdoubles: Bindings; spacerace: Bindings; breakout: Bindings };
+  bindingsByGame: Record<Exclude<PlayableGameId, 'pong'>, Bindings>;
   optionsByGame: GameOptionsById;
 }
 export interface PreferencesResult { preferences: Preferences; status: 'available' | 'unavailable' | 'recovered'; message?: string }
 export const PREFERENCES_KEY = 'nocpu.preferences';
-export const PREFERENCES_VERSION = 3;
+export const PREFERENCES_VERSION = 4;
 export const DEFAULT_PREFERENCES: Preferences = {
   volume: 0.6, muted: false, bindings: cloneBindings(),
-  bindingsByGame: { pongdoubles: defaultBindings('pongdoubles'), spacerace: defaultBindings('spacerace'), breakout: defaultBindings('breakout') },
-  optionsByGame: { pong: defaultGameOptions('pong'), pongdoubles: defaultGameOptions('pongdoubles'), spacerace: defaultGameOptions('spacerace'), breakout: defaultGameOptions('breakout') },
+  bindingsByGame: { pongdoubles: defaultBindings('pongdoubles'), spacerace: defaultBindings('spacerace'), breakout: defaultBindings('breakout'), stuntcycle: defaultBindings('stuntcycle'), indy4: defaultBindings('indy4') },
+  optionsByGame: { pong: defaultGameOptions('pong'), pongdoubles: defaultGameOptions('pongdoubles'), spacerace: defaultGameOptions('spacerace'), breakout: defaultGameOptions('breakout'), stuntcycle: defaultGameOptions('stuntcycle'), indy4: defaultGameOptions('indy4') },
 };
 export function clonePreferences(value: Preferences = DEFAULT_PREFERENCES): Preferences { return structuredClone(value); }
 export function gameBindings(preferences: Preferences, gameId: PlayableGameId): Bindings { return gameId === 'pong' ? preferences.bindings : preferences.bindingsByGame[gameId]; }
@@ -34,11 +34,11 @@ function recover(value: unknown, version = PREFERENCES_VERSION): { preferences: 
   if (version >= 2) {
     const maps = record(value.bindingsByGame) ? value.bindingsByGame : {};
     const options = record(value.optionsByGame) ? value.optionsByGame : {};
-    for (const gameId of (version === 2 ? ['pongdoubles', 'spacerace'] : ['pongdoubles', 'spacerace', 'breakout']) as readonly Exclude<PlayableGameId, 'pong'>[]) {
+    for (const gameId of (version === 2 ? ['pongdoubles', 'spacerace'] : version === 3 ? ['pongdoubles', 'spacerace', 'breakout'] : ['pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4']) as readonly Exclude<PlayableGameId, 'pong'>[]) {
       const mapping = validateBindings(maps[gameId], gameId);
       if (mapping.ok) preferences.bindingsByGame[gameId] = mapping.bindings; else changed = true;
     }
-    for (const gameId of (version === 2 ? ['pong', 'pongdoubles', 'spacerace'] : ['pong', 'pongdoubles', 'spacerace', 'breakout']) as readonly PlayableGameId[]) {
+    for (const gameId of (version === 2 ? ['pong', 'pongdoubles', 'spacerace'] : version === 3 ? ['pong', 'pongdoubles', 'spacerace', 'breakout'] : ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4']) as readonly PlayableGameId[]) {
       const normalized = normalizeGameOptions(gameId, options[gameId]);
       Object.assign(preferences.optionsByGame, { [gameId]: normalized });
       if (JSON.stringify(normalized) !== JSON.stringify(options[gameId])) changed = true;
@@ -46,7 +46,7 @@ function recover(value: unknown, version = PREFERENCES_VERSION): { preferences: 
   }
   return { preferences, changed };
 }
-/** v0 is sound-only; v1 keeps Pong, and v2 keeps all three shipped game maps/options. */
+/** Each prior version keeps every shipped map/option and defaults newly added games. */
 export function loadPreferences(storage: Storage | null = browserStorage()): PreferencesResult {
   if (!storage) return { preferences: clonePreferences(), status: 'unavailable', message: 'Settings work for this visit. Browser storage is unavailable.' };
   try {
@@ -72,6 +72,10 @@ export function loadPreferences(storage: Storage | null = browserStorage()): Pre
       return { preferences, status: 'recovered', message: changed
         ? 'Your valid controls, sound and game settings were kept. Invalid fields use defaults; Breakout has its own controls and settings.'
         : 'Your controls, sound and game settings were kept. Breakout has its own controls and settings.' };
+    }
+    if (envelope.version === 3) {
+      const { preferences } = recover(envelope.preferences, 3);
+      return { preferences, status: 'recovered', message: 'Your valid controls, sound and game settings were kept. Stunt Cycle and Indy 4 have their own controls and settings.' };
     }
     if (envelope.version !== PREFERENCES_VERSION) return { preferences: clonePreferences(), status: 'recovered', message: 'This settings version is unsupported. Defaults are active.' };
     const { preferences, changed } = recover(envelope.preferences);
