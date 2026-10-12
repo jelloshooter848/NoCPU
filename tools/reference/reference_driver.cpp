@@ -586,11 +586,59 @@ void reference_frame(uint64_t time, uint64_t scanline_time, uint32_t v_size, int
     }
 }
 
+// Implemented beside the original typed static wheel descriptors in the
+// disposable adapter copy. This API only copies publicly exposed state.
+extern bool reference_indy4_wheel(unsigned, double&, std::vector<double>&, std::vector<double>&);
+static void reference_retained_state(const Settings& settings, const char* phase) {
+    if(ref_game!="stuntcycle" && ref_game!="indy4") return;
+    std::ofstream out(ref_output+"/epoch"+std::to_string(ref_epoch)+"/retained-state-"+phase+".json");
+    out.precision(17);
+    const auto assignment=[&out](const KeyAssignment& key) {
+        out << "{\"type\":" << key.type << ",\"button\":" << key.button << ",\"joystick\":" << key.joystick << '}';
+    };
+    out << "{\"game\":\"" << ref_game << "\",\"epoch\":" << ref_epoch << ",\"phase\":\"" << phase
+        << "\",\"observer\":{\"started\":" << (ref_started?"true":"false") << ",\"next_event\":" << ref_next_event
+        << ",\"frame\":" << ref_frame_number << ",\"hits\":" << ref_hits << ",\"deadline_ps\":" << ref_deadline << "},\"hardware\":{";
+    if(ref_game=="stuntcycle") {
+        out << "\"throttle_milli\":" << reference_stuntcycle_throttle() << ",\"cap_voltage\":" << reference_stuntcycle_cap_voltage()
+            << ",\"last_event_time_ps\":" << reference_stuntcycle_last_event_time() << "},\"input_mode\":{\"throttle\":";
+        assignment(settings.input.throttle[0].key);
+        out << ",\"keyboard_sensitivity\":" << settings.input.throttle[0].keyboard_sensitivity << '}';
+    } else {
+        out << "\"wheels\":[";
+        for(unsigned slot=0;slot<4;++slot) {
+            double angle; std::vector<double> a,b;
+            if(!reference_indy4_wheel(slot,angle,a,b)) throw std::runtime_error("Cannot observe typed wheel state");
+            if(slot)out<<',';
+            out << "{\"slot\":" << slot << ",\"angle\":" << angle << ",\"queues\":[";
+            unsigned channel=0;
+            for(const auto* values:{&a,&b}) {
+                if(channel++)out<<',';out<<'[';
+                for(unsigned n=0;n<values->size();++n) {if(n)out<<',';out<<(*values)[n];}
+                out<<']';
+            }
+            out << "]}";
+        }
+        out << "]},\"input_mode\":{\"wheels\":[";
+        for(unsigned slot=0;slot<4;++slot) {
+            if(slot)out<<',';const auto& wheel=settings.input.wheel[slot];
+            out << "{\"use_mouse\":" << (wheel.use_mouse?"true":"false") << ",\"use_keyboard\":" << (wheel.use_keyboard?"true":"false")
+                << ",\"keyboard_sensitivity\":" << wheel.keyboard_sensitivity << ",\"left\":";
+            assignment(wheel.left);out<<",\"right\":";assignment(wheel.right);out<<'}';
+        }
+        out << "]}";
+    }
+    out << "}\n";
+    if(!out)throw std::runtime_error("Cannot retain typed original static state");
+}
+
 static Circuit* reference_construct(const Settings& settings, Input& input, Video& video, const CircuitDesc* desc, const char* name) {
     rusage before_usage, after_usage;
     if(getrusage(RUSAGE_SELF, &before_usage)) throw std::runtime_error("Cannot observe constructor resource state");
     const auto started = std::chrono::steady_clock::now();
+    reference_retained_state(settings, "before-construction");
     Circuit* result = new Circuit(settings, input, video, desc, name);
+    reference_retained_state(settings, "after-construction");
     if(ref_diagnostics) {
         std::ofstream live(reference_proof_path("stunt-diagnostic-live-pins.json"));live<<"{\"pins\":[";bool first=true;
         for(const char* key:ref_diagnostic_keys) {
@@ -702,6 +750,7 @@ static bool reference_step(Circuit*& circuit, Settings& settings, Input& input, 
                 Application::quit();
                 return false;
             }
+            reference_retained_state(settings, "before-destruction");
             reference_close_epoch();
             reference_clear_registries();
             delete circuit;
