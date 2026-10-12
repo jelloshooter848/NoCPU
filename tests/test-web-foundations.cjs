@@ -396,7 +396,11 @@ test('Driving controls retain independent analog/digital channels, pedals, coins
   controls.setEnabled(false); assert.deepEqual(controls.getState().gas, [false, false, false, false]);
   assert.deepEqual(controls.getState().brake, [false, false, false, false]);
   controls.setEnabled(true); const count = events.axes.length;
-  controls.pollGamepads(pads(1, [0])); assert.equal(events.axes.length, count);
+  controls.pollGamepads(pads(1, [0]));
+  // Held slot0 cannot rearm itself; neutral slots send their actual stop once.
+  assert.equal(events.axes.length, count + 1);
+  assert.deepEqual(events.axes.at(-1), [null, 0, 0, 0]);
+  controls.pollGamepads(pads(1, [0])); assert.equal(events.axes.length, count + 1);
   assert.deepEqual(controls.getState().gas, [false, false, false, false]);
   controls.pollGamepads(pads()); controls.pollGamepads(pads(1, [0]));
   assert.equal(events.axes.at(-1)[0], 32767); assert.equal(controls.getState().gas[1], true);
