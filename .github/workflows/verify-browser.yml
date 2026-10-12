@@ -8,6 +8,10 @@ name: Verify DICE browser distribution
       release_tag:
         type: string
         default: ''
+      ref:
+        description: Commit to verify (a release passes its tag's commit); defaults to the triggering commit
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -21,7 +25,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
-        ref: ${{ github.sha }}
+        ref: ${{ inputs.ref || github.sha }}
         fetch-depth: 0
     - name: Classify changes and verify an exact prior FULL runtime baseline
       id: mode
@@ -29,7 +33,7 @@ jobs:
         EVENT: ${{ github.event_name }}
         REF: ${{ github.ref }}
         BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        HEAD_SHA: ${{ github.sha }}
+        HEAD_SHA: ${{ inputs.ref || github.sha }}
         FINAL_RELEASE: ${{ inputs.release }}
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
@@ -86,7 +90,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
-        ref: ${{ github.sha }}
+        ref: ${{ inputs.ref || github.sha }}
         fetch-depth: 0
     - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
       with:
@@ -218,7 +222,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
-        ref: ${{ github.sha }}
+        ref: ${{ inputs.ref || github.sha }}
         fetch-depth: 0
     - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
       with:
@@ -292,7 +296,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
-        ref: ${{ github.sha }}
+        ref: ${{ inputs.ref || github.sha }}
         fetch-depth: 0
     - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
       with:

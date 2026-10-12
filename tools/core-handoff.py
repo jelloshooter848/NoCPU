@@ -45,7 +45,8 @@ def source_identity(root: Path) -> dict:
     if git('status', '--porcelain', '--untracked-files=all'):
         raise ValueError('Core transfer requires a clean committed checkout')
     version = checked_file(root, 'VERSION').read_text().strip()
-    if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+    # SemVer core with an optional pre-release suffix (0.2.0-rc.1), as tools/release_check.py accepts.
+    if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?', version):
         raise ValueError('Invalid source version')
     return {'git_head': git('rev-parse', 'HEAD'), 'git_tree': git('rev-parse', 'HEAD^{tree}'),
             'version': version, 'dirty': False}

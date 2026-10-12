@@ -4,11 +4,11 @@ Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md),
 
 ## Make a reviewable change
 
-1. Open a branch for one focused problem. Describe its concrete trigger and expected behavior in an issue or pull request.
+1. Work on the long-lived working branch (currently `restart/desktop-first`); it reaches `main` only through release pull requests merged with a merge commit. Parallel work may use a short-lived `wip/<version>-<topic>` branch merged back into the working branch. Describe each change's concrete trigger and expected behavior.
 2. Keep the original source under `upstream/dice-0.9/` unchanged. Put NoCPU adapters or reference instrumentation outside that directory and record intentional derived changes in the provenance/patch documentation.
 3. Run `python3 tools/check.py`. For native or capture changes, also run `./tools/build-native.sh` and `./tools/capture-pong.sh`. For browser/core changes, run the matching core comparisons and browser checks in [TESTING.md](docs/TESTING.md). Explain skipped checks and their blockers.
 4. Update the compatibility matrix when a result changes. Record the scenario, toolchain/build identifier, observed evidence, and remaining untested behavior.
-5. Update relevant docs and the changelog. Use the [pull request template](.github/pull_request_template.md) to state validation and limitations.
+5. Update relevant docs. Add a player-facing line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) (Added/Changed/Fixed/Removed) for any change players notice; internal-only changes need none. Use the [pull request template](.github/pull_request_template.md) to state validation and limitations.
 
 Tests should exercise meaningful behavior or invariants. A successful compile, an attract-screen image, and a complete gameplay session are different results. Report them accurately. Fix regressions without silently changing original circuit timing or substituting new gameplay rules.
 
@@ -20,4 +20,4 @@ Never commit ROM archives, extracted ROM bytes, private-repository credentials, 
 
 ## Releases
 
-Follow [RELEASING.md](docs/RELEASING.md). A version entry or passing local check does not mean a release was published. Distinguish a Pages preview used for device testing from a qualified version-tag release. Release notes must state measured coverage and any pending device gates. The browser artifact must include applicable notices and its matching corresponding source; private ROMs remain excluded.
+Follow [RELEASING.md](docs/RELEASING.md). Releases are frequent: patch releases for fixes, tooling, docs and UI; a minor release for each roadmap milestone whose games pass their comparisons; `-rc.N` release candidates for testers. A release pull request ends with a release commit that changes only the version fields and CHANGELOG.md; after it merges, the owner creates the `vX.Y.Z` tag, and the release workflow publishes the GitHub Release and deploys Pages. Tags are never moved; a failed release is fixed by the next patch. A version entry or passing local check does not mean a release was published, and a release candidate is not accuracy-qualified unless its comparisons passed. Every browser artifact includes the applicable notices and its matching corresponding source; private ROMs remain excluded.

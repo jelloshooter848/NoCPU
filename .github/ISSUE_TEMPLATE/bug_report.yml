@@ -8,8 +8,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version or commit
-      placeholder: "0.1.0 or commit SHA"
+      label: Build string (About panel, quoted exactly) or commit
+      placeholder: "v0.1.0, v0.1.0-dev.3a09872 or commit SHA"
     validations:
       required: true
   - type: textarea

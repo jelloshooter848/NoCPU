@@ -41,4 +41,11 @@ The root agent is the orchestrator: break the user's goal into incremental roadm
 
 Split parallel work by file ownership and agree command/data contracts before editing shared files. Agents report concise, timestamped milestones, acceptance results, blockers and the next action. State whether each assignment is running, waiting on a named dependency, or complete. Keep detailed logs and analysis in ignored `build/` evidence so the orchestrator can retain broad project context without carrying raw technical output. Do not imply that work or monitoring continues when no agent or external job is running.
 
-Keep bug reports reproducible and focused on one issue; follow [bug-reports/README.md](bug-reports/README.md).
+## Branches, releases and changelog
+
+- Work on the single long-lived working branch (`restart/desktop-first` for now). It merges into `main` only through release PRs with merge commits. Parallel agents may use short-lived `wip/<version>-<topic>` branches merged back into the working branch. Do not open per-task PRs to `main`.
+- Follow [docs/RELEASING.md](docs/RELEASING.md): patches for fixes/tooling/docs/UI, a minor release per milestone, `-rc.N` for testers. The release commit touches only the version fields and CHANGELOG.md, and `python3 tools/release_check.py --tag vX.Y.Z` must pass. Agents never create, push or move tags; the owner tags the merged release. A failed release is fixed by the next patch.
+- Add a player-facing line under `## [Unreleased]` in CHANGELOG.md for user-visible changes. Never call a build accuracy-qualified unless its comparisons passed.
+- Record owner decisions in the dated log in [docs/ROADMAP.md](docs/ROADMAP.md) and keep its milestone Status column current.
+
+Keep bug reports reproducible and focused on one issue; follow [bug-reports/README.md](bug-reports/README.md). Reports quote the build string and end with `Status: fixed in <commit>` or `Status: not a bug — <reason>`.

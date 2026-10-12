@@ -6,35 +6,21 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  release-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Check VERSION is SemVer and CHANGELOG.md keeps an Unreleased section
+      run: python3 tools/release_check.py
   verify:
     uses: ./.github/workflows/verify-browser.yml
-  deploy-preview:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview && github.ref == 'refs/heads/main' && github.repository
-      == 'jelloshooter848/NoCPU'
-    needs: verify
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-    - name: Deploy the tested preview with pending physical-device results visible in its manifest
-      id: deployment
-      uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 'on':
   push:
     branches:
     - main
+    - restart/desktop-first
   pull_request: null
-  workflow_dispatch:
-    inputs:
-      publish_preview:
-        description: Deploy the explicitly reviewed six-game/Home Screen preview for physical-device testing
-        type: boolean
-        default: false
+  workflow_dispatch: null

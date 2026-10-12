@@ -7,6 +7,7 @@ import gzip
 import html
 import io
 import tarfile
+import zipfile
 import hashlib
 import importlib.util
 import json
@@ -355,9 +356,7 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
     readiness = json.loads((root / 'tests/release-readiness.json').read_text())
     if not preview:
         readiness = verify_readiness(root, version, digest)
-        notes = source.release_notes(root, version)
-        if 'prepared locally' in notes.splitlines()[0].lower():
-            raise ValueError('Finalize the reviewed CHANGELOG release date before browser publication')
+        source.release_notes(root, version)  # A final build needs its dated changelog section.
     commit, tree_state = source_identity(root, not preview, tag)
     # Validate all source payloads before writing a publishable directory.
     source_files = source.collect_files(root)
@@ -397,6 +396,22 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
     return manifest
 
 
+def write_site_zip(directory: Path, destination: Path) -> Path:
+    """Zip the packaged site at its root (serve it from a /NoCPU/ folder) with fixed metadata."""
+    with zipfile.ZipFile(destination, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for path in sorted(directory.rglob('*')):
+            if path.is_symlink():
+                raise ValueError('Generated web artifact may not contain symlinks')
+            if not path.is_file():
+                continue
+            entry = zipfile.ZipInfo(path.relative_to(directory).as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+            entry.external_attr = 0o644 << 16
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(entry, path.read_bytes())
+    (destination.parent / (destination.name + '.sha256')).write_text(f'{sha256(destination)}  {destination.name}\n')
+    return destination
+
+
 def make_web_archive(root: Path, directory: Path, output_dir: Path, manifest: dict) -> Path:
     build = (root / 'build').resolve()
     if not output_dir.resolve().is_relative_to(build) or output_dir.resolve() == build or output_dir.is_symlink():
@@ -423,11 +438,13 @@ def make_web_archive(root: Path, directory: Path, output_dir: Path, manifest: di
                     archive.addfile(entry, io.BytesIO(payload))
     digest = sha256(destination)
     (output_dir / (name + '.sha256')).write_text(f'{digest}  {name}\n')
+    write_site_zip(directory, output_dir / name.replace('.tar.gz', '.zip'))
     for suffix in ('', '.sha256'):
         source = directory / (manifest['source_archive']['path'] + suffix)
         shutil.copyfile(source, output_dir / source.name)
     source_packager = load_source_packager()
-    (output_dir / 'RELEASE-NOTES.md').write_text(source_packager.release_notes(root, manifest['version']))
+    (output_dir / 'RELEASE-NOTES.md').write_text(source_packager.release_notes(
+        root, manifest['version'], unreleased_ok=manifest['stage'] == 'preview'))
     return destination
 
 

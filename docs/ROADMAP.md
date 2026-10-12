@@ -71,6 +71,28 @@ rotation and audio hookups, and [ROMS.md](ROMS.md) for ROM requirements.
 
 ## Milestones
 
+Each milestone is a **minor release** (0.2.0, 0.3.0, …) once its game batch or
+goal passes its comparisons. Patch releases (0.2.1, …) ship in between for
+fixes, tooling, docs and UI, and `-rc.N` release candidates give testers a
+build before a release. [RELEASING.md](RELEASING.md) has the version rules and
+the release steps.
+
+| Milestone | Release | Status |
+| --- | --- | --- |
+| Desktop-first reset | 0.1.0 | In progress |
+| ROM-free batch A | 0.2.0 | Planned |
+| ROM-free batch B | 0.3.0 | Planned |
+| Profiling and performance | 0.4.0 | Planned |
+| ROM-backed batch A | 0.5.0 | Planned |
+| ROM-backed batch B | 0.6.0 | Planned |
+| Accuracy closure | 0.7.0 and later 0.x | Planned |
+| All 21 accurate on desktop | 1.0.0 | Planned |
+
+Status is one of **Planned**, **In progress**, **In review** (work complete,
+under independent review or in a release pull request) or **Released
+(YYYY-MM-DD)** (the owner has tagged the release and the release workflow
+published it). Update the row in the same change that moves a milestone.
+
 Every milestone runs `python3 tools/check.py`, the native build/capture checks
 for core changes, the original/native/Wasm comparison for each playable game,
 and the desktop browser checks in [TESTING.md](TESTING.md). Desktop browser
@@ -132,6 +154,18 @@ All 21 games pass their original/native/Wasm comparisons and desktop browser
 checks; inherited limitations (absent audio, missing ROM dumps) are documented.
 The release ships reproducible build instructions, notices, matching source,
 the compatibility matrix and a changelog.
+
+## Owner decisions
+
+Dated decisions by the project owner that shape this roadmap. Add new entries
+at the bottom; do not rewrite earlier ones.
+
+- **2026-10-12 — Desktop-first restart.** NoCPU restarts with all 21 DICE 0.9 games accurate in desktop browsers as the 1.0 goal. Mobile/touch UI, phone qualification and iPhone Home Screen/PWA support move to the post-1.0 mobile phase; versions restart at 0.1.0.
+- **2026-10-12 — Legacy line preserved.** The legacy line's final state is tag `legacy-0.6.0` (commit `7196d709911fbb0b043cb007be77b49d1f592ad5`); its records live in [docs/legacy/](legacy/README.md) as history, not current contracts.
+- **2026-10-12 — Single working branch.** One long-lived working branch (`restart/desktop-first` for now) merges into `main` through release pull requests with merge commits. No per-task branches; parallel agents may use short-lived `wip/<version>-<topic>` branches merged back into the working branch.
+- **2026-10-12 — Frequent releases.** Patch releases for fixes, tooling, docs and UI; a minor release for each milestone whose game batch passes its comparisons; `-rc.N` for tester builds, replacing the legacy "preview" stage; 1.0.0 when all 21 games pass their accuracy comparisons on desktop.
+- **2026-10-12 — Owner creates release tags.** Agents cannot push tags. After a release pull request merges, the owner creates an annotated `vX.Y.Z` tag or a GitHub release on the merge commit. Tags are never moved; a failed release is fixed with the next patch release.
+- **2026-10-12 — ROM fixtures from a private repository.** ROM fixtures come from the private repository `jelloshooter848/NoCPU-Roms`, for development and CI only. Agents fetch them into ignored local storage; CI reads them with a read-only secret; the local development server may load them automatically. They are never in published builds. In-app loading from the private repository (with a player-supplied GitHub token) is deferred and not authorized: the owner will reconsider it later. The fetch tooling and CI wiring are pending.
 
 ## After 1.0
 
