@@ -117,4 +117,3 @@ if __name__=='__main__':
    BASE.mkdir(parents=True,exist_ok=True);category=str(error)if isinstance(error,ValueError)and str(error)in CODES else 'UNCLASSIFIED_PRODUCER_FAILURE'
    (BASE/'input-diagnostic.json').write_text(json.dumps({'phase':mode,'safe_category':category,'case_outcome':'unrun'})+'\n')
   raise SystemExit(1)
-
