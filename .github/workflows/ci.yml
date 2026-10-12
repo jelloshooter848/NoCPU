@@ -8,9 +8,11 @@ concurrency:
 jobs:
   verify:
     uses: ./.github/workflows/verify-browser.yml
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.diagnostic_only)
+      }}
   deploy-preview:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview && github.ref == 'refs/heads/main' && github.repository
-      == 'jelloshooter848/NoCPU'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview && github.ref
+      == 'refs/heads/main' && github.repository == 'jelloshooter848/NoCPU'
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -24,9 +26,22 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
-    - name: Deploy the tested preview with pending physical-device results visible in its manifest
+    - name: Deploy the tested preview with pending physical-device results visible
+        in its manifest
       id: deployment
       uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+  iphone-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only &&
+      !inputs.publish_preview }}
+    uses: ./.github/workflows/iphone-diagnostic.yml
+  reject-mixed-dispatch:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_only &&
+      inputs.publish_preview }}
+    runs-on: ubuntu-24.04
+    steps:
+    - run: 'echo "Diagnostic dispatch cannot publish a preview" >&2
+
+        exit 1'
 'on':
   push:
     branches:
@@ -35,6 +50,12 @@ jobs:
   workflow_dispatch:
     inputs:
       publish_preview:
-        description: Deploy the explicitly reviewed six-game/Home Screen preview for physical-device testing
+        description: Deploy the explicitly reviewed six-game/Home Screen preview for
+          physical-device testing
+        type: boolean
+        default: false
+      diagnostic_only:
+        description: Run only the reviewed one-case public iPhone diagnostic; no release
+          verification or deployment
         type: boolean
         default: false

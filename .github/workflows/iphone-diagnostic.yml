@@ -1,0 +1,89 @@
+name: Frozen public iPhone layout diagnosis
+'on':
+  workflow_call: {}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: 21c161a9cca7da90f98909f441ecf189061501b1
+        path: source
+        persist-credentials: false
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        path: policy
+        persist-credentials: false
+        sparse-checkout: /.github/diagnostics/
+        sparse-checkout-cone-mode: false
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned browser tooling without rebuilding runtime
+      working-directory: source
+      run: './tools/install-web-toolchain.sh --browsers
+
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright
+        install-deps webkit
+
+        sudo apt-get update
+
+        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+
+        '
+    - name: Verify producer failure and privacy boundaries
+      working-directory: source
+      run: python3 ../policy/.github/diagnostics/iphone/test_producer.py
+    - name: Fetch the exact retained failed-run package
+      env:
+        GH_TOKEN: ${{ github.token }}
+      working-directory: source
+      run: 'mkdir -p build/iphone-package-input
+
+        gh api repos/jelloshooter848/NoCPU/actions/artifacts/11758913240/zip > build/iphone-package-input/evidence.zip
+
+        python3 ../policy/.github/diagnostics/iphone/producer.py prepare
+
+        '
+    - name: Discover exactly the original one-case iPhone profile
+      working-directory: source
+      env:
+        NOCPU_TEST_PACKAGED: '1'
+        NOCPU_TEST_PACKAGE_DIR: ${{ github.workspace }}/source/build/iphone-package-input/pages
+      run: './node_modules/.bin/playwright test --config build/v060/frontend/live-public-proposal-v1/iphone-diagnostic.config.ts
+        --list --reporter=json > build/iphone-package-input/discovery.json
+
+        python3 ../policy/.github/diagnostics/iphone/producer.py discover
+
+        '
+    - name: Run the unchanged case once on the supported runner
+      id: diagnostic
+      continue-on-error: true
+      timeout-minutes: 5
+      working-directory: source
+      env:
+        NOCPU_TEST_PACKAGED: '1'
+        NOCPU_TEST_PACKAGE_DIR: ${{ github.workspace }}/source/build/iphone-package-input/pages
+      run: ./tools/run-browser-tests.sh --config build/v060/frontend/live-public-proposal-v1/iphone-diagnostic.config.ts
+    - name: Preserve actual outcome and bounded source/runtime-bound evidence
+      if: always()
+      working-directory: source
+      run: python3 ../policy/.github/diagnostics/iphone/producer.py report
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: public-iphone-diagnostic-${{ github.run_id }}-${{ github.run_attempt
+          }}
+        path: source/build/iphone-diagnostic-evidence
+        if-no-files-found: error
+        retention-days: 7
+    - name: Keep a failed or incomplete reproduction visible
+      if: always()
+      env:
+        RESULT: ${{ steps.diagnostic.outcome }}
+      run: test "$RESULT" = success
