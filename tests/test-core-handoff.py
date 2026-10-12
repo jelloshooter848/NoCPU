@@ -20,7 +20,7 @@ class HandoffTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.git('init', '-q')
-        (self.root / '.gitignore').write_text('/build/\n')
+        (self.root / '.gitignore').write_text('/build/\n/web/public/core/\n')
         for name in handoff.REQUIRED_INPUTS | {'core/platform/portable_input.cpp'}:
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +47,44 @@ class HandoffTests(unittest.TestCase):
 
     def test_complete_roundtrip(self):
         self.assertEqual(handoff.verify_manifest(self.root, self.manifest)['verified_files'], 5)
+
+    def test_verified_two_file_vite_install_and_repeat(self):
+        for _ in range(2):
+            result = handoff.install_runtime(self.root, self.manifest)
+            self.assertEqual(result['installed_runtime_files'], 2)
+            self.assertFalse(result['core_rebuilt'])
+            destination = self.root / 'web/public/core'
+            self.assertEqual({path.name for path in destination.iterdir()}, {'nocpu.js', 'nocpu.wasm'})
+            for name in ('nocpu.js', 'nocpu.wasm'):
+                self.assertEqual((destination/name).read_bytes(), (self.root/'build/core/wasm'/name).read_bytes())
+
+    def test_vite_install_rejects_tampered_source_before_destination_write(self):
+        source = self.root/'build/core/wasm/nocpu.wasm'
+        source.write_bytes(b'tampered')
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
+        self.assertFalse((self.root/'web/public/core').exists())
+        source.unlink()
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
+        self.assertFalse((self.root/'web/public/core').exists())
+
+    def test_vite_install_rejects_stale_or_extra_destination_without_overwrite(self):
+        directory = self.root/'web/public/core';directory.mkdir(parents=True)
+        target = directory/'nocpu.js';target.write_bytes(b'stale user bytes')
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
+        self.assertEqual(target.read_bytes(), b'stale user bytes')
+        self.assertFalse((directory/'nocpu.wasm').exists())
+        target.write_bytes((self.root/'build/core/wasm/nocpu.js').read_bytes())
+        (directory/'unexpected').write_bytes(b'preserve')
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
+        self.assertFalse((directory/'nocpu.wasm').exists())
+
+    def test_vite_install_rejects_destination_file_and_parent_symlinks(self):
+        directory = self.root/'web/public/core';directory.mkdir(parents=True)
+        target = directory/'nocpu.js';target.symlink_to(self.root/'VERSION')
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
+        self.assertTrue(target.is_symlink())
+        target.unlink();directory.rmdir();directory.symlink_to(self.root/'build/core/wasm', target_is_directory=True)
+        with self.assertRaises(ValueError):handoff.install_runtime(self.root, self.manifest)
 
     def test_missing_and_tampered_runtime(self):
         target = self.root / 'build/core/wasm/nocpu.js'

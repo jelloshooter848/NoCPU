@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import subprocess
+import shutil
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,12 +110,46 @@ def verify_manifest(root: Path, manifest: dict) -> dict:
             'scope': 'Transfer continuity only; fresh package source/provenance checks remain required.'}
 
 
+def install_runtime(root: Path, manifest: dict) -> dict:
+    """Stage only verified JS/Wasm for Vite; preserve or reject existing bytes."""
+    result = verify_manifest(root, manifest)
+    destination = root / 'web/public/core'
+    for name in ('web', 'web/public', 'web/public/core'):
+        path = root / name
+        if path.is_symlink() or (path.exists() and not path.is_dir()):
+            raise ValueError('Vite core destination must use ordinary directories')
+    records = {Path(record['path']).name: record for record in manifest['files']
+               if Path(record['path']).name in ('nocpu.js', 'nocpu.wasm')}
+    if destination.exists():
+        if any(path.name not in records for path in destination.iterdir()):
+            raise ValueError('Unexpected existing Vite core destination member')
+        for name, record in records.items():
+            path = destination / name
+            if path.is_symlink() or (path.exists() and
+                    (not path.is_file() or path.stat().st_size != record['bytes'] or sha256(path) != record['sha256'])):
+                raise ValueError('Stale or nonregular Vite core destination')
+    destination.mkdir(parents=True, exist_ok=True)
+    for name, record in records.items():
+        target = destination / name
+        if not target.exists():
+            with checked_file(root, record['path']).open('rb') as source, target.open('xb') as output:
+                shutil.copyfileobj(source, output)
+        if sha256(checked_file(root, 'web/public/core/' + name)) != record['sha256']:
+            raise ValueError('Installed Vite core bytes changed')
+    return {**result, 'installed_runtime_files': len(records),
+            'runtime_destination': 'web/public/core', 'core_rebuilt': False}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--write', type=Path)
     action.add_argument('--verify', type=Path)
+    parser.add_argument('--install-runtime', action='store_true',
+                        help='After verification, stage the exact tested JS/Wasm for Vite without rebuilding')
     args = parser.parse_args()
+    if args.install_runtime and not args.verify:
+        parser.error('--install-runtime requires --verify')
     if args.write:
         manifest = make_manifest(ROOT)
         destination = args.write.resolve()
@@ -124,7 +159,8 @@ def main() -> None:
         destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
         print(json.dumps({'created_files': len(manifest['files']), 'source_binding': manifest['source_binding']}))
     else:
-        print(json.dumps(verify_manifest(ROOT, json.loads(args.verify.read_text())), sort_keys=True))
+        manifest = json.loads(args.verify.read_text())
+        print(json.dumps((install_runtime if args.install_runtime else verify_manifest)(ROOT, manifest), sort_keys=True))
 
 
 if __name__ == '__main__':

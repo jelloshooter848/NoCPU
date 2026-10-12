@@ -237,7 +237,7 @@ jobs:
         name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
         path: build/core
     - name: Reject checkout, tree, version, provenance or byte drift before using the transferred core
-      run: python3 tools/core-handoff.py --verify build/core/core-transfer.json
+      run: python3 tools/core-handoff.py --verify build/core/core-transfer.json --install-runtime
     - name: Test phone qualification collection and artifact identity
       run: npm run test:qualification
     - name: Build production frontend at the project Pages path

@@ -273,10 +273,12 @@ Indy steering/accelerator slots, all settings and inherited unavailable audio.
 Source implementation and local candidate packaging are complete for the
 current development snapshot. The isolated candidate contains the current
 six-game runtime and matching source; independent actual archive/privacy
-review accepted its dirty-source creation snapshot. Canonical fixture/source/pilot
-and finite-scenario contracts and the product source review are independently
-accepted (**2/8** software gates: gates 1 and 3). Final clean Git/source-package freeze,
-complete fidelity, five-profile browser and release acceptance remain open.
+review accepted the matching clean 5538 snapshot. Canonical fixture/source/pilot
+and finite-scenario contracts, product source review and the matching clean
+5538 package and complete media/ABI comparisons are independently accepted
+(**4/8** software gates: gates 1, 3, 4 and 5).
+Original New Game characterization, five-profile browser and release acceptance remain open;
+final main packaging retains its own source/archive identity.
 These completed work phases do not establish preview delivery.
 
 First audit trusted fixtures/source/controls and finite pilots; freeze the
