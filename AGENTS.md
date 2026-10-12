@@ -3,9 +3,10 @@
 ## Direction and scope
 
 - Read [README.md](README.md), [docs/ROADMAP.md](docs/ROADMAP.md), and the relevant subsystem docs before changing behavior. NoCPU restarted desktop-first at version 0.1.0. Versions up to 0.6.0 belong to the legacy line (tag `legacy-0.6.0`); records under [docs/legacy/](docs/legacy/) are historical evidence, not current contracts.
-- The goal is all 21 DICE 0.9 games running accurately in desktop browsers, played with keyboard and mouse through a minimal interface: game picker, game canvas, controls help and user-supplied ROM loading. Accuracy comes before features and polish.
+- The goal is all 21 DICE 0.9 games running accurately in desktop browsers, played with keyboard and mouse through the minimal interface defined in the ROADMAP "Goal": game picker, game canvas, controls help, user-supplied ROM loading, pause/reset, volume/mute, the game's DIP/potentiometer settings, and an About panel with DICE credit, license notices and the corresponding-source link. Accuracy comes before features and polish.
 - Preserve all 21 DICE 0.9 games as the 1.0 scope. A difficult game is a recorded blocker, not permission to remove it.
 - Mobile/touch UI, phone device qualification, iPhone Home Screen/PWA support and any physical-device gate are deferred to a post-accuracy phase. They must not gate, block or be added to desktop milestones unless the user explicitly re-authorizes them.
+- Offline/service-worker delivery is excluded unless a reviewed scope decision is made.
 - A native desktop app (an SDL2 front end over the same core) is an optional later item, not a 1.0 requirement.
 - Rust, assembly or other rewrites of the emulator are out of scope. Performance work means profiling and optimising the existing C++ core, with every change verified behind the original/native/Wasm comparison harness.
 - Treat [docs/POST_1_0_GAMES.md](docs/POST_1_0_GAMES.md) as research, not authorization to expand the release scope.

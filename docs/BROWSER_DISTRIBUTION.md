@@ -1,11 +1,14 @@
 # Browser distribution assessment
 
-## 0.6.0 current assessment
+> Legacy-line content; the restarted line follows [docs/ROADMAP.md](ROADMAP.md); rewrite pending Phase 2.
+> For 0.1.0, [the audit](../tests/browser-license-audit.json) is blocked until the legacy 0.6.0 assessment is re-reviewed against the actual 0.1.0 output.
 
-The user-selected browser scope adds original Stunt Cycle and Indy 4 to the
+## Legacy 0.6.0 assessment
+
+The legacy 0.6.0 browser scope added original Stunt Cycle and Indy 4 to the
 delivered four circuits, including a core ROM adapter and player-supplied local
 file launch. The selected source/metadata is not distribution approval. The
-[current audit](../tests/browser-license-audit.json) requires fresh actual
+audit required fresh actual
 compiler/dependency/link-member/frontend/preferred-source evidence before
 packaging. Retained 0.5.0 findings below remain identified historical evidence;
 they do not qualify changed output hashes.

@@ -1,5 +1,7 @@
 # Physical phone and controller qualification
 
+> Legacy-line content; the restarted line follows [docs/ROADMAP.md](ROADMAP.md) and defers physical phone qualification to the post-1.0 mobile phase. This packet is not a current gate; move/rewrite pending Phase 2.
+
 Use the independently reviewed
 [0.3.1 preview and its exact identity](legacy/0.3.1_VALIDATION.md). Check that the
 manifest still identifies that tested source/runtime before recording.

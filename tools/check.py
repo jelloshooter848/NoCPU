@@ -222,8 +222,8 @@ def main() -> int:
         errors.extend(verify_payloads(ROOT))
         errors.extend(verify_license_notices(ROOT))
         # The restarted desktop-first line ships a browser build from 0.1.0, so
-        # browser metadata applies whenever the browser foundation is present.
-        if VERSION_RE.fullmatch(version) and (ROOT / "package.json").is_file():
+        # browser metadata (which reports missing foundation files) always applies.
+        if VERSION_RE.fullmatch(version):
             errors.extend(verify_browser_metadata(ROOT, version))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         errors.append(f"Repository metadata check failed: {exc}")

@@ -1,32 +1,22 @@
 # Releasing NoCPU
 
-`VERSION` is **0.6.0**, in development for original Stunt Cycle and Indy 4
-with player-supplied ROMs alongside the delivered four circuits and online
-iPhone Home Screen support. The [contract](legacy/0.6.0_TASKS.md) and
-[validation ledger](legacy/0.6.0_VALIDATION.md) distinguish intended six-title scope,
-actual software acceptance/publication and pending physical qualification.
-Offline and final hardware-readiness tags are not included.
+`VERSION` is **0.1.0**, in development for the restarted desktop-first line;
+see the [roadmap](ROADMAP.md). No 0.1.0 build or release has been published.
+Any published browser build must ship the applicable license notices and a
+matching corresponding-source archive. Physical phone qualification is deferred
+to the post-1.0 mobile phase and does not gate desktop milestones or tags.
 
-The verified public site serves exact source
-`5d57abe35081451cc0c5d7b48b118a531a0cc930`, published by
-[run 38176567783](https://github.com/jelloshooter848/NoCPU/actions/runs/38176567783)
-at 2026-10-11 23:06:42 UTC. Exact-main CI accounts for 290 instances:
-281 passes/nine existing annotated CDP skips. Current artifacts/source/notices,
-all 107 HTTP responses and 20 selected live cases pass independent review.
-Later outcome-documentation commits record this delivery without republishing
-or relabeling its source archive; preparing files or passing checks alone does
-not publish a final release.
+> Legacy-line content: everything below describes the legacy release process
+> (versions up to 0.6.0, tag `legacy-0.6.0`), including its physical-device
+> final-tag gate. It does not govern the restarted line; rewrite pending Phase 2.
 
-The [0.4.0 preview](legacy/0.4.0_VALIDATION.md), published from
-`f8b035173bc33cdcbf5e5bc04a05033cf90c93d9`, the
-[0.3.1 preview](legacy/0.3.1_VALIDATION.md) from
-`4005e3cb1a20d328a8ea9a2196438a52c43e2095`, the
-[0.3.0 preview](legacy/0.3.0_VALIDATION.md) from
-`ee7f78e57278bc318dc52820d1606b3ec3fa2917`, and earlier deployments remain
-historical. No final browser release tag through 0.5.0 has been published.
-The user authorized development and independently reviewed previews while
-physical qualification remains pending; this does not waive final-tag or
-broad-readiness hardware gates.
+Legacy status (historical): the public site was last published by the legacy
+line from exact source `5d57abe35081451cc0c5d7b48b118a531a0cc930`
+([run 38176567783](https://github.com/jelloshooter848/NoCPU/actions/runs/38176567783),
+2026-10-11 23:06:42 UTC; the 0.5.0 preview). The
+[0.4.0 preview](legacy/0.4.0_VALIDATION.md), [0.3.1 preview](legacy/0.3.1_VALIDATION.md),
+[0.3.0 preview](legacy/0.3.0_VALIDATION.md) and earlier deployments are
+historical. No final legacy browser release tag through 0.5.0 was published.
 
 ## Build and qualification
 

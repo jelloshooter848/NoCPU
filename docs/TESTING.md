@@ -48,12 +48,13 @@ Browser/core tests below have additional prerequisites.
 
 ## Portable core and browser
 
-The selected [0.6.0 contract](legacy/0.6.0_TASKS.md) adds original Stunt Cycle and
-Indy 4, requiring compatible player-supplied ROMs. Reuse the existing pinned
-toolchain and frozen dependencies. The
-[0.6.0 validation ledger](legacy/0.6.0_VALIDATION.md) governs actual acceptance;
-the [six-game device packet](legacy/DEVICE_QUALIFICATION_0.6.md) retains separate
-physical and installed-mode evidence. All heavy execution has one owner;
+Restarted 0.1.0 acceptance follows the [roadmap](ROADMAP.md): original/native/Wasm
+comparisons for each compiled game plus desktop browser checks. Version-specific
+prose below is legacy-line content; rewrite pending Phase 2. The core compiles
+Stunt Cycle and Indy 4, which require compatible player-supplied ROMs; the legacy
+[0.6.0 ledger](legacy/0.6.0_VALIDATION.md) and
+[device packet](legacy/DEVICE_QUALIFICATION_0.6.md) are historical evidence only.
+Reuse the existing pinned toolchain and frozen dependencies. All heavy execution has one owner;
 do not run competing builds/captures or duplicate an active validator job.
 The new titles inherit missing active DICE audio hookups. Actual compatible
 fixtures are required for their gameplay/reference/browser launch coverage;

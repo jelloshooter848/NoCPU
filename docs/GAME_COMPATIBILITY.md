@@ -1,31 +1,12 @@
 # DICE 0.9 game inventory
 
-NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
+> Restarted line (0.1.0, desktop-first): the plan and acceptance rules are in [ROADMAP.md](ROADMAP.md). Status prose and evidence rows below that name a version (0.1.0–0.6.0) refer to the legacy line (tag `legacy-0.6.0`); rewrite pending Phase 2.
 
-The selected [0.6.0 contract](legacy/0.6.0_TASKS.md) adds Stunt Cycle and Indy 4,
-targeting six playable games and fifteen remaining ports. Trusted actual ROM,
-original/native/Wasm, source/package/browser and publication acceptance are
-pending in the [0.6.0 ledger](legacy/0.6.0_VALIDATION.md). Both selected games inherit
-no active DICE mono-output hookup; expected silence and historical unfinished
-audio are separate from port regressions. The public runtime below remains the
-accepted 0.5.0 preview until actual new delivery is verified.
+NoCPU preserves all 21 original DICE 0.9 registrations as the 1.0 scope; this inventory and the native reference foundation were established by the legacy 0.1.0 milestone. Source declarations describe intended capabilities, not completed gameplay verification.
 
-The independently verified [0.5.0 browser
-preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong, Pong
-Doubles, Space Race and Breakout**, with online iPhone Home Screen support.
-All four are ROM-free; the other seventeen library circuits remain explicitly
-unported. Original/native/Wasm fidelity, current components/notices and matching
-source pass independent review. Exact-main CI accounts for 290 cases: 281
-passes/nine existing annotated CDP skips, zero other outcomes or retries.
-All 20 selected live cases pass separately; all 104 public files, canonical root
-and both content-keyed core URLs match the accepted package.
+At the restart the core compiles six circuits: Pong, Pong Doubles, Space Race and Breakout (ROM-free) and Stunt Cycle and Indy 4 (player-supplied ROMs). The other fifteen titles are unported. Restarted-line acceptance for all six is pending the 0.1.0 desktop comparisons and browser checks in the [roadmap](ROADMAP.md); legacy evidence is not a restarted-line pass.
 
-Actual Android Chrome, iPhone Safari/installed mode and controller qualification
-remain pending. Bonus-credit threshold awards and event overflow are
-unexercised. See [0.5.0 validation](legacy/0.5.0_VALIDATION.md) for exact identities,
-coverage and limits; [0.4.0 results](legacy/0.4.0_VALIDATION.md) retain their historical
-three-game scope. A manifest or emulated viewport does not prove installation
-on a physical iPhone.
+Legacy-line status (historical): the legacy [0.6.0 contract](legacy/0.6.0_TASKS.md) added Stunt Cycle and Indy 4; its [ledger](legacy/0.6.0_VALIDATION.md) accepted 4 of 8 gates, including the complete original/native/Wasm comparison, with browser and delivery gates open when the line ended. Both inherit no active DICE mono-output hookup; expected silence and historical unfinished audio are separate from port regressions. The legacy [0.5.0 preview](legacy/0.5.0_VALIDATION.md) published Pong, Pong Doubles, Space Race and Breakout with online iPhone Home Screen support after independent fidelity, notice and matching-source review (exact-main CI 281 passes/nine annotated CDP skips of 290; 20 live cases; 104 public files). Its physical phone/controller qualification remained pending; bonus-credit threshold awards and event overflow were unexercised. [0.4.0 results](legacy/0.4.0_VALIDATION.md) retain their historical three-game scope.
 
 The machine-readable [game manifest](../tests/fixtures/game-manifest.json) contains every labeled input, active DIP setting/default, exposed potentiometer range, rotation, overlay geometry, audio declaration, and required ROM descriptor. [The source audit](../tools/audit-games.py) compares those fields against the preserved C++ source without requiring ROMs.
 
@@ -85,13 +66,13 @@ The ten external ROM sets have passed actual CRC and observed-size validation us
 | Ten ROM-dependent games plus Pong | Earlier basic rendering observed in both comparison builds |
 | Pong portable native/Wasm replay | Coin-start, independent paddles, rally contacts, scoring, coin restart and reset pass; frames/PCM and circuit observations match the original fresh baseline exactly |
 | Pong Doubles and Space Race portable native/Wasm | Six original-derived scenarios compare exact timing/events/media through both portable reset epochs; 24 behavioral epochs and 326 sampled PPM pairs pass independent review |
-| Four-game 0.5.0 batch including Breakout | Original sixteen-scenario batch and portable 64 behavioral epochs pass exact streams/RGB hashes/selected color PPMs/reset; canonical Breakout ABI 502/502 across 70 traces and legacy ABI 295/295 across 45, current source/package/browser/public evidence accepted; bonus-credit threshold awards unexercised |
-| Remaining seven ROM-free titles beyond the delivered 0.5.0 batch | Source-inventoried and explicitly unported; no browser render/play claim |
-| Coin/start, movement, actions, scoring/end/restart | The four playable titles have their separately recorded replay/browser coverage; full acceptance across all 21 games remains pending |
+| Legacy 0.5.0 four-game batch including Breakout | Original sixteen-scenario batch and portable 64 behavioral epochs pass exact streams/RGB hashes/selected color PPMs/reset; canonical Breakout ABI 502/502 across 70 traces and legacy ABI 295/295 across 45, current source/package/browser/public evidence accepted; bonus-credit threshold awards unexercised |
+| Seven ROM-free titles not yet ported (Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way) | Source-inventoried and explicitly unported; no browser render/play claim |
+| Coin/start, movement, actions, scoring/end/restart | The six compiled circuits have separately recorded legacy replay coverage (browser coverage for the four ROM-free titles; Stunt Cycle/Indy 4 browser gates open); full acceptance across all 21 games remains pending |
 | DIP options and potentiometer adjustments | Doubles' 11/15 score and Space Race's default/alternate coinage and 470/970/1470-kilohm scenarios are checked; inherited Space credit accounting remains unproven. Breakout's source/config readback, representative coinage/cabinet/ball-count behavior and shared paddle are checked; bonus awards and unported-title runtime settings remain untested |
-| Audible audio and audio/video synchronization | All four playable titles' generated PCM and automated delivery have software evidence; physical speaker playback and synchronization remain pending |
-| Browser, Android, iPhone/iPad in 0.1.0 | Not implemented in that foundation milestone |
-| Pong browser in 0.2.0 | Public preview verified; clean CI has 57 passes/3 expected CDP touch skips, ten selected live-site cases pass; physical phones pending |
+| Audible audio and audio/video synchronization | The four ROM-free compiled titles' generated PCM and automated delivery have software evidence; physical speaker playback and synchronization remain pending |
+| Browser, Android, iPhone/iPad in legacy 0.1.0 | Not implemented in that foundation milestone |
+| Pong browser in legacy 0.2.0 | Public preview verified; clean CI has 57 passes/3 expected CDP touch skips, ten selected live-site cases pass; physical phones pending |
 
 The manifest's `validation` fields retain the historical 0.1.0 source/native
 audit scope. Current four-game replay/browser results are recorded separately
