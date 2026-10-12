@@ -1,6 +1,6 @@
 # Architecture and fidelity boundaries
 
-## Original reference and Pong port
+## Historical original reference and Pong port
 
 NoCPU keeps an independently auditable copy of DICE 0.9 under `upstream/dice-0.9/`. Its 0.1.0 native reference is built in an isolated Qt4/SDL 1.2 toolchain from a generated source copy. The 0.2.0 work adds a Pong-only portable core and browser frontend. Implementation and actual qualification results are recorded in [0.2.0_VALIDATION.md](0.2.0_VALIDATION.md); the existence of a browser build does not establish final release or physical-phone qualification.
 
@@ -17,11 +17,36 @@ Original source, build copies, validation instrumentation, and product code have
 
 The newer DirtBagXon fork is a reference for dependency modernization, not the authority for fidelity. Earlier comparison found identical game definitions but observed rendering and logging differences that remain unresolved. See [provenance](PROVENANCE.md), [Pong reference](PONG_REFERENCE.md), and [testing](TESTING.md) for exact evidence and limits.
 
-## 0.5.0 Breakout and online Home Screen boundary
+## 0.6.0 staged ROM and six-circuit boundary
+
+The selected [0.6.0 contract](0.6.0_TASKS.md) adds original Stunt Cycle and
+Indy 4 as stable game IDs 4 and 5, retaining IDs 0–3 and earlier exports in
+ABI 4. The browser validates player-supplied ZIP members and transfers exact
+descriptor bytes to bounded module-owned staging buffers. The core independently
+checks exact size and CRC32 at finish and create. No filesystem, ZIP parser,
+ROM download or redistribution belongs in the core. Live ownership keeps the
+bytes across reset; destroy discards live and staged data. Missing, corrupt,
+cross-game and busy-session requests must fail closed.
+
+Stunt Cycle has one shared throttle, Coin and separate Start 1/2 switches.
+Indy 4 has four original relative quadrature wheels, four held Gas/Hand Brake
+pairs and five distinct coin channels, with no Start switch. Their original
+10 ms input polling and conversion remain circuit-owned. Packed Stunt Cycle
+options default to 76; Indy 4's original timer resistance defaults to 720000
+ohms. Readback/reset preservation and actual outcomes require separate evidence.
+Indy 4 retains the original resistor-derived full RGB display; grayscale-only
+comparison cannot qualify it. Both circuits inherit absent mono-output hookups;
+the frontend discloses unavailable audio without synthesizing a replacement.
+
+These are authored boundaries pending independent source/runtime acceptance.
+The [validation ledger](0.6.0_VALIDATION.md) separates local trusted-fixture
+execution, fixture-free CI, package identity and public delivery.
+
+## Historical 0.5.0 Breakout and online Home Screen boundary
 
 The [0.5.0 contract](0.5.0_TASKS.md) adds selected Breakout and online iPhone
 Home Screen/standalone usability to the accepted three-game foundation.
-Current source authors ABI 3 additively: IDs 0/1/2 and legacy exports remain,
+The delivered source uses ABI 3 additively: IDs 0/1/2 and legacy exports remain,
 Breakout is ID 3, Start accepts player 1/2 where supported and Serve is a held
 Breakout-only switch. Two player starts share one absolute horizontal paddle;
 the frontend must not invent independent control slots or implicit actions.
@@ -82,7 +107,8 @@ netlist remain original-derived C++; the frontend does not implement replacement
 Pong rules. Native and Wasm targets compile the same prepared source.
 The original 0.2.0 [`core/nocpu.h`](../core/nocpu.h) boundary used ABI 1, with one
 live circuit per module; the delivered 0.4.0 three-game boundary uses ABI 2,
-and current 0.5.0 source authors the additive ABI 3 boundary above.
+the delivered 0.5.0 source uses ABI 3, and current 0.6.0 development adds
+the ABI 4 staged-ROM boundary above.
 Create/reset take a seed, paddle slots hold independent signed axes, and coin
 is a held switch. Time advances in bounded integer microseconds while internal
 picosecond time stays 64-bit. Exact telemetry crosses the boundary through

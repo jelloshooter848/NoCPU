@@ -58,6 +58,7 @@ let axes: number[] = [0, 0];
 const releaseDirectionActivation: (() => void)[] = [];
 const directionPointers = new Map<number, { slot: number; direction: 'up' | 'down'; target: HTMLElement }>();
 const servePointers = new Set<number>();
+const drivingPointers = new Map<number, { slot: number; action: 'left' | 'right' | 'gas' | 'brake'; target: HTMLElement }>();
 let worker: Worker | undefined;
 let ready = false;
 let paused = false;
@@ -101,6 +102,8 @@ const settingsUI = createSettingsUI({
   onCaptureStarted: releaseInputs,
   onMetadataChanged: () => { renderGameInfo(true); },
   onApplyGameOptions: (gameId) => { if (ready && gameId === activeGameId) resetGame(); },
+  onPlayRom: (gameId) => { void startGame(gameId); },
+  onRomRemoved: (gameId) => { if (ready && gameId === activeGameId) disposeGame('library'); },
 });
 const controls = createControls({
   bindings: settingsUI.preferences.bindings,
@@ -109,7 +112,7 @@ const controls = createControls({
     if (!ready || paused || resetting || failed) return;
     changes.forEach((axis, slot) => {
       if (axis === null || [...pointers.values()].includes(slot)) return;
-      axes[slot] = canonicalPaddleAxis(activeGameId, axis);
+      axes[slot] = gameSpec(activeGameId).inputKind === 'paddle' ? canonicalPaddleAxis(activeGameId, axis) : axis;
       sendInputs(slot);
     });
     updatePads();
@@ -117,6 +120,7 @@ const controls = createControls({
   onAction: (action) => {
     if (!ready || failed || resetting || screen !== 'playing') return;
     if (action === 'coin') insertCoin();
+    else if (action.startsWith('coin')) insertCoin(action === 'coinDollar' ? 5 : Number(action.slice(4)) as 1 | 2 | 3 | 4);
     else if (action === 'start') startRound();
     else if (action === 'start2') startRound(2);
     else if (action === 'menu') pauseGame();
@@ -130,6 +134,13 @@ const controls = createControls({
     send({ type: 'serve', held });
   },
   onGamepads: settingsUI.syncGamepads,
+  onButtons: (gas, brake) => {
+    if (ready && !failed && activeGameId === 'indy4') send({ type: 'buttons', gas, brake });
+    document.querySelectorAll<HTMLButtonElement>('.driving-button').forEach((button) => {
+      if (button.dataset.driving === 'gas') button.classList.toggle('active', gas[Number(button.dataset.slot)]);
+      if (button.dataset.driving === 'brake') button.classList.toggle('active', brake[Number(button.dataset.slot)]);
+    });
+  },
   onDisconnect: releaseInputs,
 });
 muted = settingsUI.preferences.muted;
@@ -191,6 +202,8 @@ function renderGameInfo(metadataOnly = false): void {
   const content = element('#game-info-content');
   if (metadataOnly && content.dataset.gameId === game.id) {
     element('[data-testid="game-rom-status"]').textContent = settingsUI.romDescription(game.id);
+    const play = element<HTMLButtonElement>('[data-testid="play-selected"]');
+    play.textContent = game.playable ? game.roms.length && !settingsUI.romReady(game.id) ? 'Import ROMs to play' : `Play ${game.name}` : 'Browser port pending';
     return;
   }
   element('#game-info-heading').textContent = game.name;
@@ -198,7 +211,7 @@ function renderGameInfo(metadataOnly = false): void {
   content.dataset.gameId = game.id;
   const play = element<HTMLButtonElement>('[data-testid="play-selected"]');
   play.disabled = !game.playable;
-  play.textContent = game.playable ? `Play ${game.name}` : 'Browser port pending';
+  play.textContent = game.playable ? game.roms.length && !settingsUI.romReady(game.id) ? 'Import ROMs to play' : `Play ${game.name}` : 'Browser port pending';
   element('#manage-game-roms').hidden = !game.roms.length;
 }
 
@@ -220,12 +233,16 @@ function renderHelp(): void {
   const rules = game.id === 'pong' ? `Insert a coin to start a two-player game. Return the ball with your paddle. First to ${'winningScore' in options ? options.winningScore : 11} wins.`
     : game.id === 'pongdoubles' ? `Insert one coin for two players or two coins for four players, then press Start. In four-player mode, left and right teams each have an outer and inner paddle. P1 is outer left, P2 outer right, P3 inner left and P4 inner right. First team to ${'winningScore' in options ? options.winningScore : 11} wins.`
       : game.id === 'breakout' ? `Start 1P needs one credit; Start 2P needs two credits. ${'coinage' in options && options.coinage === 2 ? 'One coin supplies two credits with the current setting.' : 'Insert one coin for Start 1P or two coins for Start 2P with the current setting.'} Then hold Serve to launch the ball. Move the shared paddle left or right to break the bricks. Both player starts use the same paddle control.`
+        : game.id === 'stuntcycle' ? `Start 1P uses one credit. Start 2P needs at least two credits to select alternating turns. ${'coinage' in options && options.coinage === 2 ? 'One coin supplies two credits with the current setting.' : 'The current setting supplies one credit per coin.'} With only one credit, Start 2P may still start a one-player game. Both modes use one shared throttle to control motorcycle speed. This original circuit has no connected audio.`
+        : game.id === 'indy4' ? 'Insert a coin for your color to join. Each of the four cars has independent relative steering, Gas and Hand Brake. Dollar is a separate original bill input. There is no Start button. This original circuit has no connected audio.'
         : 'Insert a coin, then press Start. Move your rocket up or down through the moving obstacles. Reach the top to score before time runs out.';
-  const touchHelp = game.id === 'spacerace' ? 'Hold the separate Up or Down buttons for your rocket outside the court. Release to stop. Both players can move at once.'
+  const touchHelp = game.id === 'stuntcycle' ? 'Drag the shared horizontal throttle outside the display; release to idle. Start 2P alternates turns on the same control.'
+    : game.id === 'indy4' ? 'Hold the color’s Left or Right button to rotate its wheel; release to stop turning. Hold Gas and Hand Brake independently. All four slots can operate together. For multiplayer use suitable controllers or a larger screen; a phone is not a comfortable four-person control surface.'
+    : game.id === 'spacerace' ? 'Hold the separate Up or Down buttons for your rocket outside the court. Release to stop. Both players can move at once.'
     : game.id === 'pongdoubles' ? 'Drag the four separate sliders outside the court. All four paddles have independent controls. For shared play, use suitable controllers or a larger screen.'
       : game.id === 'breakout' ? 'Drag the horizontal slider outside the court to move the shared paddle. Hold the separate Serve button to launch the ball. Release Serve when the ball is in play.'
         : 'Drag the separate P1 and P2 sliders outside the court. Both players can move at once, without covering the ball.';
-  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${bindings.gamepad.players.map((player, slot) => `<li>${game.id === 'breakout' ? 'Shared paddle' : `Player ${slot + 1} (${escapeText(spec.controlLabels[slot].toLowerCase())})`}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${game.id === 'spacerace' ? 'A moved joystick holds Up or Down. Center it to release. Opposing directions cancel each other.' : game.id === 'breakout' ? 'A moved joystick sets the shared paddle position. A centered joystick leaves the last position alone. Direction buttons move it left or right. Serve is held while its assigned button is down.' : 'A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.'} Return joysticks and buttons to neutral after a menu, reset or reconnect.</p>`;
+  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${bindings.gamepad.players.map((player, slot) => `<li>${game.id === 'breakout' ? 'Shared paddle' : `Player ${slot + 1} (${escapeText(spec.controlLabels[slot].toLowerCase())})`}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${game.id === 'stuntcycle' ? 'The positive joystick range sets the shared throttle; centering returns it to idle. Assigned increase/release buttons hold the original throttle switches.' : game.id === 'indy4' ? 'A moved joystick turns the relative wheel; centering stops turning. The selected browser deadzone scales the joystick before the original circuit input’s 20% deadzone. Direction buttons hold left/right steering. Gas and Hand Brake remain held until their buttons are released.' : game.id === 'spacerace' ? 'A moved joystick holds Up or Down. Center it to release. Opposing directions cancel each other.' : game.id === 'breakout' ? 'A moved joystick sets the shared paddle position. A centered joystick leaves the last position alone. Direction buttons move it left or right. Serve is held while its assigned button is down.' : 'A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.'} Return joysticks and buttons to neutral after a menu, reset or reconnect.</p>`;
   element('#game-help-content').innerHTML = `<p>${rules}</p><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.keyboard[action].map((code) => `<kbd>${escapeText(keyLabel(code))}</kbd>`).join(' ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${touchHelp}</p>${gamepadHelp}<p>Keyboard and gamepad assignments can be changed for each game in Settings. Game settings take effect when starting or explicitly resetting that game. Escape opens the menu or goes back.</p>`;
 }
 function configureGameControls(): void {
@@ -235,21 +252,23 @@ function configureGameControls(): void {
   gameStage.dataset.inputKind = spec.inputKind;
   pads.forEach((pad, slot) => {
     const controller = pad.closest<HTMLElement>('.paddle-controller')!;
-    controller.hidden = slot >= spec.paddleCount;
-    pad.setAttribute('aria-label', activeGameId === 'breakout' ? 'Shared paddle position' : activeGameId === 'pong' ? `Player ${slot + 1} paddle position` : `Player ${slot + 1} ${spec.controlLabels[slot] ?? 'paddle'} position`);
+    controller.hidden = spec.inputKind === 'throttle' ? slot !== 0 : slot >= spec.paddleCount;
+    pad.setAttribute('aria-label', activeGameId === 'stuntcycle' ? 'Shared motorcycle throttle' : activeGameId === 'breakout' ? 'Shared paddle position' : activeGameId === 'pong' ? `Player ${slot + 1} paddle position` : `Player ${slot + 1} ${spec.controlLabels[slot] ?? 'paddle'} position`);
     pad.setAttribute('aria-orientation', spec.paddleOrientation);
     element(`#paddle-p${slot + 1}-label`).textContent = activeGameId === 'pongdoubles'
-      ? `P${slot + 1} · ${slot < 2 ? 'OUTER' : 'INNER'}` : activeGameId === 'breakout' ? 'SHARED PADDLE' : `P${slot + 1}`;
-    element(`#paddle-p${slot + 1}-help`).textContent = spec.paddleOrientation === 'horizontal' ? 'DRAG LEFT / RIGHT' : 'DRAG UP / DOWN';
+      ? `P${slot + 1} · ${slot < 2 ? 'OUTER' : 'INNER'}` : activeGameId === 'stuntcycle' ? 'SHARED THROTTLE' : activeGameId === 'breakout' ? 'SHARED PADDLE' : `P${slot + 1}`;
+    element(`#paddle-p${slot + 1}-help`).textContent = activeGameId === 'stuntcycle' ? 'IDLE ← DRAG → FULL · RELEASE TO IDLE' : spec.paddleOrientation === 'horizontal' ? 'DRAG LEFT / RIGHT' : 'DRAG UP / DOWN';
   });
   document.querySelectorAll<HTMLElement>('.direction-controller').forEach((controller) => { controller.hidden = spec.inputKind !== 'joystick'; });
+  document.querySelectorAll<HTMLElement>('.wheel-controller').forEach((controller) => { controller.hidden = spec.inputKind !== 'wheel'; });
+  document.querySelectorAll<HTMLButtonElement>('.indy-coin').forEach((button) => { button.hidden = activeGameId !== 'indy4'; });
   startButton.hidden = !spec.hasStart;
-  startButton.textContent = activeGameId === 'breakout' ? 'Start 1P' : 'Start';
-  startButton.setAttribute('aria-label', activeGameId === 'breakout' ? 'Start 1-player game' : 'Start game');
+  startButton.textContent = spec.startButtons === 2 ? 'Start 1P' : 'Start';
+  startButton.setAttribute('aria-label', spec.startButtons === 2 ? 'Start 1-player game' : 'Start game');
   start2Button.hidden = spec.startButtons < 2;
   serveButton.closest<HTMLElement>('.serve-controller')!.hidden = !spec.hasServe;
-  coinButton.textContent = activeGameId === 'breakout' ? 'Coin' : 'Insert coin';
-  coinButton.setAttribute('aria-label', 'Insert coin');
+  coinButton.textContent = activeGameId === 'indy4' ? 'Green' : activeGameId === 'breakout' || activeGameId === 'stuntcycle' ? 'Coin' : 'Insert coin';
+  coinButton.setAttribute('aria-label', activeGameId === 'indy4' ? 'Insert coin for Green' : 'Insert coin');
   element('#loading-heading').textContent = `Loading ${spec.title}`;
   element('#error-heading').textContent = `Unable to load ${spec.title}`;
   hud.setAttribute('aria-label', `${spec.title} game actions`);
@@ -301,12 +320,22 @@ function setClock(running: boolean): void {
 }
 
 function updateSoundButton(): void {
+  const inheritedSilent = (ready || screen === 'loading') && !getGame(activeGameId).audioWired;
+  muteButton.disabled = inheritedSilent;
+  if (inheritedSilent) {
+    muteButton.setAttribute('aria-pressed', 'false');
+    muteButton.textContent = 'No DICE audio'; muteButton.setAttribute('aria-label', 'This game has no connected sound output in DICE');
+    element('#sound-note').hidden = false; element('#sound-note').textContent = 'This game inherits unfinished audio with no connected sound output in DICE.';
+    return;
+  }
+  element('#sound-note').textContent = 'Sound is unavailable. Tap Enable sound to try again.';
   muteButton.setAttribute('aria-pressed', String(muted));
   muteButton.textContent = muted ? 'Sound off' : soundAvailable ? 'Sound on' : 'Enable sound';
   muteButton.setAttribute('aria-label', muted ? 'Unmute sound' : soundAvailable ? 'Mute sound' : 'Enable sound');
 }
 
 async function trySound(): Promise<void> {
+  if (!getGame(activeGameId).audioWired) return;
   const attempt = ++soundAttempt;
   const ownGeneration = generation;
   const audible = await audio.unlock();
@@ -320,9 +349,11 @@ function updatePads(): void {
   start2Button.disabled = !ready || resetting || failed;
   serveButton.disabled = !ready || paused || resetting || failed || !gameSpec(activeGameId).hasServe;
   document.querySelectorAll<HTMLButtonElement>('.direction-button').forEach((button) => { button.disabled = !ready || paused || resetting || failed || activeGameId !== 'spacerace'; });
+  document.querySelectorAll<HTMLButtonElement>('.driving-button').forEach((button) => { button.disabled = !ready || paused || resetting || failed || activeGameId !== 'indy4'; });
+  document.querySelectorAll<HTMLButtonElement>('.indy-coin').forEach((button) => { button.disabled = !ready || paused || resetting || failed || activeGameId !== 'indy4'; });
   pads.forEach((pad, slot) => {
     const displayAxis = gameSpec(activeGameId).paddleAxisSign === null ? (axes[slot] ?? 0) : displayPaddleAxis(activeGameId, axes[slot] ?? 0);
-    const fraction = (displayAxis - AXIS_MIN) / (AXIS_MAX - AXIS_MIN);
+    const fraction = activeGameId === 'stuntcycle' ? (axes[slot] ?? 0) / AXIS_MAX : (displayAxis - AXIS_MIN) / (AXIS_MAX - AXIS_MIN);
     pad.style.setProperty('--paddle-position', `${fraction * 100}%`);
     pad.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     pad.setAttribute('aria-disabled', String(!ready || paused || resetting || failed || slot >= axes.length));
@@ -338,11 +369,15 @@ function releaseInputs(): void {
   pointers.clear();
   for (const [id, pointer] of directionPointers) if (id >= 0 && pointer.target.hasPointerCapture(id)) pointer.target.releasePointerCapture(id);
   directionPointers.clear();
+  const capturedDriving = [...drivingPointers]; drivingPointers.clear();
+  for (const [id, pointer] of capturedDriving) if (id >= 0 && pointer.target.hasPointerCapture(id)) pointer.target.releasePointerCapture(id);
   const capturedServe = [...servePointers]; servePointers.clear();
   for (const id of capturedServe) if (serveButton.hasPointerCapture(id)) serveButton.releasePointerCapture(id);
   serveButton.classList.remove('active');
   document.querySelectorAll('.direction-button').forEach((button) => button.classList.remove('active'));
+  document.querySelectorAll('.driving-button').forEach((button) => button.classList.remove('active'));
   pads.forEach((pad) => pad.classList.remove('active'));
+  if (activeGameId === 'stuntcycle' || activeGameId === 'indy4') axes.fill(0);
   if (ready) send({ type: 'release' });
 }
 
@@ -352,7 +387,7 @@ function showStatus(message?: string): void {
   const breakoutStatus = 'coinage' in breakoutOptions && breakoutOptions.coinage === 2
     ? 'Insert a coin for two credits, choose Start 1P or Start 2P, then Serve'
     : 'Insert one coin for Start 1P or two coins for Start 2P, then Serve';
-  status.textContent = paused ? 'Paused — tap Resume.' : !ready ? `Loading ${gameSpec(activeGameId).title}…` : lastSnapshot?.run ? 'Game on' : activeGameId === 'pongdoubles' ? 'Insert one coin for two players or two coins for four players, then Start' : activeGameId === 'breakout' ? breakoutStatus : gameSpec(activeGameId).hasStart ? 'Insert a coin, then Start to play' : 'Insert a coin to play';
+  status.textContent = paused ? 'Paused — tap Resume.' : !ready ? `Loading ${gameSpec(activeGameId).title}…` : lastSnapshot?.run ? 'Game on' : activeGameId === 'indy4' ? 'Use a color coin to join; steer and hold Gas. Dollar bill uses the original shared input.' : activeGameId === 'stuntcycle' ? 'Insert credits, choose Start 1P or Start 2P, then adjust the shared throttle' : activeGameId === 'pongdoubles' ? 'Insert one coin for two players or two coins for four players, then Start' : activeGameId === 'breakout' ? breakoutStatus : gameSpec(activeGameId).hasStart ? 'Insert a coin, then Start to play' : 'Insert a coin to play';
 }
 
 function pauseGame(message?: string): void {
@@ -417,6 +452,8 @@ function acceptSnapshot(snapshot: CoreSnapshot): void {
 }
 
 async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
+  const launchScreen = screen;
+  const launchNavigation = [...navigation];
   activeGameId = gameId;
   selectedGameId = gameId;
   helpGameId = gameId;
@@ -435,7 +472,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
   paused = false;
   framePending = false;
   resetting = false;
-  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
+  axes = Array(gameSpec(activeGameId).axisCount).fill(0);
   releaseInputs();
   latestPixels = undefined;
   inputRevision = 0;
@@ -453,6 +490,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
   updateSoundButton();
   updatePads();
   showScreen('loading');
+  updateSoundButton();
   overlayLabel.textContent = `Loading ${gameSpec(activeGameId).title}…`;
   showStatus();
   coinButton.disabled = true;
@@ -460,14 +498,34 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
   pauseButton.disabled = true;
   pauseButton.setAttribute('aria-pressed', 'false');
   resetButton.disabled = true;
+  element('[data-testid="rom-launch-message"]').hidden = true;
   element('[data-testid="score-p1"]').textContent = '0';
   element('[data-testid="score-p2"]').textContent = '0';
   if (!context || typeof WebAssembly === 'undefined' || typeof Worker === 'undefined') {
     failGame(`This browser cannot run ${gameSpec(activeGameId).title}. Try a recent version of Chrome, Firefox, Edge or Safari.`);
     return;
   }
-  // This call happens directly within the player's gesture, before loading awaits.
+  // Unlock sound while still in the gesture for the four games with DICE audio.
   void trySound();
+  const roms = await settingsUI.runtimeMembers(gameId);
+  if (generation !== ownGeneration) return;
+  if (!roms.ok) {
+    ready = false; worker = undefined;
+    await settingsUI.refreshRoms();
+    if (generation !== ownGeneration) return;
+    renderGameInfo();
+    const message = element('[data-testid="rom-launch-message"]');
+    message.textContent = roms.error; message.hidden = false;
+    // Missing local assets leave the info panel recoverable, including its
+    // original Library/Title focus path. A successful launch starts fresh.
+    if (launchScreen === 'game-info') navigation.push(...launchNavigation);
+    else {
+      navigation.push({ screen: 'title', focus: element('[data-testid="open-library"]') });
+      navigation.push({ screen: 'library', focus: element(`[data-game-id="${gameId}"]`) });
+    }
+    showScreen('game-info');
+    return;
+  }
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
   worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
@@ -481,6 +539,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
         gameStage.style.setProperty('--court-aspect', String(message.width / message.height));
         sampleRate = message.sampleRate;
         ready = true;
+        updateSoundButton();
         coinButton.disabled = false;
         startButton.disabled = false;
         settingsUI.setActiveGame(activeGameId);
@@ -525,18 +584,20 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
       case 'error': failGame(message.message); break;
     }
   });
-  send({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED, gameId: activeGameId, options: settingsUI.preferences.optionsByGame[activeGameId] });
+  worker.postMessage({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED, gameId: activeGameId,
+    options: settingsUI.preferences.optionsByGame[activeGameId], roms: roms.value } satisfies CoreCommand,
+  roms.value.map((member) => member.bytes.buffer as ArrayBuffer));
   if (loadTimeout) clearTimeout(loadTimeout);
   loadTimeout = setTimeout(() => { if (generation === ownGeneration && !ready) failGame(`${gameSpec(activeGameId).title} is taking too long to load. Check your connection and reload the game.`); }, 30000);
 }
 
-function insertCoin(): void {
+function insertCoin(channel: 1 | 2 | 3 | 4 | 5 = 1): void {
   if (!ready || failed || resetting) return;
   qualificationBoundary?.('insert_coin');
   // Original hardware needs an initial settled interval; the first press is retained.
   if (paused) resumeGame();
   else void trySound();
-  send({ type: 'coin' });
+  send({ type: 'coin', channel });
   focusGame();
 }
 
@@ -544,14 +605,14 @@ function startRound(player: 1 | 2 = 1): void {
   if (!ready || failed || resetting || gameSpec(activeGameId).startButtons < player) return;
   qualificationBoundary?.('start_game_switch');
   if (paused) resumeGame(); else void trySound();
-  send(activeGameId === 'breakout' ? { type: 'start', player } : { type: 'start' }); focusGame();
+  send(gameSpec(activeGameId).startButtons === 2 ? { type: 'start', player } : { type: 'start' }); focusGame();
 }
 
 function resetGame(): void {
   if (!ready || failed || resetting) return;
   qualificationBoundary?.('reset');
   releaseInputs();
-  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
+  axes = Array(gameSpec(activeGameId).axisCount).fill(0);
   updatePads();
   audio.clear();
   resetting = true;
@@ -584,7 +645,7 @@ function disposeGame(destination: 'title' | 'library'): void {
   latestPixels = undefined;
   lastSnapshot = undefined;
   settingsUI.setActiveGame(undefined);
-  axes = Array(gameSpec(activeGameId).paddleCount).fill(0);
+  axes = Array(gameSpec(activeGameId).axisCount).fill(0);
   soundAvailable = false;
   coinButton.disabled = true;
   startButton.disabled = true;
@@ -658,7 +719,8 @@ pads.forEach((pad, slot) => {
     const horizontal = gameSpec(activeGameId).paddleOrientation === 'horizontal';
     if ((horizontal ? bounds.width : bounds.height) <= 0) return;
     const fraction = Math.max(0, Math.min(1, horizontal ? (event.clientX - bounds.left) / bounds.width : (event.clientY - bounds.top) / bounds.height));
-    axes[slot] = canonicalPaddleAxis(activeGameId, Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN)));
+    axes[slot] = activeGameId === 'stuntcycle' ? Math.round(fraction * AXIS_MAX)
+      : canonicalPaddleAxis(activeGameId, Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN)));
     updatePads();
     sendInputs(slot);
   }
@@ -675,6 +737,7 @@ pads.forEach((pad, slot) => {
     if (pointers.get(event.pointerId) !== slot) return;
     pointers.delete(event.pointerId);
     pad.classList.remove('active');
+    if (activeGameId === 'stuntcycle') { axes[slot] = 0; updatePads(); sendInputs(slot); }
   };
   pad.addEventListener('pointerup', release);
   pad.addEventListener('pointercancel', release);
@@ -685,13 +748,19 @@ pads.forEach((pad, slot) => {
     if (!ready || paused || failed || resetting || slot >= axes.length || ![negative, positive, 'Home', 'End'].includes(event.code)) return;
     event.preventDefault();
     event.stopPropagation();
-    const displayAxis = displayPaddleAxis(activeGameId, axes[slot]);
-    const changed = event.code === 'Home' ? AXIS_MIN : event.code === 'End' ? AXIS_MAX
-      : Math.max(AXIS_MIN, Math.min(AXIS_MAX, displayAxis + (event.code === negative ? -2048 : 2048)));
-    axes[slot] = canonicalPaddleAxis(activeGameId, changed);
+    const displayAxis = activeGameId === 'stuntcycle' ? axes[slot] : displayPaddleAxis(activeGameId, axes[slot]);
+    const minimum = activeGameId === 'stuntcycle' ? 0 : AXIS_MIN;
+    const changed = event.code === 'Home' ? minimum : event.code === 'End' ? AXIS_MAX
+      : Math.max(minimum, Math.min(AXIS_MAX, displayAxis + (event.code === negative ? -2048 : 2048)));
+    axes[slot] = activeGameId === 'stuntcycle' ? changed : canonicalPaddleAxis(activeGameId, changed);
     updatePads();
     sendInputs(slot);
   });
+  const idleThrottle = (): void => {
+    if (activeGameId === 'stuntcycle' && axes[slot] !== 0) { axes[slot] = 0; updatePads(); sendInputs(slot); }
+  };
+  pad.addEventListener('keyup', idleThrottle);
+  pad.addEventListener('blur', idleThrottle);
 });
 
 document.querySelectorAll<HTMLButtonElement>('.direction-button').forEach((button) => {
@@ -738,6 +807,46 @@ document.querySelectorAll<HTMLButtonElement>('.direction-button').forEach((butto
     heldActivation.clear(); directionPointers.delete(-(slot * 2 + (direction === 'up' ? 1 : 2)));
     if (![...directionPointers.values()].some((pointer) => pointer.target === button)) button.classList.remove('active'); sync();
   });
+});
+
+// Relative wheel switches and held pedals keep independent contact ownership.
+document.querySelectorAll<HTMLButtonElement>('.driving-button').forEach((button) => {
+  const slot = Number(button.dataset.slot);
+  const action = button.dataset.driving as 'left' | 'right' | 'gas' | 'brake';
+  const keyboardId = -(100 + slot * 4 + ['left', 'right', 'gas', 'brake'].indexOf(action));
+  const activation = new Set<string>();
+  releaseDirectionActivation.push(() => activation.clear());
+  function sync(): void {
+    const held = [...drivingPointers.values()].filter((pointer) => pointer.slot === slot);
+    controls.setTouchButtons(slot, held.some((pointer) => pointer.action === 'left'), held.some((pointer) => pointer.action === 'right'));
+    controls.setTouchPedals(slot, held.some((pointer) => pointer.action === 'gas'), held.some((pointer) => pointer.action === 'brake'));
+    button.classList.toggle('active', held.some((pointer) => pointer.target === button));
+  }
+  button.addEventListener('pointerdown', (event) => {
+    if (!ready || paused || failed || resetting || activeGameId !== 'indy4') return;
+    event.preventDefault(); drivingPointers.set(event.pointerId, { slot, action, target: button });
+    button.setPointerCapture(event.pointerId); sync();
+  });
+  function release(event: PointerEvent): void {
+    if (drivingPointers.get(event.pointerId)?.target !== button) return;
+    drivingPointers.delete(event.pointerId); sync();
+  }
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+  button.addEventListener('lostpointercapture', release);
+  button.addEventListener('keydown', (event) => {
+    if (!ready || paused || failed || resetting || activeGameId !== 'indy4' || !['Space', 'Enter'].includes(event.code)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.repeat) return;
+    activation.add(event.code); drivingPointers.set(keyboardId, { slot, action, target: button }); sync();
+  });
+  button.addEventListener('keyup', (event) => {
+    if (!activation.delete(event.code)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (!activation.size) drivingPointers.delete(keyboardId);
+    sync();
+  });
+  button.addEventListener('blur', () => { activation.clear(); drivingPointers.delete(keyboardId); sync(); });
 });
 
 // Serve is an original held switch. Pointer contacts and accessible button
@@ -804,7 +913,7 @@ window.addEventListener('blur', () => { settingsUI.cancelCapture(); pauseGame('P
 function releaseResizedInputs(): void {
   // A captured touch belongs to the old control geometry. Require a fresh
   // contact after rotation/viewport resizing instead of moving the paddle.
-  if (pointers.size || directionPointers.size || servePointers.size) releaseInputs();
+  if (pointers.size || directionPointers.size || servePointers.size || drivingPointers.size) releaseInputs();
 }
 window.addEventListener('resize', releaseResizedInputs);
 window.visualViewport?.addEventListener('resize', releaseResizedInputs);
@@ -820,7 +929,10 @@ window.addEventListener('pageshow', (event) => {
 });
 playButton.addEventListener('click', () => { void startGame(); });
 element('#retry').addEventListener('click', () => { void startGame(activeGameId); });
-coinButton.addEventListener('click', insertCoin);
+coinButton.addEventListener('click', () => insertCoin());
+document.querySelectorAll<HTMLButtonElement>('.indy-coin').forEach((button) => {
+  button.addEventListener('click', () => insertCoin(Number(button.dataset.coinChannel) as 2 | 3 | 4 | 5));
+});
 startButton.addEventListener('click', () => startRound());
 start2Button.addEventListener('click', () => startRound(2));
 pauseButton.addEventListener('click', () => { if (paused) void resumeGame(); else pauseGame(); });
@@ -895,8 +1007,12 @@ if (new URLSearchParams(location.search).has('debug')) {
         inputs: { coin: Number(state.coin), start: Number(state.start), startPlayer: state.startPlayer, startsQueued: state.startsQueued,
           serve: Number(state.serve), paddle1: state.axes[0], paddle2: state.axes[1], paddle3: state.axes[2], paddle4: state.axes[3], directions: state.directions },
         display: { width: state.width, height: state.height, pixelFormat: state.pixelFormat }, breakout: state.breakout,
+        stuntcycle: state.stuntcycle, indy4: state.indy4,
+        coinChannel: state.coinChannel, coinsQueued: state.coinsQueued,
+        switches: { coinCompleted: state.coinCompleted, startCompleted: state.startCompleted },
+        driving: { gas: state.gas, brake: state.brake, axes: state.axes, directions: state.directions },
         crashes: state.crashes,
-        heldKeys: controls.getState().heldKeys, pointerCount: pointers.size + directionPointers.size + servePointers.size, paused, screen, selectedGame: selectedGameId,
+        heldKeys: controls.getState().heldKeys, pointerCount: pointers.size + directionPointers.size + servePointers.size + drivingPointers.size, paused, screen, selectedGame: selectedGameId,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,
           wasmMemoryCapacityBytes: state.wasmMemoryCapacityBytes },

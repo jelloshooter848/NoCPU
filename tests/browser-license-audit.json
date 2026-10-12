@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "release_ready": true,
-  "assessment_scope": "0.5.0 browser candidate: original-derived Pong/Pong Doubles/Space Race plus selected Breakout, online iPhone Home Screen metadata/icons/standalone frontend, existing controls/settings/qualification/storage and fflate import. Fresh actual compiled/link-member/frontend/preferred-source inventory is required. Native binaries, toolchain containers, ROM payloads and the other seventeen DICE circuits remain excluded.",
+  "assessment_scope": "0.6.0 current ownership-repaired six-circuit browser component/source contract: original-derived Pong/Pong Doubles/Space Race/Breakout plus Stunt Cycle and Indy 4, original chip-ROM adapter, online iPhone Home Screen frontend and existing controls/settings/qualification/storage/fflate import. Independent actual current core/member/notice/frontend/preferred-source review accepts local candidate packaging eligibility only. Actual produced corresponding-source/archive/privacy/package, gameplay/fidelity, browser, committed CI and public delivery remain separate mandatory gates. Native binaries, toolchain containers, ROM payloads and the other fifteen DICE circuits remain excluded.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -117,7 +117,7 @@
   ],
   "components": [
     {
-      "scope": "Original-derived Pong, Pong Doubles, Space Race and Breakout circuits, portable adapters, browser frontend and SVG-derived Home Screen icons",
+      "scope": "Original-derived Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4 circuits, portable chip-ROM adapters, browser frontend and SVG-derived Home Screen icons",
       "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
       "basis": "tests/license-audit.json and docs/PROVENANCE.md"
     },
@@ -140,7 +140,7 @@
       "scope": "musl libc and linked math routines",
       "version": "bundled with Emscripten 3.1.74",
       "license": "MIT for musl and concrete Arm portions; six Sun-derived trigonometric members retain their original permissive notice-preservation grant",
-      "basis": "Actual 0.5.0 core-v2 map links 25 math members: __cosdf, __fpclassifyl, __math_divzero, __math_invalid, __math_oflow, __math_uflow, __math_xflow, __rem_pio2_large, __rem_pio2f, __sindf, copysignl, cosf, exp, exp_data, fabsl, floor, fmodl, frexp, log, log_data, lroundf, roundf, scalbn, scalbnl, sinf. Six new trigonometric source headers retain Copyright (C) 1993 Sun Microsystems and origin/attribution comments; log.c/log_data.c/log_data.h retain Arm 2018 SPDX MIT headers. Exact headers and the same-SDK MIT grant accompany the complete musl COPYRIGHT in docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt. New floor/__math_divzero/__math_invalid sources have no additional leading copyright/license headers and remain covered by musl/Emscripten notices. Independent actual core/member/notice approval is recorded in core-component-v2-actual-license-review.json (SHA256 1dda5d8119e85615b999c09f2a370de31084431849db5b0f1b32a7af68b0ff5f); current frontend/preferred-source license contract is accepted separately in bfc2da7157e35bb37eba641bc58417c337ab6107ee43ce82fa0409c56a6616a7; actual produced archive and all delivery gates remain separate; historical 0.4.0 counts and approvals remain identified separately."
+      "basis": "Current ownership-repaired 0.6.0 core closure independently rechecks all current source/output bindings and the unchanged seven-family/145-member/26-math inventory; local component/source-contract acceptance b41deddb7bc91bb1d598cfb2bf43acc94bd48fa2ee008ad260f15ad74dcdd56d. Actual produced archive/source/privacy/package and fidelity/browser/public gates remain separate. Retained snapshot history: 0.6.0 v4 compiled snapshot: Seven archive families and 145 concrete linked members (libc101, compiler_rt18, libc++12, libc++abi10, dlmalloc2, noexit1, stubs1); 26 actual math members: __cosdf, __fpclassifyl, __math_divzero, __math_invalid, __math_oflow, __math_uflow, __math_xflow, __rem_pio2_large, __rem_pio2f, __sindf, copysignl, cosf, exp, exp_data, fabsl, floor, fmod, fmodl, frexp, log, log_data, lroundf, roundf, scalbn, scalbnl, sinf. Only fmod.o is added to the historical 25-math/144-member set. Exact pinned SDK src/math/fmod.c SHA256 33fb61093e04783081b9e8f8a8a303456b2f919c215cd0c378c1ed0acf41934c has no additional leading copyright/license header; existing full musl COPYRIGHT and Emscripten MIT notices cover it. Final source/runtime and complete component acceptance remain pending after the Stunt run_n observation repair. Historical 0.5.0 basis: Actual 0.5.0 core-v2 map links 25 math members: __cosdf, __fpclassifyl, __math_divzero, __math_invalid, __math_oflow, __math_uflow, __math_xflow, __rem_pio2_large, __rem_pio2f, __sindf, copysignl, cosf, exp, exp_data, fabsl, floor, fmodl, frexp, log, log_data, lroundf, roundf, scalbn, scalbnl, sinf. Six new trigonometric source headers retain Copyright (C) 1993 Sun Microsystems and origin/attribution comments; log.c/log_data.c/log_data.h retain Arm 2018 SPDX MIT headers. Exact headers and the same-SDK MIT grant accompany the complete musl COPYRIGHT in docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt. New floor/__math_divzero/__math_invalid sources have no additional leading copyright/license headers and remain covered by musl/Emscripten notices. Independent actual core/member/notice approval is recorded in core-component-v2-actual-license-review.json (SHA256 1dda5d8119e85615b999c09f2a370de31084431849db5b0f1b32a7af68b0ff5f); current frontend/preferred-source license contract is accepted separately in bfc2da7157e35bb37eba641bc58417c337ab6107ee43ce82fa0409c56a6616a7; actual produced archive and all delivery gates remain separate; historical 0.4.0 counts and approvals remain identified separately."
     },
     {
       "scope": "Vite injected browser helpers",
@@ -165,7 +165,7 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.5.0-source.tar.gz",
+    "path": "source/nocpu-0.6.0-source.tar.gz",
     "delivery": "Included in every reviewed preview and final Pages artifact and linked visibly in app. Same-revision archive contains original DICE, maintained adapters/frontend, preferred icon SVG and deterministic generation recipe with derived PNG assets/manifest, 17 unmodified fflate preferred-source/build files and attribution, scripts, pinned lockfiles, dependency source manifest and complete notices. Production provenance binds icon recipe/source/assets and rejects stale inputs."
   },
   "evidence": [
@@ -445,6 +445,35 @@
       "path": "build/v050/setup-release/frontend-component-v3/component-inventory.json",
       "sha256": "a8796e9a69f3dd8529a745832f520e5f188ded47cf88211c1a3b43152d80d38c",
       "detail": "All54 unchanged current frontend compile inputs and11 actual outputs bind the accepted V3 core;27notice/17+3fflate/icon source hashes match. Independent review f73ac4b0 restores local candidate eligibility; actual final archive/public payload, full game/browser/CI/live/device remain separate."
+    },
+    {
+      "kind": "actual-0.6.0-core-v4-build-only-review",
+      "path": "build/v060-review/current-core-build-actual-v1.json",
+      "sha256": "6bb8cf7ab5e20e54c1bd0416678ccc9ffde009b3e5c64423d52337c58f95e831",
+      "assessment_version": "0.6.0",
+      "detail": "Independent actual v4 native/Wasm compilation input/output binding: 583/582 inputs. Build-only snapshot; subsequent Stunt run_n observation source repair requires fresh final-runtime binding. No gameplay, browser or complete component/license readiness claim."
+    },
+    {
+      "kind": "musl-fmod-source-header-inventory-0.6.0",
+      "path": "build/emsdk/upstream/emscripten/system/lib/libc/musl/src/math/fmod.c",
+      "sha256": "33fb61093e04783081b9e8f8a8a303456b2f919c215cd0c378c1ed0acf41934c",
+      "source_commit": "1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5",
+      "assessment_version": "0.6.0",
+      "detail": "Actual v4 Wasm map adds fmod.o as the 26th math member. Exact source has no additional leading copyright/license header; existing musl/Emscripten grants and notices retained. Native observer-only zlib is absent from Wasm."
+    },
+    {
+      "kind": "independent-0.6.0-core-v4-actual-components-notices-review",
+      "path": "build/v060-review/core-component-actual-notices-v1.json",
+      "sha256": "67772458a84da232162f69f4a9350cf80b0761bbf2710b260e8c71e576398dc6",
+      "assessment_version": "0.6.0",
+      "detail": "Narrow actual v4 core license/component basis: seven archive families,145 concrete members,26 math sources; exact pinned SDK license/author bytes and all27 notice hashes. Current fmod source basis accepted. Subsequent run_n observer source repair requires fresh runtime/member binding; frontend/preferred-source/archive/privacy/package gates remain separate pending requirements."
+    },
+    {
+      "kind": "independent-0.6.0-current-components-frontend-preferred-source-contract",
+      "path": "build/v060-review/current-components-frontend-preferredsource-contract-v2.json",
+      "sha256": "b41deddb7bc91bb1d598cfb2bf43acc94bd48fa2ee008ad260f15ad74dcdd56d",
+      "assessment_version": "0.6.0",
+      "detail": "Local candidate packaging eligibility: current ownership-fixed core all582inputs/output hashes and unchanged145members/26math;54frontendinputs/11runtimeoutputs bind current core;17preferred+3imported fflate source/runtime identities and pins;all27notices/icons source+recipe+assets/current plugin check. Actual produced archive/source/privacy/package, browser, fidelity/CI/public gates remain separate mandatory unaccepted requirements."
     }
   ],
   "excluded_components": [

@@ -164,7 +164,7 @@ def verify_browser_license(root: Path, version: str, *, require_ready: bool = Tr
     return notices
 
 
-def verify_build_provenance(root: Path, directory: Path, files: list[dict]) -> tuple[dict, dict]:
+def verify_build_provenance(root: Path, directory: Path, files: list[dict], *, verification_dir: Path | None = None) -> tuple[dict, dict]:
     """Reject stale compiled assets before claiming they match the delivered source."""
     core = json.loads((root / 'build/core/wasm/build-provenance.json').read_text())
     frontend = json.loads((root / 'build/web-provenance.json').read_text())
@@ -194,7 +194,10 @@ def verify_build_provenance(root: Path, directory: Path, files: list[dict]) -> t
                 raise ValueError(f'{label} build input symlink: {name}')
             if not path.is_file() or sha256(path) != digest:
                 raise ValueError(f'Stale {label} build source input: {name}')
-    verification = root / 'build/package-source-verification/source'
+    verification = verification_dir if verification_dir is not None else root / 'build/package-source-verification/source'
+    build = (root / 'build').resolve()
+    if not verification.resolve().is_relative_to(build) or verification.resolve() == build or verification.is_symlink():
+        raise ValueError('Source verification must use a dedicated real directory under ignored build/')
     subprocess.run([sys.executable, str(root / 'tools/prepare-core.py'), '--output', str(verification)], cwd=root, check=True,
                    stdout=subprocess.DEVNULL)
     prepared = {'build/core/source/' + path.relative_to(verification).as_posix(): sha256(path)
@@ -338,9 +341,17 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
     if source_audit.get('release_ready') is not True or source_audit.get('blockers') != []:
         raise ValueError('Matching source blocked by source license audit')
     notices = verify_browser_license(root, version)
+    build = (root / 'build').resolve()
+    if not output_dir.resolve().is_relative_to(build) or output_dir.resolve() == build or output_dir.is_symlink():
+        raise ValueError('Package output must be a dedicated real directory under ignored build/')
+    if output_dir.resolve().is_relative_to(browser_dir.resolve()) or browser_dir.resolve().is_relative_to(output_dir.resolve()):
+        raise ValueError('Package output and browser input must be separate non-overlapping directories')
     files = runtime_files(browser_dir)
     digest = runtime_digest(files)
-    core_provenance, frontend_provenance = verify_build_provenance(root, browser_dir, files)
+    # Each package owns its verification copy as well as its output. Historical
+    # verification trees and other producers' shared core copies stay intact.
+    verification = output_dir.parent / (output_dir.name + '-source-verification') / 'source'
+    core_provenance, frontend_provenance = verify_build_provenance(root, browser_dir, files, verification_dir=verification)
     readiness = json.loads((root / 'tests/release-readiness.json').read_text())
     if not preview:
         readiness = verify_readiness(root, version, digest)
@@ -348,11 +359,6 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
         if 'prepared locally' in notes.splitlines()[0].lower():
             raise ValueError('Finalize the reviewed CHANGELOG release date before browser publication')
     commit, tree_state = source_identity(root, not preview, tag)
-    build = (root / 'build').resolve()
-    if not output_dir.resolve().is_relative_to(build) or output_dir.resolve() == build or output_dir.is_symlink():
-        raise ValueError('Package output must be a dedicated real directory under ignored build/')
-    if output_dir.resolve().is_relative_to(browser_dir.resolve()) or browser_dir.resolve().is_relative_to(output_dir.resolve()):
-        raise ValueError('Package output and browser input must be separate non-overlapping directories')
     # Validate all source payloads before writing a publishable directory.
     source_files = source.collect_files(root)
     if output_dir.exists():

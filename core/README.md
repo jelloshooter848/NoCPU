@@ -1,14 +1,19 @@
 # Original-derived DICE core
 
-The 0.5.0 core sources compile original DICE 0.9 Pong, Pong Doubles, Space Race
-and Breakout circuits and the chip scheduler
+The 0.6.0 core sources compile original DICE 0.9 Pong, Pong Doubles, Space Race,
+Breakout, Stunt Cycle and Indy 4 circuits and the chip scheduler
 without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
 [`upstream/dice-0.9/`](../upstream/dice-0.9/) remain byte-identical; the preparation
 script writes a disposable copy under ignored `build/` and records its complete
 adapter diff.
 
-[`nocpu.h`](nocpu.h) defines ABI version 3, retaining ABI 2 game IDs and entry
+The native evidence runner links zlib (`-lz`) solely to stream lossless full-RGB
+capture media; native provenance records that link flag. The Wasm/browser core
+does not link zlib. Native binaries and historical toolchain containers are
+outside the browser distribution assessment.
+
+[`nocpu.h`](nocpu.h) defines ABI version 4, retaining earlier game IDs and entry
 points. Each module owns one live circuit.
 Create and reset take a seed; duplicate create fails, destroy is repeatable, and
 reset releases held inputs and restores cold original descriptors, then applies
@@ -16,7 +21,11 @@ the selected title's chosen DIP/potentiometer settings. Invalid game/settings
 fail before disturbing a live machine. `nocpu_create(seed)` remains a convenience
 entry point for original-default Pong; `nocpu_create_game` selects a circuit.
 Reset retains the selected title/settings; `nocpu_reset_config` applies new
-settings to a fresh instance of that title. Space Race's playtime setting is
+settings to a fresh instance of that title. Browser Reset uses this cold-reboot
+contract. It is distinct from the original application's same-process New Game
+action, which can retain mutable static descriptors and ROM-cache state; the
+original characterization must preserve that behavior rather than clear it to
+match a cold boot. Space Race's playtime setting is
 resistance in ohms. The original potentiometer's initialization callback applies
 the chosen value to C9 at simulation time zero, followed by its original 250 ms
 polls. The cold C9 descriptor starts at 1000000 ohms and the default
@@ -36,7 +45,40 @@ held Serve switch. Its canonical axis has the original reversed resistor range:
 Start and Serve remain independent actions. The browser queues up to eight
 explicit Start selections behind queued coins, with original-time 100 ms held
 and 100 ms released intervals; pause, reset and release cancel pending actions.
-All four compiled circuits are ROM-free.
+Those four circuits are ROM-free. Stunt Cycle and Indy 4 require exact private
+player-supplied descriptor bytes. `nocpu_rom_begin(game)` selects the staging
+game; `nocpu_rom_buffer(slot,size)` supplies a bounded module-owned buffer;
+`nocpu_rom_finish()` verifies all audited CRC32s and sizes. Create independently
+rechecks bytes before transferring them to live circuit ownership. Wrong-game,
+partial, corrupt, wrong-size and busy requests reject. Reset retains loaded
+bytes; destroy clears live and staged ownership. The core neither parses ZIPs
+nor reads a filesystem or fetches ROMs. See [ROMS.md](../docs/ROMS.md).
+
+Stunt Cycle uses shared throttle slot 0, Coin and Start1/Start2. Analog throttle
+uses the original positive axis range 0..32767; keyboard throttle rises/falls
+at the original 250 percent per second. Original 10 ms polling remains intact.
+Indy 4 uses four wheel-rate axes or held left/right keys, four held Gas/Hand
+Brake pairs and Green/Cyan/Violet/Red/Dollar coin channels; it has no Start.
+Its original 20 percent wheel deadzone, sensitivity 500, 10 ms polls and
+±15-degree delta clamp/quadrature conversion remain unchanged.
+
+Stunt Cycle packs misses 0..7 into bits 0..2, free-game score minus 12 into
+bits 3..6, coinage index into bit 7 and disabled-free-game into bit 8; default
+76 and potentiometer zero. Indy 4 requires DIP zero and timer resistance
+220000..1220000 ohms, default 720000. Both inherit absent original mono-output
+hookups; no replacement sound is generated. Indy 4 preserves the original
+resistor-derived color raster. These authored contracts require the independent
+source, original/native/Wasm and browser gates in
+[0.6.0_VALIDATION.md](../docs/0.6.0_VALIDATION.md).
+The original audio constructor emits one zero-valued PCM sample despite those
+absent active hookups. Preserve it in raw captures and distinguish initialization
+from ongoing samples; actual cross-runtime byte/time comparison remains required.
+Stunt Cycle's raw H6.8 observation is a selected-player/miss-counter bit, not
+an activity flag. Its original D9.9 ATTRACT_n controls active-state observation;
+the source's score initialization at 8 is distinct from measured scoring.
+Its legacy `nocpu_run_n` observes inverse D9.9 ATTRACT_n, matching the original
+active-low run observer. Raw LATCH.3 credit remains a separate named signal;
+changing this telemetry does not change the circuit or earlier game semantics.
 
 Breakout packs four original DIP indices into the ABI: bonus credit 0..8 in
 bits 0..3 (the named original choices None, 100 through 800), cabinet type in
@@ -99,7 +141,7 @@ Hosts drain both event queues each tick. All time words remain exact integers.
 evidence files. Read the [adaptation inventory](../docs/PORT_PONG.md),
 [testing instructions](../docs/TESTING.md), and
 [0.2.0 validation report](../docs/0.2.0_VALIDATION.md) for build commands and actual
-fidelity results. The remaining 17 games are outside this compiled batch.
+fidelity results. The remaining 15 games are outside this compiled batch.
 Pong Doubles uses DICE's default audio gain of 10; Space Race keeps its explicit
 gain of 50 and its original 566/filter/mixer audio graph. Fresh circuit creation
 also replaces audio objects, preventing selected-title gain from leaking into

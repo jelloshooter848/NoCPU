@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+import { packagedDirectory, shellArgument } from './tests/package-directory';
 
 const remoteBase = process.env.NOCPU_TEST_BASE_URL;
 if (remoteBase) {
@@ -25,7 +27,7 @@ export default defineConfig({
   },
   webServer: remoteBase ? undefined : {
     command: process.env.NOCPU_TEST_PACKAGED === '1'
-      ? 'python3 tools/serve-pages.py --directory build/pages --base /NoCPU/ --host 127.0.0.1 --port 4173'
+      ? `python3 tools/serve-pages.py --directory ${shellArgument(packagedDirectory(fileURLToPath(new URL('./', import.meta.url))))} --base /NoCPU/ --host 127.0.0.1 --port 4173`
       : 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
     url: 'http://127.0.0.1:4173/NoCPU/',
     timeout: 30_000,

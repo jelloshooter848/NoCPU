@@ -16,14 +16,14 @@ export async function importZip(page: Page, gameId: string, name: string, buffer
   await expect(page.getByTestId('rom-import')).toBeEnabled();
   await expect(page.getByTestId('rom-import-status')).not.toHaveText('Checking ROM ZIP…');
 }
-export async function installGamepads(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+export async function installGamepads(page: Page, count = 2): Promise<void> {
+  await page.addInitScript((count) => {
     const target = window as any;
-    target.__testPads = [0, 1].map((index) => ({ index, id: `Synthetic platform controller ${index + 1}`, connected: true,
+    target.__testPads = Array.from({ length: count }, (_, index) => index).map((index) => ({ index, id: `Synthetic platform controller ${index + 1}`, connected: true,
       mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0],
       buttons: Array.from({ length: 32 }, () => ({ pressed: false, touched: false, value: 0 })) }));
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => target.__testPads });
-  });
+  }, count);
 }
 export async function padState(page: Page, pad: number, patch: { axis?: [number, number]; button?: [number, boolean]; connected?: boolean }): Promise<void> {
   await page.evaluate(({ pad, patch }) => {

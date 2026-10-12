@@ -2,6 +2,14 @@
 
 NoCPU preserves all 21 original registrations from its 0.1.0 inventory and native reference foundation. Source declarations describe intended capabilities, not completed gameplay verification.
 
+The selected [0.6.0 contract](0.6.0_TASKS.md) adds Stunt Cycle and Indy 4,
+targeting six playable games and fifteen remaining ports. Trusted actual ROM,
+original/native/Wasm, source/package/browser and publication acceptance are
+pending in the [0.6.0 ledger](0.6.0_VALIDATION.md). Both selected games inherit
+no active DICE mono-output hookup; expected silence and historical unfinished
+audio are separate from port regressions. The public runtime below remains the
+accepted 0.5.0 preview until actual new delivery is verified.
+
 The independently verified [0.5.0 browser
 preview](https://jelloshooter848.github.io/NoCPU/) implements **Pong, Pong
 Doubles, Space Race and Breakout**, with online iPhone Home Screen support.

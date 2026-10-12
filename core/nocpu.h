@@ -5,13 +5,36 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// ABI 3: one live original DICE circuit per module. Inputs are held until changed.
-// ABI 2 game IDs, entry-point signatures and queue ownership remain unchanged.
-enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_BREAKOUT=3 };
+// ABI 4: one live original DICE circuit per module. Earlier IDs/exports remain.
+enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_BREAKOUT=3,
+                 NOCPU_STUNT_CYCLE=4, NOCPU_INDY_4=5 };
 enum NoCPUEvent { NOCPU_HIT=0, NOCPU_CRASH1_N=1, NOCPU_CRASH2_N=2,
                   NOCPU_SCORE1_PULSE=3, NOCPU_SCORE2_PULSE=4,
                   NOCPU_BRICK_HIT=5, NOCPU_BP_HIT_N=6, NOCPU_VB_HIT_N=7,
-                  NOCPU_SERVE_WAIT=8, NOCPU_PLAYER_2=9, NOCPU_ATTRACT_N=10 };
+                  NOCPU_SERVE_WAIT=8, NOCPU_PLAYER_2=9, NOCPU_ATTRACT_N=10,
+                  NOCPU_STUNT_ATTRACT_N=11, NOCPU_STUNT_PLAYER_CONTROL=12,
+                  NOCPU_STUNT_JUMP=13, NOCPU_STUNT_FLIP=14,
+                  NOCPU_STUNT_GOOD_JUMP=15, NOCPU_STUNT_BAD_JUMP=16,
+                  NOCPU_INDY_PLAY=17, NOCPU_INDY_ATTRACT_GREEN=18,
+                  NOCPU_INDY_ATTRACT_CYAN=19, NOCPU_INDY_ATTRACT_VIOLET=20,
+                  NOCPU_INDY_ATTRACT_RED=21, NOCPU_INDY_COLLISION_GREEN=22,
+                  NOCPU_INDY_COLLISION_CYAN=23, NOCPU_INDY_COLLISION_VIOLET=24,
+                  NOCPU_INDY_COLLISION_RED=25, NOCPU_INDY_CHECKPOINT_GREEN_N=26,
+                  NOCPU_INDY_CHECKPOINT_CYAN_N=27, NOCPU_INDY_CHECKPOINT_VIOLET_N=28,
+                  NOCPU_INDY_CHECKPOINT_RED_N=29, NOCPU_EVENT_TYPES=30 };
+enum NoCPURomError { NOCPU_ROM_OK=0, NOCPU_ROM_BUSY=1, NOCPU_ROM_GAME=2,
+    NOCPU_ROM_SLOT=3, NOCPU_ROM_SIZE=4, NOCPU_ROM_MISSING=5, NOCPU_ROM_CRC=6,
+    NOCPU_ROM_MEMORY=7 };
+// Stage canonical descriptor slots before create; sizes are exact audited
+// identities. Each returned buffer is bounded, private and module-owned.
+// finish AND create independently recheck actual CRCs. Names are documentary;
+// callers resolve aliases/CRC-shared members to descriptor slots beforehand.
+// Rejected calls never alter a live session. Reset keeps loaded bytes; destroy
+// discards both live/staged data. No filesystem, ROM fetch or ZIP inside core.
+uint32_t nocpu_rom_begin(uint32_t game);
+uint8_t* nocpu_rom_buffer(uint32_t slot,uint32_t size);
+uint32_t nocpu_rom_finish(void);
+uint32_t nocpu_rom_error(void);
 enum NoCPUBreakoutSignal { NOCPU_BREAKOUT_ATTRACT=0, NOCPU_BREAKOUT_ATTRACT_N=1,
     NOCPU_BREAKOUT_Q_N=2, NOCPU_BREAKOUT_SERVE_WAIT=3, NOCPU_BREAKOUT_PLAYER_2=4,
     NOCPU_BREAKOUT_BALL_COUNTER=5 };
@@ -21,6 +44,9 @@ uint32_t nocpu_abi_version(void);
 // Breakout uses packed original DIP indices: bonus_credit0..8 in bits0..3,
 // cabinet_type in bit4, coinage in bit5, ball_count in bit6; pot_ohms=0.
 // Reserved bits and unnamed bonus indices are invalid. Default packed DIP=3.
+// Stunt Cycle: misses0..7 bits0..2, free-game-score index0..15 (12..27)
+// bits3..6, coinage index bit7, free-game disabled bit8; pot0, default DIP76.
+// Indy4: dip0, playtime pot220000..1220000 (original default720000).
 // Invalid IDs/settings fail before changing a live circuit.
 uint32_t nocpu_create_game(uint32_t game, uint32_t seed, uint32_t dip, uint32_t pot_ohms);
 // Retained convenience entry point: original-default Pong.
@@ -33,9 +59,11 @@ uint32_t nocpu_game(void);
 uint32_t nocpu_dip(void);
 uint32_t nocpu_pot_ohms(void);
 void nocpu_coin(uint32_t held);
+// channel1 aliases legacy coin; channels2..5 require Indy4. Channel5 is dollar.
+uint32_t nocpu_coin_channel(uint32_t channel,uint32_t held);
 void nocpu_start(uint32_t held);
 // Separate original Start switches. player=1 supports all Start games;
-// player=2 is Breakout only. Invalid/unsupported calls return0 without mutation.
+// player=2 is Breakout/StuntCycle. Invalid calls return0 without mutation.
 // nocpu_start(held) remains the retained Start1 alias.
 uint32_t nocpu_start_player(uint32_t player, uint32_t held);
 // Breakout's original held Serve switch, never an implicit Start or coin.
@@ -47,6 +75,16 @@ void nocpu_paddle(uint32_t slot, int32_t axis);
 // Space Race only: two independent digital switches per slot 0..1.
 // Both may be held; original circuitry decides the outcome.
 void nocpu_joystick(uint32_t slot, uint32_t up_held, uint32_t down_held);
+// Original Stunt throttle input conversion/poll: analog0..32767 clips to
+// 0..100%; keyboard held ramps up250%/s, unheld ramps down. Calls select mode.
+uint32_t nocpu_throttle(int32_t axis);
+uint32_t nocpu_throttle_key(uint32_t held);
+// Original Indy wheel input: held signed joystick rate, 20% deadzone and
+// sensitivity500; or separate held keyboard left/right. Original10ms polling,
+// +/-15degree delta clamp and quadrature events remain unchanged.
+uint32_t nocpu_wheel(uint32_t slot,int32_t axis);
+uint32_t nocpu_wheel_keys(uint32_t slot,uint32_t left,uint32_t right);
+uint32_t nocpu_buttons(uint32_t slot,uint32_t gas,uint32_t brake);
 // Bounded integer microseconds. Zero is a no-op; >100000 or clock overflow
 // is rejected. Returns 0 without changing state for an invalid advance.
 uint32_t nocpu_advance(uint32_t microseconds);
@@ -64,6 +102,8 @@ uint32_t nocpu_audio_overruns(void);
 // Validation observability. Game output remains the circuit-rendered frame.
 uint32_t nocpu_score(uint32_t slot);
 uint32_t nocpu_hits(void);
+// Stunt Cycle returns active-low run: !ATTRACT_n (D9.9); raw credit
+// LATCH.3 is separately available via stuntcycle_signal(7).
 // Breakout retains raw Q_n=LATCH.3 in this legacy field, separate from native
 // active ATTRACT_n and the named raw credit getter; it is not inferred RUN_n.
 uint32_t nocpu_run_n(void);
@@ -78,6 +118,17 @@ uint32_t nocpu_breakout_signal(uint32_t signal);
 // Exact observed BRICK_HIT rising/BP_HIT_n falling/VB_HIT_n falling counts.
 // Other games/non-Breakout event IDs return UINT32_MAX.
 uint32_t nocpu_breakout_count(uint32_t event);
+// Raw original source observations; unsupported getters return UINT32_MAX.
+// Stunt0..7: ATTRACT_n,PLAYER_CONTROL,JUMP,FLIP,GOOD_JUMP,BAD_JUMP,
+// E5 binary miss counter,LATCH.3 credit. Throttle is milli-percent0..100000.
+uint32_t nocpu_stuntcycle_signal(uint32_t signal);
+uint32_t nocpu_stuntcycle_throttle(void);
+// Indy global0..2: PLAY,ENDGAME_n,CREDIT_n (slot ignored).
+// Per-car3..7: ATTRACT,collision,R0..R4 heading,speed1..5,L0..L2 lap.
+// Slot order Green,Cyan,Violet,Red; scores0..3 are original displayed scores (twice the checkpoint count).
+// Signal8 is the raw six-bit SCORE display code.
+uint32_t nocpu_indy4_signal(uint32_t slot,uint32_t signal);
+uint32_t nocpu_game_event_count(uint32_t event);
 uint32_t nocpu_time_lo(void);
 uint32_t nocpu_time_hi(void);
 // Transition triples [time_lo,time_hi,new_hit_value], exact ps; drain each tick.

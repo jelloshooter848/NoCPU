@@ -86,8 +86,8 @@ Exit: source provenance and distribution requirements recorded; native Pong refe
 
 The reviewed 0.2.0 Pong preview introduced a C++/Wasm core, TypeScript frontend,
 notices and matching source. Its published review remains historical evidence;
-the [play URL](https://jelloshooter848.github.io/NoCPU/) now serves the verified
-0.4.0 three-game preview below.
+the [play URL](https://jelloshooter848.github.io/NoCPU/) serves the latest
+independently accepted preview recorded below.
 The viewport game shell's clean automated matrix passes 67 cases with three
 expected simultaneous-touch skips; 25 selected checks against the public site
 also pass. See
@@ -196,7 +196,7 @@ records its deployed identities and earlier failed attempts. That preview left
 eighteen titles explicitly unported; the delivered 0.5.0 batch below leaves seventeen. Actual phone/controller qualification and
 final tags remain pending.
 
-Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Breakout is delivered in 0.5.0 after independent source, fidelity and publication review; Stunt Cycle and Indy 4 remain subsequent candidates, subject to the asset/control audit.
+Add the remaining games in batches based on the capability matrix, not assumed ROM requirements. Start with simpler controls/ROM-free titles; then cover ROM-backed games, driving/aiming controls and multiplayer families. Breakout is delivered in 0.5.0 after independent source, fidelity and publication review; Stunt Cycle and Indy 4 are the user-selected 0.6.0 batch below.
 
 For each title:
 
@@ -259,6 +259,40 @@ browser foundations are not installed-device proof. Physical qualification
 remains pending until measured; the existing final-tag and broad-readiness gates
 remain in force.
 
+#### 0.6.0 — Stunt Cycle and Indy 4
+
+The user selected both original ROM-backed circuits. The
+[contract](0.6.0_TASKS.md) targets six playable games, leaving fifteen ports;
+the [validation ledger](0.6.0_VALIDATION.md) records eight staged software
+acceptance gates. Preserve the delivered four-game/Home Screen behavior and
+immutable original source. Validate compatible player-supplied bytes at import
+and independently inside the core; retain exact descriptor ownership through
+reset and release it at destroy. Preserve original throttle, four independent
+Indy steering/accelerator slots, all settings and inherited unavailable audio.
+
+Source implementation and local candidate packaging are complete for the
+current development snapshot. The isolated candidate contains the current
+six-game runtime and matching source; independent actual archive/privacy
+review accepted its dirty-source creation snapshot. Canonical fixture/source/pilot and finite-scenario contracts are independently
+accepted (**1/8** software gates). Final clean Git/source-package freeze,
+complete fidelity, five-profile browser and release acceptance remain open.
+These completed work phases do not establish preview delivery.
+
+First audit trusted fixtures/source/controls and finite pilots; freeze the
+ABI/ROM/UI/scenario contracts. Independently review source and repair loops,
+then compare complete original/native/Wasm media and lifecycle behavior. Review
+fresh component/source/notices, validate the five-profile production package,
+pass ordinary committed CI and exact-main preview delivery, and independently
+verify all public bytes plus thirty selected live cases. Public CI without
+private fixtures must report new-game gameplay as skipped/blocked, with exact
+source-bound local evidence separately identified. Preserve accepted gates
+while reviewing runtime/storage/artifact capacity; avoid redundant full runs.
+
+The [six-game device packet](DEVICE_QUALIFICATION_0.6.md) keeps actual phones,
+installed-iPhone, controllers, speaker behavior and long sessions pending.
+Development and reviewed preview delivery are authorized; no final tag,
+offline/netplay or reconstructed sound is included.
+
 ### 0.8 — Performance and reliability
 
 1. Profile the heaviest games and long sessions on actual target phones; run representative demanding titles for at least 30 minutes.
@@ -296,22 +330,18 @@ Do not rewrite the circuit emulator in TypeScript to imitate its output. The ori
 
 ## Next concrete work package
 
-The [0.5.0 four-game/Home Screen preview](0.5.0_TASKS.md) is delivered and
-independently verified. Continue identified Android Chrome, iPhone Safari and
-installed-iPhone testing with the [current device
-packet](DEVICE_QUALIFICATION_0.5.md), recording touch, speaker, lifecycle,
-storage and sustained-performance results against the actual tested runtime.
-Record physical controller support separately. The retained Pong baseline does
-not qualify every new title or installed context automatically.
-
-Plan the next game batch from the seventeen remaining ports and capability
-matrix. Stunt Cycle and Indy 4 remain evaluation candidates, subject to their
-source/asset/control/fidelity assessment; no next batch is selected here. Offline
-play remains a separate optional investigation, excluded by default. The user's
-move-on authorization permits reviewed preview progress while physical results
-remain pending; broad-game-support readiness and final tags retain the actual
-device gate. Do not reuse an earlier runtime's results to qualify changed bytes
-or declare a supported device floor without measured evidence.
+Complete the user-selected [0.6.0 Stunt Cycle/Indy 4 batch](0.6.0_TASKS.md)
+through its eight independent acceptance gates, retaining the delivered
+[0.5.0 four-game/Home Screen preview](0.5.0_TASKS.md) as the public runtime
+until actual new delivery is verified. Continue identified Android Chrome,
+iPhone Safari and installed-iPhone tests with the
+[six-game device packet](DEVICE_QUALIFICATION_0.6.md), recording title/options,
+controller, touch, speaker, lifecycle, storage and sustained-performance scope
+against the actual tested runtime. The retained Pong baseline does not qualify
+every title or installed context. Offline play remains excluded by default;
+final tags and broad readiness retain the physical gate. Do not reuse an
+earlier runtime's results for changed bytes or declare a device floor without
+measured evidence.
 
 ## After 1.0 — preservation and expansion
 

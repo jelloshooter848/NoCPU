@@ -11,11 +11,14 @@ export interface RomEntry {
   fileName: string | null; archiveBytes: number | null; members: ValidatedRomMember[]; message?: string;
 }
 export type RomResult<T> = { ok: true; value: T } | { ok: false; code: string; error: string };
+/** A fresh, canonical-name copy for a single local worker launch. */
+export interface RuntimeRomMember { expectedName: string; bytes: Uint8Array }
 export interface RomLibrary {
   list(): Promise<RomEntry[]>;
   importArchive(gameId: string, file: File, remember?: boolean): Promise<RomResult<RomEntry>>;
   remove(gameId: string): Promise<RomResult<RomEntry>>;
   exportArchive(gameId: string): Promise<RomResult<{ blob: Blob; fileName: string }>>;
+  runtimeMembers(gameId: string): Promise<RomResult<RuntimeRomMember[]>>;
   close(): void;
 }
 interface Requirement { expected_member: string; accepted_crc32: string[]; dump_variants: { crc32: string; size_bytes: number }[] }
@@ -57,7 +60,7 @@ function checked(record: unknown, gameId: string, storage: 'session' | 'device',
 }
 function unavailable(message = 'Device storage is unavailable. Import an archive for this visit or try again.'): Error { return new Error(message); }
 
-/** Optional browser-only persistence. No fetch, upload, service worker or engine-loading path. */
+/** Browser-only retention and checked local worker handoff. No fetch or upload. */
 export function createRomLibrary(factory?: IDBFactory | null): RomLibrary {
   const session = new Map<string, SessionArchive>();
   let database: IDBDatabase | undefined;
@@ -196,6 +199,23 @@ export function createRomLibrary(factory?: IDBFactory | null): RomLibrary {
       const value = await current(gameId);
       if (!value.record || value.entry.status !== 'ready') return failure('rom-missing', 'No valid archive is available. Re-import the ZIP first.');
       return { ok: true, value: { blob: new Blob([value.record.bytes.slice(0)], { type: 'application/zip' }), fileName: value.record.fileName } };
+    }),
+    runtimeMembers: (gameId) => sequence(async () => {
+      if (closed) return failure('storage-closed', 'Local ROM storage is closed. Reload to import an archive.');
+      if (!gameMap.has(gameId)) return failure('unknown-game', 'Choose a game from the library.');
+      if (!gameMap.get(gameId)!.roms.length) return { ok: true, value: [] };
+      const value = await current(gameId);
+      if (!value.record || value.entry.status !== 'ready') return failure('rom-missing', value.entry.message
+        ?? 'Import your compatible ROM ZIP in Local ROMs before playing this game.');
+      try {
+        // Revalidate at launch, including records restored from device storage.
+        // Expected names are ABI aliases: player filenames never become paths.
+        const validated = validateRomArchive(gameId, value.record.bytes);
+        const members = readZip(value.record.bytes);
+        return { ok: true, value: validated.map((member) => ({ expectedName: member.expectedName,
+          bytes: members.find((candidate) => candidate.name === member.actualName)!.bytes.slice() })) };
+      } catch (error) { return failure(error instanceof ZipError ? error.code : 'stored-invalid',
+        'The local ROM set could not be validated for play. Re-import your compatible ZIP.'); }
     }),
     close() { closed = true; database?.close(); database = undefined; session.clear(); },
   };

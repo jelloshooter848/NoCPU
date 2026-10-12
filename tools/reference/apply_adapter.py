@@ -26,6 +26,12 @@ def edit(name, substitutions):
     changes.extend(difflib.unified_diff(before.splitlines(True), after.splitlines(True),
                                       fromfile="upstream/" + name, tofile="reference/" + name))
 
+edit("Makefile", [("LIBS := -s", "LIBS := -s -lz")])
+
+# Read-only observation of the original private static descriptor, no input override.
+edit("games/stuntcycle.cpp", [("static Throttle1Desc throttle_desc(&stunt_cycle_throttle_desc.throttle_pos);",
+    "static Throttle1Desc throttle_desc(&stunt_cycle_throttle_desc.throttle_pos);\nunsigned reference_stuntcycle_throttle() { return unsigned(stunt_cycle_throttle_desc.throttle_pos * 1000.0 + 0.5); }\ndouble reference_stuntcycle_cap_voltage() { return stunt_cycle_throttle_desc.cap_voltage; }\nuint64_t reference_stuntcycle_last_event_time() { return stunt_cycle_throttle_desc.last_event_time; }")])
+
 edit("main.cpp", [
     ('static const char VERSION_STRING[] = "DICE 0.9";',
      '#include "reference_driver.cpp"\n\nstatic const char VERSION_STRING[] = "DICE 0.9";'),
@@ -41,8 +47,9 @@ edit("main.cpp", [
 ])
 edit("circuit.cpp", [
     ('#include "circuit_desc.h"', '#include "circuit_desc.h"\n#include "reference_api.h"'),
+    ('    } while(removed);\n\n    // Make all connections', '    } while(removed);\n\n    reference_prune(chips);\n    // Make all connections'),
     ('        ChipDescPair cd(chips.back(), d);',
-     '        reference_register_chip(name.c_str(), d->output_pin, chips.back());\n        ChipDescPair cd(chips.back(), d);'),
+     '        reference_register_chip(name.c_str(), d->output_pin, chips.back(), d);\n        ChipDescPair cd(chips.back(), d);'),
 ])
 edit("game_config.cpp", [
     ('#include "game_config.h"', '#include "game_config.h"\n#include "reference_api.h"'),

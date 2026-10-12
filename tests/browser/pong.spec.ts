@@ -6,6 +6,7 @@ import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { packagedDirectory } from '../package-directory';
 
 import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledReleasedPaddles, installAudioProbe, start, pauseMenu, resumePlay, togglePause, openSettings, openAbout, expectViewportShell, expectUsableTarget, separation, controlBounds, expectThumbFraction, settleInputPresentation, expectExternalLayout, captureShellPanel } from './helpers';
 
@@ -14,7 +15,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 
 async function missingWasmServer(): Promise<{ url: string; wasmSha256: string; restore: () => void; log: () => string; close: () => Promise<void> }> {
   const fixture = mkdtempSync(join(root, 'build/missing-wasm.'));
-  const runtime = join(root, process.env.NOCPU_TEST_PACKAGED === '1' ? 'build/pages' : 'build/web');
+  const runtime = process.env.NOCPU_TEST_PACKAGED === '1'
+    ? packagedDirectory(root) : join(root, 'build/web');
   const wasmSha256 = createHash('sha256').update(readFileSync(join(runtime, 'core/nocpu.wasm'))).digest('hex');
   cpSync(runtime, fixture, { recursive: true });
   rmSync(join(fixture, 'core/nocpu.wasm'));

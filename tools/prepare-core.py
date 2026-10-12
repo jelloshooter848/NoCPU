@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an auditable, disposable four-game portable copy of DICE 0.9.
+"""Prepare an auditable, disposable six-game portable copy of DICE 0.9.
 
 Original scheduler/netlist/chip logic remain unchanged. Exact replacements fail
 closed if upstream differs. Complete changed-file diffs accompany the build.
@@ -53,7 +53,8 @@ for name in ("settings.h","game_config.h","realtime.h"):
     write(name,(ROOT/"core/platform"/name).read_text())
 write("port_hooks.h",(ROOT/"core/port_hooks.h").read_text())
 edit("circuit.cpp",[( '#include "circuit_desc.h"','#include "circuit_desc.h"\n#include "port_hooks.h"\n#include <algorithm>'),
-    ('        ChipDescPair cd(chips.back(), d);','        nocpu_register_chip(name.c_str(), d->output_pin, chips.back());\n        ChipDescPair cd(chips.back(), d);')])
+    ('        ChipDescPair cd(chips.back(), d);','        nocpu_register_chip(name.c_str(), d->output_pin, chips.back());\n        ChipDescPair cd(chips.back(), d);'),
+    ('                delete *it;', '                nocpu_unregister_chip(*it);\n                delete *it;')])
 edit("chip.cpp",[('#include "chip.h"','#include "chip.h"\n#include "port_hooks.h"'),
     # Supply chips have no logic function. Their custom-update union member is
     # still inspected by Chip::connect to identify the deoptimizer. Initialize
@@ -77,7 +78,12 @@ contents=contents.replace('#include "../manymouse/manymouse.h"\n#include <SDL/SD
 write("chips/input.cpp",contents)
 edit("chips/input.h",[('#include <SDL/SDL_joystick.h>',''),
     ('    std::vector<SDL_Joystick*> joysticks;',''),
-    ('    Input();','    bool coin, start, start2, serve;\n    int16_t axes[4];\n    bool up[2],down[2];\n    Input();')])
+    ('    Input();','    bool coin, start, start2, serve;\n    int16_t axes[4];\n    bool up[2],down[2];\n    bool coin_extra[4],throttle_held,buttons[4][4];\n    Input();')])
+
+# Original RomDesc lookup is a host ZIP/Qt cache, not PROM logic. The portable
+# lookup reads validated session-owned descriptor bytes, retaining 0xff reads.
+write('chips/rom.cpp',(ROOT/'core/platform/portable_rom.cpp').read_text())
+write('rom_session.h',(ROOT/'core/platform/rom_session.h').read_text())
 
 # SDL only transported already-synthesized samples. The graph and all sample
 # arithmetic are preserved; the queue now drains explicitly through the C ABI.
@@ -232,13 +238,67 @@ void nocpu_configure_breakout(unsigned packed_dips) {
 '''
 write('games/breakout.cpp',(out/'games/breakout.cpp').read_text()+reset_breakout)
 
-sources=['chip.cpp','circuit.cpp','games/pong.cpp','games/pongdoubles.cpp','games/spacerace.cpp','games/breakout.cpp']
+reset_stunt='''
+void nocpu_reset_stuntcycle_descriptors() {
+    stunt_cycle_throttle_desc={0.0,0.0,0};
+    c57_desc=CapacitorDesc(P_FARAD(220.0),OHM(330.0));
+    c58_desc=CapacitorDesc(P_FARAD(220.0));
+    n6_desc=Mono9602Desc(K_OHM(47.0),U_FARAD(100.0),K_OHM(47.0),U_FARAD(1.0));
+    c13_desc=SeriesRCDesc(K_OHM(2.2),P_FARAD(470.0));
+    ((DipswitchBase*)&f5_desc)->state=4;
+    ((DipswitchBase*)&f7_desc)->state=9;
+    ((DipswitchBase*)&dipswitch1_desc)->state=0;
+    ((DipswitchBase*)&dipswitch2_desc)->state=0;
+}
+void nocpu_configure_stuntcycle(unsigned dip) {
+    ((DipswitchBase*)&f5_desc)->state=dip&7;
+    ((DipswitchBase*)&f7_desc)->state=(dip>>3)&15;
+    ((DipswitchBase*)&dipswitch1_desc)->state=(dip>>7)&1;
+    ((DipswitchBase*)&dipswitch2_desc)->state=(dip>>8)&1;
+}
+unsigned nocpu_stuntcycle_throttle_value() {
+    return unsigned(stunt_cycle_throttle_desc.throttle_pos*1000.0+0.5);
+}
+'''
+write('games/stuntcycle.cpp',(out/'games/stuntcycle.cpp').read_text()+reset_stunt)
+
+reset_indy='''
+void nocpu_reset_indy4_descriptors() {
+    carl1_555_desc=Mono555Desc(K_OHM(82),U_FARAD(5));
+    coinl1_555_desc=Astable555Desc(K_OHM(720.0),K_OHM(220.0),U_FARAD(1.0));
+    ((PotentiometerBase*)&pot1_desc)->current_val=K_OHM(720.0);
+    // cirque has no safe assignment operator. Clear each owned queue in place.
+    wheel1_desc.angle=wheel2_desc.angle=wheel3_desc.angle=wheel4_desc.angle=0.0;
+    for(unsigned i=0;i<2;++i) {
+        wheel1_desc.wheel_events[i].clear();wheel2_desc.wheel_events[i].clear();
+        wheel3_desc.wheel_events[i].clear();wheel4_desc.wheel_events[i].clear();
+    }
+    carcap27_desc=CapacitorDesc(P_FARAD(100));
+    carcap31_desc=CapacitorDesc(P_FARAD(100));
+    carcap32_desc=CapacitorDesc(P_FARAD(100));
+    coincap35_desc=CapacitorDesc(U_FARAD(0.1));
+    scorecap08_desc=CapacitorDesc(P_FARAD(33));
+    scorecap10_desc=CapacitorDesc(U_FARAD(0.001));
+    scorecap11_desc=CapacitorDesc(U_FARAD(0.001));
+    scorecap12_desc=CapacitorDesc(U_FARAD(0.001));
+    scorecap13_desc=CapacitorDesc(U_FARAD(0.001));
+    scorecap14_desc=CapacitorDesc(U_FARAD(0.001));
+    synccap01_desc=CapacitorDesc(P_FARAD(330));
+}
+void nocpu_configure_indy4(unsigned pot_ohms) {
+    ((PotentiometerBase*)&pot1_desc)->current_val=double(pot_ohms);
+}
+'''
+write('games/indy4.cpp',(out/'games/indy4.cpp').read_text()+reset_indy)
+
+sources=['chip.cpp','circuit.cpp','games/pong.cpp','games/pongdoubles.cpp','games/spacerace.cpp','games/breakout.cpp','games/stuntcycle.cpp','games/indy4.cpp']
 chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','7474','7483','7486','7490','7493','74107','74153','9316','555mono','clock','latch','clk_gate','input','audio','video','dipswitch',
        'capacitor','555pwm','566','9602','diode_matrix','mixer','9311','9312','9322',
-       '555astable','7408','7411','74175','74192','74193','74279','7432','7437','82S16','9310']
+       '555astable','7408','7411','74175','74192','74193','74279','7432','7437','82S16','9310',
+       'rom','82S123','82S115','74S287','74194','7485','74165','74164','74174','7475','9301']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))
-(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':3,
-    'games':['pong','pongdoubles','spacerace','breakout']},indent=2)+'\n')
-print('Prepared portable four-game core:',out)
+(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':4,
+    'games':['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']},indent=2)+'\n')
+print('Prepared portable six-game core:',out)

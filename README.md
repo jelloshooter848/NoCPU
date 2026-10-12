@@ -2,6 +2,12 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is a faithful, easy-to-use browser and phone experience for all 21 games in DICE 0.9.
 
+Development [0.6.0](docs/0.6.0_TASKS.md) selects **Stunt Cycle and Indy 4**
+with player-supplied ROMs, targeting six playable circuits. Their inherited
+missing DICE audio remains disclosed. [Current validation](docs/0.6.0_VALIDATION.md)
+and the [six-game device packet](docs/DEVICE_QUALIFICATION_0.6.md) distinguish
+work in progress from the accepted public runtime below.
+
 **[Play NoCPU 0.5.0](https://jelloshooter848.github.io/NoCPU/).** The
 independently verified Pages preview has four playable original-derived,
 ROM-free games: **Pong, Pong Doubles, Space Race and Breakout**. It adds online
@@ -47,6 +53,7 @@ About. None of these four games needs a ROM file.
 
 ## Start here
 
+- [0.6.0 selected-game contract](docs/0.6.0_TASKS.md) and [validation status](docs/0.6.0_VALIDATION.md)
 - [0.5.0 delivered contract](docs/0.5.0_TASKS.md) and [validation/qualification status](docs/0.5.0_VALIDATION.md)
 - [0.4.0 first-game-batch contract](docs/0.4.0_TASKS.md) and [qualification status](docs/0.4.0_VALIDATION.md)
 - [Four-game/Home Screen physical procedure](docs/DEVICE_QUALIFICATION_0.5.md), [report template](docs/DEVICE_REPORT_TEMPLATE.md), and historical [0.3.1 qualification-tooling status](docs/0.3.1_VALIDATION.md)
@@ -101,7 +108,7 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 | Path | Purpose |
 | --- | --- |
 | `upstream/dice-0.9/` | Original DICE source, kept independently identifiable and checked against an inventory |
-| `core/` | Headless four-game development interface and documented adaptations of the original engine |
+| `core/` | Six-game development interface, validated session-owned ROM handoff and documented adaptations of the original engine |
 | `web/` | Game-first browser frontend, touch/keyboard/gamepad controls, rendering and audio delivery |
 | `tools/` | Source/game/ROM audits, native builds, reference capture, and release checks |
 | `tests/` | Audited metadata and controlled reference scenarios |
