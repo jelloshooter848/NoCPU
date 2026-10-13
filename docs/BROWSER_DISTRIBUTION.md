@@ -68,7 +68,10 @@ Findings:
   in the About panel.
 
 Its should-fix items were cleared on the working branch after `9fc4eac`
-without changing the core or the asset inventory. The 0.1.0 independent review
+without changing the core or the asset inventory. The Breakout fix changes the
+application bundle, so the runtime SHA-256 at `a46adf7` is
+`677cb892e5ae280dea352489da7e1048a8aa8a81aa1aff6668629bfe19465617`; release
+packaging recomputes it. The 0.1.0 independent review
 below applies to 0.1.0 only.
 
 ### What ships
