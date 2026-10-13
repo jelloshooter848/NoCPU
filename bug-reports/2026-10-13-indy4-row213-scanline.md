@@ -117,4 +117,4 @@ ownership exactly (rows 212–213 → scanline 127, row 214 → 128, rows 217–
   - No other game's output changed: each still equals its fresh original capture.
 - Classification: NoCPU regression (portable renderer fill rule and viewport flip differ from llvmpipe)
 
-Status: open
+Status: fixed in e6b2042
