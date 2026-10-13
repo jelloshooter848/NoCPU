@@ -10,11 +10,39 @@
       "pot_ohms": 0
     },
     {
+      "id": "stuntcycle-two-player-keys",
+      "game": "stuntcycle",
+      "replay": "tests/replays/stuntcycle-two-player-keys.tsv",
+      "dip": 130,
+      "pot_ohms": 0
+    },
+    {
+      "id": "stuntcycle-jump-score",
+      "game": "stuntcycle",
+      "replay": "tests/replays/stuntcycle-jump-score.tsv",
+      "dip": 76,
+      "pot_ohms": 0
+    },
+    {
       "id": "indy4-pilot",
       "game": "indy4",
       "replay": "tests/replays/indy4-pilot.tsv",
       "dip": 0,
       "pot_ohms": 720000
+    },
+    {
+      "id": "indy4-min-time-end",
+      "game": "indy4",
+      "replay": "tests/replays/indy4-min-time-end.tsv",
+      "dip": 0,
+      "pot_ohms": 220000
+    },
+    {
+      "id": "indy4-max-time-keys",
+      "game": "indy4",
+      "replay": "tests/replays/indy4-max-time-keys.tsv",
+      "dip": 0,
+      "pot_ohms": 1220000
     }
   ]
 }

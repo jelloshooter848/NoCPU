@@ -1,0 +1,26 @@
+# Stunt Cycle 45 s two-player pass: DIP 130 = 2 misses, free game at 12,
+# 1 coin/2 credits, free game enabled. One coin, 2-player Start, keyboard
+# throttle key and analog ramps through player alternation and game end,
+# attract mode, then coin + 1-player Start restart; seed 848.
+# Equality evidence only; calibration observed bad jumps, not scoring.
+500 coin 1
+650 coin 0
+1000 start2 1
+1150 start2 0
+1500 throttlekey 1
+4000 throttlekey 0
+5000 throttle 16000
+9000 throttle 32767
+12000 throttle 0
+13000 throttlekey 1
+20000 throttlekey 0
+21000 throttle 24000
+30000 throttle 8000
+38000 throttle 0
+40000 coin 1
+40150 coin 0
+40500 start 1
+40650 start 0
+41000 throttlekey 1
+44000 throttlekey 0
+45000 recreate 1
