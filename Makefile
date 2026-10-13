@@ -21,6 +21,7 @@ test: check
 	$(PYTHON) tests/reference/test_snapshot_ppm.py
 	$(PYTHON) tests/reference/test_owned_case.py
 	$(PYTHON) tests/test-core-handoff.py
+	$(PYTHON) tests/test-reference-cache.py
 	$(PYTHON) tests/test-web-release.py
 	$(PYTHON) tests/test-dev-rom-exclusion.py
 
