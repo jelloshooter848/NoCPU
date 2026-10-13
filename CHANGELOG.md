@@ -13,6 +13,11 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-13
+
+The first published release of the restarted desktop-first line; `v0.1.0` was tagged but not
+published.
+
 ### Added
 
 - Mouse controls: move the mouse over the game to set a paddle across its full range (Pong, Pong
@@ -67,5 +72,6 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...v0.1.0
