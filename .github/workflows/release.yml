@@ -105,7 +105,7 @@ jobs:
         github-token: ${{ github.token }}
     - name: Check downloaded asset integrity
       working-directory: release-assets
-      run: sha256sum --check *.sha256
+      run: sha256sum --check -- *.sha256
     - name: Refuse to publish without license notices and the matching source archive
       env:
         TAG: ${{ needs.resolve.outputs.tag }}
@@ -173,3 +173,7 @@ jobs:
     - name: Deploy the exact Pages artifact that passed the tagged release checks
       id: deployment
       uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+      with:
+        # Named per attempt (github-pages-<sha>-<attempt>), so a re-run never
+        # meets a duplicate "github-pages" artifact.
+        artifact_name: ${{ needs.verify.outputs.pages_artifact }}
