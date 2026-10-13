@@ -49,10 +49,27 @@ if [[ "$TARGET" == wasm || "$TARGET" == all ]]; then
   EMXX="$SDK_ROOT/upstream/emscripten/em++"
   [[ -x "$EMXX" ]] || { echo 'Install Emscripten with tools/install-web-toolchain.sh first.' >&2; exit 1; }
   export EM_CONFIG="$SDK_ROOT/.emscripten"
-  export EM_CACHE=${EM_CACHE:-"$ROOT/build/emscripten-cache"}
-  mkdir -p "$EM_CACHE" build/core/wasm web/public/core
   EM_VERSION=$("$EMXX" --version | head -1)
   [[ "$EM_VERSION" == *' 3.1.74 '* ]] || { echo "Expected Emscripten 3.1.74; got $EM_VERSION" >&2; exit 1; }
+  # Reproducible output across checkout paths. Emscripten builds missing system
+  # libraries on demand with source paths relative to the cache, and libc++abi
+  # embeds one, so the Wasm bytes depended on where the checkout and cache were.
+  # embuilder builds them with deterministic paths (-ffile-prefix-map to
+  # /emsdk/emscripten) into a cache dedicated to that recipe; the link then
+  # runs with a frozen cache so nothing can be rebuilt path-dependently.
+  # Our own sources map the checkout (and an outside SDK) the same way.
+  SYSTEM_LIBS=(libGL-getprocaddr libal libc libc++ libc++abi libcompiler_rt libdlmalloc libhtml5 libnoexit libsockets libstubs)
+  CACHE_KEY=$(printf '%s\n' "$EM_VERSION" 'embuilder deterministic_paths v1' "${SYSTEM_LIBS[@]}" | sha256sum | cut -c1-12)
+  export EM_CACHE=${NOCPU_EM_CACHE:-"$ROOT/build/emscripten-cache-repro-$CACHE_KEY"}
+  mkdir -p "$EM_CACHE" build/core/wasm web/public/core
+  if [[ ! -f "$EM_CACHE/nocpu-system-libs.stamp" ]]; then
+    "$SDK_ROOT/upstream/emscripten/embuilder" build sysroot "${SYSTEM_LIBS[@]}"
+    printf '%s\n' "$CACHE_KEY" > "$EM_CACHE/nocpu-system-libs.stamp"
+  fi
+  export EM_FROZEN_CACHE=1
+  PREFIX_MAPS=("-ffile-prefix-map=$ROOT=/nocpu")
+  SDK_REAL=$(cd -- "$SDK_ROOT" && pwd -P)
+  [[ "$SDK_REAL/" == "$(pwd -P)/"* ]] || PREFIX_MAPS+=("-ffile-prefix-map=$SDK_REAL=/emsdk")
   EXPORTS=$(python3 - <<'PY'
 import json,re
 from pathlib import Path
@@ -64,8 +81,8 @@ PY
     -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=268435456
     -sFILESYSTEM=0 -sDISABLE_EXCEPTION_CATCHING=0 "-sEXPORTED_FUNCTIONS=$EXPORTS"
     -Wl,-Map=build/core/wasm/linker.map)
-  "$EMXX" "${COMMON[@]}" "${SOURCES[@]}" "${WASM_FLAGS[@]}" -o build/core/wasm/nocpu.js
+  "$EMXX" "${COMMON[@]}" "${PREFIX_MAPS[@]}" "${SOURCES[@]}" "${WASM_FLAGS[@]}" -o build/core/wasm/nocpu.js
   "$EMXX" "${COMMON[@]}" -MM "${SOURCES[@]}" > build/core/wasm/dependencies.mk
   cp build/core/wasm/nocpu.js build/core/wasm/nocpu.wasm web/public/core/
-  record_build wasm "$EMXX" "$EM_VERSION" "${WASM_FLAGS[@]}"
+  record_build wasm "$EMXX" "$EM_VERSION" "${PREFIX_MAPS[@]}" "${WASM_FLAGS[@]}"
 fi

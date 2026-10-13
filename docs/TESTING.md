@@ -107,6 +107,17 @@ compiled sources, dependencies, linker map, compiler version, flags and
 input/output hashes under `build/core/`. The Wasm target also copies its module
 into ignored `web/public/core/` for Vite. Do not run two core builds at once.
 
+The Wasm output does not depend on the checkout path. `build-core.sh` builds
+the Emscripten system libraries with `embuilder` (deterministic
+`-ffile-prefix-map` paths) into a dedicated cache,
+`build/emscripten-cache-repro-<key>`, keyed by the Emscripten version and the
+library list, then links with a frozen cache so nothing is rebuilt
+path-dependently; NoCPU's own sources are compiled with
+`-ffile-prefix-map=<checkout>=/nocpu`. The same commit therefore gives
+byte-identical `nocpu.wasm` and `nocpu.js` in any directory, including CI's
+`/home/runner/work/NoCPU/NoCPU`. `NOCPU_EM_CACHE` selects another cache
+directory.
+
 `make core-compare` runs, in order:
 
 1. the portable native runner and `node tools/replay-core.mjs` on the Pong
