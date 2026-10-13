@@ -181,6 +181,18 @@ branch and release the next patch version (`vX.Y.Z+1`), noting in its
 changelog section that `vX.Y.Z` was not published. If it failed for reasons
 outside the code (a Pages outage, permissions), rerun it as described below.
 
+**If a release run fails:**
+
+1. Leave the tag where it is; never move, delete or reuse it.
+2. Re-run the failed jobs once (the run's **Re-run failed jobs**; this works since
+   `b310916`). The re-run
+   reuses the core tested by the earlier attempt; see
+   [Redeploying, retrying or rolling back](#redeploying-retrying-or-rolling-back).
+3. If that also fails, or the failure is in the code or its checks, fix it on
+   the working branch and ship the next patch version. Record in the roadmap
+   and in the failed version's changelog section that it was tagged but not
+   published, as for `v0.1.0`.
+
 The zip is the exact site that was deployed, built for the `/NoCPU/` path:
 serve it from a folder of that name (for example
 `mkdir NoCPU && unzip nocpu-0.2.0-web.zip -d NoCPU && python3 -m http.server`,

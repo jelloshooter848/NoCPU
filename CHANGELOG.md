@@ -38,6 +38,9 @@ releases below.
 
 ## [0.1.0] - 2026-10-13
 
+Tagged but not published: the release workflow did not complete, so no build was deployed. 0.1.1
+is the first published release.
+
 The first release of the restarted desktop-first line, a baseline: it keeps the legacy browser app
 while the desktop interface and the renewed accuracy checks follow in 0.1.x updates.
 

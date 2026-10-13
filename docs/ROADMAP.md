@@ -80,7 +80,7 @@ the release steps.
 
 | Milestone | Release | Status |
 | --- | --- | --- |
-| Reset baseline | 0.1.0 | Released (2026-10-13) |
+| Reset baseline | 0.1.0 | Tagged 2026-10-13, not published (release run failed; see owner decision) |
 | Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | In review |
 | Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | In review: 6/6 pass, Indy 4 renderer fix ([ACCEPTANCE.md](ACCEPTANCE.md)) |
 | Speed up CI | 0.1.x patch | Planned |
@@ -96,7 +96,8 @@ the release steps.
 Status is one of **Planned**, **In progress**, **In review** (work complete,
 under independent review or in a release pull request) or **Released
 (YYYY-MM-DD)** (the owner has tagged the release and the release workflow
-published it). Update the row in the same change that moves a milestone.
+published it). A tag whose release run did not publish is recorded as such
+(see 0.1.0). Update the row in the same change that moves a milestone.
 
 Every milestone runs `python3 tools/check.py`, the native build/capture checks
 for core changes, the original/native/Wasm comparison for each playable game,
@@ -108,7 +109,8 @@ evidence names the actual browser and version.
 The first restarted release, tagged `v0.1.0` on 2026-10-13, is the working-branch
 content at that point: the new agent rules, roadmap, release process and ROM
 tooling, with the legacy browser UI still in place. It makes no desktop accuracy
-claim.
+claim. The tag stays, but the release was not published: its release run failed
+(see the owner decision of 2026-10-13), so 0.1.1 is the first published release.
 
 1. Rewrite the agent rules, roadmap and version. (Done.)
 2. Replace the legacy physical-device release gate with a desktop release readiness record that keeps the device gate deferred. (Done.)
@@ -192,6 +194,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-12 — ROM fixtures from a private repository.** ROM fixtures come from the private repository `jelloshooter848/NoCPU-Roms`, for development and CI only. Agents fetch them into ignored local storage; CI reads them with a read-only secret; the local development server may load them automatically. They are never in published builds. In-app loading from the private repository (with a player-supplied GitHub token) is deferred and not authorized: the owner will reconsider it later. The fetch tooling and CI wiring are pending.
 - **2026-10-13 — 0.1.0 is the reset baseline.** 0.1.0 ships soon as the current working-branch content: the new rules, process and ROM tooling, with the legacy browser UI still in place. The remaining reset work lands as 0.1.x patch releases: Phase 2 (mobile, touch and device qualification removed; minimal desktop UI with a build string), the original/native/Wasm comparisons re-run for all six ported games, and any leftovers. The 0.2.0 and later milestones are unchanged.
 - **2026-10-13 — 0.2.0 stays the first ROM-free batch.** 0.2.0 remains ROM-free batch A (Rebound, Gotcha, Quadrapong, Crossfire); the later milestones are unchanged.
+- **2026-10-13 — v0.1.0 tagged but not published.** The v0.1.0 release run failed one flaky legacy emulated-iPhone test, and "Re-run failed jobs" could not fetch the core artifact from the first attempt (fixed in 0.1.x). Nothing was deployed and the GitHub release has no assets. The `v0.1.0` tag stays as it is (tags are never moved); 0.1.1 is the first published release.
 - **2026-10-13 — Speed up CI.** A 0.1.x patch speeds up CI: the original DICE reference captures are cached, keyed by the upstream, reference-build and scenario hashes; comparisons are skipped when the core and scenarios are unchanged; the emulated phones are gone (done in Phase 2); and the browser engines run as parallel jobs. The full comparison always runs when the core or the scenarios change.
 
 ## After 1.0
