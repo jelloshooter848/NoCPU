@@ -25,7 +25,10 @@ govern current releases.
   working branch. They never target `main`.
 
 CI (`.github/workflows/ci.yml`) verifies pushes to `main` and to the working
-branch, and every pull request.
+branch, and every pull request. A change that touches only documentation or
+browser UI files skips the original/native/Wasm comparisons, and says so; the
+build, tests and all three browser engines always run. See
+[TESTING.md](TESTING.md#continuous-integration).
 
 ## Version numbers
 
@@ -161,7 +164,13 @@ Before opening a release pull request, confirm and record in it:
      original/native/Wasm comparisons, the browser builds and tests, then
      `tools/package-web.py --tag`, which packages the site with notices and the
      corresponding-source archive and refuses to package when the license
-     audits are not ready;
+     audits are not ready. A release never skips the comparisons. Its original
+     captures may come from the [reference
+     cache](TESTING.md#reference-cache): a hit requires the same upstream
+     bytes, reference tools, scenario inputs, FMA host and toolchain (package
+     inventory and byte-identical compiled `dice` binaries, which also stand in
+     for the image, whose ID changes on every rebuild), and the original
+     analysis and every native/Wasm comparison still run;
    - it refuses to publish if the browser zip, the source archive or their
      checksums are missing, if checksums do not match, or if the packaged site
      lacks its license notices or matching source archive;
@@ -219,15 +228,19 @@ GitHub Release, and deploys it. Use this to:
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
 
 To retry only the failed jobs of a run (the run's **Re-run failed jobs**, or
-`gh run rerun <run-id> --failed`), no new dispatch is needed. The browser job
-uses the core built and tested by the `core-reference` job of the same run, an
-artifact named after the attempt that built it
-(`core-runtime-transfer-<sha>-<attempt>`). A re-run keeps that job's outputs,
-which carry the name, and the browser job downloads it by run ID with
-`actions: read`, so a re-run of the browser job alone finds the core from the
-earlier attempt. The byte-drift and provenance check (`tools/core-handoff.py
---verify`) still runs on the downloaded core. Evidence uploads overwrite their
-fixed-name artifacts from the failed attempt. (The v0.1.0 run's "Re-run failed
+`gh run rerun <run-id> --failed`), no new dispatch is needed. The
+`core-compare` and `package` jobs use the core built by the `core-build` job of
+the same run, an artifact named after the attempt that built it
+(`core-runtime-transfer-<sha>-<attempt>`); the three browser engine jobs use
+the site packaged by the `package` job, named the same way
+(`web-package-<sha>-<attempt>`). A re-run keeps the producing job's outputs,
+which carry the names, and the consumers download by run ID with
+`actions: read`, so a re-run of `core-compare`, `package` or a single browser
+engine alone finds what the earlier attempt built. The byte-drift and
+provenance check (`tools/core-handoff.py --verify`) still runs on the
+downloaded core, and each browser job checks every packaged file against the
+package's SHA-256 list. Evidence uploads overwrite their fixed-name artifacts
+from the failed attempt. (The v0.1.0 run's "Re-run failed
 jobs" failed at once because the download looked for the core under the new
 attempt's name.)
 
