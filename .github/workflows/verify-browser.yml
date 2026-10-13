@@ -18,6 +18,10 @@ jobs:
   core-reference:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    # The browser job downloads the core by this name. "Re-run failed jobs"
+    # keeps this job's outputs from the attempt that built and tested the core.
+    outputs:
+      core_artifact: ${{ steps.core-name.outputs.name }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -65,11 +69,17 @@ jobs:
         are reported there as blocked, not passed, when it is absent."},indent=2)+"\n")'
     - name: Bind the five tested Wasm transfer files to this exact clean checkout
       run: python3 tools/core-handoff.py --write build/core/core-transfer.json
+    - name: Name the core transfer after this run attempt
+      id: core-name
+      env:
+        SHA: ${{ github.sha }}
+        ATTEMPT: ${{ github.run_attempt }}
+      run: echo "name=core-runtime-transfer-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
     - name: Upload the exact-run tested core transfer
       id: core-transfer
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
-        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        name: ${{ steps.core-name.outputs.name }}
         path: |-
           build/core/core-transfer.json
           build/core/wasm/nocpu.js
@@ -144,9 +154,15 @@ jobs:
           build/core/core-transfer.json
         if-no-files-found: warn
         retention-days: 14
+        overwrite: true
   browser:
     needs: core-reference
     runs-on: ubuntu-24.04
+    # actions: read lets the download below list this run's artifacts across
+    # attempts, so a re-run of this job alone finds the core built earlier.
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 90
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -165,11 +181,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
-    - name: Fetch only the tested core from this same workflow run
+    - name: Fetch only the tested core from this same workflow run (any attempt)
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
-        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        name: ${{ needs.core-reference.outputs.core_artifact }}
         path: build/core
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
     - name: Reject checkout, tree, version, provenance or byte drift before using the transferred core
       run: python3 tools/core-handoff.py --verify build/core/core-transfer.json --install-runtime
     - name: Build production frontend at the project Pages path
@@ -205,6 +223,7 @@ jobs:
           build/browser-matrix.json
         if-no-files-found: warn
         retention-days: 14
+        overwrite: true
     - name: Retain verified matching source and browser release assets
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -212,6 +231,7 @@ jobs:
         path: build/release/
         if-no-files-found: error
         retention-days: 7
+        overwrite: true
     - name: Prepare the tested Pages artifact
       uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
       with:

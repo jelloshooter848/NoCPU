@@ -206,6 +206,19 @@ GitHub Release, and deploys it. Use this to:
 
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
 
+To retry only the failed jobs of a run (the run's **Re-run failed jobs**, or
+`gh run rerun <run-id> --failed`), no new dispatch is needed. The browser job
+uses the core built and tested by the `core-reference` job of the same run, an
+artifact named after the attempt that built it
+(`core-runtime-transfer-<sha>-<attempt>`). A re-run keeps that job's outputs,
+which carry the name, and the browser job downloads it by run ID with
+`actions: read`, so a re-run of the browser job alone finds the core from the
+earlier attempt. The byte-drift and provenance check (`tools/core-handoff.py
+--verify`) still runs on the downloaded core. Evidence uploads overwrite their
+fixed-name artifacts from the failed attempt. (The v0.1.0 run's "Re-run failed
+jobs" failed at once because the download looked for the core under the new
+attempt's name.)
+
 The workflow definition (and the shared verification it calls) comes from the
 branch the run is started from; the checked, built and published code comes
 from the tag. The manual run appears only once this workflow is on `main`.
