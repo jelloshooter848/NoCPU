@@ -11,7 +11,7 @@ The legacy line's assessments (0.2.0 through 0.6.0) are history in
 
 ## 0.1.1 assessment (2026-10-13)
 
-**Result: ready, by the integrating agent; final independent review pending.**
+**Result: ready; final independent review accepted (at `bd5aaa0`).**
 Scope: the 0.1.1 desktop build on `restart/desktop-first`, which compiles the
 same six DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle,
 Indy 4) with Emscripten 3.1.74, includes the Indy 4 renderer fix, and replaces
@@ -75,10 +75,26 @@ Findings:
   20.0.8 llvmpipe source, ran GL probes in the pinned image and fresh
   original/native/Wasm comparisons.
 
-**Final independent review: pending.** The merged state (renderer fix,
-path-independent Wasm build, CI re-run fix and this audit) needs a final
-independent review before the 0.1.1 release commit. The 0.1.0 independent
-review below applies to 0.1.0 only.
+**Final independent review (2026-10-13): accepted.** An independent agent
+reviewed `0b02051..bd5aaa0` at commit `bd5aaa0`:
+
+- license: all 147 SDK members are accounted for; the `fmaf.c` header in the
+  MATH-NOTICES file is byte-identical to the SDK source, and `fenv` is covered
+  by the musl MIT license;
+- runtime `1c2430a7…` with seven files; the source archive has 802 files,
+  equal to `git ls-files` plus the manifest;
+- 0 ROM hits in the zip, tarball, source archive and packaged site;
+- reproducible Wasm: `becf728c…` in two clones with fresh caches, and a
+  rebuild from the source archive was byte-identical (caveat: shared
+  Emscripten SDK);
+- 16/16 ROM-free scenarios, 6/6 ROM-backed scenarios, the Pong comparison and
+  the ABI probes passed;
+- packaged Chromium 145.0.7632.6: 49/49 Playwright tests passed.
+
+The release workflow's publish-job re-run change and a reworded changelog line
+came after this review, at its request; they change neither the runtime nor
+the notices nor the source-archive file list. The 0.1.0 independent review
+below applies to 0.1.0 only.
 
 ### What ships
 

@@ -29,7 +29,7 @@ releases below.
 ### Fixed
 
 - Indy 4: one raster row could show the wrong scanline while a car crossed it; the renderer now
-  follows the original DICE OpenGL (Mesa llvmpipe) rasterization rules exactly.
+  matches the original DICE (Mesa llvmpipe) rasterization in all compared scenarios.
 
 ### Removed
 

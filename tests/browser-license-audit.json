@@ -188,8 +188,20 @@
       "No member of the ten private fixture archives in build/roms (44 members) appears raw or base64-encoded (three alignments) in the web zip, the web tarball, the packaged site or the source archive, including archives nested in the zip; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
     ],
     "independent_review": {
-      "result": "pending",
-      "note": "The merged state (the Indy 4 renderer fix, the path-independent Wasm build, the CI re-run fix and this audit) needs a final independent review before the 0.1.1 release commit."
+      "date": "2026-10-13",
+      "by": "Independent agent (not the author of this assessment)",
+      "result": "accepted",
+      "commit": "bd5aaa0",
+      "range": "0b02051..bd5aaa0",
+      "findings": [
+        "License: all 147 SDK members in the linker map accounted for (libc 103, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1; 27 math members equal to this record). The fmaf.c header appended to MATH-NOTICES is byte-identical to the SDK source's leading comment (SDK fmaf.c SHA-256 8cef4678e7e82d5be0775e51ac11bbcb680f39005482470f5cfb3ed201cd3620) and the earlier file content is unchanged; fenv.c has no header and is covered by the musl MIT COPYRIGHT.",
+        "Runtime SHA-256 1c2430a76fa95695954e6d8c09879cdc665847211540d80ca46b3ed755618cc9 with 7 runtime files; source archive of 802 files, equal to git ls-files plus RELEASE-MANIFEST.json; checksums verify.",
+        "ROM scan of the web zip and tarball (including nested archives), the source archive and the packaged site for the 10 fixture archives and their 44 members, raw and base64 at three alignments: 0 hits; test-dev-rom-exclusion.py --require-build passed.",
+        "Reproducible Wasm: nocpu.wasm becf728c28422763a2ced9f6f3b5094807c6e706c82c00ab9342afb0af0e8607 and nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a in two clones at different paths, each with a fresh cache; a rebuild from the extracted source archive gave a byte-identical build/web. Caveat: the shared Emscripten SDK was reused rather than fetched afresh.",
+        "Accuracy on a host with FMA: 16/16 ROM-free scenarios (fresh capture batch qualified; native/Wasm compared per scenario), 6/6 ROM-backed scenarios, the Pong comparison and the multi-game and Breakout ABI probes passed.",
+        "Packaged Chromium 145.0.7632.6 Playwright with ROM fixtures: 49/49 passed."
+      ],
+      "note": "The release.yml publish-job re-run change (run-id, github-token, actions: read) and the reworded changelog line were made after this review, at its request; they do not change the runtime, notices or source-archive file list."
     },
     "earlier_independent_reviews": [
       {
