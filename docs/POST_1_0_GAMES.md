@@ -47,7 +47,72 @@ The broader backlog also contains data dependencies. These are source declaratio
 
 Except for the two Indy 800 `NO_DUMP` entries, the listed dumped definitions carry CRC/SHA1 metadata in the linked source. Such metadata does not establish that compatible files are available to us, validate their bytes, or grant redistribution rights. Each accepted game still needs its own asset audit; the existing ten DICE fixture sets do not cover this expansion list.
 
+## Evidence inventory (2026-10-13)
+
+This is a documentary-evidence survey. It does not accept any title. Sources were verified by opening the Internet Archive (IA) item or file listing, or by an HTTP `200 application/pdf` from the Museum of the Game/KLOV manual archive (`arcade-museum.com/manuals-videogames/<letter>/<name>.pdf`). Search-only mentions are marked *unconfirmed*. Gameplay videos are YouTube uploads that were not individually verified as real hardware. "MAME skeleton" means a ROM-only `MACHINE_NOT_WORKING | MACHINE_NO_SOUND` entry with no netlist (MAME master `cefe053`, which matches the `a025aba` statuses above). No ROM or PROM data was downloaded. Manuals and PROM images remain third-party material with no redistribution grant.
+
+**No later DICE version covers any candidate.** The official SourceForge git history ends at the 0.9 release (2014-04-23). The author's blog ends with the 0.9 announcement. The active forks, DirtBagXon/DICE (SDL2/Qt) and mittonk/dice-libretro (GPL-3.0, active in 2026), still ship the same 21 games. No DICE reference implementation exists for this list.
+
+Most new schematics come from Peter Mount's 2025 IA uploads (`*_ptm` items in the `arcademanuals` collection).
+
+Evidence grades:
+
+- **A:** complete schematics with sound, a manual, data dumps where needed, and a reference simulation or real-hardware footage.
+- **B:** schematics and manual present, with one major leg missing.
+- **C:** partial schematics or no manual.
+- **D:** flyer, catalog or ROM declarations only.
+
+| Game | Schematics | Manual | ROM needs / dumps | Existing sims | Recordings | Grade |
+| --- | --- | --- | --- | --- | --- | --- |
+| Tank | Board I Rev G/H/J and Board II Rev F/H, 1-bit 600 ppi ([IA](https://archive.org/details/tank_tm-010_schematics_board_i_rev-j_ptm)); also inside the manual | TM-010 Kee/Atari, cocktail TM-036, kiosk edition, bulletin ([IA](https://archive.org/details/tank_tm-010_kee_games_operation_and_maintanence_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/T/Tank.pdf)) | 1 × 2 KiB `90-2006.k10`, CRC 87f5c365 | MAME `nl_tank` netlist with sound (BSD-3); not working; some resistor values guessed | Several uploads | **A** |
+| Tank II | In TM-049 | TM-049, 44 pp ([IA](https://archive.org/details/tank_ii_tm-049_ptm)) | `90-2006.k10` c25f6014, anomalous 2,049 bytes; re-verify | MAME skeleton | None found | **B** |
+| Gran Trak 10 | Two sheets in TM-011, only 150 ppi in the IA copy; 7 MB KLOV copy not checked | TM-011 plus O&M manual ([IA](https://archive.org/details/gran_trak_10_tm-011_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/G/GranTrak10.pdf)) | `074186.j5` 3bad3280; older `074181.j5` f564c58a | MAME `nl_gtrak10` netlist (BSD-3) with speed hacks/TODOs; notes schematic errata, cross-checked with Le Mans | Several uploads | **A−** |
+| Gran Trak 20 | Rev E, 2 sheets at 600 ppi ([IA](https://archive.org/details/gran_trak_20_schematics_rev_e_ptm)) | TM-004, 26 pp; TM-039 bulletin | 3 × 2 KiB (d38709ca, 3d30654f, a811cc11) | MAME skeleton | None specific | **B** |
+| Death Race | 18-sheet set including audio and motor/crash ([IA](https://archive.org/details/death_race_schematics_ptm)) | Service manual, 19 pp ([IA](https://archive.org/details/death_race_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/D/DeathRace.pdf)) | 15 sockets / 11 distinct 6331/6301 images, all dumped; one verified against a real board | MAME skeleton; fan remakes only | Many uploads | **A−** |
+| Destruction Derby | None found | None found; flyer only | 15 PROM sockets dumped; several match Death Race | MAME skeleton | One upload | **D** |
+| Fonz / Moto-Cross | Fonz: one large sheet in the manual, 300 ppi 1-bit, small values marginal. Moto-Cross: none | Fonz 18 pp ([IA](https://archive.org/details/fonz_ptm)); Moto-Cross flyer only | Fonz: 4 PROMs dumped. Moto-Cross: no MAME set | Fonz: MAME skeleton | Fonz: uploads | **B−** / **D** |
+| Gunman | Full multi-board set: main, K-57 A/B/C, sound mother, six effect-sound boards, video, counter, power ([IA](https://archive.org/details/taito-gunman-1977-schematics)) | English manual and wiring diagram (same item) | 8 images dumped | MAME skeleton | None found | **B** |
+| Monaco GP | 11×17 at 600 ppi in owner's manuals; boards 96577/96578 and 96598 oscillator ([IA](https://archive.org/details/monaco_gp_420-0358_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/M/MonacoGP.pdf)) | 420-0358 and stand model 420-0445 | 20 (set 1) / 18 (set 2) PROMs dumped | MAME skeleton | Cabinet uploads; some are MAME captures | **B** |
+| Pro Monaco GP | Schematic section in 420-0525 ([IA](https://archive.org/details/pro_monaco_gp_420-0525_ptm)) | 420-0525, 20 pp | No MAME set; requirement unknown | None | None found | **C** |
+| Wheels II | Three single sheets plus wiring diagram; no sheet index ([IA](https://archive.org/details/wheels_ii_schematics_1_ptm)) | None found; flyer only | 12 × 32-byte PROMs; catalog numbering 257–269 suggests one may be missing | MAME skeleton | None found | **C** |
+| Bombs Away / Cobra Gunship | None found | Flyers only | 3 / 11 PROMs dumped | MAME skeletons | Bombs Away PCB upload; none for Cobra | **D** / **D** |
+| Touch-Me | Schematic and component-location pages in TM-002; full-resolution legibility not checked | TM-002, 10 pp, with game sequence ([IA](https://archive.org/details/touch_me_tm-002_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/T/Touchme.pdf)) | None (MAME catalog) | None found | Collector upload; arcade unit unconfirmed | **B−** |
+| Western Gun | Main PCB (3 parts), sound PCB, score display, credit, power, monitor ([IA](https://archive.org/details/wnr-00002-main-pcb-hit-gunman-positions)) | Manual and parts list (same item) | Unresolved; no MAME TTL set | None found | Original-hardware footage unconfirmed | **B−** |
+| Pursuit | Five 17×11 sheets in TM-019, about 300 ppi | TM-019 plus 51-page service information keyed to schematic regions ([IA](https://archive.org/details/pursuit_tm-019_ptm)) | None | None found | None found | **B** |
+| World Cup | "SCHEMATIC, WORLD CUP" drawings inside the Goal IV TM-035 manual (shared A000823 board) | Own manual not found | None | None found | None found | **C** |
+| Goal IV | Several 11×17 sheets in TM-035 | TM-035, 98 pp, plus supplement; separate high-resolution scan ([IA](https://archive.org/details/goal_iv_tm-035_ptm), [IA hi-res](https://archive.org/details/atari-goal-iv-service-manual)) | None | None found | None found | **B** |
+| Computer Space | Sync Star / Motion / Memory boards at 600–727 ppi 1-bit ([IA](https://archive.org/details/computer_space_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/C/ComputerSpace.pdf)) | Same 36-page manual | None (hard-wired image patterns) | Gate-level FPGA "release 1.0" (fpgaarcade, 2015): sound is sampled, no license stated ([thread](https://forums.arcade-museum.com/threads/computer-space-fpga-release-1-0.364662/)); PDP-1 port is not a circuit model | Many real-hardware uploads; [machine registry](https://www.computerspacefan.com/rogues/) | **A−** |
+| Magnavox Odyssey | 1TL200 service manual, 600 dpi ([IA](https://archive.org/details/MagnavoxOdyssey)) | 1972 installation & game rules ([IA](https://archive.org/details/odyssey-installation-and-game-rules-1972-magnavox-standard)) | None | Magnavody simulator (GPL-3.0+, fidelity not established); OdySim (behavioural); no MiSTer core | Plentiful | **B** (docs only); scope risk unchanged |
+
+Discovered leads not previously listed:
+
+- **Midway Wheels (1975):** the MAME catalog lists no ROM. It has a Wheels I schematics databook ([IA](https://archive.org/details/wheels_i_databook_schematics_ptm)), a wiring diagram, and working-PCB/cabinet videos. There is no MAME GAME entry. Worth a closer look.
+- **Atari Outlaw (1976):** manual TM-040 ([IA](https://archive.org/details/outlaw_tm-040_ptm)) and one dumped 512-byte ROM.
+- **Already on the broader list:** Qwak! (TM-008), Le Mans (TM-077) and Indy 800 (TM-026) also have manuals on IA and KLOV.
+
+## Revised ranking by evidence readiness
+
+This ranking orders investigation by documentation readiness only. It does not authorize scheduling.
+
+1. **Tank** (A): multi-revision schematics and manuals, a dumped ROM, and an existing (non-working) MAME netlist with sound to compare against.
+2. **Gran Trak 10** (A−): netlist and both ROM revisions exist. It needs a higher-resolution schematic scan and must account for known schematic errata.
+3. **Death Race** (A−): a complete 18-sheet set with audio, all PROMs dumped, and abundant footage. There is no reference simulation.
+4. **Computer Space** (A−): sharp complete schematics, no ROM, a gate-level FPGA to compare with (sound is sampled and the license is unknown, so no code reuse), and real-hardware recordings.
+5. **Pursuit, Goal IV, Gunman, Monaco GP, Gran Trak 20, Tank II** (B): each lacks a reference simulation, recordings, or a ROM sanity check.
+6. **Touch-Me, Western Gun, Fonz** (B−), then **Magnavox Odyssey** (B for documents, with product-scope risk).
+7. **World Cup, Wheels II, Pro Monaco GP** (C), and **Destruction Derby, Bombs Away, Cobra Gunship, Moto-Cross** (D): these need new primary sources before any further work.
+
+Biggest gaps:
+
+- No candidate has a working independent reference.
+- Analog sound and control circuits lack measured real-hardware references.
+- Several key scans are marginal: Gran Trak 10 at 150 ppi, the single Fonz sheet, and the Touch-Me schematic page.
+- No circuit documents were found for Destruction Derby, the Meadows games, Moto-Cross, or World Cup's own manual.
+- The Tank II and Wheels II dumps need sanity checks.
+
 ## Ranked investigation list
+
+The list below predates the evidence inventory above. It ranks candidates by product appeal and keeps the original gates.
 
 | Candidate | Why investigate | Main gate before scheduling |
 | --- | --- | --- |
@@ -79,7 +144,7 @@ Except for the two Indy 800 `NO_DUMP` entries, the listed dumped definitions car
 
 ## Suggested sequencing
 
-1. First assess **Tank, Gran Trak 10, Death Race and Qwak!**. Select the first implementation by documentation completeness and validated assets, not popularity alone.
+1. First assess **Tank, Gran Trak 10, Death Race and Qwak!**. Select the first implementation by documentation completeness and validated assets, not popularity alone. The 2026-10-13 evidence inventory puts Tank, Gran Trak 10, Death Race and Computer Space at the top. Qwak! has a manual and a dumped ROM but has not been graded yet.
 2. Expand into **Speed Race, Destruction Derby, Le Mans and Fonz**, plus variants whose circuit relationships have actually been checked.
 3. Keep **Monaco GP, Indy 800 and Computer Space** as stretch research targets rather than promised releases.
 
