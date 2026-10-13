@@ -38,6 +38,21 @@ async function rasterColors(page: Page): Promise<string[]> {
 async function state(page: Page): Promise<any> {
   return page.evaluate(async () => (window as any).__nocpuDebug.snapshot());
 }
+// Waits for original-circuit behavior are bounded in simulated time, like the
+// Stunt score test below. The worker paces against wall time but runs slower
+// than real time when the host cannot keep up: Playwright's own Firefox build
+// runs this Wasm core about five times slower than release Firefox or
+// Chromium, so a wall-clock poll measured the host, not the circuit. The
+// wall-clock timeout is only a backstop for a stalled simulation.
+async function untilCircuit(page: Page, predicate: (snapshot: any) => boolean, simulatedSeconds: number, timeout = 120_000): Promise<any> {
+  const limit = BigInt((await state(page)).timePs) + BigInt(simulatedSeconds * 1000) * 1_000_000_000n;
+  let snapshot: any;
+  await expect.poll(async () => {
+    snapshot = await state(page);
+    return predicate(snapshot) || BigInt(snapshot.timePs) >= limit;
+  }, { timeout }).toBe(true);
+  return snapshot;
+}
 
 for (const id of ['stuntcycle', 'indy4']) {
   test(`${id} missing ROM launch stays recoverable and explains import`, async ({ page }) => {
@@ -51,6 +66,9 @@ for (const id of ['stuntcycle', 'indy4']) {
   });
   test(`${id} private ROM keyboard and mouse controls, silent lifecycle and original raster`, async ({ page }, testInfo) => {
     test.skip(!privateDir, 'Private original ROM fixture directory is unavailable; gameplay not exercised.');
+    // Indy 4 needs about 30 simulated seconds here (each car joins about 6.4 s
+    // after its coin); allow hosts that simulate at a quarter of real time.
+    test.setTimeout(240_000);
     await installGamepads(page);
     await page.addInitScript(() => {
       const w = window as any, original = Worker.prototype.postMessage;
@@ -66,7 +84,7 @@ for (const id of ['stuntcycle', 'indy4']) {
     // The original constructor's silent GND initialization sample is verified
     // separately by ABI/media probes. Here compare ongoing post-constructor
     // epochs instead of falsely requiring zero total generated samples.
-    await expect.poll(async () => BigInt((await state(page)).timePs) >= 1000000000000n).toBe(true);
+    await expect.poll(async () => BigInt((await state(page)).timePs) >= 1000000000000n, { timeout: 30_000 }).toBe(true);
     const postConstructorAudio = (await state(page)).audio.generatedSamples;
     await expect(page.getByTestId('game-canvas')).toBeVisible();
     await expect(page.getByTestId('mute')).toHaveText('No DICE audio');
@@ -113,18 +131,21 @@ for (const id of ['stuntcycle', 'indy4']) {
         await page.getByTestId(targets[channel - 1]).click();
         // Counts advance only after an accepted native channel held for the
         // full100ms simulation pulse and successful release, never a request.
-        await expect.poll(async () => (await state(page)).switches.coinCompleted[channel - 1]).toBe(completed + 1);
+        const pulsed = await untilCircuit(page, (s) => s.switches.coinCompleted[channel - 1] === completed + 1, 2);
+        expect(pulsed.switches.coinCompleted[channel - 1]).toBe(completed + 1);
         expect((await state(page)).coinChannel).toBe(null);
-        if (channel <= 4) await expect.poll(async () => (await state(page)).indy4.cars[channel - 1][0]).toBe(0);
+        // The original COIN.F4 attract latch for that car drops when it joins,
+        // about 6.4 simulated seconds after the coin.
+        if (channel <= 4) expect((await untilCircuit(page, (s) => s.indy4.cars[channel - 1][0] === 0, 10)).indy4.cars[channel - 1][0], `car ${channel} joins within 10 simulated seconds`).toBe(0);
       }
       await page.keyboard.down('KeyW');
-      await expect.poll(async () => (await state(page)).indy4.cars[0][3]).toBeGreaterThan(0);
+      expect((await untilCircuit(page, (s) => s.indy4.cars[0][3] > 0, 10)).indy4.cars[0][3]).toBeGreaterThan(0);
       await page.keyboard.up('KeyW');
       // The unchanged analog rate must resume after an opposite digital hold.
       await padState(page, 0, { axis: [0, 1] });
       await page.keyboard.down('KeyA'); await page.keyboard.up('KeyA');
       const heading = (await state(page)).indy4.cars[0][2];
-      await expect.poll(async () => (await state(page)).indy4.cars[0][2]).not.toBe(heading);
+      expect((await untilCircuit(page, (s) => s.indy4.cars[0][2] !== heading, 10)).indy4.cars[0][2]).not.toBe(heading);
       expect((await state(page)).switches.coinCompleted).toEqual([1, 1, 1, 1, 1]);
       expect(await page.evaluate(() => (window as any).__drivingCommands.filter((c: any) => c.type === 'coin').map((c: any) => c.channel))).toEqual([1, 2, 3, 4, 5]);
       await page.getByTestId('pause').click();
