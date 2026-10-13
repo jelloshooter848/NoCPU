@@ -49,7 +49,7 @@ for (const id of ['stuntcycle', 'indy4']) {
     await expect(page.getByTestId('rom-launch-message')).toBeVisible();
     await expect(page.getByTestId('game-audio-status')).toContainText('unavailable');
   });
-  test(`${id} private ROM external controls, silent lifecycle and original raster`, async ({ page }, testInfo) => {
+  test(`${id} private ROM keyboard and mouse controls, silent lifecycle and original raster`, async ({ page }, testInfo) => {
     test.skip(!privateDir, 'Private original ROM fixture directory is unavailable; gameplay not exercised.');
     await installGamepads(page);
     await page.addInitScript(() => {
@@ -72,31 +72,24 @@ for (const id of ['stuntcycle', 'indy4']) {
     await expect(page.getByTestId('mute')).toHaveText('No DICE audio');
     await expect(page.getByTestId('mute')).toBeDisabled();
     const raster = await page.getByTestId('game-canvas').boundingBox(); expect(raster).not.toBeNull();
-    for (const target of id === 'stuntcycle' ? ['paddle-p1'] : ['wheel-p1-left', 'gas-p2', 'brake-p3', 'wheel-p4-right']) {
-      const bounds = await page.getByTestId(target).boundingBox(); expect(bounds).not.toBeNull();
-      expect(bounds!.x + bounds!.width <= raster!.x || bounds!.x >= raster!.x + raster!.width || bounds!.y >= raster!.y + raster!.height || bounds!.y + bounds!.height <= raster!.y).toBe(true);
-    }
+    const hud = await page.locator('.game-hud').boundingBox(); expect(hud).not.toBeNull();
+    expect(raster!.y + raster!.height, 'The action bar stays outside the raster').toBeLessThanOrEqual(hud!.y + .001);
     await testInfo.attach(`${id}-playing-viewport.png`, { body: await page.screenshot(), contentType: 'image/png' });
     if (id === 'indy4') {
       await expect.poll(() => rasterColors(page)).toEqual(expect.arrayContaining(originalIndyPalette));
       await expect(page.getByTestId('start-game')).toBeHidden();
       for (const channel of [2, 3, 4, 5]) await expect(page.getByTestId(`coin-channel-${channel}`)).toBeVisible();
-      const gas = await page.getByTestId('gas-p2').boundingBox();
-      await page.mouse.move(gas!.x + gas!.width / 2, gas!.y + gas!.height / 2);
-      await page.mouse.down();
+      await page.keyboard.down('ArrowUp');
       await page.keyboard.down('KeyK');
-      await expect.poll(async () => (await state(page)).pointerCount).toBe(1);
       await expect.poll(async () => (await state(page)).driving.gas).toEqual([false, true, false, false]);
       await expect.poll(async () => (await state(page)).driving.brake).toEqual([false, false, true, false]);
       await expect.poll(async () => (await state(page)).heldKeys).toContain('KeyK');
-      const viewport = page.viewportSize()!;
-      await page.setViewportSize({ width: viewport.height, height: viewport.width });
-      await expect.poll(async () => (await state(page)).pointerCount).toBe(0);
-      await expect.poll(async () => (await state(page)).driving.gas.some(Boolean)).toBe(false);
-      await testInfo.attach('indy4-transposed-viewport.png', { body: await page.screenshot(), contentType: 'image/png' });
-      await page.mouse.up();
-      await page.setViewportSize(viewport);
-      await expect.poll(async () => (await state(page)).pointerCount).toBe(0);
+      // The wheel game has no mouse mapping: mouse movement and clicks change nothing.
+      await page.mouse.move(raster!.x + raster!.width * .2, raster!.y + raster!.height * .5);
+      await page.mouse.down(); await page.mouse.move(raster!.x + raster!.width * .8, raster!.y + raster!.height * .5, { steps: 3 }); await page.mouse.up();
+      expect((await state(page)).pointerCount).toBe(0);
+      expect((await state(page)).driving.directions).toEqual([0, 0, 0, 0]);
+      await page.keyboard.up('ArrowUp');
       await page.keyboard.up('KeyK');
       await expect.poll(async () => (await state(page)).driving.gas.some(Boolean)).toBe(false);
       await expect.poll(async () => (await state(page)).driving.brake.some(Boolean)).toBe(false);
@@ -139,18 +132,20 @@ for (const id of ['stuntcycle', 'indy4']) {
     } else {
       await expect(page.getByTestId('start-game')).toHaveText('Start 1P');
       await expect(page.getByTestId('start-game-2')).toHaveText('Start 2P');
-      await expect(page.getByTestId('paddle-p2')).toBeHidden();
-      const viewport = page.viewportSize()!;
-      await page.setViewportSize({ width: viewport.height, height: viewport.width });
-      await testInfo.attach('stuntcycle-transposed-viewport.png', { body: await page.screenshot(), contentType: 'image/png' });
-      await page.setViewportSize(viewport);
-      await page.getByTestId('paddle-p1').focus();
-      await page.keyboard.press('End');
+      // Hovering never opens the throttle; the held left button over the display
+      // sets it from idle (left edge) to full (right edge) and releasing idles it.
+      const y = raster!.y + raster!.height / 2;
+      await page.mouse.move(raster!.x + raster!.width * .8, y); await page.mouse.move(raster!.x + raster!.width * .9, y);
+      expect((await state(page)).driving.axes[0]).toBe(0);
+      await page.mouse.move(raster!.x + 2, y); await page.mouse.down();
+      await expect.poll(async () => (await state(page)).pointerCount).toBe(1);
+      expect((await state(page)).driving.axes[0]).toBe(0);
+      await page.mouse.move(raster!.x + raster!.width - 2, y);
+      await expect.poll(async () => (await state(page)).driving.axes[0]).toBe(32767);
+      await expect.poll(async () => (await state(page)).stuntcycle.throttle).toBeGreaterThan(0);
+      await page.mouse.up();
       await expect.poll(async () => (await state(page)).driving.axes[0]).toBe(0);
-      await page.keyboard.down('ArrowRight');
-      await expect.poll(async () => (await state(page)).driving.axes[0]).toBeGreaterThan(0);
-      await page.keyboard.up('ArrowRight');
-      await expect.poll(async () => (await state(page)).driving.axes[0]).toBe(0);
+      expect((await state(page)).pointerCount).toBe(0);
       await page.getByTestId('game-canvas').focus();
       await page.keyboard.down('KeyW');
       await expect.poll(async () => (await state(page)).stuntcycle.throttle).toBeGreaterThan(90000);
@@ -293,57 +288,6 @@ test('Indy four independent controllers preserve every steering/pedal slot and n
   await expect.poll(async () => (await state(page)).driving.axes).toEqual([0, 0, 0, 32767]);
 });
 
-test('Indy actual browser multitouch owns all four wheel and Gas slots and releases on cancel', async ({ page, browserName }) => {
-  test.skip(!privateDir, 'Private original ROM fixtures unavailable; multitouch not exercised.');
-  test.skip(browserName !== 'chromium', 'CDP provides held multi-contact injection only in Chromium; other profiles retain keyboard/mouse/controller coverage.');
-  await page.addInitScript(() => {
-    (window as any).__drivingPointerEvents = [];
-    for (const type of ['pointerdown', 'pointerup', 'pointercancel']) document.addEventListener(type, (event) => {
-      const pointer = event as PointerEvent;
-      (window as any).__drivingPointerEvents.push({ type, pointerId: pointer.pointerId,
-        pointerType: pointer.pointerType, isTrusted: pointer.isTrusted,
-        target: (event.target as HTMLElement)?.closest<HTMLElement>('[data-testid]')?.dataset.testid });
-    }, true);
-  });
-  await launch(page, 'indy4');
-  const session = await page.context().newCDPSession(page);
-  const points: { id: number; x: number; y: number; radiusX: number; radiusY: number; force: number }[] = [];
-  for (let slot = 1; slot <= 4; slot++) for (const target of [`gas-p${slot}`, `wheel-p${slot}-left`]) {
-    const bounds = await page.getByTestId(target).boundingBox(); expect(bounds).not.toBeNull();
-    points.push({ id: points.length + 1, x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2, radiusX: 1, radiusY: 1, force: 1 });
-  }
-  let contactsActive = false;
-  try {
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-    contactsActive = true;
-    await expect.poll(async () => (await state(page)).pointerCount).toBe(8);
-    const down = await page.evaluate(() => (window as any).__drivingPointerEvents.filter((e: any) => e.type === 'pointerdown' && e.pointerType === 'touch'));
-    expect(down).toHaveLength(8); expect(down.every((e: any) => e.isTrusted)).toBe(true);
-    expect(new Set(down.map((e: any) => e.pointerId)).size).toBe(8);
-
-    await expect.poll(async () => (await state(page)).driving.gas).toEqual([true, true, true, true]);
-    await expect.poll(async () => (await state(page)).driving.directions).toEqual([-1, -1, -1, -1]);
-    // Pinned Chromium145's actual WebTouch path ends supplied IDs (also
-    // independently established by Breakout's held-contact regression).
-    const wheelContacts = points.filter((_, index) => index % 2 === 1);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: wheelContacts });
-    await expect.poll(async () => (await state(page)).pointerCount).toBe(4);
-    const ended = await page.evaluate(() => (window as any).__drivingPointerEvents.filter((e: any) => e.type === 'pointerup' && e.pointerType === 'touch'));
-    expect(ended.map((e: any) => e.target).sort()).toEqual([1, 2, 3, 4].map((slot) => `wheel-p${slot}-left`));
-    expect(ended.every((e: any) => e.isTrusted)).toBe(true);
-
-    await expect.poll(async () => (await state(page)).driving.directions).toEqual([0, 0, 0, 0]);
-    await expect.poll(async () => (await state(page)).driving.gas).toEqual([true, true, true, true]);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-    contactsActive = false;
-    await expect.poll(async () => (await state(page)).pointerCount).toBe(0);
-    await expect.poll(async () => (await state(page)).driving.gas.some(Boolean)).toBe(false);
-  } finally {
-    try { if (contactsActive) await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }); }
-    finally { await session.detach(); }
-  }
-});
-
 test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the same shared throttle circuit', async ({ page }) => {
   test.skip(!privateDir, 'Private original ROM fixtures unavailable; Stunt credit/start circuit not exercised.');
   await launch(page, 'stuntcycle');
@@ -364,7 +308,6 @@ test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the sa
   expect(onePlayer.switches.coinCompleted).toEqual([1, 0, 0, 0, 0]);
   expect(onePlayer.switches.startCompleted).toEqual([1, 0]);
   expect(onePlayer.driving.axes).toHaveLength(1);
-  await expect(page.getByTestId('paddle-p2')).toBeHidden();
   await page.getByTestId('pause').click(); await page.getByTestId('reset').click();
   await expect.poll(async () => (await state(page)).identity.resetting).toBe(false);
   await expect.poll(async () => (await state(page)).identity.resetId).toBeGreaterThan(onePlayer.identity.resetId);
@@ -384,7 +327,6 @@ test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the sa
   expect((await state(page)).driving.axes).toHaveLength(1);
   expect((await state(page)).switches.coinCompleted).toEqual([2, 0, 0, 0, 0]);
   expect((await state(page)).switches.startCompleted).toEqual([0, 1]);
-  await expect(page.getByTestId('paddle-p2')).toBeHidden();
   expect((await state(page)).identity.generation).toBe(onePlayer.identity.generation);
   // This checks full native coin/start pulses, credit setup and running circuit.
   // PLAYER_CONTROL is H8.5 & miss-LSB, so it cannot certify raw mode/turn

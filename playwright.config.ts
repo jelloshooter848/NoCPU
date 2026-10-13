@@ -37,7 +37,5 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'], launchOptions: { executablePath: process.env.NOCPU_WEBKIT_EXECUTABLE || undefined } } },
-    { name: 'android-emulated', use: { ...devices['Pixel 7'], browserName: 'chromium' } },
-    { name: 'iphone-emulated', use: { ...devices['iPhone 13'], browserName: 'webkit', launchOptions: { executablePath: process.env.NOCPU_WEBKIT_EXECUTABLE || undefined } } },
   ],
 });

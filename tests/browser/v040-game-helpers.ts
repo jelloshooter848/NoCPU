@@ -2,7 +2,6 @@
 // Black-box UI/native observations; no circuit state or media is injected.
 import { expect, type Page } from '@playwright/test';
 import type { GameOptions, PlayableGameId } from '../../web/src/game-contract';
-import type { Bounds, Insets } from './helpers';
 
 export interface GameObservation {
   gameId: PlayableGameId; options: GameOptions; generation: number; resetId: number; clockEpoch: number;
@@ -78,57 +77,6 @@ export async function installFourGamepads(page: Page): Promise<void> {
     Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => target.__testPads });
   });
 }
-export async function externalControls(page: Page, gameId: PlayableGameId, insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 }): Promise<unknown> {
-  const viewport = page.viewportSize()!;
-  const raster = (await page.getByTestId('game-canvas').boundingBox())!;
-  expect(raster).not.toBeNull(); expect(raster.width / raster.height).toBeCloseTo(4 / 3, 2);
-  const ids = gameId === 'pongdoubles' ? [1, 3, 4, 2].map((slot) => `paddle-p${slot}`)
-    : gameId === 'spacerace' ? ['direction-p1-up', 'direction-p1-down', 'direction-p2-up', 'direction-p2-down'] : ['paddle-p1', 'paddle-p2'];
-  const bounds: { id: string; target: Bounds; track?: Bounds }[] = [];
-  for (const id of ids) {
-    const control = page.getByTestId(id); await expect(control).toBeVisible();
-    const target = (await control.boundingBox())!; expect(target).not.toBeNull();
-    expect(target.width + .001).toBeGreaterThanOrEqual(64); expect(target.height + .001).toBeGreaterThanOrEqual(44);
-    for (const item of [target, raster]) {
-      expect(item.x).toBeGreaterThanOrEqual(insets.left - .001); expect(item.y).toBeGreaterThanOrEqual(insets.top - .001);
-      expect(item.x + item.width).toBeLessThanOrEqual(viewport.width - insets.right + .001);
-      expect(item.y + item.height).toBeLessThanOrEqual(viewport.height - insets.bottom + .001);
-    }
-    const separation = Math.max(target.x - raster.x - raster.width, raster.x - target.x - target.width,
-      target.y - raster.y - raster.height, raster.y - target.y - target.height);
-    expect(separation + .001, `${id} stays outside the raster`).toBeGreaterThanOrEqual(8);
-    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'),
-      { x: target.x + target.width / 2, y: target.y + target.height / 2 })).toBe(id);
-    if (id.startsWith('paddle')) {
-      const track = (await control.locator('.control-track').boundingBox())!; expect(track).not.toBeNull();
-      const compact = viewport.width <= 360 || viewport.height <= 620;
-      expect(track.height + .001).toBeGreaterThanOrEqual(compact ? 120 : 144); bounds.push({ id, target, track });
-    } else bounds.push({ id, target });
-  }
-  // Controls themselves cannot overlap, independently of implementation grid formulas.
-  for (let left = 0; left < bounds.length; left++) for (let right = left + 1; right < bounds.length; right++) {
-    const a = bounds[left].target, b = bounds[right].target;
-    const overlapWidth = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
-    const overlapHeight = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
-    expect(overlapWidth <= 0 || overlapHeight <= 0, `${bounds[left].id} and ${bounds[right].id} remain independently hit-testable`).toBe(true);
-  }
-  if (gameId === 'pongdoubles') {
-    const byId = Object.fromEntries(bounds.map((entry) => [entry.id, entry.target]));
-    if (viewport.width > viewport.height) {
-      for (const id of ['paddle-p1', 'paddle-p3']) expect(byId[id].x + byId[id].width + 8).toBeLessThanOrEqual(raster.x + .001);
-      for (const id of ['paddle-p4', 'paddle-p2']) expect(byId[id].x).toBeGreaterThanOrEqual(raster.x + raster.width + 8 - .001);
-    } else {
-      for (const entry of bounds) expect(entry.target.y).toBeGreaterThanOrEqual(raster.y + raster.height + 8 - .001);
-      expect(bounds.map((entry) => entry.target.x)).toEqual([...bounds.map((entry) => entry.target.x)].sort((a, b) => a - b));
-    }
-  }
-  for (const fx of [.05, .5, .95]) for (const fy of [.05, .5, .95]) {
-    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName,
-      { x: raster.x + raster.width * fx, y: raster.y + raster.height * fy })).toBe('CANVAS');
-  }
-  return { gameId, viewport, simulatedSafeInsets: insets, raster, controls: bounds };
-}
-
 /** Original DICE calibration, not CSS geometry or worker-reported input values.
  * Doubles: build/reference-games/20261011T054438379290328Z/pongdoubles-default/baseline/epoch0/6500ms.ppm
  * and calibration-hardware.json, two separate coins before Start. Space motion:

@@ -193,13 +193,13 @@ export async function expectViewportShell(page: Page): Promise<void> {
 
 export async function expectUsableTarget(page: Page, testId: string, namedButton = false): Promise<void> {
   const target = namedButton ? page.getByRole('button', { name: testId, exact: true }) : page.getByTestId(testId);
+  await expect(target, testId).toBeVisible();
   const bounds = await target.boundingBox();
   const viewport = page.viewportSize()!;
   expect(bounds, testId).not.toBeNull();
-  // Firefox can report a CSS 44px edge as 43.9999847px. This arithmetic
-  // tolerance is a thousandth of a pixel, not a smaller touch-target policy.
-  expect(bounds!.width + 0.001, testId).toBeGreaterThanOrEqual(44);
-  expect(bounds!.height + 0.001, testId).toBeGreaterThanOrEqual(44);
+  // Desktop pointer targets: clearly clickable and entirely inside the window.
+  expect(bounds!.width + 0.001, testId).toBeGreaterThanOrEqual(32);
+  expect(bounds!.height + 0.001, testId).toBeGreaterThanOrEqual(32);
   expect(bounds!.x, testId).toBeGreaterThanOrEqual(-1);
   expect(bounds!.y, testId).toBeGreaterThanOrEqual(-1);
   expect(bounds!.x + bounds!.width, testId).toBeLessThanOrEqual(viewport.width + 1);
@@ -207,29 +207,6 @@ export async function expectUsableTarget(page: Page, testId: string, namedButton
 }
 
 export type Bounds = { x: number; y: number; width: number; height: number };
-export type Insets = { top: number; right: number; bottom: number; left: number };
-export const noInsets: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
-
-export function separation(a: Bounds, b: Bounds): number {
-  return Math.max(a.x - b.x - b.width, b.x - a.x - a.width,
-    a.y - b.y - b.height, b.y - a.y - a.height);
-}
-
-export async function controlBounds(page: Page, slot: number): Promise<{ pad: Bounds; track: Bounds; thumb: Bounds }> {
-  const control = page.getByTestId(`paddle-p${slot + 1}`);
-  const [pad, track, thumb] = await Promise.all([control.boundingBox(),
-    control.locator('.control-track').boundingBox(), control.locator('.control-thumb').boundingBox()]);
-  expect(pad).not.toBeNull(); expect(track).not.toBeNull(); expect(thumb).not.toBeNull();
-  return { pad: pad!, track: track!, thumb: thumb! };
-}
-
-export async function expectThumbFraction(page: Page, slot: number, fraction: number): Promise<void> {
-  await expect.poll(async () => {
-    const { track, thumb } = await controlBounds(page, slot);
-    return Math.abs(thumb.y + thumb.height / 2 - (track.y + track.height * fraction));
-  }, { message: 'The visible thumb center follows the actual track travel' }).toBeLessThanOrEqual(2);
-  await expect(page.getByTestId(`paddle-p${slot + 1}`)).toHaveAttribute('aria-valuenow', String(Math.round(fraction * 100)));
-}
 
 export async function settleInputPresentation(page: Page): Promise<void> {
   const before = await snapshot(page);
@@ -240,78 +217,36 @@ export async function settleInputPresentation(page: Page): Promise<void> {
   expect((await snapshot(page)).frame).toBeGreaterThan(before.frame);
 }
 
-export async function expectExternalLayout(page: Page, insets: Insets = noInsets): Promise<unknown> {
+/**
+ * The desktop game view: the whole original raster at its own aspect ratio,
+ * as large as the window allows above the action bar, with nothing covering it.
+ */
+export async function expectDesktopLayout(page: Page): Promise<unknown> {
   const viewport = page.viewportSize()!;
   const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
-  expect(canvas).not.toBeNull();
-  const controls = await Promise.all([controlBounds(page, 0), controlBounds(page, 1)]);
-  const wrappers = await page.locator('.paddle-controller').evaluateAll((elements) => elements.filter((element) => {
-    const bounds = element.getBoundingClientRect();
-    return bounds.width > 0 && bounds.height > 0;
-  }).map((element) => {
-    const { x, y, width, height } = element.getBoundingClientRect();
-    return { x, y, width, height };
-  }));
-  expect(wrappers).toHaveLength(2);
   const hud = (await page.locator('.game-hud').boundingBox())!;
-  expect(hud).not.toBeNull();
-  const landscape = viewport.width > viewport.height;
-  for (let slot = 0; slot < 2; slot += 1) {
-    const { pad, track } = controls[slot];
-    const id = `paddle-p${slot + 1}`;
-    await expect(page.getByTestId(id)).toHaveAccessibleName(`Player ${slot + 1} paddle position`);
-    const label = page.locator(`#paddle-p${slot + 1}-label`);
-    await expect(label).toHaveText(`P${slot + 1}`);
-    await expect(label).toBeVisible();
-    expect(pad.width + 0.001, `${id} has a visible, usable external target`).toBeGreaterThanOrEqual(64);
-    const compact = viewport.width <= 360 || viewport.height <= 620;
-    expect(track.height + 0.001, `${id} has real vertical travel`).toBeGreaterThanOrEqual(compact ? 120 : 144);
-    expect(separation(pad, canvas) + 0.001, `${id} cannot cover the court`).toBeGreaterThanOrEqual(8);
-    expect(track.x).toBeGreaterThanOrEqual(pad.x - 0.001);
-    expect(track.y).toBeGreaterThanOrEqual(pad.y - 0.001);
-    expect(track.x + track.width).toBeLessThanOrEqual(pad.x + pad.width + 0.001);
-    expect(track.y + track.height).toBeLessThanOrEqual(pad.y + pad.height + 0.001);
-    if (landscape) {
-      expect(wrappers[slot].width, 'Side controllers have a bounded width').toBeLessThanOrEqual(96.001);
-      if (!slot) expect(pad.x + pad.width + 8).toBeLessThanOrEqual(canvas.x + 0.001);
-      else expect(pad.x).toBeGreaterThanOrEqual(canvas.x + canvas.width + 8 - 0.001);
-    } else {
-      expect(wrappers[slot].height, 'The portrait controller row has a bounded height').toBeLessThanOrEqual(204.001);
-      expect(pad.y).toBeGreaterThanOrEqual(canvas.y + canvas.height + 8 - 0.001);
-    }
-    // Browser hit-testing proves that the displayed target receives input.
-    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="slider"]')?.getAttribute('data-testid'),
-      { x: pad.x + pad.width / 2, y: pad.y + pad.height / 2 })).toBe(id);
-  }
-  expect(separation(controls[0].pad, controls[1].pad)).toBeGreaterThanOrEqual(8);
-  for (const [name, bounds] of [['court', canvas], ['HUD', hud], ...wrappers.map((bounds, slot) => [`P${slot + 1} controller`, bounds])] as [string, Bounds][]) {
-    expect(bounds.x, `${name} respects the left safe area`).toBeGreaterThanOrEqual(insets.left - 0.001);
-    expect(bounds.y, `${name} respects the top safe area`).toBeGreaterThanOrEqual(insets.top - 0.001);
-    expect(bounds.x + bounds.width, `${name} respects the right safe area`).toBeLessThanOrEqual(viewport.width - insets.right + 0.001);
-    expect(bounds.y + bounds.height, `${name} respects the bottom safe area`).toBeLessThanOrEqual(viewport.height - insets.bottom + 0.001);
-  }
-  // Compute the largest 4:3 court from visible control reservations, not the
-  // implementation's CSS sizing formula or the previous overlay-pad budget.
-  const availableWidth = viewport.width - insets.left - insets.right
-    - (landscape ? wrappers[0].width + wrappers[1].width + 16 : 0);
-  const availableHeight = viewport.height - insets.top - insets.bottom - hud.height - 16
-    - (landscape ? 0 : Math.max(...wrappers.map((bounds) => bounds.height)) + 8);
-  expect(canvas.width / canvas.height).toBeCloseTo(4 / 3, 2);
-  expect(canvas.width, 'Court maximizes the usable area after external controls').toBeGreaterThanOrEqual(Math.min(availableWidth, availableHeight * 4 / 3) * 0.9);
-  // The court itself is an unobstructed raster throughout its hit-test area.
-  for (const fx of [0.05, 0.5, 0.95]) for (const fy of [0.05, 0.5, 0.95]) {
+  expect(canvas).not.toBeNull(); expect(hud).not.toBeNull();
+  const raster = await page.getByTestId('game-canvas').evaluate((element) => (element as HTMLCanvasElement).width / (element as HTMLCanvasElement).height);
+  expect(canvas.width / canvas.height).toBeCloseTo(raster, 2);
+  expect(canvas.x).toBeGreaterThanOrEqual(-0.001);
+  expect(canvas.y).toBeGreaterThanOrEqual(-0.001);
+  expect(canvas.x + canvas.width).toBeLessThanOrEqual(viewport.width + 0.001);
+  expect(canvas.y + canvas.height, 'The raster stays above the action bar').toBeLessThanOrEqual(hud.y + 0.001);
+  expect(hud.y + hud.height).toBeLessThanOrEqual(viewport.height + 0.001);
+  expect(canvas.width, 'The raster fills the space the window allows').toBeGreaterThanOrEqual(Math.min(viewport.width, hud.y * raster) * 0.9);
+  for (const fx of [0.02, 0.5, 0.98]) for (const fy of [0.02, 0.5, 0.98]) {
     expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName,
       { x: canvas.x + canvas.width * fx, y: canvas.y + canvas.height * fy })).toBe('CANVAS');
   }
-  return { viewport, simulatedSafeInsets: insets, canvas, controls, wrappers, hud };
+  return { viewport, raster, canvas, hud };
 }
 
 export async function captureShellPanel(page: Page, testInfo: TestInfo, state: string): Promise<void> {
   const original = page.viewportSize()!;
   await expectViewportShell(page);
   await page.screenshot({ path: testInfo.outputPath(`shell-${state}.png`) });
-  await page.setViewportSize({ width: 844, height: 390 });
+  await page.setViewportSize({ width: 1024, height: 600 });
   await expectViewportShell(page);
-  await page.screenshot({ path: testInfo.outputPath(`shell-${state}-landscape.png`) });
+  await page.screenshot({ path: testInfo.outputPath(`shell-${state}-small-window.png`) });
   await page.setViewportSize(original);
 }
