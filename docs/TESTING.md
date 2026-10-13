@@ -45,7 +45,9 @@ consistency does not show that a game loads, plays or sounds right.
 
 `make test` runs `check.py` and the Python regression suites: release and
 packaging tools, game audits, reference-capture analysis, full-RGB comparison,
-CI classification, core hand-off and the dev-ROM exclusion test. Install the
+core hand-off and the dev-ROM exclusion test. (The legacy CI-change classifier
+and runtime-baseline tests, and the docs-only CI fast path they served, have
+been removed: CI runs the full verification on every push and pull request.) Install the
 npm dependencies first; the distribution tests read the actual fflate bytes.
 Without a native capture, the reference-mutation cases are skipped while their
 unit checks run. After `./tools/capture-pong.sh`, run them against real
@@ -170,12 +172,18 @@ production base is `/NoCPU/`; `NOCPU_BASE_PATH` selects another absolute path
 ending in `/`.
 
 `npm run test:foundations` runs the Node unit tests for controls, settings and
-the bounded ROM/ZIP reader, using synthetic archives with no ROM payloads.
+the bounded ROM/ZIP reader, using synthetic archives with no ROM payloads. It
+also covers the About build string (tag build, untagged build with its short
+commit, no manifest) and the mouse preferences: the version-5 preferences
+record with its per-game `mouseByGame` assignment, version-4 records loading
+without loss, and invalid mouse slots recovering to the default.
 
 The Playwright suite drives the production build in three desktop projects,
 **chromium**, **firefox** and **webkit**, using Playwright's desktop device
-profiles with keyboard and mouse input. There are no emulated phone projects,
-touch tests or device-qualification collectors. Install and run:
+profiles with keyboard and mouse input; there are no emulated phone projects.
+The tests drive the keyboard bindings and the mouse paddle, Serve and throttle
+mappings described in [web/README.md](../web/README.md#what-it-offers).
+Install and run:
 
 ```sh
 ./tools/install-web-toolchain.sh --browsers   # Debian 13 amd64: pinned engines and signed local libraries
@@ -188,8 +196,10 @@ On another Linux host, install the engines with
 The wrapper sets local library and cache paths and runs the tests through an
 isolated PulseAudio null sink, so audio scheduling is exercised for real but
 speaker playback is not. Results go to `build/browser-matrix.json` and
-`build/playwright-report/`. The private test `tests/browser/v060-driving.spec.ts`
-loads ROMs from `NOCPU_ROM_DIR` and is skipped without fixtures.
+`build/playwright-report/`. The private tests in `tests/browser/v060-driving.spec.ts`
+(for example "stuntcycle private ROM keyboard and mouse controls, silent
+lifecycle and original raster") load ROMs from `NOCPU_ROM_DIR` and are skipped
+without fixtures.
 
 A sandboxed runner may stop a browser from launching (Firefox has failed on a
 read-only `/proc/self/uid_map` in a cloud sandbox). A failed launch is a runner

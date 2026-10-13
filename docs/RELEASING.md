@@ -49,20 +49,21 @@ requires the version fields in `package.json`, `package-lock.json`,
 `tests/release-readiness.json` and `tests/browser-license-audit.json` to match
 it, so a version bump updates those fields in the same commit.
 
-The About panel will show the build string (the Phase 2 desktop UI, a 0.1.x
-patch release, implements it; 0.1.0 still shows `buildId`):
+The About panel shows the build string, computed by `web/src/build-info.ts`
+from the packaged site's `BUILD-MANIFEST.json`:
 
-- a build packaged from a release tag shows **`vX.Y.Z`** (or `vX.Y.Z-rc.N`);
-- any other build (local development, CI, the working branch) shows
-  **`vX.Y.Z-dev.<sha>`**, the last version set in `VERSION` plus the short
-  commit, so the build is newer than that release;
-- a build without its manifest (for example the Vite dev server) shows
+- a site packaged from its release tag (manifest `stage` is `release` and
+  `tag` equals `v` + `VERSION`) shows **`vX.Y.Z`** (or `vX.Y.Z-rc.N`);
+- any other packaged build (local development, CI, the working branch) shows
+  **`vX.Y.Z-dev.<sha>`**, the last version set in `VERSION` plus the first
+  seven characters of the manifest's `source_commit`, so the build is newer
+  than that release;
+- a build without a matching manifest (for example the Vite dev server) shows
   `vX.Y.Z-dev`.
 
-The packaged site's `BUILD-MANIFEST.json` already carries what this needs:
-`version`, `stage` (`release` for a tag build; untagged builds currently say
-`preview`), `tag`, and `buildId`/`source_commit` (the full commit SHA) with
-`source_tree_state`. Today the app shows `buildId` and a preview label.
+The manifest carries `version`, `stage` (`release` for a tag build, `preview`
+otherwise), `tag`, and `buildId`/`source_commit` (the full commit SHA) with
+`source_tree_state`.
 
 Bug reports quote this string (see [bug-reports/README.md](../bug-reports/README.md)).
 

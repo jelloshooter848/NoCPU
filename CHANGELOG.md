@@ -13,6 +13,24 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- Mouse controls: move the mouse over the game to set a paddle across its full range (Pong, Pong
+  Doubles, Breakout); hold the left button for Breakout's Serve and for Stunt Cycle's throttle.
+  Settings chooses which player the mouse controls, or turns it off.
+- The About panel shows the build string (`vX.Y.Z` for releases, `vX.Y.Z-dev.<commit>` otherwise)
+  with the DICE credit, license notices and source download.
+
+### Changed
+
+- A plain desktop layout: the original game picture fills the window above one action bar (coin,
+  start, Pause · Esc); menus are simpler. Your saved settings carry over.
+
+### Removed
+
+- Touch controls, phone layouts, the phone qualification recorder and Home Screen (PWA) install
+  support, deferred to the post-1.0 mobile phase.
+
 ## [0.1.0] - 2026-10-13
 
 The first release of the restarted desktop-first line, a baseline: it keeps the legacy browser app

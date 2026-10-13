@@ -80,9 +80,10 @@ the release steps.
 
 | Milestone | Release | Status |
 | --- | --- | --- |
-| Reset baseline | 0.1.0 | In review |
-| Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | Planned |
+| Reset baseline | 0.1.0 | Released (2026-10-13) |
+| Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | In review |
 | Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | Planned |
+| Speed up CI | 0.1.x patch | Planned |
 | Remaining reset leftovers | 0.1.x patch | Planned |
 | ROM-free batch A | 0.2.0 | Planned |
 | ROM-free batch B | 0.3.0 | Planned |
@@ -104,9 +105,10 @@ evidence names the actual browser and version.
 
 ### 0.1.0 — Reset baseline
 
-The first restarted release is the current working-branch content: the new
-agent rules, roadmap, release process and ROM tooling, with the legacy browser
-UI still in place. It makes no desktop accuracy claim.
+The first restarted release, tagged `v0.1.0` on 2026-10-13, is the working-branch
+content at that point: the new agent rules, roadmap, release process and ROM
+tooling, with the legacy browser UI still in place. It makes no desktop accuracy
+claim.
 
 1. Rewrite the agent rules, roadmap and version. (Done.)
 2. Replace the legacy physical-device release gate with a desktop release readiness record that keeps the device gate deferred. (Done.)
@@ -116,9 +118,10 @@ Exit: a `v0.1.0` tag passes the release workflow, and the published build carrie
 
 ### 0.1.x — Reset completion (patch releases)
 
-1. Phase 2: remove mobile/touch controls, the phone qualification collector, Home Screen/PWA manifest and icons and the remaining legacy release-process overhead, keeping the core, comparison harness, ROM/game audits and license/source packaging; reduce the frontend to the minimal desktop interface above, including the About panel build string, for the six ported circuits.
+1. Phase 2: remove mobile/touch controls, the phone qualification collector, Home Screen/PWA manifest and icons and the remaining legacy release-process overhead, keeping the core, comparison harness, ROM/game audits and license/source packaging; reduce the frontend to the minimal desktop interface above, including the About panel build string, for the six ported circuits. (Done; in review.)
 2. Re-run original/native/Wasm comparisons for all six games and desktop browser checks in at least Chrome and Firefox, and record desktop acceptance in the release readiness record.
-3. Any other reset leftovers.
+3. Speed up CI: cache the original DICE reference captures, keyed by the upstream, reference-build and scenario hashes; skip the comparisons when the core and scenarios are unchanged; drop the emulated phone projects (done in Phase 2); and run the browser engines as parallel jobs. The full comparison always runs when the core or the scenarios change.
+4. Any other reset leftovers.
 
 Exit: the six ported games are playable on desktop with keyboard/mouse, their comparisons pass, and each published build carries notices and matching source.
 
@@ -182,6 +185,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-12 — ROM fixtures from a private repository.** ROM fixtures come from the private repository `jelloshooter848/NoCPU-Roms`, for development and CI only. Agents fetch them into ignored local storage; CI reads them with a read-only secret; the local development server may load them automatically. They are never in published builds. In-app loading from the private repository (with a player-supplied GitHub token) is deferred and not authorized: the owner will reconsider it later. The fetch tooling and CI wiring are pending.
 - **2026-10-13 — 0.1.0 is the reset baseline.** 0.1.0 ships soon as the current working-branch content: the new rules, process and ROM tooling, with the legacy browser UI still in place. The remaining reset work lands as 0.1.x patch releases: Phase 2 (mobile, touch and device qualification removed; minimal desktop UI with a build string), the original/native/Wasm comparisons re-run for all six ported games, and any leftovers. The 0.2.0 and later milestones are unchanged.
 - **2026-10-13 — 0.2.0 stays the first ROM-free batch.** 0.2.0 remains ROM-free batch A (Rebound, Gotcha, Quadrapong, Crossfire); the later milestones are unchanged.
+- **2026-10-13 — Speed up CI.** A 0.1.x patch speeds up CI: the original DICE reference captures are cached, keyed by the upstream, reference-build and scenario hashes; comparisons are skipped when the core and scenarios are unchanged; the emulated phones are gone (done in Phase 2); and the browser engines run as parallel jobs. The full comparison always runs when the core or the scenarios change.
 
 ## After 1.0
 

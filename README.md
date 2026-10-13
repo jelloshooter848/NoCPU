@@ -6,6 +6,14 @@ NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, b
 
 The C++/Wasm core compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The 0.1.x patch releases reduce the browser frontend to the minimal desktop interface and re-run the original/native/Wasm comparisons for the six compiled games; until those comparisons pass, no restarted release claims accuracy. The [GitHub Releases](https://github.com/jelloshooter848/NoCPU/releases) page lists each published build with its notes, and the Pages site serves the latest final release (see the [changelog](CHANGELOG.md)).
 
+## Playing
+
+The app opens on a title screen and a library of all 21 titles; the six ported games are playable, and the others are marked as pending ports. The original game picture fills the window above a single action bar with coin, start and **Pause · Esc**. How to play shows each game's current controls.
+
+- **Keyboard (defaults):** W/S and Up/Down move the two Pong paddles (and the Space Race rockets), Enter inserts a coin, 1 starts a game where the circuit has a Start switch (2 starts two players in Breakout and Stunt Cycle), Space opens the menu, Escape pauses or goes back, R resets and M mutes. Pong Doubles adds T/G and I/K for players three and four; Breakout moves its paddle with Left/Right and serves with S; Stunt Cycle opens and closes the throttle with W/S; Indy 4 steers and uses gas/brake with W/A/S/D, the arrow keys, I/J/K/L and Numpad 8/4/5/6, and takes coins on 1-4 and the dollar coin on 5.
+- **Mouse:** in Pong, Pong Doubles and Breakout, moving the mouse over the game sets a paddle across its full original range. In Breakout the held left button is Serve; in Stunt Cycle the held left button opens the throttle from idle (left edge) to full (right edge). Space Race and Indy 4 use the keyboard or a gamepad. Settings → Controls chooses which player the mouse controls, or turns it off, for each game.
+- Keys and gamepad assignments can be changed per game in Settings, which also holds sound, the game's DIP and potentiometer settings and local ROM loading. About shows the build string (`vX.Y.Z` for releases, `vX.Y.Z-dev.<commit>` otherwise), the DICE credit, the license notices and the source download.
+
 ## Start here
 
 - [Roadmap](docs/ROADMAP.md) and [coding-agent rules](AGENTS.md)
