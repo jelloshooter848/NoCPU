@@ -2,7 +2,7 @@
 import { GAMES } from './catalog';
 import { escapeText } from './shell-ui';
 import { actionsForGame, actionLabel, cloneBindings, defaultBindings, keyLabel, validateBindings, type ActionId } from './control-schema';
-import { gameBindings, withGameBindings, loadPreferences, savePreferences, type Preferences } from './preferences';
+import { gameBindings, isMouseGame, withGameBindings, loadPreferences, savePreferences, type Preferences } from './preferences';
 import { createRomLibrary, type RomEntry } from './roms';
 import type { ConnectedGamepad } from './controls';
 import { gameSpec, isPlayableGameId, normalizeGameOptions, type PlayableGameId } from './game-contract';
@@ -15,6 +15,7 @@ interface SettingsOptions {
   onApplyGameOptions: (gameId: PlayableGameId) => void;
   onPlayRom: (gameId: PlayableGameId) => void;
   onRomRemoved: (gameId: string) => void;
+  onMouse: () => void;
 }
 type Capture = { kind: 'keyboard'; action: ActionId } | { kind: 'button'; action: ActionId } | { kind: 'axis'; slot: number };
 
@@ -64,6 +65,19 @@ export function createSettingsUI(options: SettingsOptions) {
       document.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus({ preventScroll: true });
     }
   }
+  function renderMouse(): void {
+    const container = find('#mouse-setting');
+    if (!isMouseGame(controlGameId)) {
+      container.innerHTML = `<p>${escapeText(gameSpec(controlGameId).title)} uses keyboard or gamepad controls. The mouse is not used for this game.</p>`;
+      return;
+    }
+    const spec = gameSpec(controlGameId);
+    const slot = preferences.mouseByGame[controlGameId];
+    const how = controlGameId === 'stuntcycle'
+      ? 'Hold the left mouse button over the display and move right to open the shared throttle; release the button to idle.'
+      : `Move the mouse over the display to position the paddle across its full range${controlGameId === 'breakout' ? '. Hold the left mouse button over the display to hold Serve' : ''}.`;
+    container.innerHTML = `<label for="mouse-slot">Mouse controls</label><select id="mouse-slot" data-testid="mouse-slot">${spec.controlLabels.map((label, index) => `<option value="${index}"${slot === index ? ' selected' : ''}>${escapeText(spec.controlSlotCount === 1 ? label : `Player ${index + 1} · ${label.toLowerCase()}`)}</option>`).join('')}<option value="off"${slot === null ? ' selected' : ''}>Off</option></select><p class="panel-note">${how}</p>`;
+  }
   function renderOptions(): void {
     const options = preferences.optionsByGame[controlGameId];
     find('#game-options').innerHTML = 'misses' in options
@@ -82,7 +96,7 @@ export function createSettingsUI(options: SettingsOptions) {
   function selectControlGame(gameId: PlayableGameId): void {
     cancelCapture(); options.onCaptureStarted(); controlGameId = gameId;
     find<HTMLSelectElement>('#settings-game').value = gameId;
-    renderBindings(); renderOptions(); bindingMessage.textContent = '';
+    renderBindings(); renderMouse(); renderOptions(); bindingMessage.textContent = '';
   }
   function cancelCapture(message = 'Assignment cancelled.'): void {
     if (!capture) return;
@@ -167,9 +181,9 @@ export function createSettingsUI(options: SettingsOptions) {
   }
   function syncGamepads(pads: ConnectedGamepad[]): void {
     find('[data-testid="gamepad-status"]').textContent = typeof navigator.getGamepads !== 'function'
-      ? 'Gamepads are unavailable in this browser. Keyboard and touch controls remain available.' : pads.length
+      ? 'Gamepads are unavailable in this browser. Keyboard and mouse controls remain available.' : pads.length
       ? pads.map((pad) => `Controller ${pad.index + 1}: ${pad.id}`).join(' · ')
-      : 'No gamepad detected. Connect one and press a button. Keyboard and touch controls remain available.';
+      : 'No gamepad detected. Connect one and press a button. Keyboard and mouse controls remain available.';
   }
   function romDescription(gameId: string): string {
     const entry = entries.find((value) => value.gameId === gameId);
@@ -298,6 +312,13 @@ export function createSettingsUI(options: SettingsOptions) {
     setPreferences({ ...preferences, optionsByGame: { ...preferences.optionsByGame, [controlGameId]: options } });
     if (input.id === 'playtime' && 'playtimeOhms' in options) find('[data-testid="playtime-value"]').textContent = `${(options.playtimeOhms - (controlGameId === 'indy4' ? 220000 : 470000)) / 10000}%`;
   });
+  find('#mouse-setting').addEventListener('change', (event) => {
+    const input = event.target as HTMLSelectElement;
+    if (input.id !== 'mouse-slot' || !isMouseGame(controlGameId)) return;
+    setPreferences({ ...preferences, mouseByGame: { ...preferences.mouseByGame, [controlGameId]: input.value === 'off' ? null : Number(input.value) } });
+    options.onMouse();
+    renderMouse();
+  });
   find('[data-testid="apply-game-options"]').addEventListener('click', () => {
     cancelCapture(); options.onApplyGameOptions(controlGameId);
   });
@@ -310,6 +331,7 @@ export function createSettingsUI(options: SettingsOptions) {
   });
   preferencesStatus();
   renderBindings();
+  renderMouse();
   renderOptions();
   void refreshRoms();
   if (import.meta.env.DEV) {
@@ -330,6 +352,7 @@ export function createSettingsUI(options: SettingsOptions) {
     selectControlGame,
     setActiveGame: (gameId: PlayableGameId | undefined) => { activeGameId = gameId; renderOptions(); },
     bindingsFor: (gameId: PlayableGameId) => gameBindings(preferences, gameId),
+    mouseSlotFor: (gameId: PlayableGameId): number | null => isMouseGame(gameId) ? preferences.mouseByGame[gameId] : null,
     selectRomGame: (gameId: string) => { if (GAMES.find((game) => game.id === gameId)?.roms.length) { romGame.value = gameId; syncRomPlay(); } },
   };
 }

@@ -3,14 +3,6 @@ const DIGEST = /^[0-9a-f]{64}$/;
 export const CORE_JS_QUERY = 'nocpu_js_sha256';
 export const CORE_WASM_QUERY = 'nocpu_wasm_sha256';
 
-export interface QualificationAssetIdentity {
-  entryUrl: string;
-  moduleUrl: string;
-  wasmUrl: string;
-  coreJsSha256: string;
-  coreWasmSha256: string;
-}
-
 export function createCoreAssetUrls(baseUrl: string, jsSha256: string, wasmSha256: string): { moduleUrl: string; wasmUrl: string } {
   if (!DIGEST.test(jsSha256) || !DIGEST.test(wasmSha256)) throw new Error('Missing compiled core asset identity.');
   const module = new URL('core/nocpu.js', baseUrl);
