@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "release_ready": true,
   "blockers": [],
   "release_scope": "0.1.1 desktop interface (Phase 2 of the reset, docs/ROADMAP.md): the six compiled DICE circuits behind the minimal desktop browser UI, played with keyboard, mouse and optional gamepads, with the About panel build string; touch controls, phone layouts, the qualification recorder and Home Screen/PWA support are removed. Desktop acceptance (the original/native/Wasm comparisons re-run for the six games and the desktop browser checks) is still pending, so it makes no desktop accuracy claim; the physical-device gate stays deferred.",

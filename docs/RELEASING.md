@@ -193,14 +193,19 @@ outside the code (a Pages outage, permissions), rerun it as described below.
 **If a release run fails:**
 
 1. Leave the tag where it is; never move, delete or reuse it.
-2. Re-run the failed jobs once (the run's **Re-run failed jobs**; this works since
-   `b310916`). The re-run
-   reuses the core tested by the earlier attempt; see
+2. Use the run's **Re-run failed jobs** once (works since `b310916`; the publish
+   job since the 0.1.1 release). It covers failures in the verify jobs
+   (`core-reference`, `browser`) and in `publish`: the re-run reuses the core and
+   the release assets and notes that earlier attempts uploaded; see
    [Redeploying, retrying or rolling back](#redeploying-retrying-or-rolling-back).
-3. If that also fails, or the failure is in the code or its checks, fix it on
-   the working branch and ship the next patch version. Record in the roadmap
-   and in the failed version's changelog section that it was tagged but not
-   published, as for `v0.1.0`.
+3. If only `deploy-pages` failed, re-deploy with **Run workflow** on the tag
+   instead.
+4. Avoid **Re-run all jobs**: it uploads a second `github-pages` artifact in the
+   same run, which the Pages deployment can reject as a duplicate.
+5. If the re-run also fails, or the failure is in the code or its checks, fix it
+   on the working branch and ship the next patch version. Record in the
+   roadmap and in the failed version's changelog section that it was tagged
+   but not published, as for `v0.1.0`.
 
 The zip is the exact site that was deployed, built for the `/NoCPU/` path:
 serve it from a folder of that name (for example
