@@ -80,6 +80,6 @@ audio. Preserve all supported player slots; a Pong report cannot qualify
 Doubles' four paddles, Space's digital sticks or Breakout's shared paddle/Serve.
 Keep controller-model/pairing/remapping/disconnect evidence separate.
 
-Use [the report template](../DEVICE_REPORT_TEMPLATE.md), including observed launch
+Use [the report template](DEVICE_REPORT_TEMPLATE.md), including observed launch
 context and separate title-specific results. Independently review actual
 runtime-matched evidence before changing readiness or declaring a device floor.

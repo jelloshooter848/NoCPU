@@ -1,7 +1,11 @@
 # Native Pong reference
 
-Version 0.1.0 establishes a measured reference from original DICE 0.9. It does
-not provide a browser emulator yet. Pong requires no external ROM.
+This scenario captures a measured reference from the original DICE 0.9
+application. The portable native and Wasm cores are compared against it (see
+[TESTING.md](TESTING.md#portable-core-and-originalnativewasm-comparison)).
+Pong requires no external ROM. The other compiled games use the same
+instrumented build through `tools/capture-games.sh` and
+`tools/compare-rom-games.py`.
 
 Run from the repository root:
 
@@ -90,7 +94,7 @@ snapshots retain the full native viewport.
 
 ## Measured baseline
 
-The initial complete run passed all checks in all four epochs:
+The first complete run (legacy line) passed all checks in all four epochs:
 
 | Observation | Result |
 | --- | --- |
@@ -109,7 +113,8 @@ Fresh and recreated epochs produced identical PCM, but their complete frame
 streams and initial telemetry differed. Both passed the same settled behavioral
 checks. The original frontend retains video fields and game descriptions contain
 mutable static data; startup equivalence must not be claimed from this result.
-Future port work must define and test reset isolation.
+The portable core defines its own cold reset instead (see
+[PORT_PONG.md](PORT_PONG.md)).
 
 The first fresh frame recorded inherited OpenGL error 1281 (`GL_INVALID_VALUE`)
 at 16,652,246,960 ps. The original renderer initially configures projection with
@@ -155,5 +160,5 @@ callback's wall-clock behavior, or physical hardware accuracy. Injected controls
 exercise the original circuit input conversion, but not physical keyboard,
 mouse, or joystick devices. Repeat equality applies to the pinned native
 toolchain/renderer, not every operating system or future WebAssembly rendering.
-This reference is a starting point for later comparison, not a claim that DICE
-has been validated against a physical Pong board.
+This reference is the baseline for the portable comparisons, not a claim that
+DICE has been validated against a physical Pong board.
