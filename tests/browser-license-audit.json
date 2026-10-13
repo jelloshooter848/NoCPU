@@ -112,7 +112,7 @@
     },
     {
       "path": "docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt",
-      "sha256": "b32eaa7132a1bc914b481a4d79c3c89691eaf2d999e4f66508826ae022d29d7f"
+      "sha256": "821e4a588e2e845b6d23d0e3535224e6cdcad590e9043cbaa93a3174af1eba14"
     }
   ],
   "components": [
@@ -137,10 +137,10 @@
       "basis": "Linker map: libc++ 12, libc++abi 10, compiler-rt 18 members. Retained LICENSE.TXT and CREDITS.TXT are byte-identical to the installed SDK files."
     },
     {
-      "scope": "musl libc members linked into the Wasm module, including 26 math routines",
+      "scope": "musl libc members linked into the Wasm module, including 27 math routines",
       "version": "bundled with Emscripten 3.1.74",
-      "license": "MIT for musl and the Arm-derived routines; the Sun-derived trigonometric routines keep their notice-preservation grant",
-      "basis": "Linker map: libc 101 members. Math members: __cosdf, __fpclassifyl, __math_divzero, __math_invalid, __math_oflow, __math_uflow, __math_xflow, __rem_pio2_large, __rem_pio2f, __sindf, copysignl, cosf, exp, exp_data, fabsl, floor, fmod, fmodl, frexp, log, log_data, lroundf, roundf, scalbn, scalbnl, sinf \u2014 the same 26 as the reviewed legacy 0.6.0 inventory. Retained COPYRIGHT is byte-identical to the installed SDK file; the Sun and Arm headers are retained in docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt; the installed fmod.c (SHA-256 33fb61093e04783081b9e8f8a8a303456b2f919c215cd0c378c1ed0acf41934c) has no additional header."
+      "license": "MIT for musl and the Arm-derived routines; the Sun-derived trigonometric routines keep their notice-preservation grant; fmaf (FreeBSD, David Schultz) is BSD-2-Clause",
+      "basis": "Linker map: libc 103 members. Math members: __cosdf, __fpclassifyl, __math_divzero, __math_invalid, __math_oflow, __math_uflow, __math_xflow, __rem_pio2_large, __rem_pio2f, __sindf, copysignl, cosf, exp, exp_data, fabsl, floor, fmaf, fmod, fmodl, frexp, log, log_data, lroundf, roundf, scalbn, scalbnl, sinf \u2014 the 26 of the reviewed legacy 0.6.0 inventory plus fmaf, which the 0.1.1 Indy 4 renderer fix pulls in through std::fma, together with the header-less fenv member. Retained COPYRIGHT is byte-identical to the installed SDK file; the Sun, Arm and FreeBSD fmaf headers are retained verbatim in docs/licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt (fmaf.c SHA-256 8cef4678e7e82d5be0775e51ac11bbcb680f39005482470f5cfb3ed201cd3620); the installed fmod.c (SHA-256 33fb61093e04783081b9e8f8a8a303456b2f919c215cd0c378c1ed0acf41934c) and fenv.c have no additional header."
     },
     {
       "scope": "dlmalloc allocator and Emscripten support stubs linked into the Wasm module",
@@ -171,7 +171,7 @@
   "review": {
     "date": "2026-10-13",
     "result": "ready",
-    "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first: commit 3138314 (desktop UI and docs merged onto the v0.1.0 release merge c2c72de), built in a clean clone; the runtime was re-verified identical at 9fc4eac by the independent review.",
+    "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first after merging wip/0.1.1-indy4-row213 and wip/post-1.0-evidence and making the Wasm build path-independent (commits 72ef2aa..ec19823 plus this audit), built in a clean clone.",
     "commands": [
       "./tools/build-core.sh all",
       "npm run build:web",
@@ -179,29 +179,52 @@
       "python3 tests/test-dev-rom-exclusion.py --require-build"
     ],
     "findings": [
-      "Shipped runtime: 7 files from build/web \u2014 index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. No manifest.webmanifest, no PNG icons and no tools/render-icons.mjs. Local review runtime SHA-256 1abff7963802ca71e0d67d015f78974cfff50fd44cae983e2d47635d5e137012; core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 and core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a, both identical to 0.1.0. Release packaging recomputes and records these in BUILD-MANIFEST.json.",
-      "Wasm link inventory (build/core/wasm/linker.map) unchanged from 0.1.0: 67 compiled NoCPU/DICE units plus seven SDK archive families with 145 members \u2014 libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1. Core sources are unchanged since v0.1.0 apart from core/README.md.",
-      "Frontend changes since v0.1.0 are NoCPU-owned (desktop layout, mouse controls, build string; touch, qualification and Home Screen code removed). package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2, and build/web-provenance.json records no other node_modules input.",
-      "The 27 notices are unchanged from 0.1.0 (same paths and SHA-256); Emscripten LICENSE/AUTHORS, LLVM libc++/libc++abi/compiler-rt LICENSE and CREDITS and musl COPYRIGHT are byte-identical to the installed Emscripten 3.1.74 SDK, and the Vite and fflate licenses to the installed npm packages. The packaged site carries all 27 under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256; the zip, tarball and source checksums verify.",
-      "The source archive (796 files: the 795 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/, web/ (web/public/icon.svg is its only public asset), tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads, ROMs, PNG icons, manifest.webmanifest or tools/render-icons.mjs.",
-      "No member of the ten private fixture archives in build/roms (44 members, in sync with the private fixture repository and passing tools/audit-roms.py) appears raw or base64-encoded (three alignments) in the web zip, the web tarball, the packaged site or the source archive, including archives nested in the zip; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present.",
-      "After the independent review's fixes (commit a46adf7; the Breakout mouse-Off change in the application bundle), the runtime SHA-256 is 677cb892e5ae280dea352489da7e1048a8aa8a81aa1aff6668629bfe19465617: still the same 7 files, with core/nocpu.wasm and core/nocpu.js unchanged. Release packaging recomputes the digest."
+      "Shipped runtime: 7 files from build/web \u2014 index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. No manifest.webmanifest, no PNG icons and no tools/render-icons.mjs. Local review runtime SHA-256 1c2430a76fa95695954e6d8c09879cdc665847211540d80ca46b3ed755618cc9; core/nocpu.wasm becf728c28422763a2ced9f6f3b5094807c6e706c82c00ab9342afb0af0e8607 (changed by the Indy 4 renderer fix and the path-independent system libraries); core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a (unchanged). Release packaging recomputes and records these in BUILD-MANIFEST.json.",
+      "Reproducibility: tools/build-core.sh builds the Emscripten system libraries with embuilder's deterministic paths into a dedicated cache and links with a frozen cache; nocpu.wasm and nocpu.js were byte-identical when built in three checkouts at different paths and depths, including /home/runner/work/NoCPU/NoCPU.",
+      "Wasm link inventory (build/core/wasm/linker.map): 67 compiled NoCPU/DICE units plus seven SDK archive families with 147 members \u2014 libc 103, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1. New since 0.1.0: libc fmaf.o (BSD-2-Clause header now retained in the MATH-NOTICES file, whose hash changed accordingly in this audit and in tests/license-audit.json) and fenv.o (no header; musl MIT). build/core/wasm/dependencies.mk lists only core/ and prepared DICE sources.",
+      "Core changes since v0.1.0: core/platform/portable_video.inc (the Indy 4 renderer fix, matching llvmpipe's viewport and fill rules) and core/README.md; no new dependency. Frontend changes are NoCPU-owned; package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2, and build/web-provenance.json records no other node_modules input.",
+      "The 27 notices: Emscripten LICENSE, LLVM libc++/libc++abi/compiler-rt LICENSE and musl COPYRIGHT are byte-identical to the installed Emscripten 3.1.74 SDK, and the Vite and fflate licenses to the installed npm packages; the musl MATH-NOTICES file gains the fmaf.c header. The packaged site carries all 27 under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256; the zip, tarball and source checksums verify.",
+      "The source archive (802 files: the 801 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/, web/ (web/public/icon.svg is its only public asset), tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads, ROMs, PNG icons, manifest.webmanifest or tools/render-icons.mjs.",
+      "No member of the ten private fixture archives in build/roms (44 members) appears raw or base64-encoded (three alignments) in the web zip, the web tarball, the packaged site or the source archive, including archives nested in the zip; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
     ],
     "independent_review": {
-      "date": "2026-10-13",
-      "by": "Independent agent (not the author of this assessment)",
-      "result": "accepted",
-      "commit": "9fc4eac",
-      "findings": [
-        "Reviewed c2c72de..9fc4eac at commit 9fc4eac in a clean scratch clone: check.py, make test, test:foundations (28/28) and typecheck passed.",
-        "core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 and core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a are byte-identical to 0.1.0; core, worker and upstream sources unchanged apart from core/README.md.",
-        "Preview packaging gave runtime SHA-256 1abff7963802ca71e0d67d015f78974cfff50fd44cae983e2d47635d5e137012 (equal to this record) with the 7-file runtime inventory; source archive 796 files (795 tracked plus RELEASE-MANIFEST.json); checksums verify; notice list identical to 0.1.0.",
-        "Rebuilding from the extracted source archive (npm ci, npm run build) gave a byte-identical build/web. Caveat: the rebuild reused the shared Emscripten SDK (build/emsdk) rather than fetching it afresh.",
-        "ROM scan of the web zip and tarball (including nested archives), the source archive and the packaged site for all 10 fixture archives and their 44 members, raw and base64 at three alignments: 0 hits; test-dev-rom-exclusion.py --require-build passed with fixtures present.",
-        "Simulated v0.1.1 release in a scratch clone (version-field and CHANGELOG commit, local tag, never pushed): release_check --tag, check.py, build-core, build:web and package-web.py --tag v0.1.1 passed; the About panel showed v0.1.1."
-      ],
-      "should_fix_cleared": "The review's should-fix items (Breakout mouse Off serve, release_scope, the corresponding_source archive name and recording this review) were fixed on restart/desktop-first after 9fc4eac; they do not change the core or the asset inventory."
-    }
+      "result": "pending",
+      "note": "The merged state (the Indy 4 renderer fix, the path-independent Wasm build, the CI re-run fix and this audit) needs a final independent review before the 0.1.1 release commit."
+    },
+    "earlier_independent_reviews": [
+      {
+        "date": "2026-10-13",
+        "by": "Independent agent (not the author of this assessment)",
+        "result": "accepted",
+        "commit": "9fc4eac",
+        "findings": [
+          "Reviewed c2c72de..9fc4eac at commit 9fc4eac in a clean scratch clone: check.py, make test, test:foundations (28/28) and typecheck passed.",
+          "core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 and core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a are byte-identical to 0.1.0; core, worker and upstream sources unchanged apart from core/README.md.",
+          "Preview packaging gave runtime SHA-256 1abff7963802ca71e0d67d015f78974cfff50fd44cae983e2d47635d5e137012 (equal to this record) with the 7-file runtime inventory; source archive 796 files (795 tracked plus RELEASE-MANIFEST.json); checksums verify; notice list identical to 0.1.0.",
+          "Rebuilding from the extracted source archive (npm ci, npm run build) gave a byte-identical build/web. Caveat: the rebuild reused the shared Emscripten SDK (build/emsdk) rather than fetching it afresh.",
+          "ROM scan of the web zip and tarball (including nested archives), the source archive and the packaged site for all 10 fixture archives and their 44 members, raw and base64 at three alignments: 0 hits; test-dev-rom-exclusion.py --require-build passed with fixtures present.",
+          "Simulated v0.1.1 release in a scratch clone (version-field and CHANGELOG commit, local tag, never pushed): release_check --tag, check.py, build-core, build:web and package-web.py --tag v0.1.1 passed; the About panel showed v0.1.1."
+        ],
+        "should_fix_cleared": "The review's should-fix items (Breakout mouse Off serve, release_scope, the corresponding_source archive name and recording this review) were fixed on restart/desktop-first after 9fc4eac; they do not change the core or the asset inventory.",
+        "note": "Applies to 9fc4eac; superseded by the merged state above."
+      }
+    ],
+    "delta_reviews": [
+      {
+        "date": "2026-10-13",
+        "by": "Independent agent",
+        "range": "9fc4eac..0b02051",
+        "result": "accepted",
+        "summary": "Re-verified the review fixes (Breakout mouse Off, release_scope, source-archive name check): check.py, make test, test:foundations 28/28 and typecheck passed; runtime 677cb892e5ae280dea352489da7e1048a8aa8a81aa1aff6668629bfe19465617 with unchanged Wasm/JS and 7 runtime files; ROM scan 0 hits; packaged Chromium 145.0.7632.6 Playwright 49 passed."
+      },
+      {
+        "date": "2026-10-13",
+        "by": "Independent agent",
+        "range": "wip/0.1.1-indy4-row213 (c772c63..98e0c6d, from 74655c1)",
+        "result": "accepted",
+        "summary": "Checked the renderer fix against Mesa 20.0.8 llvmpipe source and with GL probes in the pinned image (per-pixel match for the tested scanline, clipped and pixel-centre-tie scenes); fresh original/native/Wasm comparisons passed for the ROM-backed scenarios, Pong and the ROM-free scenarios run; the follow-up delta (98e0c6d) was accepted as well. Notes: build/agent-run-logs/review-indy4-row213/."
+      }
+    ]
   },
   "excluded_components": [
     "Qt",
