@@ -249,6 +249,8 @@ jobs:
       env:
         NOCPU_BASE_PATH: /NoCPU/
       run: npm run build:web
+    - name: Production bundle carries no dev ROM endpoint, module or embedded ZIP
+      run: python3 tests/test-dev-rom-exclusion.py --require-build
     - name: Package source-matched browser preview or qualified release
       env:
         FINAL_RELEASE: ${{ inputs.release }}

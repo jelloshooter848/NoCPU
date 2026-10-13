@@ -6,9 +6,8 @@ browser build, its license notices and the matching corresponding-source
 archive, and the same version in the app's About panel. A bug report therefore
 always names a build that anyone can find again.
 
-`VERSION` is **0.1.0**, in development for the restarted desktop-first line
-(see the [roadmap](ROADMAP.md)). No build of the restarted line has been
-released. The legacy line's release process (versions up to 0.6.0, tag
+The restarted desktop-first line starts at **0.1.0**, the reset baseline (see
+the [roadmap](ROADMAP.md)); `VERSION` holds the current version. The legacy line's release process (versions up to 0.6.0, tag
 `legacy-0.6.0`, with Pages "previews" and a physical-device gate) is kept as
 history in [legacy/RELEASING_0.6.md](legacy/RELEASING_0.6.md); it does not
 govern current releases.
@@ -87,7 +86,7 @@ Bug reports quote this string (see [bug-reports/README.md](../bug-reports/README
 
 `tools/release_check.py` checks these rules. `python3 tools/check.py` and CI
 run its base check: `VERSION` is a SemVer version (a pre-release such as
-`0.2.0-rc.1` is allowed) and CHANGELOG.md has `## [Unreleased]`. With
+`0.2.0-rc.1` is allowed; `+build` metadata is not) and CHANGELOG.md has `## [Unreleased]`. With
 `--tag vX.Y.Z` it also checks that the tag is `v` + `VERSION` and that a dated,
 non-empty `## [X.Y.Z] - YYYY-MM-DD` section exists; `--notes` prints that
 section's body, which becomes the GitHub Release notes:
@@ -167,7 +166,9 @@ Before opening a release pull request, confirm and record in it:
      section as notes and attaches `nocpu-X.Y.Z-web.zip`,
      `nocpu-X.Y.Z-web.tar.gz`, `nocpu-X.Y.Z-source.tar.gz` and their `.sha256`
      files; any tag containing `-` is marked as a **pre-release**;
-   - it deploys the exact verified site to GitHub Pages. Pages is deployed only
+   - for a final release (a tag without `-`), it deploys the exact verified site
+     to GitHub Pages. A pre-release tag skips the deploy, so the live site keeps
+     the latest final release. Pages is deployed only
      from release tags, never from a branch push or a pull request.
 
 **Never move a tag.** Tags are public and permanent: a tag that has been pushed
@@ -196,7 +197,8 @@ and enter an existing tag (for example `v0.2.0`). The workflow checks out that
 tag, runs the same checks, verification and packaging, creates or updates its
 GitHub Release, and deploys it. Use this to:
 
-- roll the live site back to an earlier release (run it with the older tag);
+- roll the live site back to an earlier final release (run it with the older
+  tag; a pre-release tag never deploys Pages);
 - retry a release whose run failed for reasons outside the code.
 
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
@@ -219,8 +221,11 @@ A release candidate is a normal release with a `-rc.N` suffix:
    entries into `## [X.Y.Z-rc.N] - YYYY-MM-DD`; a **Release vX.Y.Z-rc.N** pull
    request merges it into `main`.
 2. The owner tags the merge commit `vX.Y.Z-rc.N`.
-3. The workflow marks the GitHub Release as a **pre-release**. It still deploys
-   the live site, which then shows `vX.Y.Z-rc.N`.
+3. The workflow marks the GitHub Release as a **pre-release** and attaches the
+   same assets, but it does **not** deploy GitHub Pages: the live site keeps the
+   latest final release. Testers download `nocpu-X.Y.Z-rc.N-web.zip` from the
+   pre-release and serve it locally as described above; it shows
+   `vX.Y.Z-rc.N`.
 
 An rc's notes say which comparisons it passed; an rc is never called
 accuracy-qualified unless its comparisons passed. When the final version ships,
@@ -265,8 +270,11 @@ license inventory.
 release claims, and `tools/package-web.py --tag` refuses to package unless it
 is `release_ready` with no blockers for the current `VERSION`:
 
+- `release_scope` says what the release is, in one or two sentences.
 - `desktop_acceptance` is `pending` or `passed`. `passed` names the games, the
-  actual desktop browsers and versions, and the evidence; `pending` lists none
+  actual desktop browsers and versions, the evidence and the accepted
+  `runtime_sha256`, which must equal the packaged runtime digest (a rebuilt or
+  changed runtime needs fresh acceptance); `pending` lists none
   and says where the work is scheduled. The 0.1.0 reset baseline ships with
   `pending`: it makes no desktop accuracy claim.
 - `physical_device_gate` is always `deferred`. Phone qualification and other

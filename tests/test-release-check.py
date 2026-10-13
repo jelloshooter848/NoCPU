@@ -67,12 +67,12 @@ Intro text with a [link](docs/RELEASING.md).
 
 class SemverTests(unittest.TestCase):
     def test_accepts_releases_and_prereleases(self):
-        for version in ("0.1.0", "1.0.0", "0.2.0-rc.1", "0.10.3-rc.12", "1.0.0+build.5"):
+        for version in ("0.1.0", "1.0.0", "0.2.0-rc.1", "0.10.3-rc.12"):
             with self.subTest(version=version):
                 self.assertTrue(release.is_semver(version))
 
     def test_rejects_malformed_versions(self):
-        for version in ("0.1", "v0.1.0", "01.0.0", "0.1.0-", "0.1.0-rc.01", "0.1.0 ", "0.1.0\n0.2.0", "", None):
+        for version in ("0.1", "v0.1.0", "01.0.0", "0.1.0-", "0.1.0-rc.01", "0.1.0 ", "0.1.0\n0.2.0", "1.0.0+build.5", "0.2.0-rc.1+sha.1", "", None):
             with self.subTest(version=version):
                 self.assertFalse(release.is_semver(version))
 

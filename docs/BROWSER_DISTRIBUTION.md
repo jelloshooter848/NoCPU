@@ -27,8 +27,18 @@ python3 tools/package-web.py --preview --archive-dir build/release
 python3 tests/test-dev-rom-exclusion.py
 ```
 
-An independent review of this assessment by a second agent is recommended
-before the owner tags v0.1.0.
+**Independent review (2026-10-13): accepted.** An independent agent reviewed
+commit `6994217` in a scratch clone with a simulated release commit and tag:
+
+- the tagged packaging passed, with the same runtime and Wasm hashes recorded
+  in the audit, and the release workflow's checksum and notice/source guards
+  passed;
+- rebuilding the Wasm core and Vite output from the extracted source archive
+  gave byte-identical output. Caveat: that rebuild reused the installed
+  `node_modules` and Emscripten SDK instead of fetching them afresh;
+- the SDK link members and every retained notice were confirmed;
+- a scan of the web zip, web tarball and source archive for every private
+  fixture ROM and member, raw and base64, found 0 hits.
 
 ### What ships
 
@@ -65,9 +75,12 @@ zlib. Core sources are unchanged since tag `legacy-0.6.0`; frontend changes sinc
 then are NoCPU-owned and add no dependency.
 
 The development server's ROM fixture plugin (`vite.config.ts`) and
-`web/src/dev-roms.ts` are excluded from the production bundle;
-`tests/test-dev-rom-exclusion.py` checks this on every production build and,
-with fixtures present, searches the bundle for their bytes.
+`web/src/dev-roms.ts` are excluded from the production bundle.
+`tests/test-dev-rom-exclusion.py --require-build` checks the production build
+that gets packaged (CI's browser job, including release runs) for the dev
+endpoint, module and any embedded ZIP. The ROM-backed validation workflow runs
+it with fixtures present, which adds a search of the bundle for their bytes;
+without fixtures that search is reported as skipped.
 
 ### Matching source
 

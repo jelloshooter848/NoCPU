@@ -2,9 +2,9 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is accurate play of all 21 games in DICE 0.9 in **desktop browsers**, using keyboard and mouse with a minimal interface: a game picker, the original game raster, controls help and user-supplied ROM loading.
 
-**Restart, version 0.1.0 (in development).** NoCPU has restarted with a desktop-first plan; see the [roadmap](docs/ROADMAP.md). Mobile/touch play, phone device qualification and iPhone Home Screen support are deferred until after desktop accuracy. Versions up to 0.6.0 belong to the legacy line, preserved at tag `legacy-0.6.0` with its records under [docs/legacy/](docs/legacy/).
+**Restarted desktop-first line, from version 0.1.0.** NoCPU has restarted with a desktop-first plan; see the [roadmap](docs/ROADMAP.md). Mobile/touch play, phone device qualification and iPhone Home Screen support are deferred until after desktop accuracy. Versions up to 0.6.0 belong to the legacy line, preserved at tag `legacy-0.6.0` with its records under [docs/legacy/](docs/legacy/).
 
-The C++/Wasm core currently compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The current frontend is the legacy app and still contains mobile/touch, qualification and Home Screen code that the next restart phase removes. The public Pages site still serves a legacy preview; no 0.1.0 build has been published.
+The C++/Wasm core currently compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The current frontend is the legacy app and still contains mobile/touch, qualification and Home Screen code that the next restart phase removes. The [GitHub Releases](https://github.com/jelloshooter848/NoCPU/releases) page lists each published build with its notes, and the Pages site serves the latest final release. 0.1.0 is the reset baseline: it keeps the legacy frontend and makes no new accuracy claim; the desktop interface and renewed comparisons follow in 0.1.x releases (see the [changelog](CHANGELOG.md)).
 
 ## Start here
 
@@ -27,7 +27,7 @@ npm run build
 npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:4173/NoCPU/` and use the same controls as the public preview.
+Open `http://127.0.0.1:4173/NoCPU/` and use the same controls as the released app on the Pages site.
 
 ## Native foundation
 

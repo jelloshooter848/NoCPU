@@ -20,12 +20,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# SemVer 2.0.0 (https://semver.org) without a leading "v"; pre-release (-rc.1) and build metadata allowed.
+# SemVer 2.0.0 (https://semver.org) without a leading "v"; a pre-release (-rc.1) is allowed. Build
+# metadata (+build) is rejected: tags, archive names and tools/core-handoff.py identify a build by
+# version and commit, so a +suffix would name the same release twice.
 _IDENT = r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
 SEMVER = re.compile(
     r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     rf"(?:-({_IDENT}(?:\.{_IDENT})*))?"
-    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
 )
 UNRELEASED = re.compile(r"^## \[Unreleased\][ \t]*$", re.MULTILINE)
 FOOTER = re.compile(r"^\[[^\]]+\]: \S+\s*$")

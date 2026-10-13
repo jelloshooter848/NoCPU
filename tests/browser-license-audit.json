@@ -171,7 +171,7 @@
   "review": {
     "date": "2026-10-13",
     "result": "ready",
-    "by": "Agent review of the actual local 0.1.0 build output on restart/desktop-first (parent commit 356d5a4 plus the change that records this review). Independent review by a second agent is recommended before the owner tags v0.1.0 (AGENTS.md collaboration rules).",
+    "by": "Agent review of the actual local 0.1.0 build output on restart/desktop-first (commit 6994217).",
     "commands": [
       "./tools/build-core.sh all",
       "NOCPU_BASE_PATH=/NoCPU/ npm run build:web",
@@ -186,7 +186,20 @@
       "The packaged site carries all 27 notices listed here under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256.",
       "The source archive (809 files) holds all 566 original DICE files, core/, web/ (including web/public/icon.svg and the derived PNGs), tools/ (including tools/render-icons.mjs), upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
       "No fixture ROM member (29 members of the nine private fixture archives in build/roms) appears raw or base64-encoded in the web zip, the packaged site or the source archive; tests/test-dev-rom-exclusion.py passes on the production bundle with fixtures present."
-    ]
+    ],
+    "independent_review": {
+      "date": "2026-10-13",
+      "by": "Independent agent (not the author of this assessment)",
+      "result": "accepted",
+      "commit": "6994217d3f8d72164deda1d58febaed521f4135c",
+      "findings": [
+        "Scratch clone of 6994217 with a simulated release commit and local v0.1.0 tag: build-core, build:web and package-web.py --tag v0.1.0 passed; runtime SHA-256 0d86c4b68782493aaac3b622ff1a7f7bddc4c3494b87a86b7604e04e1967c026 and core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 match this record; the release workflow's checksum and notice/source guards passed.",
+        "Rebuilding the Wasm core and Vite output from the extracted source archive (no Git metadata) gave a byte-identical build/web. Caveat: that rebuild reused the already installed node_modules and Emscripten SDK (build/emsdk) rather than fetching them afresh.",
+        "Source archive: 809 files, equal to the tracked files at the tag plus RELEASE-MANIFEST.json.",
+        "Linker map members confirmed (libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1; 26 math members); Emscripten, LLVM, musl, Vite and fflate notices byte-identical to the installed copies; notice set unchanged from legacy-0.6.0 apart from the edited THIRD_PARTY_NOTICES.md.",
+        "ROM scan of the web zip, web tarball and source archive (including the source archive nested in the zip) for all nine fixture archives and their members, raw and base64 at three alignments: 0 hits."
+      ]
+    }
   },
   "excluded_components": [
     "Qt",

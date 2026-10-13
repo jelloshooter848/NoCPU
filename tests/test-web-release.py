@@ -117,10 +117,11 @@ class BrowserReleaseTests(unittest.TestCase):
 
     def test_passed_desktop_acceptance_names_actual_browsers_games_and_evidence(self):
         self.readiness['desktop_acceptance'].update(
-            status='passed', games=['pong'], evidence='build/evidence/report.json',
+            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
             browsers=[{'name': 'Chromium', 'version': '145.0.7632.6'}])
         self.write_readiness()
         self.assertEqual(web.verify_readiness(self.root, '0.2.0'), self.readiness)
+        self.assertEqual(web.verify_readiness(self.root, '0.2.0', self.digest), self.readiness)
         original = copy.deepcopy(self.readiness)
         changes = [
             lambda value: value.update(browsers=[]),
@@ -128,13 +129,26 @@ class BrowserReleaseTests(unittest.TestCase):
             lambda value: value.update(browsers=['Chromium']),
             lambda value: value.update(games=[]),
             lambda value: value.update(evidence=None),
+            lambda value: value.pop('runtime_sha256'),
+            lambda value: value.update(runtime_sha256='not-a-digest'),
         ]
         for change in changes:
             self.readiness = copy.deepcopy(original)
             change(self.readiness['desktop_acceptance'])
             self.write_readiness()
             with self.subTest(change=change), self.assertRaises(ValueError):
-                web.verify_readiness(self.root, '0.2.0')
+                web.verify_readiness(self.root, '0.2.0', self.digest)
+
+    def test_passed_desktop_acceptance_must_match_the_packaged_runtime(self):
+        self.readiness['desktop_acceptance'].update(
+            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
+            browsers=[{'name': 'Firefox', 'version': '140.0'}])
+        self.write_readiness()
+        (self.dist / 'assets/game.js').write_text('const paddle = 2;')
+        changed = web.runtime_digest(web.runtime_files(self.dist))
+        self.assertNotEqual(changed, self.digest)
+        with self.assertRaisesRegex(ValueError, 'packaged browser runtime'):
+            web.verify_readiness(self.root, '0.2.0', changed)
 
     def test_blocked_inconsistent_or_device_gated_readiness_rejected(self):
         changes = [
@@ -142,6 +156,8 @@ class BrowserReleaseTests(unittest.TestCase):
             lambda value: value.update(blockers=['Desktop checks pending']),
             lambda value: value.update(schema_version=1),
             lambda value: value.update(version='0.1.0'),
+            lambda value: value.update(release_scope=''),
+            lambda value: value.pop('release_scope'),
             lambda value: value.pop('physical_device_gate'),
             lambda value: value['physical_device_gate'].update(status='required'),
             lambda value: value['physical_device_gate'].update(basis=''),

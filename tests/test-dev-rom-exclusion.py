@@ -19,6 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / 'build/web'
+REQUIRE_BUILD = False
 DEV_MARKERS = [b'__nocpu-dev-roms', b'importDevRoms', b'nocpu-dev-rom-fixtures']
 
 
@@ -35,6 +36,8 @@ def bundle():
 class ProductionBundleExcludesDevRoms(unittest.TestCase):
     def setUp(self):
         if not (DIST / 'index.html').is_file():
+            if REQUIRE_BUILD:
+                self.fail(f'no production build at {DIST}; --require-build forbids skipping')
             self.skipTest(f'no production build at {DIST}; run npm run build:web first')
         self.files = bundle()
 
@@ -72,7 +75,9 @@ class ProductionBundleExcludesDevRoms(unittest.TestCase):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dist', type=Path, help='production build directory (default build/web)')
+    parser.add_argument('--require-build', action='store_true', help='fail instead of skipping when the build is missing')
     args, rest = parser.parse_known_args()
+    REQUIRE_BUILD = args.require_build
     if args.dist:
         DIST = args.dist.resolve()
     unittest.main(argv=[sys.argv[0], '-v', *rest])

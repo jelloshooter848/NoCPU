@@ -219,8 +219,11 @@ def nonempty(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def verify_readiness(root: Path, version: str, *, require_ready: bool = True) -> dict:
-    """Check the desktop release readiness record; the physical-device gate stays deferred."""
+def verify_readiness(root: Path, version: str, digest: str | None = None, *, require_ready: bool = True) -> dict:
+    """Check the desktop release readiness record; the physical-device gate stays deferred.
+
+    With the packaged runtime digest, a passed desktop acceptance must name that exact runtime.
+    """
     readiness = json.loads((root / 'tests/release-readiness.json').read_text())
     if readiness.get('schema_version') != READINESS_SCHEMA or readiness.get('version') != version:
         raise ValueError('Release readiness schema/version mismatch')
@@ -230,6 +233,8 @@ def verify_readiness(root: Path, version: str, *, require_ready: bool = True) ->
         raise ValueError('Release readiness cannot be ready while blockers remain')
     if any(not nonempty(blocker) for blocker in readiness['blockers']):
         raise ValueError('Release readiness blockers must be non-empty text')
+    if not nonempty(readiness.get('release_scope')):
+        raise ValueError('Release readiness must state its release scope')
     device = readiness.get('physical_device_gate')
     if not isinstance(device, dict) or device.get('status') != 'deferred' or not nonempty(device.get('basis')):
         raise ValueError('The physical-device gate must be recorded as deferred with its basis (AGENTS.md)')
@@ -246,6 +251,11 @@ def verify_readiness(root: Path, version: str, *, require_ready: bool = True) ->
         if not browsers or any(not isinstance(browser, dict) or not nonempty(browser.get('name'))
                                or not nonempty(browser.get('version')) for browser in browsers):
             raise ValueError('Passed desktop acceptance must name each actual browser and version')
+        accepted = desktop.get('runtime_sha256')
+        if not isinstance(accepted, str) or not re.fullmatch(r'[a-f0-9]{64}', accepted):
+            raise ValueError('Passed desktop acceptance must record the accepted runtime_sha256')
+        if digest is not None and accepted != digest:
+            raise ValueError('Desktop acceptance does not match the packaged browser runtime')
     elif browsers:
         raise ValueError('Pending desktop acceptance may not list browsers as accepted')
     if require_ready and (not readiness['release_ready'] or readiness['blockers']):
@@ -339,7 +349,7 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
     # verification trees and other producers' shared core copies stay intact.
     verification = output_dir.parent / (output_dir.name + '-source-verification') / 'source'
     core_provenance, frontend_provenance = verify_build_provenance(root, browser_dir, files, verification_dir=verification)
-    readiness = verify_readiness(root, version, require_ready=not preview)
+    readiness = verify_readiness(root, version, digest, require_ready=not preview)
     if not preview:
         source.release_notes(root, version)  # A final build needs its dated changelog section.
     commit, tree_state = source_identity(root, not preview, tag)

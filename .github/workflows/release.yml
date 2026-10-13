@@ -148,7 +148,9 @@ jobs:
     - resolve
     - verify
     - publish
-    if: github.repository == 'jelloshooter848/NoCPU' && startsWith(needs.resolve.outputs.tag, 'v')
+    # Pre-release tags (any tag containing '-', such as v0.3.0-rc.1) publish a GitHub pre-release
+    # with the same assets but never replace the stable Pages site.
+    if: github.repository == 'jelloshooter848/NoCPU' && startsWith(needs.resolve.outputs.tag, 'v') && !contains(needs.resolve.outputs.tag, '-')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
