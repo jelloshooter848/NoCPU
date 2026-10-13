@@ -50,8 +50,8 @@ requires the version fields in `package.json`, `package-lock.json`,
 `tests/release-readiness.json` and `tests/browser-license-audit.json` to match
 it, so a version bump updates those fields in the same commit.
 
-The About panel will show the build string (Phase 2 of the 0.1.0 milestone
-implements the UI):
+The About panel will show the build string (the Phase 2 desktop UI, a 0.1.x
+patch release, implements it; 0.1.0 still shows `buildId`):
 
 - a build packaged from a release tag shows **`vX.Y.Z`** (or `vX.Y.Z-rc.N`);
 - any other build (local development, CI, the working branch) shows
@@ -259,12 +259,18 @@ Native executables and toolchain containers are outside this browser
 distribution assessment; publishing them needs a separate dependency and
 license inventory.
 
-## Known gaps before the first restarted release
+## Release readiness record
 
-- `tools/package-web.py --tag` still enforces the legacy physical-device gate
-  in [release-readiness.json](../tests/release-readiness.json). The roadmap's
-  0.1.0 Phase 2 removes that gate; until it does, a release run fails at
-  packaging, so no release tag should be created before then.
-- The browser license audit is not ready: its assessment was made for legacy
-  0.6.0 and must be redone for the actual 0.1.0 output (roadmap 0.1.0 step 5).
-  Until then browser packaging refuses to build a release.
+[tests/release-readiness.json](../tests/release-readiness.json) states what a
+release claims, and `tools/package-web.py --tag` refuses to package unless it
+is `release_ready` with no blockers for the current `VERSION`:
+
+- `desktop_acceptance` is `pending` or `passed`. `passed` names the games, the
+  actual desktop browsers and versions, and the evidence; `pending` lists none
+  and says where the work is scheduled. The 0.1.0 reset baseline ships with
+  `pending`: it makes no desktop accuracy claim.
+- `physical_device_gate` is always `deferred`. Phone qualification and other
+  physical-device checks are post-accuracy work (AGENTS.md) and never gate a
+  desktop release. The legacy device gate is history at tag `legacy-0.6.0`.
+
+The packaged `BUILD-MANIFEST.json` carries the record as `release_readiness`.

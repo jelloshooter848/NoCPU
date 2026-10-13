@@ -1,67 +1,18 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "version": "0.1.0",
-  "release_stage": "preview",
-  "release_ready": false,
-  "runtime_sha256": null,
-  "blockers": [
-    "Restarted 0.1.0 desktop-first runtime: desktop browser acceptance (original/native/Wasm comparison and desktop browser checks for the selected games) is pending. Physical phone qualification is deferred to the post-1.0 mobile phase and does not gate desktop milestones; the device entries below are retained legacy schema fields pending Phase 2 removal of the physical-device release gate."
-  ],
-  "devices": [
-    {
-      "platform": "Android",
-      "status": "pending",
-      "physical": true,
-      "model": null,
-      "os_version": null,
-      "browser": null,
-      "browser_version": null,
-      "tested_at": null,
-      "build_id": null,
-      "runtime_sha256": null,
-      "checks": {},
-      "performance": null,
-      "evidence": null
-    },
-    {
-      "platform": "iPhone",
-      "status": "pending",
-      "physical": true,
-      "model": null,
-      "os_version": null,
-      "browser": null,
-      "browser_version": null,
-      "tested_at": null,
-      "build_id": null,
-      "runtime_sha256": null,
-      "checks": {},
-      "performance": null,
-      "evidence": null
-    }
-  ],
-  "required_checks": [
-    "coin_starts_play",
-    "independent_simultaneous_touch_paddles",
-    "ball_contacts_and_scoring",
-    "audible_circuit_sound",
-    "pause_resume_and_reset",
-    "mute_unmute_and_audio_recovery",
-    "portrait_landscape_layout",
-    "touch_cancel_and_background_recovery"
-  ],
-  "performance_requirements": {
-    "minimum_session_seconds": 600,
-    "minimum_simulation_speed_ratio": 0.95,
-    "record": [
-      "session_seconds",
-      "simulation_seconds",
-      "wall_seconds",
-      "simulation_speed_ratio",
-      "frame_pacing",
-      "audio_underruns",
-      "memory_start_bytes",
-      "memory_end_bytes",
-      "input_response"
-    ]
+  "release_ready": true,
+  "blockers": [],
+  "release_scope": "0.1.0 reset baseline (owner decision 2026-10-13): the restarted line's rules, release process and ROM tooling, with the legacy browser UI still in place. It makes no desktop accuracy claim; the remaining reset work ships as 0.1.x patch releases.",
+  "desktop_acceptance": {
+    "status": "pending",
+    "scope": "Original/native/Wasm comparisons for the six ported games (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) re-run against the reduced desktop frontend, plus the desktop browser checks in docs/TESTING.md in at least Chrome and Firefox. Scheduled for the 0.1.x patch releases (docs/ROADMAP.md).",
+    "games": [],
+    "browsers": [],
+    "evidence": null
+  },
+  "physical_device_gate": {
+    "status": "deferred",
+    "basis": "AGENTS.md and docs/ROADMAP.md: mobile/touch UI, phone device qualification, iPhone Home Screen/PWA support and any physical-device gate are deferred to the post-accuracy phase and do not gate desktop releases. The legacy device gate is history at tag legacy-0.6.0."
   }
 }

@@ -126,10 +126,11 @@ jobs:
         if shutil.disk_usage('.').free<1024**3: raise SystemExit('Evidence reserve breached at completion; retained evidence')
         raise SystemExit(process.returncode)
         PY_SPACE
-    - name: Record selected-title private gameplay as explicitly skipped in public CI
-      run: python3 -c 'import json,pathlib; pathlib.Path("build/selected-private-fixture-status.json").write_text(json.dumps({"games":["stuntcycle","indy4"],"actual_private_fixture_gameplay":"skipped","reason":"Public
-        CI has no authorized cross-repository fixture access; mandatory independently reviewed exact-source private local
-        gates remain separate."},indent=2)+"\n")'
+    - name: Record that this job does not run the ROM-backed Stunt Cycle/Indy 4 comparisons
+      run: python3 -c 'import json,pathlib; pathlib.Path("build/selected-private-fixture-status.json").write_text(json.dumps({"games":["stuntcycle","indy4"],"private_fixture_comparison_in_this_job":"skipped","reason":"This
+        job has no ROM fixture access. The ROM-backed original/native/Wasm comparisons run in the separate ROM-backed
+        validation workflow (.github/workflows/rom-validation.yml) when the NOCPU_ROMS_TOKEN secret is configured, and
+        are reported there as blocked, not passed, when it is absent."},indent=2)+"\n")'
     - name: Bind the five tested Wasm transfer files to this exact clean checkout
       run: python3 tools/core-handoff.py --write build/core/core-transfer.json
     - name: Upload the exact-run tested core transfer

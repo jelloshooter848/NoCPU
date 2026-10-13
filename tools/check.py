@@ -189,7 +189,7 @@ def verify_license_notices(root: Path) -> list[str]:
 
 
 def verify_browser_metadata(root: Path, version: str) -> list[str]:
-    """Allow honest pending phone/license gates while checking retained notice integrity."""
+    """Allow honest pending license/desktop gates while checking notice integrity and the readiness record."""
     errors = []
     required = ('package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'playwright.config.ts',
                 'tools/package-web.py', 'tools/build-core.sh', 'tests/browser-license-audit.json',
@@ -203,13 +203,7 @@ def verify_browser_metadata(root: Path, version: str) -> list[str]:
     spec.loader.exec_module(module)
     try:
         module.verify_browser_license(root, version, require_ready=False)
-        readiness = json.loads((root / 'tests/release-readiness.json').read_text())
-        if readiness.get('schema_version') != 1 or readiness.get('version') != version:
-            errors.append('Browser release readiness schema/version mismatch')
-        if not isinstance(readiness.get('release_ready'), bool) or not isinstance(readiness.get('blockers'), list):
-            errors.append('Invalid browser release readiness fields')
-        elif readiness['release_ready'] and readiness['blockers']:
-            errors.append('Browser release cannot be ready while blockers remain')
+        module.verify_readiness(root, version, require_ready=False)
         package = json.loads((root / 'package.json').read_text())
         lock = json.loads((root / 'package-lock.json').read_text())
         if package.get('version') != version or lock.get('version') != version or lock.get('packages', {}).get('', {}).get('version') != version:

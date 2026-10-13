@@ -57,9 +57,9 @@ comparison evidence from the legacy line:
 
 For Stunt Cycle and Indy 4 the legacy [0.6.0 ledger](legacy/0.6.0_VALIDATION.md)
 accepted the complete original/native/Wasm comparison gate, but their browser
-and delivery gates were still open when the legacy line ended. 0.1.0 re-runs
-all six comparisons against the reduced desktop frontend rather than inheriting
-browser passes.
+and delivery gates were still open when the legacy line ended. The 0.1.x patch
+releases re-run all six comparisons against the reduced desktop frontend rather
+than inheriting browser passes.
 
 Fifteen titles remain unported:
 
@@ -72,14 +72,18 @@ rotation and audio hookups, and [ROMS.md](ROMS.md) for ROM requirements.
 ## Milestones
 
 Each milestone is a **minor release** (0.2.0, 0.3.0, …) once its game batch or
-goal passes its comparisons. Patch releases (0.2.1, …) ship in between for
+goal passes its comparisons; the remaining reset work after the 0.1.0 baseline
+ships as 0.1.x patch releases. Patch releases (0.2.1, …) ship in between for
 fixes, tooling, docs and UI, and `-rc.N` release candidates give testers a
 build before a release. [RELEASING.md](RELEASING.md) has the version rules and
 the release steps.
 
 | Milestone | Release | Status |
 | --- | --- | --- |
-| Desktop-first reset | 0.1.0 | In progress |
+| Reset baseline | 0.1.0 | In review |
+| Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | Planned |
+| Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | Planned |
+| Remaining reset leftovers | 0.1.x patch | Planned |
 | ROM-free batch A | 0.2.0 | Planned |
 | ROM-free batch B | 0.3.0 | Planned |
 | Profiling and performance | 0.4.0 | Planned |
@@ -98,15 +102,25 @@ for core changes, the original/native/Wasm comparison for each playable game,
 and the desktop browser checks in [TESTING.md](TESTING.md). Desktop browser
 evidence names the actual browser and version.
 
-### 0.1.0 — Desktop-first reset
+### 0.1.0 — Reset baseline
 
-1. Rewrite the agent rules, roadmap and version (this phase).
-2. Remove mobile/touch controls, the phone qualification collector, Home Screen/PWA manifest and icons, physical-device release gates and the legacy release-process overhead, keeping the core, comparison harness, ROM/game audits and license/source packaging.
-3. Reduce the frontend to the minimal desktop interface above for the six ported circuits.
-4. Re-run original/native/Wasm comparisons for all six games and desktop browser checks in at least Chrome and Firefox.
-5. Refresh the browser component/notice/corresponding-source assessment for the actual 0.1.0 output before any publication.
+The first restarted release is the current working-branch content: the new
+agent rules, roadmap, release process and ROM tooling, with the legacy browser
+UI still in place. It makes no desktop accuracy claim.
 
-Exit: the six ported games are playable on desktop with keyboard/mouse, their comparisons pass, and any published build carries notices and matching source.
+1. Rewrite the agent rules, roadmap and version. (Done.)
+2. Replace the legacy physical-device release gate with a desktop release readiness record that keeps the device gate deferred. (Done.)
+3. Refresh the browser component/notice/corresponding-source assessment for the actual 0.1.0 output. (Done; see [BROWSER_DISTRIBUTION.md](BROWSER_DISTRIBUTION.md).)
+
+Exit: a `v0.1.0` tag passes the release workflow, and the published build carries notices and matching source.
+
+### 0.1.x — Reset completion (patch releases)
+
+1. Phase 2: remove mobile/touch controls, the phone qualification collector, Home Screen/PWA manifest and icons and the remaining legacy release-process overhead, keeping the core, comparison harness, ROM/game audits and license/source packaging; reduce the frontend to the minimal desktop interface above, including the About panel build string, for the six ported circuits.
+2. Re-run original/native/Wasm comparisons for all six games and desktop browser checks in at least Chrome and Firefox, and record desktop acceptance in the release readiness record.
+3. Any other reset leftovers.
+
+Exit: the six ported games are playable on desktop with keyboard/mouse, their comparisons pass, and each published build carries notices and matching source.
 
 ### 0.2.0 — ROM-free batch A
 
@@ -166,6 +180,8 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-12 — Frequent releases.** Patch releases for fixes, tooling, docs and UI; a minor release for each milestone whose game batch passes its comparisons; `-rc.N` for tester builds, replacing the legacy "preview" stage; 1.0.0 when all 21 games pass their accuracy comparisons on desktop.
 - **2026-10-12 — Owner creates release tags.** Agents cannot push tags. After a release pull request merges, the owner creates an annotated `vX.Y.Z` tag or a GitHub release on the merge commit. Tags are never moved; a failed release is fixed with the next patch release.
 - **2026-10-12 — ROM fixtures from a private repository.** ROM fixtures come from the private repository `jelloshooter848/NoCPU-Roms`, for development and CI only. Agents fetch them into ignored local storage; CI reads them with a read-only secret; the local development server may load them automatically. They are never in published builds. In-app loading from the private repository (with a player-supplied GitHub token) is deferred and not authorized: the owner will reconsider it later. The fetch tooling and CI wiring are pending.
+- **2026-10-13 — 0.1.0 is the reset baseline.** 0.1.0 ships soon as the current working-branch content: the new rules, process and ROM tooling, with the legacy browser UI still in place. The remaining reset work lands as 0.1.x patch releases: Phase 2 (mobile, touch and device qualification removed; minimal desktop UI with a build string), the original/native/Wasm comparisons re-run for all six ported games, and any leftovers. The 0.2.0 and later milestones are unchanged.
+- **2026-10-13 — 0.2.0 stays the first ROM-free batch.** 0.2.0 remains ROM-free batch A (Rebound, Gotcha, Quadrapong, Crossfire); the later milestones are unchanged.
 
 ## After 1.0
 

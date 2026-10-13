@@ -13,7 +13,8 @@ releases below.
 
 ## [Unreleased]
 
-Work towards 0.1.0, the desktop-first reset. No build of the restarted line has been published yet.
+The first release of the restarted desktop-first line is 0.1.0, a baseline: it keeps the legacy
+browser app while the desktop interface and the renewed accuracy checks follow in 0.1.x updates.
 
 ### Added
 
@@ -25,11 +26,13 @@ Work towards 0.1.0, the desktop-first reset. No build of the restarted line has 
 
 - NoCPU restarts desktop-first. The goal for 1.0 is all 21 DICE 0.9 games playing accurately in a
   desktop browser with keyboard and mouse, and version numbers start again at 0.1.0.
+- The app is still the legacy browser app. Its phone and touch play, phone testing and iPhone Home
+  Screen install are no longer maintained: they are set aside until every game plays accurately on
+  desktop, and a 0.1.x update replaces them with a minimal desktop interface. The last legacy build
+  (tag `legacy-0.6.0`) keeps them.
 - The six games carried over from the legacy line (Pong, Pong Doubles, Space Race, Breakout, Stunt
-  Cycle and Indy 4) are checked again against the original DICE before 0.1.0 ships, instead of
-  relying on the legacy results.
-- Phone and touch play, phone testing and iPhone Home Screen install are set aside until every game
-  plays accurately on desktop. The last legacy build (tag `legacy-0.6.0`) keeps them.
+  Cycle and Indy 4) are checked again against the original DICE in the 0.1.x updates, instead of
+  relying on the legacy results. 0.1.0 makes no new accuracy claim for them.
 
 ### Removed
 

@@ -88,11 +88,13 @@ source-package audit does not clear redistribution of a toolchain container.
 ROM images and game trademarks are not licensed by DICE's GPL grant. Private
 test ROMs are excluded from this repository and its release archives.
 
-## Pong browser runtime
+## Browser runtime
 
-The 0.2.0 Pong port retains DICE's simulation and replaces native input,
-presentation and device-audio access with maintained adapters. The separately
-reviewed [browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) and
+The browser build compiles DICE's Pong, Pong Doubles, Space Race, Breakout,
+Stunt Cycle and Indy 4 circuits to WebAssembly, retaining DICE's simulation and
+replacing native input, presentation and device-audio access with maintained
+adapters. The separately reviewed
+[browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) and
 [`tests/browser-license-audit.json`](tests/browser-license-audit.json) cover the
 exact compiled browser artifact; the original source inventory above does not
 mean every archived GUI or device library is linked into it.
@@ -101,7 +103,8 @@ The browser build uses the following retained permissive runtime notices:
 
 | Component | Author attribution and terms | Complete retained notices |
 | --- | --- | --- |
-| Emscripten 3.1.74 generated JavaScript and runtime support | Emscripten authors; MIT option of MIT/NCSA dual license | [LICENSE](docs/licenses/Emscripten-3.1.74-LICENSE.txt) and [AUTHORS](docs/licenses/Emscripten-3.1.74-AUTHORS.txt) |
+| Emscripten 3.1.74 generated JavaScript and runtime support | Emscripten authors; MIT option of MIT/NCSA dual license | [LICENSE](docs/licenses/Emscripten-3.1.74-LICENSE.txt), [AUTHORS](docs/licenses/Emscripten-3.1.74-AUTHORS.txt) and [runtime source headers](docs/licenses/Emscripten-3.1.74-RUNTIME-NOTICES.txt) |
+| dlmalloc 2.8.6 allocator, as bundled with Emscripten 3.1.74 | Doug Lea; public-domain (CC0) dedication, Emscripten changes MIT | [Retained dedication](docs/licenses/dlmalloc-2.8.6-NOTICE.txt) |
 | LLVM libc++ | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-libcxx-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-libcxx-3.1.74-CREDITS.txt) |
 | LLVM libc++abi | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt) |
 | LLVM compiler-rt | LLVM Project contributors; Apache 2.0 with LLVM exception, including retained historical alternatives | [LICENSE](docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt) and [CREDITS](docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt) |

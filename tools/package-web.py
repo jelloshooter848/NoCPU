@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package tested Pong browser assets with matching source and distribution notices."""
+"""Package tested browser assets with matching source, distribution notices and the release readiness record."""
 from __future__ import annotations
 
 import argparse
@@ -11,7 +11,6 @@ import zipfile
 import hashlib
 import importlib.util
 import json
-import math
 import os
 import re
 import shutil
@@ -23,11 +22,11 @@ from urllib.parse import quote, unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_SUFFIXES = {'.html', '.js', '.mjs', '.css', '.wasm', '.svg', '.png', '.ico', '.webmanifest', '.json'}
 RESERVED_NAMES = {'BUILD-MANIFEST.json', '.git', '.env'}
-REQUIRED_CHECKS = {
-    'coin_starts_play', 'independent_simultaneous_touch_paddles', 'ball_contacts_and_scoring',
-    'audible_circuit_sound', 'pause_resume_and_reset', 'mute_unmute_and_audio_recovery',
-    'portrait_landscape_layout', 'touch_cancel_and_background_recovery',
-}
+# The release readiness record (tests/release-readiness.json) states desktop acceptance honestly.
+# The legacy physical-device gate is deferred to the post-accuracy mobile phase (AGENTS.md); it is
+# recorded as deferred and never gates a desktop release.
+READINESS_SCHEMA = 2
+DESKTOP_STATUSES = {'pending', 'passed'}
 BASE_NOTICES = {'LICENSE', 'THIRD_PARTY_NOTICES.md'}
 COMPILED_NOTICES = {
     'docs/licenses/Emscripten-3.1.74-AUTHORS.txt', 'docs/licenses/Emscripten-3.1.74-LICENSE.txt',
@@ -216,54 +215,41 @@ def verify_build_provenance(root: Path, directory: Path, files: list[dict], *, v
     return core, frontend
 
 
-def finite_number(value, label: str, minimum: float = 0) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < minimum:
-        raise ValueError(f'Invalid physical-device measurement: {label}')
-    return float(value)
+def nonempty(value) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
-def verify_readiness(root: Path, version: str, digest: str) -> dict:
+def verify_readiness(root: Path, version: str, *, require_ready: bool = True) -> dict:
+    """Check the desktop release readiness record; the physical-device gate stays deferred."""
     readiness = json.loads((root / 'tests/release-readiness.json').read_text())
-    if readiness.get('schema_version') != 1 or readiness.get('version') != version:
+    if readiness.get('schema_version') != READINESS_SCHEMA or readiness.get('version') != version:
         raise ValueError('Release readiness schema/version mismatch')
-    if readiness.get('release_stage') != 'release' or readiness.get('release_ready') is not True or readiness.get('blockers') != []:
-        raise ValueError('Final release blocked by physical-device readiness')
-    if readiness.get('runtime_sha256') != digest:
-        raise ValueError('Physical-device evidence does not match the complete browser runtime')
-    if not REQUIRED_CHECKS.issubset(set(readiness.get('required_checks', []))):
-        raise ValueError('Release readiness omits required physical-device checks')
-    devices = readiness.get('devices')
-    if not isinstance(devices, list):
-        raise ValueError('Missing physical-device evidence')
-    for platform in ('Android', 'iPhone'):
-        matches = [device for device in devices if device.get('platform') == platform]
-        if len(matches) != 1:
-            raise ValueError(f'Exactly one qualified {platform} result is required')
-        device = matches[0]
-        if device.get('physical') is not True or device.get('status') != 'passed' or device.get('runtime_sha256') != digest:
-            raise ValueError(f'Unqualified or stale physical {platform} result')
-        for name in ('model', 'os_version', 'browser', 'browser_version', 'tested_at', 'build_id', 'evidence'):
-            if not isinstance(device.get(name), str) or not device[name].strip():
-                raise ValueError(f'Missing {platform} evidence field: {name}')
-        accepted_browsers = {'chrome', 'google chrome'} if platform == 'Android' else {'safari', 'mobile safari'}
-        if device['browser'].strip().casefold() not in accepted_browsers:
-            raise ValueError(f'Required physical browser was not tested: {platform} ' + ('Chrome' if platform == 'Android' else 'Safari'))
-        if any(device.get('checks', {}).get(name) is not True for name in REQUIRED_CHECKS):
-            raise ValueError(f'Missing successful {platform} play/control/audio checks')
-        performance = device.get('performance')
-        if not isinstance(performance, dict):
-            raise ValueError(f'Missing {platform} performance evidence')
-        session = finite_number(performance.get('session_seconds'), 'session_seconds', 600)
-        simulation = finite_number(performance.get('simulation_seconds'), 'simulation_seconds')
-        wall = finite_number(performance.get('wall_seconds'), 'wall_seconds', 600)
-        ratio = finite_number(performance.get('simulation_speed_ratio'), 'simulation_speed_ratio', 0.95)
-        if abs(ratio - simulation / wall) > 0.01 or session < wall:
-            raise ValueError(f'Inconsistent {platform} sustained performance evidence')
-        for name in ('memory_start_bytes', 'memory_end_bytes', 'audio_underruns'):
-            finite_number(performance.get(name), name)
-        for name in ('frame_pacing', 'input_response'):
-            if not isinstance(performance.get(name), str) or not performance[name].strip():
-                raise ValueError(f'Missing {platform} measurement: {name}')
+    if not isinstance(readiness.get('release_ready'), bool) or not isinstance(readiness.get('blockers'), list):
+        raise ValueError('Invalid release readiness fields')
+    if readiness['release_ready'] and readiness['blockers']:
+        raise ValueError('Release readiness cannot be ready while blockers remain')
+    if any(not nonempty(blocker) for blocker in readiness['blockers']):
+        raise ValueError('Release readiness blockers must be non-empty text')
+    device = readiness.get('physical_device_gate')
+    if not isinstance(device, dict) or device.get('status') != 'deferred' or not nonempty(device.get('basis')):
+        raise ValueError('The physical-device gate must be recorded as deferred with its basis (AGENTS.md)')
+    desktop = readiness.get('desktop_acceptance')
+    if not isinstance(desktop, dict) or desktop.get('status') not in DESKTOP_STATUSES or not nonempty(desktop.get('scope')):
+        raise ValueError('Release readiness must state desktop acceptance status (pending or passed) and scope')
+    browsers, games = desktop.get('browsers'), desktop.get('games')
+    if not isinstance(browsers, list) or not isinstance(games, list):
+        raise ValueError('Desktop acceptance must list its browsers and games')
+    if desktop['status'] == 'passed':
+        # A desktop acceptance claim names the actual browsers/versions, games and evidence.
+        if not games or not all(nonempty(game) for game in games) or not nonempty(desktop.get('evidence')):
+            raise ValueError('Passed desktop acceptance requires its games and evidence')
+        if not browsers or any(not isinstance(browser, dict) or not nonempty(browser.get('name'))
+                               or not nonempty(browser.get('version')) for browser in browsers):
+            raise ValueError('Passed desktop acceptance must name each actual browser and version')
+    elif browsers:
+        raise ValueError('Pending desktop acceptance may not list browsers as accepted')
+    if require_ready and (not readiness['release_ready'] or readiness['blockers']):
+        raise ValueError('Release blocked by the release readiness record')
     return readiness
 
 
@@ -353,9 +339,8 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
     # verification trees and other producers' shared core copies stay intact.
     verification = output_dir.parent / (output_dir.name + '-source-verification') / 'source'
     core_provenance, frontend_provenance = verify_build_provenance(root, browser_dir, files, verification_dir=verification)
-    readiness = json.loads((root / 'tests/release-readiness.json').read_text())
+    readiness = verify_readiness(root, version, require_ready=not preview)
     if not preview:
-        readiness = verify_readiness(root, version, digest)
         source.release_notes(root, version)  # A final build needs its dated changelog section.
     commit, tree_state = source_identity(root, not preview, tag)
     # Validate all source payloads before writing a publishable directory.
@@ -385,7 +370,7 @@ def package_web(root: Path, browser_dir: Path, output_dir: Path, preview: bool, 
         'runtime_sha256': digest, 'runtime_files': files,
         'source_archive': {'path': source_path, 'sha256': archive_digest},
         'license_assessment': 'notices/browser-license-audit.json',
-        'physical_device_readiness': readiness,
+        'release_readiness': readiness,
         'files': [],
     }
     manifest['files'] = [

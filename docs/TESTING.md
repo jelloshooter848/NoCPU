@@ -243,6 +243,9 @@ packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
 [0.5.0 validation](legacy/0.5.0_VALIDATION.md) records publication and hardware limits;
 no collector export or automated profile completes the actual-device gate by
 itself.
+These packets are legacy records: the restarted line's release readiness
+record keeps the physical-device gate deferred, and it does not gate releases
+(see [RELEASING.md](RELEASING.md#release-readiness-record)).
 
 The Pages packager supplies source downloads/notices omitted from an ordinary
 Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged
