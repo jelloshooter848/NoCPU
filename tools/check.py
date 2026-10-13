@@ -13,18 +13,29 @@ import sys
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 FORBIDDEN_SUFFIXES = {".zip", ".rom", ".bin", ".7z", ".rar", ".gz", ".xz", ".bz2", ".tgz", ".tbz2", ".txz", ".exe", ".dll", ".so", ".dylib", ".o", ".a", ".wasm"}
 IGNORED_DIRS = {"build", "dist", ".cache", "__pycache__", ".vscode", ".idea", "node_modules", "playwright-report", "test-results"}
 GENERATED_PATHS = {"web/public/core"}
 REQUIRED = (
     "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "CONTRIBUTING.md", "AGENTS.md",
     "VERSION", ".gitignore", ".gitattributes", "Makefile", "docs/PROVENANCE.md", "docs/ROADMAP.md", "docs/TESTING.md",
-    "docs/RELEASING.md", "tests/source-manifest.json", "tests/license-audit.json",
+    "docs/RELEASING.md", "tools/release_check.py", "tests/source-manifest.json", "tests/license-audit.json",
     "tests/fixtures/game-manifest.json", "tools/audit-games.py", "tools/audit-roms.py",
     "tools/build-native.sh", "tools/capture-pong.sh", "tools/package-release.py",
     ".github/workflows/ci.yml", ".github/workflows/release.yml",
 )
+
+
+def load_release_check():
+    """Import the VERSION/CHANGELOG rules shared with tools/release_check.py."""
+    spec = importlib.util.spec_from_file_location("release_check", Path(__file__).resolve().parent / "release_check.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+release_check = load_release_check()
 
 
 def sha256(path: Path) -> str:
@@ -178,7 +189,7 @@ def verify_license_notices(root: Path) -> list[str]:
 
 
 def verify_browser_metadata(root: Path, version: str) -> list[str]:
-    """Allow honest pending phone/license gates while checking retained notice integrity."""
+    """Allow honest pending license/desktop gates while checking notice integrity and the readiness record."""
     errors = []
     required = ('package.json', 'package-lock.json', 'vite.config.ts', 'tsconfig.json', 'playwright.config.ts',
                 'tools/package-web.py', 'tools/build-core.sh', 'tests/browser-license-audit.json',
@@ -192,13 +203,7 @@ def verify_browser_metadata(root: Path, version: str) -> list[str]:
     spec.loader.exec_module(module)
     try:
         module.verify_browser_license(root, version, require_ready=False)
-        readiness = json.loads((root / 'tests/release-readiness.json').read_text())
-        if readiness.get('schema_version') != 1 or readiness.get('version') != version:
-            errors.append('Browser release readiness schema/version mismatch')
-        if not isinstance(readiness.get('release_ready'), bool) or not isinstance(readiness.get('blockers'), list):
-            errors.append('Invalid browser release readiness fields')
-        elif readiness['release_ready'] and readiness['blockers']:
-            errors.append('Browser release cannot be ready while blockers remain')
+        module.verify_readiness(root, version, require_ready=False)
         package = json.loads((root / 'package.json').read_text())
         lock = json.loads((root / 'package-lock.json').read_text())
         if package.get('version') != version or lock.get('version') != version or lock.get('packages', {}).get('', {}).get('version') != version:
@@ -211,17 +216,17 @@ def verify_browser_metadata(root: Path, version: str) -> list[str]:
 def main() -> int:
     version = ""
     errors = [f"Required repository file missing: {name}" for name in REQUIRED if not (ROOT / name).is_file()]
-    if (ROOT / "VERSION").is_file():
+    if (ROOT / "VERSION").is_file() and (ROOT / "CHANGELOG.md").is_file():
         version = (ROOT / "VERSION").read_text().strip()
-        if not VERSION_RE.fullmatch(version):
-            errors.append("VERSION must contain a three-part numeric version")
-        elif (ROOT / "CHANGELOG.md").is_file() and not re.search(rf"^## {re.escape(version)}(?:\s+—[^\n]*)?$", (ROOT / "CHANGELOG.md").read_text(), re.MULTILINE):
-            errors.append("CHANGELOG.md lacks the current version entry")
+        release_errors, _ = release_check.check_release(version, (ROOT / "CHANGELOG.md").read_text())
+        errors.extend(release_errors)
     try:
         errors.extend(verify_source(ROOT))
         errors.extend(verify_payloads(ROOT))
         errors.extend(verify_license_notices(ROOT))
-        if VERSION_RE.fullmatch(version) and tuple(map(int, version.split("."))) >= (0, 2, 0):
+        # The restarted desktop-first line ships a browser build from 0.1.0, so
+        # browser metadata (which reports missing foundation files) always applies.
+        if release_check.is_semver(version):
             errors.extend(verify_browser_metadata(ROOT, version))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         errors.append(f"Repository metadata check failed: {exc}")

@@ -10,8 +10,8 @@
 | Native reference build | `tools/`, generated `build/native/` | Build a fresh copy using the unchanged original Makefile with the isolated historical compiler/Qt/SDL toolchain; no source patch or extra compiler flags |
 | Instrumented reference adapter | `tools/reference/apply_adapter.py`, generated `build/reference/` | Deterministic input and observation for replay measurements; a separately identified instrumented build |
 | Portable Pong adapter | `tools/prepare-core.py`, `core/`, generated `build/core/source/` | Substitute platform display/input/audio boundaries, expose a bounded native/Wasm ABI and restore fresh-machine reset state; exact changes and comparison scope are recorded in [PORT_PONG.md](PORT_PONG.md) |
-| Selected six-circuit/ROM adapter (0.6.0 in development) | `tools/prepare-core.py`, `core/platform/portable_rom.cpp`, `core/platform/rom_session.h`, `core/api.cpp` | Add original Stunt Cycle/Indy 4 and required chip compilation, exact-descriptor owned ROM lookup, cold descriptor restoration and original DIP/pot configuration. ABI 4 retains earlier IDs/exports. No archive parsing, network ROM fetch, netlist rewriting or replacement audio; actual acceptance remains in [0.6.0_VALIDATION.md](0.6.0_VALIDATION.md). |
-| Selected observation lifetime repair (0.6.0 in development) | `tools/prepare-core.py`, `tools/reference/apply_adapter.py`, maintained observation hooks | Unregister observed nodes before original pruning deletes them and fail closed when required selected pins are unavailable. Stunt Cycle GOOD_JUMP observes the logical inverse of live K7.6 rather than retaining the deleted K7.5 output. This changes observation ownership, not the scheduler or netlist; compromised pilot telemetry requires fresh execution and cannot qualify gameplay. |
+| Six-circuit/ROM adapter (added in legacy 0.6.0; carried into restarted 0.1.0) | `tools/prepare-core.py`, `core/platform/portable_rom.cpp`, `core/platform/rom_session.h`, `core/api.cpp` | Add original Stunt Cycle/Indy 4 and required chip compilation, exact-descriptor owned ROM lookup, cold descriptor restoration and original DIP/pot configuration. ABI 4 retains earlier IDs/exports. No archive parsing, network ROM fetch, netlist rewriting or replacement audio; actual acceptance remains in [0.6.0_VALIDATION.md](legacy/0.6.0_VALIDATION.md). |
+| Observation lifetime repair (added in legacy 0.6.0; carried into restarted 0.1.0) | `tools/prepare-core.py`, `tools/reference/apply_adapter.py`, maintained observation hooks | Unregister observed nodes before original pruning deletes them and fail closed when required selected pins are unavailable. Stunt Cycle GOOD_JUMP observes the logical inverse of live K7.6 rather than retaining the deleted K7.5 output. This changes observation ownership, not the scheduler or netlist; compromised pilot telemetry requires fresh execution and cannot qualify gameplay. |
 
 The reference adapter requires an exact single match for each source insertion
 and writes its complete text diff to ignored `build/reference/adapter.diff`.
@@ -47,7 +47,7 @@ descriptors for fresh reset and checks descriptor iteration bounds before
 reading. [PORT_PONG.md](PORT_PONG.md) documents every adaptation and its reason.
 The original fresh capture, adapted native and Wasm replay outputs match exactly
 in the reviewed scenario; that evidence is recorded in
-[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md) and does not establish physical-phone
+[0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md) and does not establish physical-phone
 playback or hardware fidelity.
 
 The original source was compared with DirtBagXon/DICE revision

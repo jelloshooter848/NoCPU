@@ -1,0 +1,82 @@
+name: ROM-backed validation
+# Private NoCPU-Roms fixtures for development/CI only. The fine-grained
+# read-only token is exposed to the fetch step alone. ROM ZIPs, staged
+# descriptors and ROM-derived frames/PCM stay on the runner; only payload-free
+# JSON reports are uploaded. Without the secret (including every fork pull
+# request) the validation job is skipped and reported as blocked, never passed.
+'on':
+  push:
+    branches:
+    - main
+    - restart/desktop-first
+  pull_request: null
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: rom-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  access:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      configured: ${{ steps.secret.outputs.configured }}
+    steps:
+    - name: Check private fixture access is configured
+      id: secret
+      env:
+        HAS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN != '' }}
+      run: |-
+        if [ "$HAS_TOKEN" = true ]; then
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'blocked: NOCPU_ROMS_TOKEN not configured'
+          echo '::warning title=ROM validation blocked::blocked: NOCPU_ROMS_TOKEN not configured; ROM-backed checks were skipped, not passed.'
+          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** ROM audit and Stunt Cycle/Indy 4 original/native/Wasm comparisons were skipped, not passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'configured=false' >> "$GITHUB_OUTPUT"
+        fi
+  rom-validation:
+    needs: access
+    if: needs.access.outputs.configured == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - name: Fetch and audit private ROM fixtures into ignored build/roms
+      env:
+        NOCPU_ROMS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN }}
+      run: ./tools/fetch-roms.sh
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned web compiler toolchain
+      run: ./tools/install-web-toolchain.sh
+    - name: Build original desktop reference
+      run: ./tools/build-native.sh --jobs 2
+    - name: Build portable native and Wasm cores
+      run: ./tools/build-core.sh all
+    - name: Compare ROM-backed Stunt Cycle and Indy 4 across original, native and Wasm
+      run: python3 tools/compare-rom-games.py
+    - name: Build the production frontend
+      run: npm run build:web
+    - name: Production bundle carries no dev ROM endpoint or fixture bytes
+      run: python3 tests/test-dev-rom-exclusion.py
+    - name: Collect payload-free reports only
+      if: always()
+      run: |-
+        mkdir -p build/rom-validation-reports
+        for report in build/rom-comparison/*/report.json; do
+          [ -f "$report" ] && cp "$report" "build/rom-validation-reports/$(basename "$(dirname "$report")")-report.json"
+        done
+        true
+    - name: Upload comparison reports (no ROMs, frames or audio)
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: rom-validation-reports-${{ github.sha }}-${{ github.run_attempt }}
+        path: build/rom-validation-reports/
+        if-no-files-found: warn
+        retention-days: 14

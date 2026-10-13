@@ -25,8 +25,8 @@ results apply separately to each tested pairing. Send no ROM bytes/private archi
 ## Required phone checks
 
 The existing rows below describe Pong. Copy one record per tested game/options
-and launch context; use the [0.4.0 three-game packet](DEVICE_QUALIFICATION_0.4.md)
-or [0.5.0 four-game/Home Screen draft](DEVICE_QUALIFICATION_0.5.md) for its actual
+and launch context; use the [0.4.0 three-game packet](legacy/DEVICE_QUALIFICATION_0.4.md)
+or [0.5.0 four-game/Home Screen draft](legacy/DEVICE_QUALIFICATION_0.5.md) for its actual
 runtime. Pong checks alone cannot qualify Doubles, Space Race or Breakout.
 Mixed-game metrics do not qualify a title; report installed-mode observations
 manually rather than assuming the JSON export proves them.

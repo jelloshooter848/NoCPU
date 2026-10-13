@@ -312,6 +312,13 @@ export function createSettingsUI(options: SettingsOptions) {
   renderBindings();
   renderOptions();
   void refreshRoms();
+  if (import.meta.env.DEV) {
+    void import('./dev-roms').then(({ importDevRoms }) => importDevRoms(library)).then((count) => {
+      if (!count) return;
+      romStatus.textContent = `Development server: ${count} local fixture ROM set${count === 1 ? '' : 's'} loaded for this session.`;
+      void refreshRoms();
+    });
+  }
   return {
     get preferences() { return preferences; },
     get capturing() { return !!capture; },

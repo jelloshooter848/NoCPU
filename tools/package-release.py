@@ -6,9 +6,9 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import importlib.util
 import io
 import json
-import re
 import subprocess
 import sys
 import tarfile
@@ -19,6 +19,15 @@ SOURCE_DIRS = {".github", "core", "docs", "tests", "tools", "upstream", "web", "
 ROOT_FILES = {"README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "CONTRIBUTING.md", "AGENTS.md", "VERSION", ".gitignore", ".gitattributes", "Makefile", "package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "playwright.config.ts"}
 SKIP_DIRS = {"__pycache__", ".cache", "node_modules", "playwright-report", "test-results"}
 GENERATED_PATHS = {"web/public/core"}
+def load_release_check():
+    spec = importlib.util.spec_from_file_location("release_check", Path(__file__).resolve().parent / "release_check.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+release_check = load_release_check()
 DENIED_SUFFIXES = {".zip", ".rom", ".bin", ".7z", ".rar", ".gz", ".xz", ".bz2", ".tgz", ".tbz2", ".txz", ".exe", ".dll", ".so", ".dylib", ".o", ".a", ".wasm", ".pyc", ".pyo", ".pem", ".key"}
 
 
@@ -52,7 +61,7 @@ def collect_files(root: Path) -> list[Path]:
 
 
 def check_tag(version: str, tag: str | None, candidate: bool) -> None:
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+    if not release_check.is_semver(version):
         raise ValueError("Invalid VERSION")
     if candidate:
         if tag:
@@ -61,16 +70,19 @@ def check_tag(version: str, tag: str | None, candidate: bool) -> None:
         raise ValueError(f"Release tag must match VERSION exactly: v{version}")
 
 
-def release_notes(root: Path, version: str) -> str:
+def release_notes(root: Path, version: str, *, unreleased_ok: bool = False) -> str:
+    """The dated `## [version] - YYYY-MM-DD` changelog section, heading included.
+
+    A local candidate or untagged build may instead carry the `## [Unreleased]` entries.
+    """
     changelog = (root / "CHANGELOG.md").read_text()
-    heading = re.search(rf"^## {re.escape(version)}(?:\s+—[^\n]*)?$", changelog, re.MULTILINE)
-    if not heading:
-        raise ValueError(f"Changelog lacks exact version heading: {version}")
-    remaining = changelog[heading.start():]
-    next_heading = re.search(r"^## ", remaining[heading.end() - heading.start():], re.MULTILINE)
-    if next_heading:
-        remaining = remaining[:heading.end() - heading.start() + next_heading.start()]
-    return remaining.strip() + "\n"
+    section = release_check.find_section(changelog, version)
+    if section is not None:
+        date, body = section
+        return f"## [{version}] - {date}\n\n{body}\n"
+    if unreleased_ok:
+        return f"## [Unreleased] (untagged {version} build)\n\n{release_check.unreleased_notes(changelog)}\n"
+    raise ValueError(f"Finalize the changelog: CHANGELOG.md lacks a dated ## [{version}] - YYYY-MM-DD section")
 
 
 def make_archive(root: Path, destination: Path, version: str, candidate: bool, *, artifact_type: str | None = None, source_commit: str | None = None) -> str:
@@ -120,9 +132,7 @@ def main() -> int:
         audit = json.loads((ROOT / "tests/license-audit.json").read_text())
         if not args.candidate and (not audit["release_ready"] or audit["blockers"]):
             raise ValueError("Source release blocked by license audit: " + "; ".join(audit["blockers"]))
-        notes = release_notes(ROOT, version)
-        if not args.candidate and "prepared locally" in notes.splitlines()[0].lower():
-            raise ValueError("Finalize the current CHANGELOG heading with the reviewed release date before source release")
+        notes = release_notes(ROOT, version, unreleased_ok=args.candidate)
         name = f"nocpu-{version}{'-candidate' if args.candidate else ''}-source.tar.gz"
         destination = args.output_dir.resolve() / name
         identity = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)

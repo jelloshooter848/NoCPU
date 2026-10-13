@@ -48,12 +48,13 @@ Browser/core tests below have additional prerequisites.
 
 ## Portable core and browser
 
-The selected [0.6.0 contract](0.6.0_TASKS.md) adds original Stunt Cycle and
-Indy 4, requiring compatible player-supplied ROMs. Reuse the existing pinned
-toolchain and frozen dependencies. The
-[0.6.0 validation ledger](0.6.0_VALIDATION.md) governs actual acceptance;
-the [six-game device packet](DEVICE_QUALIFICATION_0.6.md) retains separate
-physical and installed-mode evidence. All heavy execution has one owner;
+Restarted 0.1.0 acceptance follows the [roadmap](ROADMAP.md): original/native/Wasm
+comparisons for each compiled game plus desktop browser checks. Version-specific
+prose below is legacy-line content; rewrite pending Phase 2. The core compiles
+Stunt Cycle and Indy 4, which require compatible player-supplied ROMs; the legacy
+[0.6.0 ledger](legacy/0.6.0_VALIDATION.md) and
+[device packet](legacy/DEVICE_QUALIFICATION_0.6.md) are historical evidence only.
+Reuse the existing pinned toolchain and frozen dependencies. All heavy execution has one owner;
 do not run competing builds/captures or duplicate an active validator job.
 The new titles inherit missing active DICE audio hookups. Actual compatible
 fixtures are required for their gameplay/reference/browser launch coverage;
@@ -68,24 +69,24 @@ coexist with one original constructor zero sample. Measure initialization and
 ongoing counts separately, compare complete original/native/Wasm PCM without
 dropping/coercing samples, and keep physical speaker claims separate.
 
-The delivered [0.5.0 contract](0.5.0_TASKS.md) compiles original-derived Pong,
+The delivered [0.5.0 contract](legacy/0.5.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles, Space Race and Breakout with online Home Screen/standalone support.
 The complete sixteen-scenario original/native/Wasm batch, reset/ABI, components
 and matching-source delivery pass independent review. Exact-main full CI
 accounts for 290 instances: 281 passes/nine existing annotated CDP skips. All
 107 HTTP bodies and the separate 20 live cases pass, as recorded in
-[0.5.0 validation](0.5.0_VALIDATION.md). The [four-game/Home Screen physical
-packet](DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md). The [four-game/Home Screen physical
+packet](legacy/DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
 from browser emulation. Initial old-core Home checks and incomplete/scoped local
 matrices retain their recorded stage identities.
 
-The historical delivered [0.4.0 contract](0.4.0_TASKS.md) compiles original-derived Pong,
+The historical delivered [0.4.0 contract](legacy/0.4.0_TASKS.md) compiles original-derived Pong,
 Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
 and authorized proportionate local browser scopes pass independent review.
 The delivered preview also passes exact-main full-matrix CI (214 passed/six
 existing annotated CDP skips), matching-source/component review, every public
 file and all 15 selected live cases, as recorded in
-[0.4.0 validation](0.4.0_VALIDATION.md). Physical qualification remains pending.
+[0.4.0 validation](legacy/0.4.0_VALIDATION.md). Physical qualification remains pending.
 The older Pong
 instructions and measured results below retain their historical scope.
 
@@ -130,11 +131,11 @@ volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
 remapping, preferences and optional local ROM management. Only Pong is
 playable and requires no ROM import; compatibility/import results do not
 qualify the other twenty circuits in that historical preview. The later
-[0.3.1 preview](0.3.1_VALIDATION.md) adds the qualification recorder and remains
+[0.3.1 preview](legacy/0.3.1_VALIDATION.md) adds the qualification recorder and remains
 historical evidence. The public site now serves the independently verified
 four-game 0.5.0 preview described above; its exact deployed identity, software
 results and pending physical qualification are in
-[0.5.0 validation](0.5.0_VALIDATION.md).
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md).
 
 ### Original, portable-native and Wasm comparison
 
@@ -228,20 +229,23 @@ The configured projects cover Chromium, Firefox, WebKit, an emulated Android
 viewport and an emulated iPhone viewport. They exercise actual production Wasm
 loading and frontend behavior. An emulated phone viewport is not a physical
 phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
-audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](0.3.0_VALIDATION.md)
+audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](legacy/0.3.0_VALIDATION.md)
 records historical app-foundation qualification; the earlier public preview
 and partial actual-iPhone feedback remain in
-[0.2.1_VALIDATION.md](0.2.1_VALIDATION.md), and earlier checks remain in
-[0.2.0_VALIDATION.md](0.2.0_VALIDATION.md).
+[0.2.1_VALIDATION.md](legacy/0.2.1_VALIDATION.md), and earlier checks remain in
+[0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md).
 
-The current [four-game/Home Screen physical-device packet](DEVICE_QUALIFICATION_0.5.md)
+The current [four-game/Home Screen physical-device packet](legacy/DEVICE_QUALIFICATION_0.5.md)
 and [fillable report](DEVICE_REPORT_TEMPLATE.md) bind the selected title/options
 and actual phone/controller observations to the tested runtime. The historical
-[0.3.1 recorder report](0.3.1_VALIDATION.md) and [Pong baseline
+[0.3.1 recorder report](legacy/0.3.1_VALIDATION.md) and [Pong baseline
 packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
-[0.5.0 validation](0.5.0_VALIDATION.md) records publication and hardware limits;
+[0.5.0 validation](legacy/0.5.0_VALIDATION.md) records publication and hardware limits;
 no collector export or automated profile completes the actual-device gate by
 itself.
+These packets are legacy records: the restarted line's release readiness
+record keeps the physical-device gate deferred, and it does not gate releases
+(see [RELEASING.md](RELEASING.md#release-readiness-record)).
 
 The Pages packager supplies source downloads/notices omitted from an ordinary
 Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged
@@ -287,7 +291,17 @@ A screenshot of attract mode or merely selecting a dummy audio device does not s
 
 ## Private ROM fixture validation
 
-With compatible files available outside the public checkout:
+Fetch the private development/CI fixtures into ignored `build/roms/` and audit them, then run the ROM-backed Stunt Cycle and Indy 4 comparison after the native reference and core builds:
+
+```sh
+./tools/fetch-roms.sh                 # exit 77: blocked, no ROM access
+python3 tools/compare-rom-games.py    # exit 77: skipped, no fixture directory
+python3 tests/test-dev-rom-exclusion.py   # after npm run build:web
+```
+
+[ROMS.md](ROMS.md) documents the environment variables (`NOCPU_ROMS_REPO`, `NOCPU_ROMS_REF`, `NOCPU_ROM_DIR`, `NOCPU_ROMS_TOKEN`), what the comparison checks, the dev-server auto-load and the CI secret. The separate `rom-validation.yml` workflow runs these with the `NOCPU_ROMS_TOKEN` secret and reports `blocked: NOCPU_ROMS_TOKEN not configured` with the job skipped when the secret is absent, including on fork pull requests. The private browser test `tests/browser/v060-driving.spec.ts` also reads `NOCPU_ROM_DIR`.
+
+With compatible files available outside the public checkout or in an ignored directory:
 
 ```sh
 python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures
@@ -296,19 +310,18 @@ python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures --game antiaircr
 
 The validator accepts original DICE runtime ZIP basenames and documented short archive aliases. It reads members in memory and checks CRCs and audited byte sizes; missing, corrupt, or incompatible sets fail validation. It does not extract or copy payloads into the repository. See [ROMS.md](ROMS.md) for retrieval/access expectations and exact requirements.
 
-Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Public pull-request checks must not receive private fixture credentials. Compatible bytes do not establish distribution permission.
+Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Pull requests from forks never receive the fixture secret; only same-repository branches can. Compatible bytes do not establish distribution permission.
 
-For 0.6.0, audit the actual Stunt Cycle and Indy 4 fixtures separately with
-`--game stuntcycle` and `--game indy4`. Keep them outside this public checkout,
-including during original-reference preparation. Public CI retains the full
-four-game reference/regression gates and fixture-free new-game error/metadata
-coverage; it must not claim actual new-game gameplay when fixtures are absent.
-Any independently accepted local reference attestation is identified separately
-and bound to the exact compiler/frontend/scenario inputs and measured reports.
-Public CI source binding verifies continuity, not private-fixture execution.
+Audit the actual Stunt Cycle and Indy 4 fixtures separately with
+`--game stuntcycle` and `--game indy4` when needed. Keep fixtures outside this
+checkout or in ignored `build/roms/`; never stage them. The ordinary CI workflow
+retains the full four-game reference/regression gates and fixture-free
+new-game error/metadata coverage; it must not claim actual new-game gameplay
+when fixtures are absent. ROM-backed comparison results come from
+`tools/compare-rom-games.py`, locally or in `rom-validation.yml`.
 
 ## What is still untested
 
 Earlier comparison builds and basic render checks are historical observations, not a full regression suite. The original 21-game list remains incompletely tested for controls, audio, scoring, DIP switches, multiplayer, reset, and historical fidelity. Eight games have no active mono-output hookup in the original source; inherited absent audio and untested playback are separate statuses. Browser, touch, Android/iPhone, and mobile performance results do not exist in 0.1.0. Record each result with its build, scenario, and actual environment instead of generalizing from Pong.
 
-The [0.1.0 validation report](0.1.0_VALIDATION.md) records the integrated milestone results and remaining limitations. Report failures using the [bug-report template](../bug-reports/TEMPLATE.md). Release qualification and packaging have additional checks in [RELEASING.md](RELEASING.md).
+The [0.1.0 validation report](legacy/0.1.0_VALIDATION.md) records the integrated milestone results and remaining limitations. Report failures using the [bug-report template](../bug-reports/TEMPLATE.md). Release qualification and packaging have additional checks in [RELEASING.md](RELEASING.md).

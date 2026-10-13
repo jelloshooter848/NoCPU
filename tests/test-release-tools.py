@@ -51,9 +51,12 @@ class ReleaseToolsTests(unittest.TestCase):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 package.check_tag("0.1.0", tag, False)
         package.check_tag("0.1.0", "v0.1.0", False)
+        package.check_tag("0.2.0-rc.1", "v0.2.0-rc.1", False)
         package.check_tag("0.1.0", None, True)
         with self.assertRaises(ValueError):
             package.check_tag("0.1.0", "v0.1.0", True)
+        with self.assertRaises(ValueError):
+            package.check_tag("0.1", "v0.1", False)
 
     def test_rom_and_private_payloads_rejected(self):
         for filename in ("tests/example.zip", "tests/example.tar.xz", "docs/private.key", "tools/.env", "tests/roms/readme.txt"):
@@ -65,19 +68,27 @@ class ReleaseToolsTests(unittest.TestCase):
             path.unlink()
 
     def test_release_notes_use_exact_version_and_stop_at_next_entry(self):
-        (self.root / "CHANGELOG.md").write_text("# Changelog\n\n## 0.1.01 — later\nwrong\n\n## 0.1.0 — 2026-10-09\nreviewed notes\n\n## 0.0.1\nold notes\n")
+        (self.root / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- pending fix\n\n## [0.1.01] - 2026-10-10\nwrong\n\n"
+            "## [0.1.0] - 2026-10-09\n\n### Added\n\n- reviewed notes\n\n## [0.0.1] - 2026-01-01\nold notes\n\n"
+            "[Unreleased]: https://example.invalid/compare/v0.1.01...HEAD\n")
         notes = package.release_notes(self.root, "0.1.0")
+        self.assertTrue(notes.startswith("## [0.1.0] - 2026-10-09\n"))
         self.assertIn("reviewed notes", notes)
-        self.assertNotIn("wrong", notes)
-        self.assertNotIn("old notes", notes)
-        (self.root / "CHANGELOG.md").write_text("## 0.1.01\nwrong\n")
-        with self.assertRaises(ValueError):
-            package.release_notes(self.root, "0.1.0")
+        for absent in ("wrong", "old notes", "pending fix"):
+            self.assertNotIn(absent, notes)
+        # An undated version has no release notes; only a candidate may use the Unreleased entries.
+        with self.assertRaisesRegex(ValueError, "Finalize the changelog"):
+            package.release_notes(self.root, "0.2.0")
+        candidate = package.release_notes(self.root, "0.2.0", unreleased_ok=True)
+        self.assertIn("pending fix", candidate)
+        self.assertNotIn("reviewed notes", candidate)
+        self.assertNotIn("example.invalid", candidate)
 
-    def test_release_cli_blocks_uncleared_license_and_preparation_heading(self):
+    def test_release_cli_blocks_uncleared_license_and_undated_changelog(self):
         (self.root / "tools/check.py").write_text("raise SystemExit(0)\n")
         (self.root / "tools/package-release.py").write_text("# Test fixture root\n")
-        (self.root / "CHANGELOG.md").write_text("## 0.1.0 — prepared locally\nUnpublished source foundation.\n")
+        (self.root / "CHANGELOG.md").write_text("## [Unreleased]\n\n### Added\n\n- Unpublished source foundation.\n")
         output = Path(self.temp.name) / "output"
         args = ["package-release.py", "--tag", "v0.1.0", "--output-dir", str(output)]
         with patch.object(package, "ROOT", self.root), patch("sys.argv", args), redirect_stderr(io.StringIO()) as error:
@@ -87,12 +98,13 @@ class ReleaseToolsTests(unittest.TestCase):
         (self.root / "tests/license-audit.json").write_text(json.dumps({"schema_version": 1, "release_ready": True, "blockers": []}))
         with patch.object(package, "ROOT", self.root), patch("sys.argv", args), redirect_stderr(io.StringIO()) as error:
             self.assertEqual(package.main(), 1)
-        self.assertIn("Finalize the current CHANGELOG heading", error.getvalue())
+        self.assertIn("Finalize the changelog", error.getvalue())
         self.assertFalse(output.exists())
         args = ["package-release.py", "--candidate", "--output-dir", str(output)]
         with patch.object(package, "ROOT", self.root), patch("sys.argv", args), redirect_stdout(io.StringIO()):
             self.assertEqual(package.main(), 0)
         self.assertTrue((output / "nocpu-0.1.0-candidate-source.tar.gz").is_file())
+        self.assertIn("Unpublished source foundation", (output / "RELEASE-NOTES.md").read_text())
 
     def test_repository_payload_check_detects_ignored_rom_and_private_file(self):
         (self.root / "hidden.zip").write_bytes(b"ROM fixture")

@@ -1,7 +1,7 @@
 # <Game or area>: <short problem description>
 
 - Report date:
-- NoCPU version and commit:
+- Build string (from the About panel, quoted exactly, e.g. `v0.2.0` or `v0.2.0-dev.3a09872`):
 - Game ID or subsystem:
 - Native toolchain, or device/OS/browser and version:
 - Input method and bindings:
@@ -35,4 +35,5 @@ Tested original DICE result, or `not tested`:
 
 - Reproduced on:
 - Classification: original defect / NoCPU regression / documentation / unknown
-- Status and resolution/build:
+
+Status: fixed in <commit> | not a bug — <reason>

@@ -1,0 +1,12 @@
+# Stunt Cycle bounded 10 s controls pilot: coin, Start and throttle ramps; seed 848.
+# Equality evidence only; it does not claim a successful jump or score.
+500 coin 1
+650 coin 0
+1000 start 1
+1150 start 0
+1500 throttle 12000
+3000 throttle 32767
+5000 throttle 0
+6000 throttle 20000
+8500 throttle 0
+10000 recreate 1

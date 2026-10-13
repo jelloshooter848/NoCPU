@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""Original/native/Wasm comparison for the ROM-backed Stunt Cycle and Indy 4.
+
+ROM fixtures come from --rom-dir, else NOCPU_ROM_DIR, else build/roms when it
+exists (see tools/fetch-roms.sh). Without fixtures nothing is run and the
+result is reported as SKIPPED (blocked), exit 77: never as a pass.
+
+For each scenario in tests/replays/rom-scenarios.json this captures one fresh
+original DICE process in the pinned Docker toolchain (the private ZIP is
+bind-mounted read-only under its original runtime basename), replays the same
+inputs through the portable native runner and the Wasm module for two reset
+epochs, and requires byte equality of every common evidence stream (decoded
+RGB frames and snapshots, raw PCM, inputs, events, telemetry and hardware
+observations). The descriptor bytes the portable runners need are staged in
+a private 0700 directory below the run and removed afterwards. Captured
+frames are ROM-derived; they stay under ignored build/ output and only the
+payload-free report.json is suitable for upload.
+"""
+# SPDX-License-Identifier: GPL-3.0-or-later
+import argparse
+import datetime
+import gzip
+import hashlib
+import importlib.util
+import json
+import os
+import shutil
+import subprocess
+import sys
+import zipfile
+import zlib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+BLOCKED = 77
+SCENARIOS = ROOT / 'tests/replays/rom-scenarios.json'
+IMAGE = os.environ.get('NOCPU_NATIVE_IMAGE', 'nocpu-dice-qt4:0.1.0')
+# Streams every runtime must produce and match exactly.
+REQUIRED = ['audio.s16le', 'inputs.csv', 'events.csv', 'telemetry.csv', 'hardware.csv', 'frames.csv', 'frames.rgb',
+            'frames.gray', 'frame-geometry.csv', 'audio-boundary.json']
+# Runtime-specific record formats compared on their shared fields only.
+GEOMETRY_FIELDS = ['frame', 'time_ps', 'width', 'height']
+
+
+def load(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def resolve_rom_dir(argument):
+    for candidate, label in [(argument, '--rom-dir'), (os.environ.get('NOCPU_ROM_DIR'), 'NOCPU_ROM_DIR')]:
+        if candidate:
+            path = Path(candidate).resolve()
+            return (path, label) if path.is_dir() else (None, f'{label} is not a directory')
+    default = ROOT / 'build/roms'
+    return (default, 'build/roms') if default.is_dir() else (None, 'no ROM fixture directory')
+
+
+def payload_bytes(path):
+    """Logical content: gzip members are compared after decompression."""
+    data = path.read_bytes()
+    return gzip.decompress(data) if path.suffix == '.gz' else data
+
+
+def logical_name(name):
+    return name[:-3] if name.endswith('.gz') else name
+
+
+def projected(name, data):
+    """Shared fields of records whose original and portable layouts differ."""
+    if name == 'frame-geometry.csv':
+        rows = [line.split(',') for line in data.decode().splitlines()]
+        columns = [rows[0].index(field) for field in GEOMETRY_FIELDS]
+        return ''.join(','.join(row[i] for i in columns) + '\n' for row in rows).encode()
+    if name == 'audio-boundary.json':
+        return json.dumps({'constructor_samples': json.loads(data)['constructor_samples']}).encode()
+    if name == 'audio-events.csv':
+        # The original records each construction-phase sample individually.
+        rows = data.decode().splitlines()[1:]
+        return json.dumps({'constructor_samples': sum(row.split(',')[1] == 'construction' for row in rows)}).encode()
+    return data
+
+
+def digest_tree(directory):
+    """Map logical evidence names to (bytes, sha256) of their decoded content."""
+    result = {}
+    for path in sorted(directory.iterdir()):
+        if path.is_file() and not path.name.endswith('.log'):
+            name = logical_name(path.name)
+            data = projected(name, payload_bytes(path))
+            name = 'audio-boundary.json' if name == 'audio-events.csv' else name
+            result[name] = (len(data), hashlib.sha256(data).hexdigest())
+    return result
+
+
+def compare_trees(left, right):
+    a, b = digest_tree(left), digest_tree(right)
+    common = sorted(set(a) & set(b))
+    return {
+        'equal': {name: a[name] == b[name] for name in common},
+        'only_left': sorted(set(a) - set(b)),
+        'only_right': sorted(set(b) - set(a)),
+        'sha256': {name: a[name][1] for name in common},
+    }
+
+
+def stage_descriptors(game, archive, stage):
+    """Write each required descriptor, found by CRC like DICE, as <stage>/<game>/<member>."""
+    target = stage / game['id']
+    target.mkdir(mode=0o700)
+    with zipfile.ZipFile(archive) as source:
+        members = [info for info in source.infolist() if not info.is_dir() and info.file_size <= 1048576]
+        for rom in game['roms']:
+            accepted = {(int(v['crc32'], 16), v['size_bytes']) for v in rom['dump_variants']}
+            match = next((info for info in members if (info.CRC, info.file_size) in accepted), None)
+            if match is None:
+                raise ValueError(f"{game['id']}: required descriptor {rom['expected_member']} missing")
+            data = source.read(match)
+            if (zlib.crc32(data) & 0xFFFFFFFF, len(data)) not in accepted:
+                raise ValueError(f"{game['id']}: descriptor bytes do not match the manifest")
+            (target / rom['expected_member']).write_bytes(data)
+
+
+def run(command, log, timeout, **kwargs):
+    with open(log, 'w') as stream:
+        result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT, timeout=timeout, **kwargs)
+    if result.returncode:
+        raise RuntimeError(f'{command[0]} failed ({result.returncode}); see {log}')
+
+
+def capture_original(run_dir, scenario, archive, runtime_name, timeout):
+    artifacts = run_dir / scenario['id'] / 'original'
+    artifacts.mkdir(parents=True)
+    uid, gid = os.getuid(), os.getgid()
+    command = ['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none',
+               '--env', 'SDL_AUDIODRIVER=dummy', '--env', 'LIBGL_ALWAYS_SOFTWARE=1',
+               '--env', 'NOCPU_REFERENCE_OUTPUT=/artifacts', '--env', f"NOCPU_REFERENCE_REPLAY=/repo/{scenario['replay']}",
+               '--env', 'NOCPU_REFERENCE_SEED=848', '--env', f"NOCPU_REFERENCE_GAME={scenario['game']}",
+               '--env', 'NOCPU_REFERENCE_EPOCHS=1', '--env', f"NOCPU_REFERENCE_DIP={scenario['dip']}",
+               '--env', f"NOCPU_REFERENCE_POT_OHMS={scenario['pot_ohms']}",
+               '--mount', f'type=bind,source={ROOT},target=/repo,readonly',
+               '--mount', f"type=bind,source={run_dir / 'source'},target=/source,readonly",
+               '--mount', f'type=bind,source={archive},target=/source/roms/{runtime_name},readonly',
+               '--mount', f'type=bind,source={artifacts},target=/artifacts',
+               '--workdir', '/source', IMAGE, '/bin/bash', '-euo', 'pipefail', '-c',
+               'trap \'chown -R "$3:$4" /artifacts\' EXIT; python3 /repo/tools/reference/check-config-isolation.py; '
+               'timeout "$1" xvfb-run -a -s "-screen 0 800x600x24 +extension GLX" ./dice "$2" -window',
+               'nocpu-rom-reference', f'{timeout}s', scenario['game'], str(uid), str(gid)]
+    run(command, run_dir / scenario['id'] / 'original.log', timeout + 120)
+    epoch = artifacts / 'epoch0'
+    if not (epoch / 'frames.csv').is_file():
+        raise RuntimeError('Original capture produced no epoch0 evidence')
+    return epoch
+
+
+def replay_portable(run_dir, scenario, stage):
+    common = ['--game', scenario['game'], '--replay', scenario['replay'], '--seed', '848', '--dip', str(scenario['dip']),
+              '--pot-ohms', str(scenario['pot_ohms']), '--epochs', '2', '--rom-dir', str(stage), '--snapshot-encoding', 'gzip']
+    base = run_dir / scenario['id']
+    run([str(ROOT / 'build/core/native/pong-runner'), '--output', str(base / 'native'), *common], base / 'native.log', 1800, cwd=ROOT)
+    run(['node', str(ROOT / 'tools/replay-core.mjs'), '--output', str(base / 'wasm'), *common], base / 'wasm.log', 1800, cwd=ROOT)
+    return base / 'native', base / 'wasm'
+
+
+def evaluate(scenario, original, native, wasm):
+    pairs = {'original_vs_native_epoch0': compare_trees(original, native / 'epoch0')}
+    for epoch in range(2):
+        pairs[f'native_vs_wasm_epoch{epoch}'] = compare_trees(native / f'epoch{epoch}', wasm / f'epoch{epoch}')
+    for label, path in [('native', native), ('wasm', wasm)]:
+        pairs[f'{label}_reset_epoch0_vs_epoch1'] = compare_trees(path / 'epoch0', path / 'epoch1')
+    failures = []
+    for name, pair in pairs.items():
+        missing = [stream for stream in REQUIRED if stream not in pair['equal']]
+        if missing:
+            failures.append(f'{name}: required streams not compared: {", ".join(missing)}')
+        failures += [f'{name}: {stream} differs' for stream, same in pair['equal'].items() if not same]
+        unmatched = pair['only_left'] + pair['only_right']
+        if name == 'original_vs_native_epoch0':
+            # Original-only adapter metadata is allowed; snapshots must pair up.
+            unmatched = [item for item in unmatched if item.endswith('.ppm')] + pair['only_right']
+        if unmatched:
+            failures.append(f'{name}: unpaired evidence: {", ".join(unmatched)}')
+    for pair in pairs.values():
+        pair.pop('sha256')
+        pair['streams_compared'] = len(pair['equal'])
+        pair['all_equal'] = all(pair['equal'].values())
+    frames = sum(1 for _ in (native / 'epoch0/frames.csv').open()) - 1
+    return {'id': scenario['id'], 'game': scenario['game'], 'replay': scenario['replay'],
+            'replay_sha256': hashlib.sha256((ROOT / scenario['replay']).read_bytes()).hexdigest(),
+            'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']}, 'frames': frames,
+            'comparisons': pairs, 'failures': failures, 'passed': not failures}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--rom-dir', help='directory holding the fixture ZIPs (default NOCPU_ROM_DIR, then build/roms)')
+    parser.add_argument('--scenario', action='append', help='scenario ID (repeatable); default all')
+    parser.add_argument('--output-root', type=Path, default=ROOT / 'build/rom-comparison')
+    parser.add_argument('--timeout', type=int, default=int(os.environ.get('NOCPU_REFERENCE_TIMEOUT', '900')))
+    args = parser.parse_args()
+
+    manifest = json.loads(SCENARIOS.read_text())['scenarios']
+    scenarios = [item for item in manifest if not args.scenario or item['id'] in args.scenario]
+    if not scenarios or (args.scenario and len(scenarios) != len(set(args.scenario))):
+        parser.error('unknown scenario ID')
+    rom_dir, source = resolve_rom_dir(args.rom_dir)
+    if rom_dir is None:
+        print(f'SKIPPED (blocked: no ROM access): {source}. Set NOCPU_ROM_DIR or run tools/fetch-roms.sh. '
+              f'{len(scenarios)} ROM-backed comparison(s) not run; this is not a pass.')
+        return BLOCKED
+
+    audit = load('audit_roms', ROOT / 'tools/audit-roms.py')
+    games = {game['id']: game for game in audit.inventory_module().validate_manifest(
+        json.loads(audit.MANIFEST.read_text(encoding='utf-8')))}
+    archives = {}
+    for game_id in sorted({item['game'] for item in scenarios}):
+        try:
+            archives[game_id] = rom_dir / audit.check_game(games[game_id], rom_dir)
+        except (OSError, ValueError, zipfile.BadZipFile, zlib.error) as error:
+            print(f'FAIL {game_id}: ROM audit: {error}', file=sys.stderr)
+            return 1
+        print(f'ROM audit PASS {game_id}: {archives[game_id].name} (from {source})')
+
+    prerequisites = [ROOT / 'build/native/dice', ROOT / 'build/core/native/pong-runner', ROOT / 'build/core/wasm/nocpu.js']
+    missing = [str(path.relative_to(ROOT)) for path in prerequisites if not path.is_file()]
+    if missing:
+        print('FAIL: build first (./tools/build-native.sh, ./tools/build-core.sh all); missing ' + ', '.join(missing), file=sys.stderr)
+        return 1
+    if subprocess.run(['docker', 'image', 'inspect', IMAGE], capture_output=True).returncode:
+        print(f'FAIL: Docker image {IMAGE} unavailable; run ./tools/build-native.sh', file=sys.stderr)
+        return 1
+
+    root = args.output_root.resolve()
+    if not root.is_relative_to(ROOT / 'build'):
+        parser.error('output root must be below build/')
+    run_dir = root / datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+    run_dir.mkdir(parents=True)
+    stage = run_dir / '.rom-stage'
+    stage.mkdir(mode=0o700)
+    report = {'schema_version': 1, 'version': (ROOT / 'VERSION').read_text().strip(), 'seed': 848,
+              'rom_source': source, 'archives': {game: path.name for game, path in archives.items()},
+              'image_id': subprocess.run(['docker', 'image', 'inspect', '--format', '{{.Id}}', IMAGE],
+                                         capture_output=True, text=True).stdout.strip(),
+              'scenarios': [], 'limitations': [
+                  'Exact equality covers the listed bounded replays only, not complete gameplay.',
+                  'Generated PCM equality does not establish audible speaker output; both games inherit absent DICE audio hookups.',
+                  'Desktop browser behavior is checked separately.']}
+    try:
+        for game_id, archive in archives.items():
+            stage_descriptors(games[game_id], archive, stage)
+        shutil.copytree(ROOT / 'build/native', run_dir / 'source', symlinks=True)
+        subprocess.run([sys.executable, str(ROOT / 'tools/reference/apply_adapter.py'), str(run_dir / 'source'),
+                        str(ROOT / 'tools/reference')], check=True, cwd=ROOT)
+        (run_dir / 'source/roms').mkdir(exist_ok=True)
+        for game_id in archives:
+            # Empty mountpoints for the read-only original-basename ZIP binds.
+            (run_dir / 'source/roms' / games[game_id]['roms'][0]['archive']).touch()
+        print(f'Building original observation adapter: {run_dir}')
+        run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--user', f'{os.getuid()}:{os.getgid()}',
+             '--mount', f"type=bind,source={run_dir / 'source'},target=/source", '--workdir', '/source', IMAGE,
+             '/bin/bash', '-euo', 'pipefail', '-c', 'make -j "$1"', 'nocpu-rom-reference-build',
+             os.environ.get('BUILD_JOBS', '2')], run_dir / 'build.log', 3600)
+        for scenario in scenarios:
+            print(f"Comparing {scenario['id']}: original DICE, portable native and Wasm")
+            try:
+                original = capture_original(run_dir, scenario, archives[scenario['game']],
+                                            games[scenario['game']]['roms'][0]['archive'], args.timeout)
+                native, wasm = replay_portable(run_dir, scenario, stage)
+                result = evaluate(scenario, original, native, wasm)
+            except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
+                result = {'id': scenario['id'], 'game': scenario['game'], 'passed': False,
+                          'failures': [f'{type(error).__name__}: {error}']}
+            report['scenarios'].append(result)
+            print(f"  {scenario['id']}: {'PASS' if result['passed'] else 'FAIL'}"
+                  + ''.join(f'\n    {failure}' for failure in result['failures']))
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+        for placeholder in (run_dir / 'source/roms').glob('*.zip'):
+            placeholder.unlink()
+    report['passed'] = bool(report['scenarios']) and all(item['passed'] for item in report['scenarios'])
+    (run_dir / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+    if report['passed']:
+        (root / 'latest.txt').write_text(f'{run_dir}\n')
+    print(f"ROM-backed original/native/Wasm comparison: {'PASS' if report['passed'] else 'FAIL'}; {run_dir / 'report.json'}")
+    return 0 if report['passed'] else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

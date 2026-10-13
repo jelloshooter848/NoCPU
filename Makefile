@@ -2,13 +2,17 @@ PYTHON ?= python3
 JOBS ?= 2
 VERSION := $(shell cat VERSION)
 
-.PHONY: check test native pong reference-games source source-candidate web-toolchain core core-compare web web-preview web-release browser
+.PHONY: check release-check test native pong reference-games roms rom-compare source source-candidate web-toolchain core core-compare web web-preview web-release browser
 
 check:
 	$(PYTHON) tools/check.py
 
+release-check:
+	$(PYTHON) tools/release_check.py
+
 test: check
 	node tools/render-icons.mjs --check
+	$(PYTHON) tests/test-release-check.py
 	$(PYTHON) tests/test-release-tools.py
 	$(PYTHON) tests/test-game-audits.py
 	$(PYTHON) tests/test-reference-analysis.py
@@ -21,6 +25,7 @@ test: check
 	$(PYTHON) tests/test-ci-runtime-baseline.py
 	$(PYTHON) tests/test-core-handoff.py
 	$(PYTHON) tests/test-web-release.py
+	$(PYTHON) tests/test-dev-rom-exclusion.py
 
 native: check
 	./tools/build-native.sh --jobs $(JOBS)
@@ -30,6 +35,13 @@ pong:
 
 reference-games:
 	./tools/capture-games.sh
+
+# Private fixtures (development/CI only); see docs/ROMS.md.
+roms:
+	./tools/fetch-roms.sh
+
+rom-compare:
+	$(PYTHON) tools/compare-rom-games.py
 
 source: check
 	$(PYTHON) tools/package-release.py --tag v$(VERSION)

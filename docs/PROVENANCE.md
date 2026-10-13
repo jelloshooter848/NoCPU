@@ -1,6 +1,6 @@
 # Source provenance
 
-The selected [0.6.0 batch](0.6.0_TASKS.md) retains this immutable original
+The selected [0.6.0 batch](legacy/0.6.0_TASKS.md) retains this immutable original
 inventory while adding original-derived Stunt Cycle and Indy 4, a core ROM
 adapter and browser launch/control integration. Fresh source/compiler/link/
 frontend inputs and corresponding-source archives must be bound to each
@@ -69,7 +69,7 @@ declares `GPLv3`. The contemporaneous [Debian higan 094-5 copyright inventory](h
 is secondary scope evidence: its `Files: *` entry assigns GPL-3 and explicitly
 excepts nall's inflate implementation as zlib. The earlier [bsnes 0.088-5 inventory](https://sources.debian.org/src/bsnes/0.088-5/debian/copyright/)
 also credits vladitx and Ryphecha among the contributors. Retained copies and
-additional primary exception notices are in [`docs/licenses/`](licenses/).
+additional primary exception notices are in [`docs/licenses/`](licenses).
 
 This provides a documented basis to distribute these historical libraries
 conservatively under GPL version 3 alongside their exceptions. It does not

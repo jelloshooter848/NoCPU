@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Failure injection for source-bound browser packaging and physical device gates."""
+"""Failure injection for source-bound browser packaging and the release readiness record."""
 from __future__ import annotations
 import copy
 import hashlib
@@ -35,41 +35,27 @@ class BrowserReleaseTests(unittest.TestCase):
         (self.dist / 'core/nocpu.wasm').write_bytes(b'\x00asm\x01\x00\x00\x00')
         self.digest = web.runtime_digest(web.runtime_files(self.dist))
         self.readiness = {
-            'schema_version': 1, 'version': '0.2.0', 'release_stage': 'release',
-            'release_ready': True, 'blockers': [], 'runtime_sha256': self.digest,
-            'required_checks': sorted(web.REQUIRED_CHECKS),
-            'devices': [self.device(platform) for platform in ('Android', 'iPhone')],
+            'schema_version': 2, 'version': '0.2.0', 'release_ready': True, 'blockers': [],
+            'release_scope': 'Test release scope',
+            'desktop_acceptance': {'status': 'pending', 'scope': 'Six-game comparisons and desktop browser checks',
+                                   'games': [], 'browsers': [], 'evidence': None},
+            'physical_device_gate': {'status': 'deferred', 'basis': 'AGENTS.md defers device qualification'},
         }
         self.write_readiness()
 
     def tearDown(self):
         self.temp.cleanup()
 
-    def device(self, platform):
-        return {
-            'platform': platform, 'status': 'passed', 'physical': True,
-            'runtime_sha256': self.digest, 'model': 'Recorded test model', 'os_version': 'Recorded OS',
-            'browser': 'Chrome' if platform == 'Android' else 'Safari', 'browser_version': 'Recorded version',
-            'tested_at': '2026-10-10T12:00:00Z', 'build_id': 'test-build', 'evidence': 'Recorded physical session',
-            'checks': {name: True for name in web.REQUIRED_CHECKS},
-            'performance': {'session_seconds': 600, 'simulation_seconds': 594, 'wall_seconds': 600,
-                'simulation_speed_ratio': .99, 'memory_start_bytes': 4096, 'memory_end_bytes': 4096,
-                'audio_underruns': 0, 'frame_pacing': 'Measured regular frames', 'input_response': 'Observed responsive'},
-        }
-
     def write_readiness(self):
         (self.root / 'tests/release-readiness.json').write_text(json.dumps(self.readiness))
 
-    def test_frontend_css_input_worker_and_wasm_changes_invalidate_device_identity(self):
+    def test_frontend_css_input_worker_and_wasm_changes_change_runtime_identity(self):
         for name in ('index.html', 'assets/game.js', 'assets/game.css', 'core/nocpu.js', 'core/nocpu.wasm'):
             path = self.dist / name
             original = path.read_bytes()
             path.write_bytes(original + b'\nchanged')
             with self.subTest(name=name):
-                digest = web.runtime_digest(web.runtime_files(self.dist))
-                self.assertNotEqual(digest, self.digest)
-                with self.assertRaisesRegex(ValueError, 'complete browser runtime'):
-                    web.verify_readiness(self.root, '0.2.0', digest)
+                self.assertNotEqual(web.runtime_digest(web.runtime_files(self.dist)), self.digest)
             path.write_bytes(original)
         (self.dist / 'assets/audio-worker.js').write_text('self.onmessage = () => {};')
         self.assertNotEqual(web.runtime_digest(web.runtime_files(self.dist)), self.digest)
@@ -126,16 +112,59 @@ class BrowserReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'escapes source'):
             web.copy_notice_supporting_files(self.root, output, allowed, 'source/source.tar.gz')
 
-    def test_pending_emulated_duplicate_and_stale_phone_evidence_rejected(self):
+    def test_baseline_with_pending_desktop_acceptance_and_deferred_device_gate_passes(self):
+        self.assertEqual(web.verify_readiness(self.root, '0.2.0'), self.readiness)
+
+    def test_passed_desktop_acceptance_names_actual_browsers_games_and_evidence(self):
+        self.readiness['desktop_acceptance'].update(
+            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
+            browsers=[{'name': 'Chromium', 'version': '145.0.7632.6'}])
+        self.write_readiness()
+        self.assertEqual(web.verify_readiness(self.root, '0.2.0'), self.readiness)
+        self.assertEqual(web.verify_readiness(self.root, '0.2.0', self.digest), self.readiness)
+        original = copy.deepcopy(self.readiness)
+        changes = [
+            lambda value: value.update(browsers=[]),
+            lambda value: value.update(browsers=[{'name': 'Chromium', 'version': ''}]),
+            lambda value: value.update(browsers=['Chromium']),
+            lambda value: value.update(games=[]),
+            lambda value: value.update(evidence=None),
+            lambda value: value.pop('runtime_sha256'),
+            lambda value: value.update(runtime_sha256='not-a-digest'),
+        ]
+        for change in changes:
+            self.readiness = copy.deepcopy(original)
+            change(self.readiness['desktop_acceptance'])
+            self.write_readiness()
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                web.verify_readiness(self.root, '0.2.0', self.digest)
+
+    def test_passed_desktop_acceptance_must_match_the_packaged_runtime(self):
+        self.readiness['desktop_acceptance'].update(
+            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
+            browsers=[{'name': 'Firefox', 'version': '140.0'}])
+        self.write_readiness()
+        (self.dist / 'assets/game.js').write_text('const paddle = 2;')
+        changed = web.runtime_digest(web.runtime_files(self.dist))
+        self.assertNotEqual(changed, self.digest)
+        with self.assertRaisesRegex(ValueError, 'packaged browser runtime'):
+            web.verify_readiness(self.root, '0.2.0', changed)
+
+    def test_blocked_inconsistent_or_device_gated_readiness_rejected(self):
         changes = [
             lambda value: value.update(release_ready=False),
-            lambda value: value.update(release_stage='preview'),
-            lambda value: value.update(blockers=['Physical tests pending']),
-            lambda value: value['devices'][0].update(physical=False),
-            lambda value: value['devices'][0].update(runtime_sha256='0' * 64),
-            lambda value: value['devices'].append(copy.deepcopy(value['devices'][0])),
-            lambda value: value['devices'].pop(),
-            lambda value: value.update(required_checks=[]),
+            lambda value: value.update(blockers=['Desktop checks pending']),
+            lambda value: value.update(schema_version=1),
+            lambda value: value.update(version='0.1.0'),
+            lambda value: value.update(release_scope=''),
+            lambda value: value.pop('release_scope'),
+            lambda value: value.pop('physical_device_gate'),
+            lambda value: value['physical_device_gate'].update(status='required'),
+            lambda value: value['physical_device_gate'].update(basis=''),
+            lambda value: value.pop('desktop_acceptance'),
+            lambda value: value['desktop_acceptance'].update(status='accepted'),
+            lambda value: value['desktop_acceptance'].update(scope=''),
+            lambda value: value['desktop_acceptance'].update(browsers=[{'name': 'Firefox', 'version': '140'}]),
         ]
         original = copy.deepcopy(self.readiness)
         for change in changes:
@@ -143,38 +172,18 @@ class BrowserReleaseTests(unittest.TestCase):
             change(self.readiness)
             self.write_readiness()
             with self.subTest(change=change), self.assertRaises(ValueError):
-                web.verify_readiness(self.root, '0.2.0', self.digest)
+                web.verify_readiness(self.root, '0.2.0')
 
-    def test_wrong_physical_browsers_do_not_substitute_for_chrome_and_safari(self):
-        original = copy.deepcopy(self.readiness)
-        for index, browser in ((0, 'Firefox'), (1, 'Chrome'), (0, 'Embedded WebView'), (1, 'Recorded browser')):
-            self.readiness = copy.deepcopy(original)
-            self.readiness['devices'][index]['browser'] = browser
-            self.write_readiness()
-            with self.subTest(index=index, browser=browser), self.assertRaisesRegex(ValueError, 'Required physical browser'):
-                web.verify_readiness(self.root, '0.2.0', self.digest)
-
-    def test_actual_qualified_phone_evidence_passes(self):
-        self.assertEqual(web.verify_readiness(self.root, '0.2.0', self.digest), self.readiness)
-
-    def test_missing_false_or_inconsistent_phone_measurements_rejected(self):
-        changes = [
-            lambda device: device['checks'].update(audible_circuit_sound=False),
-            lambda device: device['performance'].update(session_seconds=30),
-            lambda device: device['performance'].update(simulation_speed_ratio=.5),
-            lambda device: device['performance'].update(simulation_seconds=10),
-            lambda device: device['performance'].update(memory_end_bytes=float('nan')),
-            lambda device: device.update(model=''),
-            lambda device: device.update(evidence=None),
-            lambda device: device['checks'].update(coin_starts_play='true'),
-        ]
-        original = copy.deepcopy(self.readiness)
-        for change in changes:
-            self.readiness = copy.deepcopy(original)
-            change(self.readiness['devices'][0])
-            self.write_readiness()
-            with self.subTest(change=change), self.assertRaises(ValueError):
-                web.verify_readiness(self.root, '0.2.0', self.digest)
+    def test_preview_checks_record_without_requiring_release_ready(self):
+        self.readiness.update(release_ready=False, blockers=['Desktop checks pending'])
+        self.write_readiness()
+        self.assertFalse(web.verify_readiness(self.root, '0.2.0', require_ready=False)['release_ready'])
+        with self.assertRaisesRegex(ValueError, 'blocked by the release readiness'):
+            web.verify_readiness(self.root, '0.2.0')
+        self.readiness.update(release_ready=True)
+        self.write_readiness()
+        with self.assertRaisesRegex(ValueError, 'ready while blockers'):
+            web.verify_readiness(self.root, '0.2.0', require_ready=False)
 
     def prepare_provenance_fixture(self):
         for directory in ('core', 'upstream'):

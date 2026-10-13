@@ -1,11 +1,12 @@
-## Change
+## Summary
 
-Describe the problem and resulting behavior. For fidelity changes, identify the native reference and game affected.
+<!-- What changes for players or developers, and why. For fidelity changes, name the native reference and the games affected. -->
 
-## Validation
+## Test plan
 
-List the checks performed and any limits. Include commands or links to public evidence.
+<!-- Commands run, games and scenarios checked, desktop browsers and versions. State skipped or blocked checks and why (for example, missing private ROM fixtures). -->
 
-## Preservation and ROMs
-
-Confirm that original files under `upstream/dice-0.9/` remain unchanged and no ROM payloads or private fixture links are included.
+- [ ] `python3 tools/check.py` (and `make test`)
+- [ ] Original/native/Wasm comparison passed for each affected game (or no game behavior changed)
+- [ ] CHANGELOG.md updated under `## [Unreleased]` (or not user-facing)
+- [ ] `upstream/dice-0.9/` unchanged; no ROM payloads, private fixtures or credentials included

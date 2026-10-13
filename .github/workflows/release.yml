@@ -1,43 +1,156 @@
-name: Verified DICE release and Pages
+# Verifies, publishes and deploys a release (docs/RELEASING.md). Runs when the owner pushes a
+# version tag, or by hand (Actions -> Release -> Run workflow) with an existing tag to retry,
+# redeploy or roll back. Branch pushes never deploy. Tags are never moved; a failed release is
+# fixed by the next patch release.
+name: Release
+'on':
+  push:
+    tags:
+    - v*
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to verify, publish and deploy (for example v0.2.0)
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      commit: ${{ steps.tag.outputs.commit }}
+    steps:
+    - name: Require a release tag ref
+      env:
+        TAG: ${{ inputs.tag || github.ref_name }}
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+      run: |-
+        if [ "$EVENT" = push ] && [ "$REF" != "refs/tags/$TAG" ]; then
+          echo "::error::$REF is not a tag push"; exit 1
+        fi
+        case "$TAG" in
+          v[0-9]*) ;;
+          *) echo "::error::$TAG is not a vX.Y.Z release tag"; exit 1 ;;
+        esac
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: refs/tags/${{ inputs.tag || github.ref_name }}
+        fetch-depth: 0
+    - name: Resolve the tag to its commit
+      id: tag
+      env:
+        TAG: ${{ inputs.tag || github.ref_name }}
+      run: |-
+        git rev-parse --verify --quiet "refs/tags/$TAG" > /dev/null || { echo "::error::$TAG is not a tag"; exit 1; }
+        commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+        [ "$(git rev-parse HEAD)" = "$commit" ] || { echo "::error::checkout is not $TAG"; exit 1; }
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "commit=$commit" >> "$GITHUB_OUTPUT"
+    - name: Check the tag against VERSION and its dated CHANGELOG.md section
+      env:
+        TAG: ${{ steps.tag.outputs.tag }}
+      run: |-
+        mkdir -p build/release-notes
+        python3 tools/release_check.py --tag "$TAG"
+        python3 tools/release_check.py --tag "$TAG" --notes > build/release-notes/notes.md
+        cat build/release-notes/notes.md
+    - name: Retain the release notes
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: release-notes
+        path: build/release-notes/notes.md
+        if-no-files-found: error
+        retention-days: 7
   verify:
+    needs: resolve
     uses: ./.github/workflows/verify-browser.yml
     with:
       release: true
-      release_tag: ${{ github.ref_name }}
+      release_tag: ${{ needs.resolve.outputs.tag }}
+      ref: ${{ needs.resolve.outputs.commit }}
   publish:
-    needs: verify
+    needs:
+    - resolve
+    - verify
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-    - name: Fetch verified matching source and browser assets
+    - name: Fetch the verified browser, source and checksum assets
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
         name: verified-release-assets
         path: release-assets
+    - name: Fetch the checked release notes
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: release-notes
+        path: release-notes
     - name: Check downloaded asset integrity
       working-directory: release-assets
       run: sha256sum --check *.sha256
-    - name: Publish qualified DICE release
+    - name: Refuse to publish without license notices and the matching source archive
+      env:
+        TAG: ${{ needs.resolve.outputs.tag }}
+      run: |-
+        python3 - <<'PY_GUARD'
+        import json, os, pathlib, zipfile
+        tag = os.environ['TAG']; version = tag[1:]
+        assets = pathlib.Path('release-assets')
+        required = [f'nocpu-{version}-web.zip', f'nocpu-{version}-web.zip.sha256',
+                    f'nocpu-{version}-source.tar.gz', f'nocpu-{version}-source.tar.gz.sha256']
+        missing = [name for name in required if not (assets / name).is_file()]
+        if missing:
+            raise SystemExit('Missing release assets: ' + ', '.join(missing))
+        with zipfile.ZipFile(assets / f'nocpu-{version}-web.zip') as archive:
+            names = set(archive.namelist())
+            manifest = json.loads(archive.read('BUILD-MANIFEST.json')) if 'BUILD-MANIFEST.json' in names else {}
+        if manifest.get('stage') != 'release' or manifest.get('tag') != tag or manifest.get('version') != version:
+            raise SystemExit('Browser build manifest does not identify this tagged release')
+        source = manifest.get('source_archive', {}).get('path', '')
+        needed = {'notices/LICENSE', 'notices/THIRD_PARTY_NOTICES.md', 'notices/browser-license-audit.json',
+                  source, source + '.sha256'}
+        absent = sorted(name for name in needed if not name or name not in names)
+        if absent:
+            raise SystemExit('Browser build lacks notices or matching source: ' + ', '.join(absent))
+        print('Notices and matching corresponding source present for', tag)
+        PY_GUARD
+    - name: Create or update the GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
         GH_REPO: ${{ github.repository }}
-        RELEASE_TAG: ${{ github.ref_name }}
-      run: "gh release create \"$RELEASE_TAG\" --verify-tag --title \"NoCPU $RELEASE_TAG\" \\\n  --notes-file release-assets/RELEASE-NOTES.md\
-        \ \\\n  release-assets/*.tar.gz release-assets/*.sha256\n"
+        TAG: ${{ needs.resolve.outputs.tag }}
+      run: |-
+        prerelease=false
+        case "$TAG" in *-*) prerelease=true ;; esac
+        files=(release-assets/*.zip release-assets/*.tar.gz release-assets/*.sha256)
+        if gh release view "$TAG" > /dev/null 2>&1; then
+          gh release edit "$TAG" --title "NoCPU $TAG" --notes-file release-notes/notes.md --prerelease="$prerelease"
+          gh release upload "$TAG" "${files[@]}" --clobber
+        else
+          flags=()
+          if [ "$prerelease" = true ]; then flags+=(--prerelease); fi
+          gh release create "$TAG" "${files[@]}" --verify-tag --title "NoCPU $TAG" \
+            --notes-file release-notes/notes.md "${flags[@]}"
+        fi
   deploy-pages:
     needs:
+    - resolve
     - verify
     - publish
-    if: github.repository == 'jelloshooter848/NoCPU'
+    # Pre-release tags (any tag containing '-', such as v0.3.0-rc.1) publish a GitHub pre-release
+    # with the same assets but never replace the stable Pages site.
+    if: github.repository == 'jelloshooter848/NoCPU' && startsWith(needs.resolve.outputs.tag, 'v') && !contains(needs.resolve.outputs.tag, '-')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -50,10 +163,6 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
-    - name: Deploy the exact artifact that passed the tagged release checks
+    - name: Deploy the exact Pages artifact that passed the tagged release checks
       id: deployment
       uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
-'on':
-  push:
-    tags:
-    - v*

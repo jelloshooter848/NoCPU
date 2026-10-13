@@ -1,10 +1,10 @@
 # Original-derived DICE core
 
-The 0.6.0 core sources compile original DICE 0.9 Pong, Pong Doubles, Space Race,
+The core sources (carried unchanged from the legacy 0.6.0 line into the restarted 0.1.0) compile original DICE 0.9 Pong, Pong Doubles, Space Race,
 Breakout, Stunt Cycle and Indy 4 circuits and the chip scheduler
 without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
-[`upstream/dice-0.9/`](../upstream/dice-0.9/) remain byte-identical; the preparation
+[`upstream/dice-0.9/`](../upstream/dice-0.9) remain byte-identical; the preparation
 script writes a disposable copy under ignored `build/` and records its complete
 adapter diff.
 
@@ -69,7 +69,7 @@ bits 3..6, coinage index into bit 7 and disabled-free-game into bit 8; default
 hookups; no replacement sound is generated. Indy 4 preserves the original
 resistor-derived color raster. These authored contracts require the independent
 source, original/native/Wasm and browser gates in
-[0.6.0_VALIDATION.md](../docs/0.6.0_VALIDATION.md).
+[0.6.0_VALIDATION.md](../docs/legacy/0.6.0_VALIDATION.md).
 The original audio constructor emits one zero-valued PCM sample despite those
 absent active hookups. Preserve it in raw captures and distinguish initialization
 from ongoing samples; actual cross-runtime byte/time comparison remains required.
@@ -140,7 +140,7 @@ Hosts drain both event queues each tick. All time words remain exact integers.
 [`tests/replays/pong.tsv`](../tests/replays/pong.tsv) and writes original-shaped
 evidence files. Read the [adaptation inventory](../docs/PORT_PONG.md),
 [testing instructions](../docs/TESTING.md), and
-[0.2.0 validation report](../docs/0.2.0_VALIDATION.md) for build commands and actual
+[0.2.0 validation report](../docs/legacy/0.2.0_VALIDATION.md) for build commands and actual
 fidelity results. The remaining 15 games are outside this compiled batch.
 Pong Doubles uses DICE's default audio gain of 10; Space Race keeps its explicit
 gain of 50 and its original 566/filter/mixer audio graph. Fresh circuit creation
