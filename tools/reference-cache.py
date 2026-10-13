@@ -364,9 +364,10 @@ def main() -> int:
         result = restore(args.kind, args.scenario, args.source, args.into, args.run, args.key)
         if result['hit']:
             produced = result['produced']
+            origin = (f"CI run {produced['github_run_id']}" if produced.get('github_run_id') else 'a local capture')
             print(f"Reference cache HIT {args.kind}/{args.scenario} key {result['key'][:16]}: "
                   f"original run skipped; captured by image {produced.get('toolchain_image_id')} "
-                  f"(run {produced.get('github_run_id')}, {produced.get('created_utc')}). Analysis and comparisons still run.")
+                  f"({origin}, {produced.get('created_utc')}). Analysis and comparisons still run.")
         else:
             print(f"Reference cache MISS {args.kind}/{args.scenario} key {result['key'][:16]}: {result['reason']}; capturing fresh.")
         receipt_lines.append(result)
