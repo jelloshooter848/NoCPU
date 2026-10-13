@@ -2,7 +2,7 @@
   "schema_version": 1,
   "version": "0.1.0",
   "release_ready": true,
-  "assessment_scope": "0.1.0 reset baseline browser build: the six compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the legacy browser frontend still in place (controls/settings, player-supplied ROM loading through fflate, Home Screen manifest/icons and the qualification collector). Reviewed against the actual 0.1.0 build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the fifteen unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
+  "assessment_scope": "0.1.1 desktop browser build (assessed while VERSION is still 0.1.0; the 0.1.1 release commit bumps this record's version field): the six compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). The touch controls, Home Screen manifest and PNG icons and the qualification collector of 0.1.0 are removed. Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the fifteen unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -117,7 +117,7 @@
   ],
   "components": [
     {
-      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon and its derived PNGs, and the original DICE 0.9 sources compiled for the six circuits",
+      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon, and the original DICE 0.9 sources compiled for the six circuits",
       "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
       "basis": "tests/license-audit.json and docs/PROVENANCE.md; DICE sources are prepared unchanged from upstream/dice-0.9 (tests/source-manifest.json)"
     },
@@ -166,39 +166,29 @@
     "required": true,
     "same_revision": true,
     "path": "source/nocpu-0.1.0-source.tar.gz",
-    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.1.0-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG and its rendering recipe, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
+    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.1.0-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
   },
   "review": {
     "date": "2026-10-13",
     "result": "ready",
-    "by": "Agent review of the actual local 0.1.0 build output on restart/desktop-first (commit 6994217).",
+    "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first: commit 3138314 (desktop UI and docs merged onto the v0.1.0 release merge c2c72de), built in a clean clone.",
     "commands": [
       "./tools/build-core.sh all",
-      "NOCPU_BASE_PATH=/NoCPU/ npm run build:web",
+      "npm run build:web",
       "python3 tools/package-web.py --preview --archive-dir build/release",
-      "python3 tests/test-dev-rom-exclusion.py"
+      "python3 tests/test-dev-rom-exclusion.py --require-build"
     ],
     "findings": [
-      "Shipped runtime: 11 files from build/web \u2014 index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm, icon.svg, three PNG icons and manifest.webmanifest. Local review runtime SHA-256 0d86c4b68782493aaac3b622ff1a7f7bddc4c3494b87a86b7604e04e1967c026; core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770; core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a. Release packaging recomputes and records these in BUILD-MANIFEST.json.",
-      "Wasm link inventory (build/core/wasm/linker.map): 67 compiled NoCPU/DICE units plus seven SDK archive families with 145 members \u2014 libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1 \u2014 and the same 26 musl math members as the reviewed legacy 0.6.0 inventory. build/core/wasm/dependencies.mk lists only core/ and prepared DICE sources; no Qt, SDL, OpenGL, X11, ManyMouse, Phoenix, nall or zlib.",
-      "Core sources (core/, tools/prepare-core.py, tools/build-core.sh, upstream/) are unchanged since tag legacy-0.6.0 apart from core/README.md. Frontend changes since legacy-0.6.0 are NoCPU-owned (development-only ROM fixture loader, version fields); package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2, and the build provenance records no other node_modules input.",
-      "Every retained toolchain notice (Emscripten LICENSE/AUTHORS, LLVM libc++/libc++abi/compiler-rt LICENSE and CREDITS, musl COPYRIGHT) is byte-identical to the installed Emscripten 3.1.74 SDK; the Vite and fflate licenses are byte-identical to the installed npm packages.",
-      "The packaged site carries all 27 notices listed here under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256.",
-      "The source archive (809 files) holds all 566 original DICE files, core/, web/ (including web/public/icon.svg and the derived PNGs), tools/ (including tools/render-icons.mjs), upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
-      "No fixture ROM member (29 members of the nine private fixture archives in build/roms) appears raw or base64-encoded in the web zip, the packaged site or the source archive; tests/test-dev-rom-exclusion.py passes on the production bundle with fixtures present."
+      "Shipped runtime: 7 files from build/web \u2014 index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. No manifest.webmanifest, no PNG icons and no tools/render-icons.mjs. Local review runtime SHA-256 1abff7963802ca71e0d67d015f78974cfff50fd44cae983e2d47635d5e137012; core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 and core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a, both identical to 0.1.0. Release packaging recomputes and records these in BUILD-MANIFEST.json.",
+      "Wasm link inventory (build/core/wasm/linker.map) unchanged from 0.1.0: 67 compiled NoCPU/DICE units plus seven SDK archive families with 145 members \u2014 libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1. Core sources are unchanged since v0.1.0 apart from core/README.md.",
+      "Frontend changes since v0.1.0 are NoCPU-owned (desktop layout, mouse controls, build string; touch, qualification and Home Screen code removed). package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2, and build/web-provenance.json records no other node_modules input.",
+      "The 27 notices are unchanged from 0.1.0 (same paths and SHA-256); Emscripten LICENSE/AUTHORS, LLVM libc++/libc++abi/compiler-rt LICENSE and CREDITS and musl COPYRIGHT are byte-identical to the installed Emscripten 3.1.74 SDK, and the Vite and fflate licenses to the installed npm packages. The packaged site carries all 27 under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256; the zip, tarball and source checksums verify.",
+      "The source archive (796 files: the 795 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/, web/ (web/public/icon.svg is its only public asset), tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads, ROMs, PNG icons, manifest.webmanifest or tools/render-icons.mjs.",
+      "No member of the ten private fixture archives in build/roms (44 members, in sync with the private fixture repository and passing tools/audit-roms.py) appears raw or base64-encoded (three alignments) in the web zip, the web tarball, the packaged site or the source archive, including archives nested in the zip; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
     ],
     "independent_review": {
-      "date": "2026-10-13",
-      "by": "Independent agent (not the author of this assessment)",
-      "result": "accepted",
-      "commit": "6994217d3f8d72164deda1d58febaed521f4135c",
-      "findings": [
-        "Scratch clone of 6994217 with a simulated release commit and local v0.1.0 tag: build-core, build:web and package-web.py --tag v0.1.0 passed; runtime SHA-256 0d86c4b68782493aaac3b622ff1a7f7bddc4c3494b87a86b7604e04e1967c026 and core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 match this record; the release workflow's checksum and notice/source guards passed.",
-        "Rebuilding the Wasm core and Vite output from the extracted source archive (no Git metadata) gave a byte-identical build/web. Caveat: that rebuild reused the already installed node_modules and Emscripten SDK (build/emsdk) rather than fetching them afresh.",
-        "Source archive: 809 files, equal to the tracked files at the tag plus RELEASE-MANIFEST.json.",
-        "Linker map members confirmed (libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1; 26 math members); Emscripten, LLVM, musl, Vite and fflate notices byte-identical to the installed copies; notice set unchanged from legacy-0.6.0 apart from the edited THIRD_PARTY_NOTICES.md.",
-        "ROM scan of the web zip, web tarball and source archive (including the source archive nested in the zip) for all nine fixture archives and their members, raw and base64 at three alignments: 0 hits."
-      ]
+      "result": "pending",
+      "note": "An independent review of the 0.1.1 output is still required before the 0.1.1 release."
     }
   },
   "excluded_components": [
@@ -215,5 +205,41 @@
     "Node/TypeScript/Playwright executables",
     "Development-server ROM fixture plugin and web/src/dev-roms.ts (not in production output; tests/test-dev-rom-exclusion.py)"
   ],
-  "history": "The legacy line's assessments (0.2.0 through 0.6.0, including the independent component reviews) are preserved in this file at tag legacy-0.6.0 and in docs/legacy/BROWSER_DISTRIBUTION_0.6.md. They are history; this record is the 0.1.0 assessment."
+  "history": "The 0.1.0 assessment and its independent review (accepted 2026-10-13, commit 6994217) are kept under previous_reviews; they apply to 0.1.0 only. The legacy line's assessments (0.2.0 through 0.6.0, including the independent component reviews) are preserved in this file at tag legacy-0.6.0 and in docs/legacy/BROWSER_DISTRIBUTION_0.6.md. They are history; this record is the 0.1.1 assessment.",
+  "previous_reviews": [
+    {
+      "release": "0.1.0",
+      "date": "2026-10-13",
+      "result": "ready",
+      "by": "Agent review of the actual local 0.1.0 build output on restart/desktop-first (commit 6994217).",
+      "commands": [
+        "./tools/build-core.sh all",
+        "NOCPU_BASE_PATH=/NoCPU/ npm run build:web",
+        "python3 tools/package-web.py --preview --archive-dir build/release",
+        "python3 tests/test-dev-rom-exclusion.py"
+      ],
+      "findings": [
+        "Shipped runtime: 11 files from build/web \u2014 index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm, icon.svg, three PNG icons and manifest.webmanifest. Local review runtime SHA-256 0d86c4b68782493aaac3b622ff1a7f7bddc4c3494b87a86b7604e04e1967c026; core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770; core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a. Release packaging recomputes and records these in BUILD-MANIFEST.json.",
+        "Wasm link inventory (build/core/wasm/linker.map): 67 compiled NoCPU/DICE units plus seven SDK archive families with 145 members \u2014 libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1 \u2014 and the same 26 musl math members as the reviewed legacy 0.6.0 inventory. build/core/wasm/dependencies.mk lists only core/ and prepared DICE sources; no Qt, SDL, OpenGL, X11, ManyMouse, Phoenix, nall or zlib.",
+        "Core sources (core/, tools/prepare-core.py, tools/build-core.sh, upstream/) are unchanged since tag legacy-0.6.0 apart from core/README.md. Frontend changes since legacy-0.6.0 are NoCPU-owned (development-only ROM fixture loader, version fields); package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2, and the build provenance records no other node_modules input.",
+        "Every retained toolchain notice (Emscripten LICENSE/AUTHORS, LLVM libc++/libc++abi/compiler-rt LICENSE and CREDITS, musl COPYRIGHT) is byte-identical to the installed Emscripten 3.1.74 SDK; the Vite and fflate licenses are byte-identical to the installed npm packages.",
+        "The packaged site carries all 27 notices listed here under notices/ with matching hashes, plus notices/browser-license-audit.json and source/nocpu-0.1.0-source.tar.gz with its .sha256.",
+        "The source archive (809 files) holds all 566 original DICE files, core/, web/ (including web/public/icon.svg and the derived PNGs), tools/ (including tools/render-icons.mjs), upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
+        "No fixture ROM member (29 members of the nine private fixture archives in build/roms) appears raw or base64-encoded in the web zip, the packaged site or the source archive; tests/test-dev-rom-exclusion.py passes on the production bundle with fixtures present."
+      ],
+      "independent_review": {
+        "date": "2026-10-13",
+        "by": "Independent agent (not the author of this assessment)",
+        "result": "accepted",
+        "commit": "6994217d3f8d72164deda1d58febaed521f4135c",
+        "findings": [
+          "Scratch clone of 6994217 with a simulated release commit and local v0.1.0 tag: build-core, build:web and package-web.py --tag v0.1.0 passed; runtime SHA-256 0d86c4b68782493aaac3b622ff1a7f7bddc4c3494b87a86b7604e04e1967c026 and core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 match this record; the release workflow's checksum and notice/source guards passed.",
+          "Rebuilding the Wasm core and Vite output from the extracted source archive (no Git metadata) gave a byte-identical build/web. Caveat: that rebuild reused the already installed node_modules and Emscripten SDK (build/emsdk) rather than fetching them afresh.",
+          "Source archive: 809 files, equal to the tracked files at the tag plus RELEASE-MANIFEST.json.",
+          "Linker map members confirmed (libc 101, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1; 26 math members); Emscripten, LLVM, musl, Vite and fflate notices byte-identical to the installed copies; notice set unchanged from legacy-0.6.0 apart from the edited THIRD_PARTY_NOTICES.md.",
+          "ROM scan of the web zip, web tarball and source archive (including the source archive nested in the zip) for all nine fixture archives and their members, raw and base64 at three alignments: 0 hits."
+        ]
+      }
+    }
+  ]
 }
