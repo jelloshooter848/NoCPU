@@ -1,36 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The original Video::video transition logic calls these host renderer methods.
 namespace {
-float reference_window_coordinate(float vertex, float scale, float offset, unsigned extent) {
+float reference_window_coordinate(float vertex, float scale, float offset, float viewport_scale, float translate) {
     // glOrtho stores a GLfloat matrix, and glVertex3f supplies GLfloat vertices.
-    // Keep the projection and viewport operations at that same precision.
+    // Keep the projection at that same precision (an axis-aligned projection
+    // row has one nonzero product, so fusing it changes nothing).
     float clip=vertex*scale;
     clip+=offset;
-    float window=clip*(float(extent)*0.5f);
-    window+=float(extent)*0.5f;
-    return window;
+    // llvmpipe's draw module applies the viewport as llvm.fmuladd (Mesa 20.0.8
+    // draw_llvm.c generate_viewport), which the pinned reference host executes
+    // as one fused multiply-add. std::fma gives that single rounding in both
+    // native and Wasm instead of depending on compiler contraction.
+    return std::fma(clip,viewport_scale,translate);
 }
-int reference_pixel_boundary(float window) {
+int64_t reference_fixed_edge(float window) {
     // The pinned original llvmpipe renderer snaps shifted pixel centers to an
     // eight-bit fixed edge grid, rounding ties to even (Mesa 20.0.8
     // lp_rast.h FIXED_ORDER / lp_setup_tri.c calc_fixed_position). Its reported
     // GL_SUBPIXEL_BITS=4 is the generic capability minimum, not this edge grid.
     // Implement nearest-even explicitly so native and Wasm do not depend on a
-    // host floating-point rounding mode. Left/top edges include the center;
-    // right/bottom edges exclude it through the half-open draw loops below.
-    const float units=(window-0.5f)*256.0f;
-    double nearest=std::floor(double(units));
-    const double fraction=double(units)-nearest;
-    if(fraction>0.5 || (fraction==0.5 && std::fmod(nearest,2.0)!=0.0)) ++nearest;
-    return int(std::ceil(nearest/256.0));
-}
-int64_t reference_fixed_edge(float window) {
+    // host floating-point rounding mode.
     const float units=(window-0.5f)*256.0f;
     double nearest=std::floor(double(units));
     const double fraction=double(units)-nearest;
     if(fraction>0.5 || (fraction==0.5 && std::fmod(nearest,2.0)!=0.0)) ++nearest;
     return int64_t(nearest);
 }
+int64_t reference_floor_pixel(int64_t fixed) { return fixed>=0?fixed/256:-((255-fixed)/256); }
+int64_t reference_ceil_pixel(int64_t fixed) { return -reference_floor_pixel(-fixed); }
 struct ReferenceVertex { int64_t x,y; };
 int64_t reference_edge(ReferenceVertex a,ReferenceVertex b,ReferenceVertex p) {
     return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
@@ -156,14 +153,32 @@ void Video::draw(Chip* chip) {
     }
     const float x_scale=float(2.0/double(scanline_time));
     const float y_scale=float(-2.0/double(v_size));
-    const float start=reference_window_coordinate(float(current_time-initial_time),x_scale,-1.0f,WIDTH);
-    const float end=reference_window_coordinate(float(chip->circuit->global_time-initial_time),x_scale,-1.0f,WIDTH);
-    const float top=float(HEIGHT)-reference_window_coordinate(float(v_pos),y_scale,1.0f,HEIGHT);
-    const float bottom=float(HEIGHT)-reference_window_coordinate(float(v_pos+1),y_scale,1.0f,HEIGHT);
-    int x0=std::max(0,reference_pixel_boundary(start));
-    int x1=std::min(int(WIDTH),reference_pixel_boundary(end));
-    int y0=std::max(0,reference_pixel_boundary(top));
-    int y1=std::min(int(HEIGHT),reference_pixel_boundary(bottom));
+    // Mesa snaps absolute window coordinates of the original 632x432 client
+    // window, whose keep-aspect viewport is offset (crop only after snapping).
+    // That window is cropped symmetrically, so its height is 2*y+height.
+    const float half_width=float(pixels_width)*0.5f,half_height=float(pixels_height)*0.5f;
+    const float window_height=float(2*viewport_y+pixels_height);
+    const int64_t start=reference_fixed_edge(reference_window_coordinate(
+        float(current_time-initial_time),x_scale,-1.0f,half_width,float(viewport_x)+half_width));
+    const int64_t end=reference_fixed_edge(reference_window_coordinate(
+        float(chip->circuit->global_time-initial_time),x_scale,-1.0f,half_width,float(viewport_x)+half_width));
+    // A window-system framebuffer is Y_0_TOP: Mesa's state tracker negates the
+    // viewport y scale and translates by fb_height-(y+height/2) (Mesa 20.0.8
+    // st_atom_viewport.c), so llvmpipe snaps the downward window y directly;
+    // flipping an upward coordinate afterwards rounds differently. It also
+    // selects bottom_edge_rule for that orientation (st_atom_rasterizer.c,
+    // lp_setup_tri.c): a pixel center exactly on a horizontal edge belongs to
+    // the scanline above it (bottom edge inclusive, top edge exclusive). Left
+    // edges include a tied center and right edges exclude it.
+    const float translate_y=window_height-(float(viewport_y)+half_height);
+    const int64_t top=reference_fixed_edge(reference_window_coordinate(
+        float(v_pos),y_scale,1.0f,-half_height,translate_y));
+    const int64_t bottom=reference_fixed_edge(reference_window_coordinate(
+        float(v_pos+1),y_scale,1.0f,-half_height,translate_y));
+    const int x0=int(std::max<int64_t>(0,reference_ceil_pixel(start)-viewport_x));
+    const int x1=int(std::min<int64_t>(WIDTH,reference_ceil_pixel(end)-viewport_x));
+    const int y0=int(std::max<int64_t>(0,reference_floor_pixel(top)+1-viewport_y));
+    const int y1=int(std::min<int64_t>(HEIGHT,reference_floor_pixel(bottom)+1-viewport_y));
     float* c=&color[(chip->inputs&VIDEO_MASK)*3];
     uint8_t rgb[3];
     for(int channel=0;channel<3;++channel) rgb[channel]=uint8_t(std::lround(std::max(0.0f,std::min(1.0f,c[channel]))*255));
