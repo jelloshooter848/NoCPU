@@ -26,6 +26,11 @@ releases below.
 - A plain desktop layout: the original game picture fills the window above one action bar (coin,
   start, Pause · Esc); menus are simpler. Your saved settings carry over.
 
+### Fixed
+
+- Indy 4: one raster row could show the wrong scanline while a car crossed it; the renderer now
+  follows the original DICE OpenGL (Mesa llvmpipe) rasterization rules exactly.
+
 ### Removed
 
 - Touch controls, phone layouts, the phone qualification recorder and Home Screen (PWA) install

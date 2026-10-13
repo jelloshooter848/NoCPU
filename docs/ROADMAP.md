@@ -82,7 +82,7 @@ the release steps.
 | --- | --- | --- |
 | Reset baseline | 0.1.0 | Released (2026-10-13) |
 | Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | In review |
-| Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | Planned |
+| Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | In review: 6/6 pass, Indy 4 renderer fix ([ACCEPTANCE.md](ACCEPTANCE.md)) |
 | Speed up CI | 0.1.x patch | Planned |
 | Remaining reset leftovers | 0.1.x patch | Planned |
 | ROM-free batch A | 0.2.0 | Planned |
@@ -119,7 +119,7 @@ Exit: a `v0.1.0` tag passes the release workflow, and the published build carrie
 ### 0.1.x — Reset completion (patch releases)
 
 1. Phase 2: remove mobile/touch controls, the phone qualification collector, Home Screen/PWA manifest and icons and the remaining legacy release-process overhead, keeping the core, comparison harness, ROM/game audits and license/source packaging; reduce the frontend to the minimal desktop interface above, including the About panel build string, for the six ported circuits. (Done; in review.)
-2. Re-run original/native/Wasm comparisons for all six games and desktop browser checks in at least Chrome and Firefox, and record desktop acceptance in the release readiness record.
+2. Re-run original/native/Wasm comparisons for all six games and desktop browser checks in at least Chrome and Firefox, and record desktop acceptance in the release readiness record. (Comparisons: all six pass after the Indy 4 renderer fix, in review; see [ACCEPTANCE.md](ACCEPTANCE.md). Desktop acceptance stays pending: local browser evidence is Chromium only, and Firefox and WebKit run in CI.)
 3. Speed up CI: cache the original DICE reference captures, keyed by the upstream, reference-build and scenario hashes; skip the comparisons when the core and scenarios are unchanged; drop the emulated phone projects (done in Phase 2); and run the browser engines as parallel jobs. The full comparison always runs when the core or the scenarios change.
 4. Any other reset leftovers.
 
@@ -164,6 +164,13 @@ Complete the 21-game matrix: coin/start, every control and player slot, DIP and
 potentiometer settings, attract mode, scoring/end state, reset and game
 switching for each title. Separate upstream defects from port regressions and
 fix the regressions. Re-profile any game that does not sustain full speed.
+
+Known coverage gaps from the 0.1.x comparison re-run ([ACCEPTANCE.md](ACCEPTANCE.md)),
+to close here:
+
+- Pong: the Winning Score DIP 15 and the end-of-game state are not exercised.
+- Breakout: no scenario reaches the bonus-credit award threshold.
+- Stunt Cycle: no scenario reaches the free-game award.
 
 ### 1.0 — All 21 accurate on desktop
 
