@@ -47,7 +47,9 @@ replace the legacy "preview" stage. After 1.0.0 the usual SemVer rules apply.
 [`VERSION`](../VERSION) is the single source of the version. `tools/check.py`
 requires the version fields in `package.json`, `package-lock.json`,
 `tests/release-readiness.json` and `tests/browser-license-audit.json` to match
-it, so a version bump updates those fields in the same commit.
+it, and the browser audit's `corresponding_source` (`path` and the archive
+name in `delivery`) to name `nocpu-X.Y.Z-source.tar.gz` for that version, so a
+version bump updates all of those fields in the same commit.
 
 The About panel shows the build string, computed by `web/src/build-info.ts`
 from the packaged site's `BUILD-MANIFEST.json`:

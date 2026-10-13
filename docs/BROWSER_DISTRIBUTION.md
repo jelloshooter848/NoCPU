@@ -11,7 +11,7 @@ The legacy line's assessments (0.2.0 through 0.6.0) are history in
 
 ## 0.1.1 assessment (2026-10-13)
 
-**Result: ready, by the integrating agent; independent review pending.**
+**Result: ready; independent review accepted (at `9fc4eac`).**
 Scope: the 0.1.1 desktop build on `restart/desktop-first`, which compiles the
 same six DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle,
 Indy 4) with Emscripten 3.1.74 and replaces the legacy frontend with the
@@ -50,8 +50,26 @@ Findings:
   fixture archives, raw and base64 at three alignments, found none, and the
   dev-ROM exclusion test passed with fixtures present.
 
-**Independent review: pending.** The 0.1.0 independent review below applies to
-0.1.0 only; 0.1.1 needs its own before release.
+**Independent review (2026-10-13): accepted.** An independent agent reviewed
+`c2c72de..9fc4eac` at commit `9fc4eac` in a clean scratch clone:
+
+- `core/nocpu.wasm` and `core/nocpu.js` are byte-identical to 0.1.0, and the
+  packaged runtime digest equals the one recorded above;
+- the runtime is the seven files listed below, the source archive has 796
+  files, the checksums verify and the notice list is unchanged;
+- rebuilding from the extracted source archive gave a byte-identical
+  `build/web`. Caveat: that rebuild reused the shared Emscripten SDK instead of
+  fetching it afresh;
+- the ROM scan of the web zip, web tarball, source archive and packaged site
+  for all ten fixture archives and their 44 members, raw and base64, found 0
+  hits;
+- a simulated `v0.1.1` tag release (never pushed) passed `release_check --tag`,
+  `check.py`, the builds and `package-web.py --tag v0.1.1`, and showed `v0.1.1`
+  in the About panel.
+
+Its should-fix items were cleared on the working branch after `9fc4eac`
+without changing the core or the asset inventory. The 0.1.0 independent review
+below applies to 0.1.0 only.
 
 ### What ships
 

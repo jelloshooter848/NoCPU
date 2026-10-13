@@ -89,6 +89,13 @@ test('Breakout keyboard and mouse move original pixels, preserve full endpoints 
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await expect.poll(async () => (await breakoutSnapshot(page)).serve).toBe(false);
   expect((await breakoutSnapshot(page)).pointerCount).toBe(0); await page.mouse.up();
+  // Mouse Off: a held click over the display neither serves nor captures the pointer.
+  await settings(page); await page.getByTestId('mouse-slot').selectOption('off'); await resumeSettings(page);
+  await expect.poll(async () => (await breakoutSnapshot(page)).paused).toBe(false);
+  await page.mouse.move(Math.round(canvas.x + canvas.width / 2), y); await page.mouse.down();
+  await breakoutAdvance(page, 100_000);
+  expect((await breakoutSnapshot(page)).serve).toBe(false); expect((await breakoutSnapshot(page)).pointerCount).toBe(0);
+  await page.mouse.up();
   await testInfo.attach('breakout-horizontal-endpoints.json', { body: Buffer.from(JSON.stringify({ initial, canvas, integerTargets: [left, right], after: await breakoutSnapshot(page) })), contentType: 'application/json' });
 });
 

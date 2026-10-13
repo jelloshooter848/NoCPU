@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.1.0 reset baseline (owner decision 2026-10-13): the restarted line's rules, release process and ROM tooling, with the legacy browser UI still in place. It makes no desktop accuracy claim; the remaining reset work ships as 0.1.x patch releases.",
+  "release_scope": "0.1.1 desktop interface (Phase 2 of the reset, docs/ROADMAP.md): the six compiled DICE circuits behind the minimal desktop browser UI, played with keyboard, mouse and optional gamepads, with the About panel build string; touch controls, phone layouts, the qualification recorder and Home Screen/PWA support are removed. Desktop acceptance (the original/native/Wasm comparisons re-run for the six games and the desktop browser checks) is still pending, so it makes no desktop accuracy claim; the physical-device gate stays deferred.",
   "desktop_acceptance": {
     "status": "pending",
     "scope": "Original/native/Wasm comparisons for the six ported games (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) re-run against the reduced desktop frontend, plus the desktop browser checks in docs/TESTING.md in at least Chrome and Firefox. Scheduled for the 0.1.x patch releases (docs/ROADMAP.md).",

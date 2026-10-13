@@ -381,6 +381,32 @@ class BrowserReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'blocked by license'):
             web.verify_browser_license(self.root, version)
 
+    def test_browser_license_source_archive_name_follows_version(self):
+        version = (ROOT / 'VERSION').read_text().strip()
+        audit = json.loads((ROOT / 'tests/browser-license-audit.json').read_text())
+        shutil.copyfile(ROOT / 'tests/license-audit.json', self.root / 'tests/license-audit.json')
+        for notice in audit['notices']:
+            destination = self.root / notice['path']
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / notice['path'], destination)
+        path = self.root / 'tests/browser-license-audit.json'
+        path.write_text(json.dumps(audit))
+        web.verify_browser_license(self.root, version, require_ready=False)
+        # A bumped version without a renamed archive is rejected, in path and in delivery text.
+        bumped = copy.deepcopy(audit)
+        bumped['version'] = '9.9.9'
+        path.write_text(json.dumps(bumped))
+        with self.assertRaisesRegex(ValueError, r'corresponding_source\.path'):
+            web.verify_browser_license(self.root, '9.9.9', require_ready=False)
+        bumped['corresponding_source']['path'] = 'source/nocpu-9.9.9-source.tar.gz'
+        path.write_text(json.dumps(bumped))
+        if f'nocpu-{version}-source.tar.gz' in bumped['corresponding_source']['delivery']:
+            with self.assertRaisesRegex(ValueError, r'corresponding_source\.delivery'):
+                web.verify_browser_license(self.root, '9.9.9', require_ready=False)
+        bumped['corresponding_source']['delivery'] = bumped['corresponding_source']['delivery'].replace(f'nocpu-{version}-source', 'nocpu-9.9.9-source')
+        path.write_text(json.dumps(bumped))
+        web.verify_browser_license(self.root, '9.9.9', require_ready=False)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

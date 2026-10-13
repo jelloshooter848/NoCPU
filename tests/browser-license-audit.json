@@ -171,7 +171,7 @@
   "review": {
     "date": "2026-10-13",
     "result": "ready",
-    "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first: commit 3138314 (desktop UI and docs merged onto the v0.1.0 release merge c2c72de), built in a clean clone.",
+    "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first: commit 3138314 (desktop UI and docs merged onto the v0.1.0 release merge c2c72de), built in a clean clone; the runtime was re-verified identical at 9fc4eac by the independent review.",
     "commands": [
       "./tools/build-core.sh all",
       "npm run build:web",
@@ -187,8 +187,19 @@
       "No member of the ten private fixture archives in build/roms (44 members, in sync with the private fixture repository and passing tools/audit-roms.py) appears raw or base64-encoded (three alignments) in the web zip, the web tarball, the packaged site or the source archive, including archives nested in the zip; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
     ],
     "independent_review": {
-      "result": "pending",
-      "note": "An independent review of the 0.1.1 output is still required before the 0.1.1 release."
+      "date": "2026-10-13",
+      "by": "Independent agent (not the author of this assessment)",
+      "result": "accepted",
+      "commit": "9fc4eac",
+      "findings": [
+        "Reviewed c2c72de..9fc4eac at commit 9fc4eac in a clean scratch clone: check.py, make test, test:foundations (28/28) and typecheck passed.",
+        "core/nocpu.wasm bc6f28066f194893c84a6ea0690a7fa9a39c06f32eb80eb6479b5426e80ce770 and core/nocpu.js 623c8478e5669bfe254719c5b3ccb3fa58e2302b059d0b96283e32f81f99248a are byte-identical to 0.1.0; core, worker and upstream sources unchanged apart from core/README.md.",
+        "Preview packaging gave runtime SHA-256 1abff7963802ca71e0d67d015f78974cfff50fd44cae983e2d47635d5e137012 (equal to this record) with the 7-file runtime inventory; source archive 796 files (795 tracked plus RELEASE-MANIFEST.json); checksums verify; notice list identical to 0.1.0.",
+        "Rebuilding from the extracted source archive (npm ci, npm run build) gave a byte-identical build/web. Caveat: the rebuild reused the shared Emscripten SDK (build/emsdk) rather than fetching it afresh.",
+        "ROM scan of the web zip and tarball (including nested archives), the source archive and the packaged site for all 10 fixture archives and their 44 members, raw and base64 at three alignments: 0 hits; test-dev-rom-exclusion.py --require-build passed with fixtures present.",
+        "Simulated v0.1.1 release in a scratch clone (version-field and CHANGELOG commit, local tag, never pushed): release_check --tag, check.py, build-core, build:web and package-web.py --tag v0.1.1 passed; the About panel showed v0.1.1."
+      ],
+      "should_fix_cleared": "The review's should-fix items (Breakout mouse Off serve, release_scope, the corresponding_source archive name and recording this review) were fixed on restart/desktop-first after 9fc4eac; they do not change the core or the asset inventory."
     }
   },
   "excluded_components": [

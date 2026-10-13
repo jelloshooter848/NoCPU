@@ -133,4 +133,3 @@ export function canonicalPaddleAxis(gameId: PlayableGameId, displayAxis: number)
   const bounded = Math.round(Math.max(-32768, Math.min(32767, displayAxis)));
   return sign === -1 ? -bounded - 1 : bounded;
 }
-export const displayPaddleAxis = canonicalPaddleAxis;

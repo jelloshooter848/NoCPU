@@ -711,7 +711,7 @@ canvas.addEventListener('pointerdown', (event) => {
   event.preventDefault();
   canvas.setPointerCapture(event.pointerId);
   if (activeGameId === 'stuntcycle' && settingsUI.mouseSlotFor(activeGameId) !== null) mouseThrottle = event.pointerId;
-  if (activeGameId === 'breakout') { mouseServe = event.pointerId; controls.setPointerServe(true); }
+  if (activeGameId === 'breakout' && settingsUI.mouseSlotFor(activeGameId) !== null) { mouseServe = event.pointerId; controls.setPointerServe(true); }
   applyMouse(event);
 });
 function releaseMouse(event: PointerEvent): void {

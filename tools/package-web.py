@@ -136,6 +136,14 @@ def verify_browser_license(root: Path, version: str, *, require_ready: bool = Tr
     audit = json.loads((root / 'tests/browser-license-audit.json').read_text())
     if audit.get('schema_version') != 1 or audit.get('version') != version:
         raise ValueError('Browser license audit schema/version mismatch')
+    # The audit names the source archive it reviewed; a version bump must rename it too.
+    source_record = audit.get('corresponding_source')
+    expected_archive = f'nocpu-{version}-source.tar.gz'
+    if not isinstance(source_record, dict) or source_record.get('path') != f'source/{expected_archive}':
+        raise ValueError(f'Browser license audit corresponding_source.path must be source/{expected_archive}')
+    named = set(re.findall(r'nocpu-[0-9A-Za-z.+-]+?-source\.tar\.gz', str(source_record.get('delivery', ''))))
+    if named - {expected_archive}:
+        raise ValueError(f'Browser license audit corresponding_source.delivery must name {expected_archive}')
     if not isinstance(audit.get('release_ready'), bool) or not isinstance(audit.get('blockers'), list):
         raise ValueError('Invalid browser license readiness fields')
     if (audit['release_ready'] and audit['blockers']) or (require_ready and (not audit['release_ready'] or audit['blockers'])):
