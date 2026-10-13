@@ -7,10 +7,12 @@ golden frames or infer audible speakers, hardware latency or phone performance.
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
 import array
+import concurrent.futures
 import csv
 import hashlib
 import importlib.util
 import json
+import os
 import statistics
 import sys
 from pathlib import Path
@@ -322,36 +324,49 @@ def main():
     result = {"schema_version": 1, "scenarios": [], "source": "immutable DICE 0.9 desktop + independently reviewed observation/input adapter",
               "requested_ids": selection["requested_ids"], "full_batch": selection["full_batch"],
               "selection_scope": selection.get("selection_scope"), "selection_errors": selection["errors"]}
-    for scenario in selection["scenarios"]:
-        path = args.directory / scenario["id"]
-        attempts = []
-        for attempt in ["baseline", "repeat"]:
-            try:
-                attempts.append(analyze_epoch(path / attempt / "epoch0", scenario, original=True))
-            except (ValueError, OSError, KeyError, IndexError) as error:
-                attempts.append({"passed": False, "error": str(error)})
-        exact = {}
-        for name in EXACT:
-            try:
-                exact[name] = sha256(path / "baseline/epoch0" / name) == sha256(path / "repeat/epoch0" / name)
-            except OSError:
-                exact[name] = False
-        snapshots = {}
-        if scenario['game'] == 'breakout':
-            baseline, repeat = path / 'baseline/epoch0', path / 'repeat/epoch0'
-            first = {image.name: sha256(image) for image in baseline.glob('*ms.ppm')}
-            second = {image.name: sha256(image) for image in repeat.glob('*ms.ppm')}
-            snapshots = {name: first.get(name) == second.get(name) for name in set(first) | set(second)}
-            exact['selected_full_RGB_snapshots'] = bool(snapshots) and all(snapshots.values())
-        result["scenarios"].append({"id": scenario["id"], "game": scenario["game"], "attempts": attempts,
-                                    "fresh_process_repeat_exact": exact, "full_RGB_snapshot_repeat": snapshots,
-                                    "passed": all(item["passed"] for item in attempts) and all(exact.values())})
+    jobs = int(os.environ.get("NOCPU_ANALYZE_JOBS", "1"))
+    if jobs < 1:
+        raise SystemExit("NOCPU_ANALYZE_JOBS must be a positive integer")
+    scenarios_selected = selection["scenarios"]
+    if jobs > 1:
+        # Scenarios are independent and write only below their own directory.
+        with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as pool:
+            count = len(scenarios_selected)
+            result["scenarios"] = list(pool.map(analyze_scenario, [args.directory] * count, scenarios_selected))
+    else:
+        result["scenarios"] = [analyze_scenario(args.directory, scenario) for scenario in scenarios_selected]
     result["passed"] = not selection["errors"] and bool(result["scenarios"]) and all(item["passed"] for item in result["scenarios"])
     result["whole_batch_qualified"] = result["passed"] and result["full_batch"]
     (args.directory / "report.json").write_text(json.dumps(result, indent=2) + "\n")
     print(f"Original additional-game reference: {'PASS' if result['passed'] else 'FAIL'}; {args.directory / 'report.json'}")
     return 0 if result["passed"] else 1
 
+
+def analyze_scenario(directory, scenario):
+    """Analyze both fresh original attempts of one scenario and their repeat equality."""
+    path = directory / scenario["id"]
+    attempts = []
+    for attempt in ["baseline", "repeat"]:
+        try:
+            attempts.append(analyze_epoch(path / attempt / "epoch0", scenario, original=True))
+        except (ValueError, OSError, KeyError, IndexError) as error:
+            attempts.append({"passed": False, "error": str(error)})
+    exact = {}
+    for name in EXACT:
+        try:
+            exact[name] = sha256(path / "baseline/epoch0" / name) == sha256(path / "repeat/epoch0" / name)
+        except OSError:
+            exact[name] = False
+    snapshots = {}
+    if scenario['game'] == 'breakout':
+        baseline, repeat = path / 'baseline/epoch0', path / 'repeat/epoch0'
+        first = {image.name: sha256(image) for image in baseline.glob('*ms.ppm')}
+        second = {image.name: sha256(image) for image in repeat.glob('*ms.ppm')}
+        snapshots = {name: first.get(name) == second.get(name) for name in set(first) | set(second)}
+        exact['selected_full_RGB_snapshots'] = bool(snapshots) and all(snapshots.values())
+    return {"id": scenario["id"], "game": scenario["game"], "attempts": attempts,
+            "fresh_process_repeat_exact": exact, "full_RGB_snapshot_repeat": snapshots,
+            "passed": all(item["passed"] for item in attempts) and all(exact.values())}
 
 if __name__ == "__main__":
     raise SystemExit(main())
