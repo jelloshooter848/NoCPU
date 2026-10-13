@@ -251,7 +251,14 @@ test('the mouse over the display covers the full native paddle range for the cho
     await page.mouse.down();
     await page.mouse.move(x, canvas.y - 40, { steps: 4 });
     await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
+    // Release back inside the page, above the display. Playwright's Firefox
+    // never delivers a mouseup outside the viewport (and reports the drag there
+    // with no buttons held), so capture would outlive the release and swallow
+    // the next click; real Firefox receives an outside release from the OS.
+    expect(canvas.y).toBeGreaterThanOrEqual(2);
+    await page.mouse.move(x, canvas.y / 2, { steps: 2 });
     await page.mouse.up();
+    expect((await snapshot(page)).axes[slot]).toBe(-32768);
     expect((await snapshot(page)).axes[1 - slot]).toBe(other);
     expect((await snapshot(page)).pointerCount).toBe(0);
   }
