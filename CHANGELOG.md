@@ -13,8 +13,10 @@ releases below.
 
 ## [Unreleased]
 
-The first release of the restarted desktop-first line is 0.1.0, a baseline: it keeps the legacy
-browser app while the desktop interface and the renewed accuracy checks follow in 0.1.x updates.
+## [0.1.0] - 2026-10-13
+
+The first release of the restarted desktop-first line, a baseline: it keeps the legacy browser app
+while the desktop interface and the renewed accuracy checks follow in 0.1.x updates.
 
 ### Added
 
@@ -39,4 +41,5 @@ browser app while the desktop interface and the renewed accuracy checks follow i
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...v0.1.0
