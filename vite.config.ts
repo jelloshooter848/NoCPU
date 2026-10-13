@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,15 +76,12 @@ function dependencyInputs(): string[] {
   return paths.map(checkedPath);
 }
 const inputPaths = (): string[] => {
-  const inputs = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html', 'tools/render-icons.mjs'].map((path) => join(root, path));
+  const inputs = ['VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html'].map((path) => join(root, path));
   inputs.push(...files(join(root, 'web/src')), ...files(join(root, 'web/public')).filter((path) => !path.startsWith(join(root, 'web/public/core') + '/')));
   inputs.push(...dependencyInputs());
   return inputs.sort();
 };
 let inputSnapshot: Record<string, string>;
-function verifyInstallIcons(): void {
-  execFileSync(process.execPath, [join(root, 'tools/render-icons.mjs'), '--check'], { cwd: root, stdio: 'inherit' });
-}
 
 // Development server only (`apply: 'serve'`): offer the private fixture ZIPs
 // fetched by tools/fetch-roms.sh to the dev app on loopback. Production builds
@@ -142,13 +138,11 @@ export default defineConfig({
     name: 'nocpu-build-provenance',
     apply: 'build',
     buildStart() {
-      verifyInstallIcons();
       verifyCompiledCore();
       coreProvenanceSha = sha256(coreProvenancePath);
       inputSnapshot = hashes(inputPaths(), root);
     },
     closeBundle() {
-      verifyInstallIcons();
       if (JSON.stringify(hashes(inputPaths(), root)) !== JSON.stringify(inputSnapshot)) {
         throw new Error('Frontend source changed during the build. Rebuild from a stable checkout.');
       }

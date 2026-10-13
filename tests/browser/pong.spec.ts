@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Black-box browser checks. Emulated mobile browsers are not physical phones.
+// Black-box desktop browser checks.
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { packagedDirectory } from '../package-directory';
 
-import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledReleasedPaddles, installAudioProbe, start, pauseMenu, resumePlay, togglePause, openSettings, openAbout, expectViewportShell, expectUsableTarget, separation, controlBounds, expectThumbFraction, settleInputPresentation, expectExternalLayout, captureShellPanel } from './helpers';
+import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledReleasedPaddles, installAudioProbe, start, pauseMenu, resumePlay, togglePause, openSettings, openAbout, expectViewportShell, expectUsableTarget, settleInputPresentation, expectDesktopLayout, captureShellPanel } from './helpers';
 
 const version = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim();
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -190,7 +190,7 @@ test('reset completion survives same-turn blur and resume without freezing contr
   expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(played);
   await page.keyboard.up('s');
   await togglePause(page);
-  await expect(page.getByTestId('paddle-p1')).toHaveAttribute('aria-disabled', 'false');
+  await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
   await waitSimulation(page, 300_000_000_000n);
   expect((await snapshot(page)).attract).toBe(true);
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(played);
@@ -206,7 +206,6 @@ test('reset completion survives same-turn blur and resume without freezing contr
     (document.querySelector('[data-testid="resume"]') as HTMLButtonElement).click();
   });
   await expect(page.getByTestId('pause')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('paddle-p2')).toHaveAttribute('aria-disabled', 'false');
   await waitSimulation(page, 500_000_000_000n);
   const resetResumed = await snapshot(page);
   expect(resetResumed.scores).toEqual([0, 0]);
@@ -217,222 +216,64 @@ test('reset completion survives same-turn blur and resume without freezing contr
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
-test('external paddle tracks cover the native range while labels and court gestures remain inactive', async ({ page }, testInfo) => {
+test('the mouse over the display covers the full native paddle range for the chosen player', async ({ page }, testInfo) => {
   await start(page);
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
   await initialRenderedPaddles(page);
-  await expectExternalLayout(page);
-  for (let slot = 0; slot < 2; slot += 1) {
-    const { pad, track } = await controlBounds(page, slot);
-    const x = track.x + track.width / 2;
-    await page.mouse.move(x, track.y + track.height / 2);
-    await page.mouse.down();
-    await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(1);
-    // Browser pointer coordinates can round by a fraction of a CSS pixel.
-    // Half a percent of native range still distinguishes midpoint from padding.
-    await expect.poll(async () => Math.abs((await snapshot(page)).axes[slot])).toBeLessThanOrEqual(512);
-    await expectThumbFraction(page, slot, 0.5);
+  const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
+  const x = canvas.x + canvas.width / 2;
+  for (const slot of [0, 1]) {
+    if (slot === 1) {
+      await openSettings(page);
+      await page.getByTestId('mouse-slot').selectOption('1');
+      await resumePlay(page);
+    }
     const other = (await snapshot(page)).axes[1 - slot];
-    // At its native upper endpoint P2 can join the adjacent score glyph into
-    // one connected component. Measure independent actual paddle movement at
-    // distinct interior positions, then verify the exact native endpoints too.
-    await page.mouse.move(x, track.y + track.height * 0.2);
-    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeLessThan(-16000);
-    await expect.poll(async () => (await paddles(page))[slot]).toBeLessThan(0.35);
+    await page.mouse.move(x, canvas.y + canvas.height / 2);
+    // Browser pointer coordinates can round by a fraction of a CSS pixel.
+    await expect.poll(async () => Math.abs((await snapshot(page)).axes[slot])).toBeLessThanOrEqual(512);
+    await page.mouse.move(x, canvas.y + canvas.height * 0.25);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeLessThan(-12000);
+    await expect.poll(async () => (await paddles(page))[slot]).toBeLessThan(0.4);
     const upper = await paddles(page);
-    await page.mouse.move(x, track.y + track.height * 0.8);
-    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeGreaterThan(16000);
-    await expect.poll(async () => (await paddles(page))[slot] - upper[slot]).toBeGreaterThan(0.4);
-    expect((await snapshot(page)).axes[1 - slot]).toBe(other);
-    // Padding belongs to the target, but not to the visible track's travel.
-    // Both native endpoints must be reachable with the pointer still off-court.
-    await page.mouse.move(x, pad.y + 1);
+    await page.mouse.move(x, canvas.y + canvas.height * 0.75);
+    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBeGreaterThan(12000);
+    await expect.poll(async () => (await paddles(page))[slot] - upper[slot]).toBeGreaterThan(0.3);
+    // Both exact native endpoints are reachable without leaving the display.
+    await page.mouse.move(x, canvas.y + 2);
     await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
-    await expectThumbFraction(page, slot, 0);
-    await settleInputPresentation(page);
-    await page.screenshot({ path: testInfo.outputPath(`external-pointer-p${slot + 1}-top.png`) });
-    await page.mouse.move(x, pad.y + pad.height - 1);
+    await page.mouse.move(x, canvas.y + canvas.height - 2);
     await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(32767);
-    await expectThumbFraction(page, slot, 1);
     await settleInputPresentation(page);
-    expect((await snapshot(page)).axes[1 - slot]).toBe(other);
-    await page.screenshot({ path: testInfo.outputPath(`external-pointer-p${slot + 1}-bottom.png`) });
-    // Captured movement beyond both target edges clamps to exact native limits.
-    await page.mouse.move(x, pad.y + pad.height + 24);
-    expect((await snapshot(page)).axes[slot]).toBe(32767);
-    await page.mouse.move(x, pad.y - 24);
+    await page.screenshot({ path: testInfo.outputPath(`mouse-p${slot + 1}-bottom.png`) });
+    // A held button keeps the pointer, and movement beyond the edges clamps.
+    await page.mouse.down();
+    await page.mouse.move(x, canvas.y - 40, { steps: 4 });
     await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
     await page.mouse.up();
-    await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-    const released = await snapshot(page);
-    await page.locator(`#paddle-p${slot + 1}-label`).click();
+    expect((await snapshot(page)).axes[1 - slot]).toBe(other);
     expect((await snapshot(page)).pointerCount).toBe(0);
-    expect((await snapshot(page)).axes).toEqual(released.axes);
-    // Keyboard access remains available on each external slider.
-    await page.getByTestId(`paddle-p${slot + 1}`).focus();
-    await page.keyboard.press('End');
-    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(32767);
-    await expectThumbFraction(page, slot, 1);
-    await page.keyboard.press('Home');
-    await expect.poll(async () => (await snapshot(page)).axes[slot]).toBe(-32768);
-    await expectThumbFraction(page, slot, 0);
   }
-  const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
-  const beforeCourt = await snapshot(page);
-  await page.mouse.move(canvas.x + canvas.width * 0.25, canvas.y + canvas.height * 0.2);
-  await page.mouse.down();
-  await page.mouse.move(canvas.x + canvas.width * 0.25, canvas.y + canvas.height * 0.8, { steps: 5 });
-  expect((await snapshot(page)).pointerCount).toBe(0);
-  await page.mouse.up();
-  await waitSimulation(page, BigInt(beforeCourt.timeps) + 300_000_000_000n);
-  expect((await snapshot(page)).axes).toEqual(beforeCourt.axes);
-});
-
-test('simultaneous touch paddles move independently and cancellation releases held gestures', async ({ page, context, browserName }, testInfo) => {
-  test.skip(browserName !== 'chromium', 'CDP supplies true simultaneous browser touch contacts; physical iPhone testing remains required.');
-  await start(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByTestId('insert-coin').click();
-  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
-  await waitSimulation(page, 1_100_000_000_000n);
-  const p1 = await page.getByTestId('paddle-p1').boundingBox();
-  const p2 = await page.getByTestId('paddle-p2').boundingBox();
-  expect(p1).not.toBeNull(); expect(p2).not.toBeNull();
-  const session = await context.newCDPSession(page);
-  await session.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  const centered = await initialRenderedPaddles(page);
-  const points = [
-    { id: 11, x: p1!.x + p1!.width / 2, y: p1!.y + p1!.height * 0.2, radiusX: 12, radiusY: 12 },
-    { id: 22, x: p2!.x + p2!.width / 2, y: p2!.y + p2!.height * 0.8, radiusX: 12, radiusY: 12 },
-  ];
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  await expect.poll(async () => (await snapshot(page)).axes[0]).toBeLessThan(-8000);
-  await expect.poll(async () => (await snapshot(page)).axes[1]).toBeGreaterThan(8000);
-  await expect.poll(async () => centered[0] - (await paddles(page))[0]).toBeGreaterThan(0.1);
-  await expect.poll(async () => (await paddles(page))[1] - centered[1]).toBeGreaterThan(0.1);
-  await page.screenshot({ path: testInfo.outputPath('shell-touch-active.png') });
-  const bothMoved = await paddles(page);
+  // Off: mouse movement over the display leaves both paddles alone.
+  await openSettings(page);
+  await page.getByTestId('mouse-slot').selectOption('off');
+  await resumePlay(page);
   const before = await snapshot(page);
-  points[0].y = p1!.y + p1!.height * 0.75;
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).axes[0]).toBeGreaterThan(6000);
-  await expect.poll(async () => (await paddles(page))[0] - bothMoved[0]).toBeGreaterThan(0.2);
-  expect(Math.abs((await paddles(page))[1] - bothMoved[1])).toBeLessThan(0.025);
-  expect((await snapshot(page)).axes[1]).toBe(before.axes[1]);
-  const touchEvidence: unknown[] = [];
-  for (const swapped of [false, true]) {
-    const bounds = [p1!, p2!];
-    points.forEach((point, slot) => {
-      const bottom = Boolean(slot) !== swapped;
-      point.y = bounds[slot].y + (bottom ? bounds[slot].height - 6 : 6);
-    });
-    await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-    await expect.poll(async () => (await snapshot(page)).axes).toEqual(swapped ? [32767, -32768] : [-32768, 32767]);
-    await expectThumbFraction(page, 0, swapped ? 1 : 0);
-    await expectThumbFraction(page, 1, swapped ? 0 : 1);
-    await settleInputPresentation(page);
-    const canvas = (await page.getByTestId('game-canvas').boundingBox())!;
-    for (const point of points) {
-      expect(separation({ x: point.x - 12, y: point.y - 12, width: 24, height: 24 }, canvas),
-        'Both actual contact footprints stay outside the visible ball and paddles').toBeGreaterThanOrEqual(0);
-    }
-    touchEvidence.push({ orientation: 'portrait', points: points.map((point) => ({ ...point })), canvas, axes: (await snapshot(page)).axes });
-    await page.screenshot({ path: testInfo.outputPath(`external-touch-endpoints-portrait-${swapped ? 'bottom-top' : 'top-bottom'}.png`) });
-  }
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  const cancelled = await snapshot(page);
-  await waitSimulation(page, BigInt(cancelled.timeps) + 300_000_000_000n);
-  expect((await snapshot(page)).axes).toEqual(cancelled.axes);
-
-  // A game-menu transition must also release two actual held contacts, not
-  // merely clear the controls after an already completed touchCancel.
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  await page.getByTestId('pause').click();
-  await expect(page.getByTestId('resume')).toBeVisible();
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  await page.waitForTimeout(150);
-  const menuPaused = await snapshot(page);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await page.waitForTimeout(200);
-  expect((await snapshot(page)).timeps).toBe(menuPaused.timeps);
+  await page.mouse.move(x, canvas.y + canvas.height * 0.3, { steps: 3 });
+  await page.mouse.move(x, canvas.y + canvas.height * 0.7, { steps: 3 });
+  await waitSimulation(page, BigInt(before.timeps) + 200_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(before.axes);
+  // Keyboard play is unaffected by a resting mouse after a menu closes.
+  await openSettings(page);
+  await page.getByTestId('mouse-slot').selectOption('0');
   await resumePlay(page);
-  await waitSimulation(page, BigInt(menuPaused.timeps) + 300_000_000_000n);
-  expect((await snapshot(page)).axes).toEqual(menuPaused.axes);
-
-  // Reset's release path must handle still-captured contacts as well as the
-  // normal menu flow, which has already released them before Reset is chosen.
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  await page.evaluate(() => (document.querySelector('[data-testid="reset"]') as HTMLButtonElement).click());
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  await expect.poll(async () => (await snapshot(page)).axes).toEqual([0, 0]);
-  points[0].y = p1!.y + p1!.height * 0.8;
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-  expect((await snapshot(page)).axes).toEqual([0, 0]);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await waitSimulation(page, 300_000_000_000n);
-  expect((await snapshot(page)).attract).toBe(true);
-  await page.getByTestId('insert-coin').click();
-  await expect.poll(async () => (await snapshot(page)).run).toBe(true);
-
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  await expect(page.getByTestId('resume')).toBeVisible();
-  const blurred = await snapshot(page);
-  points[1].y = p2!.y + p2!.height * 0.75;
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-  expect((await snapshot(page)).axes).toEqual(blurred.axes);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await resumePlay(page);
-  await waitSimulation(page, BigInt(blurred.timeps) + 300_000_000_000n);
-  expect((await snapshot(page)).axes).toEqual(blurred.axes);
-
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  const beforeRotation = await snapshot(page);
-  await page.setViewportSize({ width: 844, height: 390 });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points });
-  expect((await snapshot(page)).axes).toEqual(beforeRotation.axes);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await waitSimulation(page, BigInt(beforeRotation.timeps) + 300_000_000_000n);
-  expect((await snapshot(page)).axes).toEqual(beforeRotation.axes);
-  await expectExternalLayout(page);
-  const landscape = await Promise.all([page.getByTestId('paddle-p1').boundingBox(), page.getByTestId('paddle-p2').boundingBox()]);
-  const landscapePoints = landscape.map((bounds, slot) => ({
-    id: 31 + slot, x: bounds!.x + bounds!.width / 2, y: bounds!.y + (slot ? bounds!.height - 6 : 6), radiusX: 12, radiusY: 12,
-  }));
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: landscapePoints });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(2);
-  await expect.poll(async () => (await snapshot(page)).axes).toEqual([-32768, 32767]);
-  await expectThumbFraction(page, 0, 0);
-  await expectThumbFraction(page, 1, 1);
-  await settleInputPresentation(page);
-  const landscapeCanvas = (await page.getByTestId('game-canvas').boundingBox())!;
-  for (const point of landscapePoints) expect(separation({ x: point.x - 12, y: point.y - 12, width: 24, height: 24 }, landscapeCanvas)).toBeGreaterThanOrEqual(0);
-  touchEvidence.push({ orientation: 'landscape', points: landscapePoints, canvas: landscapeCanvas, axes: (await snapshot(page)).axes });
-  await page.screenshot({ path: testInfo.outputPath('shell-touch-active-landscape.png') });
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  // Real browser touch events on either court half are deliberately inert.
-  const beforeCourt = await snapshot(page);
-  const courtPoints = [0.25, 0.75].map((fraction, slot) => ({ id: 41 + slot,
-    x: landscapeCanvas.x + landscapeCanvas.width * fraction, y: landscapeCanvas.y + landscapeCanvas.height * 0.2 }));
-  await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: courtPoints });
-  courtPoints.forEach((point) => { point.y = landscapeCanvas.y + landscapeCanvas.height * 0.8; });
-  await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: courtPoints });
-  expect((await snapshot(page)).pointerCount).toBe(0);
-  expect((await snapshot(page)).axes).toEqual(beforeCourt.axes);
-  await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await testInfo.attach('external-touch-contacts.json', { body: JSON.stringify(touchEvidence, null, 2), contentType: 'application/json' });
-  await session.detach();
+  const resting = await snapshot(page);
+  await waitSimulation(page, BigInt(resting.timeps) + 200_000_000_000n);
+  expect((await snapshot(page)).axes).toEqual(resting.axes);
+  await page.keyboard.down('s');
+  await expect.poll(async () => (await snapshot(page)).axes[0]).toBeGreaterThan(resting.axes[0]);
+  await page.keyboard.up('s');
 });
 
 test('a missing Wasm asset produces an actionable error instead of simulated gameplay', async ({ page }, testInfo) => {
@@ -678,10 +519,12 @@ test('a sustained browser session generates circuit scoring and bounded media', 
   await start(page);
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
-  await page.getByTestId('paddle-p1').focus();
-  await page.keyboard.press('Home');
-  await page.getByTestId('paddle-p2').focus();
-  await page.keyboard.press('Home');
+  // Park both paddles at the top with the keyboard so the ball scores.
+  await page.keyboard.down('w');
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(async () => Math.max(...(await snapshot(page)).axes), { timeout: 15_000 }).toBeLessThan(-30000);
+  await page.keyboard.up('w');
+  await page.keyboard.up('ArrowUp');
   const initial = await page.evaluate(async () => ({ state: await (window as any).__nocpuDebug.snapshot(), wall: performance.now() }));
   await page.waitForTimeout(8000);
   const final = await page.evaluate(async () => ({ state: await (window as any).__nocpuDebug.snapshot(), wall: performance.now() }));
@@ -691,7 +534,7 @@ test('a sustained browser session generates circuit scoring and bounded media', 
     initialWasmMemoryCapacityBytes: initial.state.worker.wasmMemoryCapacityBytes,
     finalWasmMemoryCapacityBytes: final.state.worker.wasmMemoryCapacityBytes,
     audio: final.state.audio, worker: final.state.worker,
-    evidenceScope: 'Eight-second headless browser sample; emulated phones are not physical-device performance.' };
+    evidenceScope: 'Eight-second headless desktop browser sample; not a performance qualification.' };
   await testInfo.attach('browser-performance.json', { body: Buffer.from(JSON.stringify(metrics, null, 2)), contentType: 'application/json' });
   expect(metrics.simulationSpeedRatio).toBeGreaterThanOrEqual(0.85);
   expect(metrics.finalWasmMemoryCapacityBytes).toBeLessThanOrEqual(metrics.initialWasmMemoryCapacityBytes * 1.25);
@@ -705,21 +548,16 @@ test('a sustained browser session generates circuit scoring and bounded media', 
   await expect.poll(async () => (await snapshot(page)).scores).toEqual([0, 0]);
 });
 
-test('portrait, landscape and desktop layouts keep the court and controls in a full viewport game', async ({ page }, testInfo) => {
+test('desktop window sizes keep the whole original raster and the action bar in view', async ({ page }, testInfo) => {
   await start(page);
   const geometry: unknown[] = [];
-  for (const size of [{ width: 390, height: 844 }, { width: 390, height: 664 }, { width: 320, height: 568 },
-    { width: 844, height: 390 }, { width: 568, height: 320 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
+  for (const size of [{ width: 1024, height: 600 }, { width: 1024, height: 768 }, { width: 1280, height: 720 },
+    { width: 1366, height: 768 }, { width: 1920, height: 1080 }, { width: 800, height: 1000 }]) {
     await page.setViewportSize(size);
     await expect(page.getByTestId('game-canvas')).toBeVisible();
     await expectViewportShell(page);
-    geometry.push(await expectExternalLayout(page));
-    for (const id of ['game-canvas', 'paddle-p1', 'paddle-p2']) {
-      const bounds = await page.getByTestId(id).boundingBox();
-      expect(bounds!.y, `${id} must share the gameplay viewport`).toBeGreaterThanOrEqual(-1);
-      expect(bounds!.y + bounds!.height, `${id} must share the gameplay viewport`).toBeLessThanOrEqual(size.height + 1);
-    }
-    for (const id of ['paddle-p1', 'paddle-p2', 'insert-coin', 'pause']) await expectUsableTarget(page, id);
+    geometry.push(await expectDesktopLayout(page));
+    for (const id of ['insert-coin', 'pause']) await expectUsableTarget(page, id);
     await page.screenshot({ path: testInfo.outputPath(`shell-play-${size.width}x${size.height}.png`) });
     await pauseMenu(page);
     for (const id of ['resume', 'reset']) await expectUsableTarget(page, id);
@@ -728,25 +566,7 @@ test('portrait, landscape and desktop layouts keep the court and controls in a f
     await page.screenshot({ path: testInfo.outputPath(`shell-pause-${size.width}x${size.height}.png`) });
     await resumePlay(page);
   }
-  // env(safe-area-inset-*) is zero in automation. Override its existing CSS
-  // variables to test reserved geometry, without claiming a physical notch.
-  for (const [size, insets] of [
-    [{ width: 320, height: 568 }, { top: 24, right: 0, bottom: 34, left: 0 }],
-    [{ width: 568, height: 320 }, { top: 24, right: 44, bottom: 34, left: 44 }],
-    [{ width: 844, height: 390 }, { top: 0, right: 44, bottom: 21, left: 44 }],
-  ] as [{ width: number; height: number }, Insets][]) {
-    await page.setViewportSize(size);
-    await page.evaluate((safe) => {
-      for (const [edge, value] of Object.entries(safe)) document.documentElement.style.setProperty(`--safe-${edge}`, `${value}px`);
-    }, insets);
-    await expectViewportShell(page);
-    geometry.push(await expectExternalLayout(page, insets));
-    await page.screenshot({ path: testInfo.outputPath(`external-safe-area-${size.width}x${size.height}.png`) });
-    await page.evaluate(() => {
-      for (const edge of ['top', 'right', 'bottom', 'left']) document.documentElement.style.removeProperty(`--safe-${edge}`);
-    });
-  }
-  await testInfo.attach('external-control-geometry.json', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
+  await testInfo.attach('desktop-layout-geometry.json', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
 });
 
 test('title and game menus support keyboard navigation without leaking gameplay input', async ({ page }, testInfo) => {
@@ -795,20 +615,20 @@ test('title and game menus support keyboard navigation without leaking gameplay 
   await expect(page.getByTestId('version')).toContainText(version);
   await captureShellPanel(page, testInfo, 'about');
   const aboutViewport = page.viewportSize()!;
-  await page.setViewportSize({ width: 844, height: 390 });
+  await page.setViewportSize({ width: 1024, height: 480 });
   await page.getByRole('link', { name: 'Credits & notices', exact: true }).scrollIntoViewIfNeeded();
   for (const name of ['Source', 'GPL v3', 'Credits & notices']) {
     const bounds = await page.getByRole('link', { name, exact: true }).boundingBox();
     expect(bounds, name).not.toBeNull();
     expect(bounds!.y, `${name} is reachable within About`).toBeGreaterThanOrEqual(-1);
-    expect(bounds!.y + bounds!.height, `${name} is reachable within About`).toBeLessThanOrEqual(391);
+    expect(bounds!.y + bounds!.height, `${name} is reachable within About`).toBeLessThanOrEqual(481);
   }
   await expectViewportShell(page);
-  await page.screenshot({ path: testInfo.outputPath('shell-about-landscape-source-links.png') });
+  await page.screenshot({ path: testInfo.outputPath('shell-about-short-window-source-links.png') });
   await page.getByTestId('back').scrollIntoViewIfNeeded();
   await expectUsableTarget(page, 'back');
   await expectViewportShell(page);
-  await page.screenshot({ path: testInfo.outputPath('shell-about-landscape-back.png') });
+  await page.screenshot({ path: testInfo.outputPath('shell-about-short-window-back.png') });
   await page.setViewportSize(aboutViewport);
   await page.getByTestId('back').click();
   expect((await snapshot(page)).paused).toBe(true);
@@ -893,8 +713,13 @@ test('distributed assets, source and notices match the build manifest', async ({
   expect([...paths].some((path) => path.endsWith('.wasm'))).toBe(true);
   await page.goto('./');
   await openAbout(page);
-  await expect(page.getByTestId('version')).toContainText(manifest.version);
-  await expect(page.getByTestId('version')).toContainText(manifest.buildId);
+  // The build string is vX.Y.Z for the release tag build, otherwise vX.Y.Z-dev.<shortsha>.
+  const build = manifest.stage === 'release' && manifest.tag === `v${version}` ? `v${version}`
+    : manifest.source_commit ? `v${version}-dev.${manifest.source_commit.slice(0, 7)}` : `v${version}-dev`;
+  await expect(page.getByTestId('version')).toHaveText(build);
+  await page.getByTestId('back').click();
+  await expect(page.getByTestId('title-version')).toHaveText(build);
+  await openAbout(page);
   const base = new URL(page.url()).pathname;
   await expect(page.getByRole('link', { name: 'Source', exact: true })).toHaveAttribute('href', `${base}${manifest.source_archive.path}`);
   await expect(page.getByRole('link', { name: 'GPL v3', exact: true })).toHaveAttribute('href', `${base}notices/LICENSE`);

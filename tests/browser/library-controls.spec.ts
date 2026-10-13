@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { auditedGames } from './rom-fixtures';
 import { screen, titleSettings, installGamepads, padState, padPresent } from './app-helpers';
 import { snapshot, start, waitSimulation, paddles, initialRenderedPaddles, installAudioProbe,
-  openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectExternalLayout, noInsets } from './helpers';
+  openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectDesktopLayout } from './helpers';
 
 test('all audited games have truthful library, ROM, sound and control information with six implemented circuits and player-ROM launch gates', async ({ page }) => {
   await page.addInitScript(() => {
@@ -223,14 +223,8 @@ test('gamepads independently move rendered paddles and require neutral inputs af
   await padState(page, 0, { button: [13, true] });
   const held = await snapshot(page);
   await expect.poll(async () => (await snapshot(page)).axes[0] - held.axes[0]).toBeGreaterThan(1500);
-  const pad = (await page.getByTestId('paddle-p1').boundingBox())!;
-  await page.mouse.move(pad.x + pad.width / 2, pad.y + pad.height * .6);
-  await page.mouse.down();
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(1);
   await padState(page, 0, { connected: false });
-  await expect.poll(async () => (await snapshot(page)).pointerCount).toBe(0);
-  await page.mouse.move(0, 0);
-  await page.mouse.up();
+  await expect.poll(async () => (await snapshot(page)).heldKeys).toEqual([]);
   const disconnected = await snapshot(page);
   await waitSimulation(page, BigInt(disconnected.timeps) + 120_000_000_000n);
   expect((await snapshot(page)).axes).toEqual(disconnected.axes);
@@ -303,12 +297,11 @@ test('gamepad capture rejects conflicts, assigns independent axes and consumes t
   expect(BigInt((await snapshot(page)).timeps)).toBeGreaterThan(BigInt(reset.timeps));
 });
 
-test('library, info and settings stay reachable inside compact safe-area game menus', async ({ page }, testInfo) => {
-  const geometries = [{ width: 320, height: 568 }, { width: 568, height: 320 }, { width: 390, height: 844 }];
+test('library, info and settings stay reachable inside small desktop windows', async ({ page }, testInfo) => {
+  const geometries = [{ width: 800, height: 600 }, { width: 1024, height: 480 }, { width: 1280, height: 720 }];
   for (const viewport of geometries) {
     await page.setViewportSize(viewport);
     await page.goto('?debug');
-    await page.addStyleTag({ content: ':root{--safe-top:20px;--safe-right:12px;--safe-bottom:20px;--safe-left:12px}' });
     await page.getByTestId('open-library').click();
     await expectViewportShell(page);
     for (const game of [auditedGames[0], auditedGames.at(-1)!]) {
@@ -336,6 +329,6 @@ test('library, info and settings stay reachable inside compact safe-area game me
     await page.getByTestId('back').click();
     await page.getByTestId('play-pong').click();
     await expect(page.getByTestId('insert-coin')).toBeEnabled();
-    await expectExternalLayout(page, { top: 20, right: 12, bottom: 20, left: 12 });
+    await expectDesktopLayout(page);
   }
 });

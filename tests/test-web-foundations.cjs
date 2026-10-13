@@ -11,7 +11,7 @@ const output = fs.mkdtempSync(path.join(root, 'build/foundations-test-'));
 const compile = spawnSync(path.join(root, 'node_modules/.bin/tsc'), [
   '--noEmit', 'false', '--outDir', output, '--module', 'CommonJS', '--moduleResolution', 'Node',
   '--resolveJsonModule', '--esModuleInterop', '--target', 'ES2022', '--strict', '--skipLibCheck',
-  ...['control-schema', 'controls', 'preferences', 'roms', 'zip'].map((file) => `web/src/${file}.ts`),
+  ...['build-info', 'control-schema', 'controls', 'preferences', 'roms', 'zip'].map((file) => `web/src/${file}.ts`),
 ], { cwd: root, encoding: 'utf8' });
 assert.equal(compile.status, 0, compile.stdout + compile.stderr);
 fs.writeFileSync(path.join(output, 'package.json'), '{"type":"commonjs"}\n');
@@ -21,6 +21,7 @@ const { createControls } = require(path.join(output, 'web/src/controls.js'));
 const prefs = require(path.join(output, 'web/src/preferences.js'));
 const roms = require(path.join(output, 'web/src/roms.js'));
 const zip = require(path.join(output, 'web/src/zip.js'));
+const buildInfo = require(path.join(output, 'web/src/build-info.js'));
 
 function keyboard(code, options = {}) { return { code, repeat: false, target: null, prevented: false, preventDefault() { this.prevented = true; }, ...options }; }
 function gamepad(index, axis = 0, down = [], id = `Synthetic controller ${index}`) {
@@ -88,7 +89,7 @@ test('keyboard remaps preserve simultaneous players and opposing-key release, wi
   controls.setEnabled(false); assert.equal(controls.handleKeyDown(keyboard('KeyQ')), false);
   controls.setEnabled(true); assert.equal(controls.handleKeyDown(keyboard('KeyQ', { ctrlKey: true })), false);
 });
-test('neutral and static gamepads never continuously overwrite a touch or keyboard position', () => {
+test('neutral and static gamepads never continuously overwrite a mouse or keyboard position', () => {
   const { controls, events } = adapter();
   controls.pollGamepads([gamepad(0), gamepad(1)]); controls.handleKeyDown(keyboard('KeyW'));
   for (let tick = 0; tick < 20; tick++) controls.pollGamepads([gamepad(0, 0.14), gamepad(1)]);
@@ -228,10 +229,10 @@ test('Space Race combines held directional sources, releases centered axes and n
     onAxes: (a) => events.axes.push(a), onAction: (a) => events.actions.push(a) });
   controls.setEnabled(true); controls.pollGamepads([gamepad(0), gamepad(1)]);
   controls.pollGamepads([gamepad(0, -1), gamepad(1, 1)]); assert.deepEqual(controls.getState().directions, [-1, 1]);
-  controls.setTouchButtons(0, false, true); assert.deepEqual(controls.getState().directions, [0, 1]);
+  controls.handleKeyDown(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [0, 1]);
   controls.pollGamepads([gamepad(0), gamepad(1)]); assert.deepEqual(controls.getState().directions, [1, 0]);
   controls.handleKeyDown(keyboard('KeyW')); assert.deepEqual(controls.getState().directions, [0, 0]);
-  controls.setTouchButtons(0, false, false); assert.deepEqual(controls.getState().directions, [-1, 0]);
+  controls.handleKeyUp(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [-1, 0]);
   controls.handleKeyDown(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [0, 0]);
   controls.handleKeyUp(keyboard('KeyW')); assert.deepEqual(controls.getState().directions, [1, 0]);
   controls.handleKeyUp(keyboard('KeyS')); assert.deepEqual(controls.getState().directions, [0, 0]);
@@ -263,7 +264,7 @@ test('version-1 migration preserves custom Pong keys, pad axes, buttons and soun
   assert.deepEqual(migrated.preferences.bindingsByGame.pongdoubles, schema.defaultBindings('pongdoubles'));
   assert.deepEqual(migrated.preferences.bindingsByGame.spacerace, schema.defaultBindings('spacerace'));
   assert.equal(prefs.savePreferences(migrated.preferences, old).status, 'available');
-  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 4);
+  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 5);
   assert.deepEqual(prefs.loadPreferences(old).preferences, migrated.preferences);
 });
 
@@ -302,8 +303,8 @@ test('Breakout shares one horizontal controller while Serve combines independent
   controls.handleKeyUp(keyboard('ArrowLeft')); assert.deepEqual(controls.getState().directions, [1]);
   controls.handleKeyUp(keyboard('ArrowRight'));
   controls.handleKeyDown(keyboard('KeyS')); assert.deepEqual(events.serve, [true]);
-  controls.setTouchServe(true); controls.handleKeyUp(keyboard('KeyS')); assert.equal(controls.getState().serve, true);
-  controls.setTouchServe(false); assert.deepEqual(events.serve, [true, false]);
+  controls.setPointerServe(true); controls.handleKeyUp(keyboard('KeyS')); assert.equal(controls.getState().serve, true);
+  controls.setPointerServe(false); assert.deepEqual(events.serve, [true, false]);
   controls.pollGamepads([pad(0, [3])]); assert.equal(controls.getState().serve, true);
   controls.handleKeyDown(keyboard('KeyS')); controls.pollGamepads([pad()]); assert.equal(controls.getState().serve, true);
   controls.setEnabled(false); assert.equal(controls.getState().serve, false); assert.deepEqual(controls.getState().heldKeys, []);
@@ -354,7 +355,7 @@ test('version-2 migration preserves arbitrary three-game mappings, options and s
   assert.deepEqual(migrated.preferences.bindingsByGame.breakout, schema.defaultBindings('breakout'));
   assert.deepEqual(migrated.preferences.optionsByGame.breakout, { bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 3 });
   assert.equal(prefs.savePreferences(migrated.preferences, storage).status, 'available');
-  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 4);
+  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 5);
   assert.deepEqual(prefs.loadPreferences(storage).preferences, migrated.preferences);
 });
 
@@ -385,9 +386,9 @@ test('Driving controls retain independent analog/digital channels, pedals, coins
   assert.deepEqual(events.axes.at(-1), [-32768, null, null, null]);
   controls.handleKeyUp(keyboard('KeyA'));
   assert.deepEqual(controls.getState().directions, [0, 0, 0, 0]);
-  controls.setTouchButtons(3, false, true); controls.handleKeyDown(keyboard('ArrowLeft'));
+  controls.handleKeyDown(keyboard('Numpad6')); controls.handleKeyDown(keyboard('ArrowLeft'));
   assert.deepEqual(controls.getState().directions, [0, -1, 0, 1]);
-  controls.setTouchPedals(0, true, false); controls.handleKeyDown(keyboard('KeyK'));
+  controls.handleKeyDown(keyboard('KeyW')); controls.handleKeyDown(keyboard('KeyK'));
   controls.pollGamepads(pads(-1, [0]));
   assert.deepEqual(controls.getState().gas, [true, true, false, false]);
   assert.deepEqual(controls.getState().brake, [false, false, true, false]);
@@ -420,4 +421,51 @@ test('Version 3 preferences preserve delivered games and default independent sel
   assert.equal(result.preferences.bindingsByGame.indy4.gamepad.players.length, 4);
   assert.equal(result.preferences.bindingsByGame.stuntcycle.gamepad.players.length, 1);
   assert.equal(schema.validateBindings(result.preferences.bindingsByGame.indy4, 'indy4').ok, true);
+});
+
+test('Version 4 preferences load without loss and default the desktop mouse assignment', () => {
+  const previous = prefs.clonePreferences(); previous.volume = 0.4; previous.muted = true;
+  previous.bindingsByGame.indy4.keyboard.p1Gas = ['KeyQ']; previous.optionsByGame.spacerace.coinage = 2;
+  delete previous.mouseByGame;
+  const storage = memoryStorage(JSON.stringify({ version: 4, preferences: previous }));
+  const result = prefs.loadPreferences(storage);
+  assert.equal(result.status, 'available'); assert.equal(result.message, undefined);
+  assert.equal(result.preferences.volume, 0.4); assert.equal(result.preferences.muted, true);
+  assert.deepEqual(result.preferences.bindingsByGame.indy4.keyboard.p1Gas, ['KeyQ']);
+  assert.equal(result.preferences.optionsByGame.spacerace.coinage, 2);
+  assert.deepEqual(result.preferences.mouseByGame, prefs.DEFAULT_PREFERENCES.mouseByGame);
+  const saved = prefs.savePreferences(result.preferences, storage);
+  assert.equal(saved.status, 'available'); assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 5);
+  // Version 4 with an invalid field still loads, reporting only that recovery.
+  const bad = structuredClone(previous); bad.volume = 7;
+  const recovered = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 4, preferences: bad })));
+  assert.equal(recovered.status, 'recovered'); assert.equal(recovered.preferences.volume, prefs.DEFAULT_PREFERENCES.volume);
+  assert.deepEqual(recovered.preferences.bindingsByGame.indy4.keyboard.p1Gas, ['KeyQ']);
+});
+
+test('mouse assignments persist per game and invalid slots recover to the default', () => {
+  const value = prefs.clonePreferences(); value.mouseByGame.pong = 1; value.mouseByGame.pongdoubles = 3; value.mouseByGame.breakout = null;
+  const storage = memoryStorage(); assert.equal(prefs.savePreferences(value, storage).status, 'available');
+  assert.deepEqual(prefs.loadPreferences(storage).preferences.mouseByGame, { pong: 1, pongdoubles: 3, breakout: null, stuntcycle: 0 });
+  for (const slot of [2, -1, 0.5, '1', undefined]) {
+    const bad = structuredClone(value); bad.mouseByGame.pong = slot;
+    const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: bad })));
+    assert.equal(result.status, 'recovered'); assert.equal(result.preferences.mouseByGame.pong, 0);
+    assert.equal(result.preferences.mouseByGame.pongdoubles, 3);
+  }
+  assert.equal(prefs.isMouseGame('spacerace'), false); assert.equal(prefs.isMouseGame('indy4'), false);
+});
+
+test('About build string: tag build, untagged dev build with short commit, and no manifest', () => {
+  const sha = '0123456789abcdef0123456789abcdef01234567';
+  const manifest = { schema_version: 1, project: 'NoCPU', version: '0.1.1', stage: 'release', tag: 'v0.1.1', source_commit: sha };
+  assert.equal(buildInfo.buildString('0.1.1', manifest), 'v0.1.1');
+  assert.equal(buildInfo.buildString('0.2.0-rc.1', { ...manifest, version: '0.2.0-rc.1', tag: 'v0.2.0-rc.1' }), 'v0.2.0-rc.1');
+  assert.equal(buildInfo.buildString('0.1.1', { ...manifest, stage: 'preview', tag: null }), 'v0.1.1-dev.0123456');
+  assert.equal(buildInfo.buildString('0.1.1', { ...manifest, stage: 'release', tag: 'v0.1.0' }), 'v0.1.1-dev.0123456');
+  assert.equal(buildInfo.buildString('0.1.1', { ...manifest, stage: 'preview', tag: null, source_commit: null }), 'v0.1.1-dev');
+  for (const other of [undefined, null, [], { ...manifest, version: '0.1.0' }, { ...manifest, project: 'Other' }, { ...manifest, schema_version: 2 }]) {
+    assert.equal(buildInfo.buildString('0.1.1', other), 'v0.1.1-dev');
+  }
+  assert.equal(buildInfo.devBuildString('0.1.1'), 'v0.1.1-dev');
 });

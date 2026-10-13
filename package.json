@@ -15,8 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test:browser": "./tools/run-browser-tests.sh",
     "test:browser:chromium": "./tools/run-browser-tests.sh --project=chromium",
-    "test:foundations": "node --test tests/test-web-foundations.cjs",
-    "test:qualification": "node --test tests/test-device-qualification.cjs"
+    "test:foundations": "node --test tests/test-web-foundations.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",

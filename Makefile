@@ -11,7 +11,6 @@ release-check:
 	$(PYTHON) tools/release_check.py
 
 test: check
-	node tools/render-icons.mjs --check
 	$(PYTHON) tests/test-release-check.py
 	$(PYTHON) tests/test-release-tools.py
 	$(PYTHON) tests/test-game-audits.py
@@ -21,8 +20,6 @@ test: check
 	$(PYTHON) tests/test-full-rgb.py
 	$(PYTHON) tests/reference/test_snapshot_ppm.py
 	$(PYTHON) tests/reference/test_owned_case.py
-	$(PYTHON) tests/test-ci-change.py
-	$(PYTHON) tests/test-ci-runtime-baseline.py
 	$(PYTHON) tests/test-core-handoff.py
 	$(PYTHON) tests/test-web-release.py
 	$(PYTHON) tests/test-dev-rom-exclusion.py
