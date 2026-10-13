@@ -94,7 +94,7 @@ source or matching archive served by the verified 0.5.0 deployment.
 Android Chrome and iPhone Safari evidence for the complete runtime digest.
 Record the model, OS/browser versions, test date, tested build, required play,
 touch, speaker audio and lifecycle checks, plus the retained Pong baseline's
-at least ten minutes of sustained performance. The [physical-device packet](../DEVICE_QUALIFICATION.md)
+at least ten minutes of sustained performance. The [physical-device packet](DEVICE_QUALIFICATION.md)
 provides the existing Pong procedure after reviewed publication: include both external tracks, their visible
 full-range feedback, court separation and portrait/landscape reachability.
 The earlier iPhone obstruction report and subsequent two successful 0.2.1

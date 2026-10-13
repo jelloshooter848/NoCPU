@@ -3,7 +3,7 @@
 The [0.4.0 preview](0.4.0_VALIDATION.md) has passed independent publication
 review. Use this packet with its exact tested runtime; later previews require
 their own runtime identity and additional-title/mode procedure. The earlier
-Pong procedure remains in [DEVICE_QUALIFICATION.md](../DEVICE_QUALIFICATION.md).
+Pong procedure remains in [DEVICE_QUALIFICATION.md](DEVICE_QUALIFICATION.md).
 This packet records no physical-device result and does not authorize a final tag.
 
 Test an identified actual iPhone in Safari and Android phone in Chrome.
@@ -71,7 +71,7 @@ disconnect/reconnect results separate; available controller counts do not
 silently collapse four Doubles players. No controller support is inferred from
 automation or a different hardware pairing.
 
-Use [the device report template](../DEVICE_REPORT_TEMPLATE.md), naming the tested
+Use [the device report template](DEVICE_REPORT_TEMPLATE.md), naming the tested
 game/options for each report and recording title-specific observations. Send
 no ROM payloads/private archives. Actual reports must be independently reviewed
 before changing readiness or claiming a supported device floor.
