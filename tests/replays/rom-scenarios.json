@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "description": "ROM-backed original/native/Wasm comparison scenarios. Inputs only; the ROM fixtures are supplied privately at run time.",
+  "scenarios": [
+    {
+      "id": "stuntcycle-throttle",
+      "game": "stuntcycle",
+      "replay": "tests/replays/stuntcycle-throttle.tsv",
+      "dip": 76,
+      "pot_ohms": 0
+    },
+    {
+      "id": "indy4-pilot",
+      "game": "indy4",
+      "replay": "tests/replays/indy4-pilot.tsv",
+      "dip": 0,
+      "pot_ohms": 720000
+    }
+  ]
+}

@@ -288,7 +288,17 @@ A screenshot of attract mode or merely selecting a dummy audio device does not s
 
 ## Private ROM fixture validation
 
-With compatible files available outside the public checkout:
+Fetch the private development/CI fixtures into ignored `build/roms/` and audit them, then run the ROM-backed Stunt Cycle and Indy 4 comparison after the native reference and core builds:
+
+```sh
+./tools/fetch-roms.sh                 # exit 77: blocked, no ROM access
+python3 tools/compare-rom-games.py    # exit 77: skipped, no fixture directory
+python3 tests/test-dev-rom-exclusion.py   # after npm run build:web
+```
+
+[ROMS.md](ROMS.md) documents the environment variables (`NOCPU_ROMS_REPO`, `NOCPU_ROMS_REF`, `NOCPU_ROM_DIR`, `NOCPU_ROMS_TOKEN`), what the comparison checks, the dev-server auto-load and the CI secret. The separate `rom-validation.yml` workflow runs these with the `NOCPU_ROMS_TOKEN` secret and reports `blocked: NOCPU_ROMS_TOKEN not configured` with the job skipped when the secret is absent, including on fork pull requests. The private browser test `tests/browser/v060-driving.spec.ts` also reads `NOCPU_ROM_DIR`.
+
+With compatible files available outside the public checkout or in an ignored directory:
 
 ```sh
 python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures
@@ -297,16 +307,15 @@ python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures --game antiaircr
 
 The validator accepts original DICE runtime ZIP basenames and documented short archive aliases. It reads members in memory and checks CRCs and audited byte sizes; missing, corrupt, or incompatible sets fail validation. It does not extract or copy payloads into the repository. See [ROMS.md](ROMS.md) for retrieval/access expectations and exact requirements.
 
-Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Public pull-request checks must not receive private fixture credentials. Compatible bytes do not establish distribution permission.
+Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Pull requests from forks never receive the fixture secret; only same-repository branches can. Compatible bytes do not establish distribution permission.
 
-For 0.6.0, audit the actual Stunt Cycle and Indy 4 fixtures separately with
-`--game stuntcycle` and `--game indy4`. Keep them outside this public checkout,
-including during original-reference preparation. Public CI retains the full
-four-game reference/regression gates and fixture-free new-game error/metadata
-coverage; it must not claim actual new-game gameplay when fixtures are absent.
-Any independently accepted local reference attestation is identified separately
-and bound to the exact compiler/frontend/scenario inputs and measured reports.
-Public CI source binding verifies continuity, not private-fixture execution.
+Audit the actual Stunt Cycle and Indy 4 fixtures separately with
+`--game stuntcycle` and `--game indy4` when needed. Keep fixtures outside this
+checkout or in ignored `build/roms/`; never stage them. The ordinary CI workflow
+retains the full four-game reference/regression gates and fixture-free
+new-game error/metadata coverage; it must not claim actual new-game gameplay
+when fixtures are absent. ROM-backed comparison results come from
+`tools/compare-rom-games.py`, locally or in `rom-validation.yml`.
 
 ## What is still untested
 

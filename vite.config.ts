@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 const version = readFileSync(new URL('./VERSION', import.meta.url), 'utf8').trim();
 const base = process.env.NOCPU_BASE_PATH ?? '/NoCPU/';
@@ -87,6 +87,49 @@ function verifyInstallIcons(): void {
   execFileSync(process.execPath, [join(root, 'tools/render-icons.mjs'), '--check'], { cwd: root, stdio: 'inherit' });
 }
 
+// Development server only (`apply: 'serve'`): offer the private fixture ZIPs
+// fetched by tools/fetch-roms.sh to the dev app on loopback. Production builds
+// never install this middleware, and the client module that calls it is
+// imported behind import.meta.env.DEV, so neither reaches build/web.
+// NOCPU_DEV_ROMS=0 disables it.
+function devRomFixtures(): Plugin {
+  const directory = resolve(root, process.env.NOCPU_ROM_DIR ?? 'build/roms');
+  const endpoint = `${base}__nocpu-dev-roms/`;
+  const games = (JSON.parse(readFileSync(join(root, 'tests/fixtures/game-manifest.json'), 'utf8')).games as
+    { id: string; archive_aliases?: string[]; roms: { archive: string }[] }[]).filter((game) => game.roms.length);
+  const archive = (game: (typeof games)[number]): string | undefined =>
+    [game.roms[0].archive, ...(game.archive_aliases ?? [])].map((name) => join(directory, name))
+      .find((path) => existsSync(path) && lstatSync(path).isFile() && lstatSync(path).size <= 2 * 1024 * 1024);
+  return {
+    name: 'nocpu-dev-rom-fixtures',
+    apply: 'serve',
+    configureServer(server) {
+      if (process.env.NOCPU_DEV_ROMS === '0') return;
+      server.middlewares.use((request, response, next) => {
+        const path = (request.url ?? '').split('?')[0];
+        if (!path.startsWith(endpoint)) return next();
+        // `npm run dev` listens on all interfaces; fixtures stay on this machine.
+        const remote = request.socket.remoteAddress ?? '';
+        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote) || request.method !== 'GET' || !existsSync(directory)) {
+          response.statusCode = 404; response.end(); return;
+        }
+        const name = path.slice(endpoint.length);
+        response.setHeader('Cache-Control', 'no-store');
+        if (name === 'index.json') {
+          const index = games.flatMap((game) => archive(game) ? [{ gameId: game.id, fileName: game.roms[0].archive }] : []);
+          response.setHeader('Content-Type', 'application/json');
+          response.end(JSON.stringify(index)); return;
+        }
+        const game = games.find((candidate) => name === `${candidate.id}.zip`);
+        const file = game && archive(game);
+        if (!file) { response.statusCode = 404; response.end(); return; }
+        response.setHeader('Content-Type', 'application/zip');
+        response.end(readFileSync(file));
+      });
+    },
+  };
+}
+
 export default defineConfig({
   root: 'web',
   base,
@@ -95,7 +138,7 @@ export default defineConfig({
     __NOCPU_CORE_JS_SHA256__: JSON.stringify(compiledCore['core/nocpu.js']),
     __NOCPU_CORE_WASM_SHA256__: JSON.stringify(compiledCore['core/nocpu.wasm']),
   },
-  plugins: [{
+  plugins: [devRomFixtures(), {
     name: 'nocpu-build-provenance',
     apply: 'build',
     buildStart() {
