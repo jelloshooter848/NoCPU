@@ -89,9 +89,39 @@ reads the pixels back:
 - Apply the bottom-edge rule: rows are `floor(top)+1 … floor(bottom)` and
   columns are `ceil(start) … ceil(end)-1`.
 
-The rotated/overlay path (`draw_quad`) is unchanged. A ROTATE_90 probe at
-Breakout's geometry (viewport 154,0,324,432; 58 661 600 ps; v_size 200–300
-and eight segment layouts) matched it exactly.
+Independent review found that the first fix was incomplete:
+
+- The rotated/overlay path (`draw_quad`) still rounded differently from
+  llvmpipe at boundary-critical times. My own ROTATE_90 probe at Breakout's
+  geometry (viewport 154,0,324,432; 58 661 600 ps; v_size 200–300; eight
+  segment layouts) had matched it, but it never hit those times. The
+  reviewer's probes mismatched in 7/11, 38/51 and 20/20 scenes.
+- The ortho scale was computed in double, `float(2.0/double(scanline_time))`.
+  Mesa computes `2.0F/(GLfloat)scanline_time`. This changes nothing for the
+  six games' measured scanline times, which are multiples of 4, but it
+  mismatched 9 of 40 random times.
+
+Follow-up fix:
+
+- `draw_quad` uses the same viewport rules: fused, absolute x and direct
+  downward y.
+- It keeps the vertex transform unfused, because a fused vertex transform
+  mismatches again.
+- It applies the bottom-edge rule by storing y as the negated downward fixed
+  coordinate.
+- Both ortho scales now use Mesa's float formula.
+
+Re-running the reviewer's GL probe scenes against the branch's actual code
+(709 + 40 scenes) gave 0 mismatches:
+
+- `a`: game geometry, 46 scenes;
+- `b`: every v_size 1–600;
+- `c`: 40 random scanline times;
+- `d`: clipped quads;
+- `e`/`i`: Breakout ROTATE_90 at critical and pixel-center-tie times;
+- `h`: ROTATE_0 pixel-center ties.
+
+The previous commit mismatched 9/40 `c`, 7/11 `e` and 20/20 `i` scenes.
 
 Probe check of the fixed arithmetic: it matches llvmpipe on every row at
 v_size 100–400, on 32 segmented-scanline layouts and on all 240
@@ -115,6 +145,11 @@ ownership exactly (rows 212–213 → scanline 127, row 214 → 128, rows 217–
   - `capture-pong.sh` plus `make core-compare` PASS for Pong.
   - `capture-games.sh` plus `replay-games.sh` PASS for 16 Pong Doubles, Space Race and Breakout scenarios, including the Breakout full-RGB snapshots.
   - No other game's output changed: each still equals its fresh original capture.
+- Verified again after the review follow-up (draw_quad and ortho scale), 2026-10-13, with fresh original captures:
+  - All six ROM scenarios PASS; `host_cpu_fma: true` is recorded.
+  - Pong PASS.
+  - All 16 ROM-free scenarios PASS, including the 10 Breakout scenarios' full-RGB snapshots.
+  - No game's output changed: every scenario still equals its original.
 - Classification: NoCPU regression (portable renderer fill rule and viewport flip differ from llvmpipe)
 
 Status: fixed in e6b2042

@@ -13,11 +13,14 @@ output or browser behavior, which are checked separately
 
 Base commit `74655c1` (v0.1.0) on branch `wip/0.1.1-comparisons`, with the
 ROM-backed replays added there. Seed 848. Original: pinned image
-`nocpu-dice-qt4:0.1.0` (`sha256:bfdadad2…`), Xvfb, Mesa llvmpipe. Native: host
+`nocpu-dice-qt4:0.1.0` (`sha256:bfdadad2…`), Xvfb, Mesa llvmpipe, on an x86-64
+host with FMA. llvmpipe fuses its viewport multiply-add only on FMA CPUs, and
+the capture tools record `host_cpu_fma` and refuse hosts without it. Native: host
 GCC build of `build-core.sh native`. Wasm: Emscripten 3.1.74 run in Node 22.22.0.
 ROM fixtures: `NoCPU-Roms` commit `2166ace`, audited by `fetch-roms.sh`.
-The renderer fix (`core/platform/portable_video.inc`) was then re-checked with
-fresh original captures of every game on branch `wip/0.1.1-indy4-row213`.
+The renderer fixes (`core/platform/portable_video.inc`: the scanline path, then the
+rotated/overlay path and the ortho scale after review) were each re-checked
+with fresh original captures of every game on branch `wip/0.1.1-indy4-row213`.
 
 | Game | Scenarios | Streams compared | Result | Gaps |
 | --- | --- | --- | --- | --- |
