@@ -12,6 +12,12 @@ CPUS=$(nproc 2>/dev/null || echo 2)
 export NOCPU_ANALYZE_JOBS=${NOCPU_ANALYZE_JOBS:-$CPUS}
 export NOCPU_REPLAY_JOBS=${NOCPU_REPLAY_JOBS:-$CPUS}
 SCENARIOS=${NOCPU_QUICK_SCENARIOS:-pongdoubles-default,spacerace-default,breakout-default}
+# Quick runs keep only their latest evidence (about 2.5 GB), under build/quick/.
+QUICK="$ROOT/build/quick"
+[[ ! -L "$ROOT/build" && ! -L "$QUICK" ]] || { echo 'Build paths must not be symbolic links.' >&2; exit 1; }
+rm -rf -- "$QUICK"
+mkdir -p -- "$QUICK"
+export NOCPU_GAME_REFERENCE_ROOT="$QUICK/reference-games" NOCPU_GAME_EVIDENCE_ROOT="$QUICK/game-evidence"
 echo "Quick check: reference cache $NOCPU_REFERENCE_CACHE, scenarios pong,$SCENARIOS"
 ./tools/build-native.sh --jobs "${BUILD_JOBS:-$CPUS}"
 ./tools/build-core.sh all
