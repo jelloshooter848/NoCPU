@@ -2,17 +2,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Decide whether CI must run the original/native/Wasm core comparisons.
 
-Deliberately small and conservative. The comparisons are skipped only when
-every changed file (relative to the merge base) is documentation or browser UI
-code, which no capture, replay or comparison reads. Anything else, an unknown
-base, a release or a manual run runs everything. The build, the repository
-checks, the unit tests and the browser matrix always run.
+Deliberately small and decided by content, not by a push or PR diff. The
+"core hash" is a SHA-256 over every tracked path, mode and blob of a commit
+except documentation and browser UI files, which no capture, replay or
+comparison reads. After core-compare passes, CI saves a marker cache entry
+nocpu-compared-<core hash>. A later run skips the comparisons only when that
+marker exists for its own core hash, so a docs-only commit that follows a
+cancelled or failed core change still runs them. A release, a missing marker
+or any error runs everything. The build, the repository checks, the unit tests
+and the browser matrix always run.
 """
 from __future__ import annotations
 
 import argparse
 import fnmatch
-import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -20,6 +24,7 @@ import sys
 # Paths that cannot change a core comparison result. Keep this list short.
 DOCS = ('docs/*', 'bug-reports/*')
 UI = ('web/*', 'tests/browser/*')
+MARKER_PREFIX = 'nocpu-compared-'
 
 
 def kind(path: str) -> str | None:
@@ -31,63 +36,62 @@ def kind(path: str) -> str | None:
     return None
 
 
-def classify(paths: list[str]) -> tuple[bool, str]:
-    """Return (run_core, reason) for a list of changed repository paths."""
-    if not paths:
-        return True, 'no changed files could be listed; running everything'
-    other = [path for path in paths if kind(path) is None]
-    if other:
-        shown = ', '.join(other[:5]) + (f' and {len(other) - 5} more' if len(other) > 5 else '')
-        return True, f'core-relevant changes: {shown}'
-    kinds = sorted({kind(path) for path in paths})
-    return False, f'only {" and ".join(kinds)} files changed ({len(paths)} files)'
+def core_hash(ref: str = 'HEAD', cwd: str | None = None) -> str:
+    """Hash of the commit's tree with docs and web UI paths left out."""
+    listing = subprocess.run(['git', 'ls-tree', '-r', '-z', '--full-tree', ref], cwd=cwd,
+                             check=True, capture_output=True).stdout
+    digest = hashlib.sha256(b'nocpu-core-tree-v1\n')
+    for entry in listing.split(b'\0'):
+        if not entry:
+            continue
+        meta, path = entry.split(b'\t', 1)
+        if kind(path.decode('utf-8', 'surrogateescape')) is None:
+            digest.update(meta + b'\t' + path + b'\0')
+    return digest.hexdigest()
 
 
-def git(*args: str) -> str:
-    return subprocess.run(['git', *args], check=True, capture_output=True, text=True).stdout
-
-
-def changed_paths(base: str, head: str) -> list[str]:
-    merge_base = git('merge-base', base, head).strip()
-    return [line for line in git('diff', '--name-only', '--no-renames', merge_base, head).splitlines() if line]
-
-
-def decide(event: str, release: bool, base: str, head: str) -> tuple[bool, str, list[str]]:
+def decide(release: bool, marker_hit: bool, digest: str) -> tuple[bool, str]:
     if release:
-        return True, 'release run: the full comparison always runs', []
-    if event not in ('pull_request', 'push'):
-        return True, f'{event or "unknown"} event: running everything', []
-    if not base or set(base) == {'0'} or not head:
-        return True, 'no base commit to diff against (new branch or missing history): running everything', []
-    try:
-        paths = changed_paths(base, head)
-    except (subprocess.CalledProcessError, OSError) as error:
-        return True, f'cannot diff {base[:12]}..{head[:12]} ({error}); running everything', []
-    run, reason = classify(paths)
-    return run, reason, paths
+        return True, 'release run: the full comparison always runs'
+    if not digest:
+        return True, 'no core hash: running everything'
+    if marker_hit:
+        return False, (f'core comparisons already passed for this exact non-docs, non-UI content '
+                       f'(marker {MARKER_PREFIX}{digest[:16]}); only docs or web UI files differ')
+    return True, f'no passing comparison recorded for core content {digest[:16]}'
+
+
+def write(name: str, text: str) -> None:
+    if path := os.environ.get(name):
+        with open(path, 'a') as stream:
+            stream.write(text)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--event', default=os.environ.get('GITHUB_EVENT_NAME', ''))
-    parser.add_argument('--release', action='store_true')
-    parser.add_argument('--base', default='', help='pull request base SHA, or the pushed range start')
-    parser.add_argument('--head', default='', help='commit being verified')
+    commands = parser.add_subparsers(dest='command', required=True)
+    hashing = commands.add_parser('hash', help='print (and output) the core hash of a commit')
+    hashing.add_argument('--ref', default='HEAD')
+    deciding = commands.add_parser('decide', help='decide from the core hash and its marker lookup')
+    deciding.add_argument('--hash', default='')
+    deciding.add_argument('--marker-hit', default='false', help="'true' when the marker cache entry exists")
+    deciding.add_argument('--release', default='false', help="'true' for a release run")
     args = parser.parse_args()
-    run, reason, paths = decide(args.event, args.release, args.base, args.head)
-    print(json.dumps({'core_comparisons': run, 'reason': reason, 'changed_files': paths}, indent=2))
+    if args.command == 'hash':
+        digest = core_hash(args.ref)
+        print(digest)
+        write('GITHUB_OUTPUT', f'core_hash={digest}\n')
+        return 0
+    run, reason = decide(args.release == 'true', args.marker_hit == 'true', args.hash)
     message = ('Core comparisons: RUN — ' if run else 'Core comparisons: SKIPPED — ') + reason
     print(message)
-    if output := os.environ.get('GITHUB_OUTPUT'):
-        with open(output, 'a') as stream:
-            stream.write(f'core={"true" if run else "false"}\n')
-    if summary := os.environ.get('GITHUB_STEP_SUMMARY'):
-        with open(summary, 'a') as stream:
-            stream.write(f'**{message}.**\n\n'
-                         + ('' if run else 'The original/native/Wasm comparisons were skipped by scope, not passed: '
-                            'no file they read changed. Build, repository checks, unit tests and the browser matrix ran.\n'))
+    write('GITHUB_OUTPUT', f'core={"true" if run else "false"}\n')
+    write('GITHUB_STEP_SUMMARY', f'**{message}.**\n\n' + ('' if run else
+          'The original/native/Wasm comparisons were skipped, not passed, for this run: an earlier run passed them '
+          'for identical content outside docs/ and web UI files. Build, repository checks, unit tests and the '
+          'browser matrix ran.\n'))
     if not run:
-        print(f'::notice title=Core comparisons skipped::{reason}; skipped by scope, not passed.')
+        print(f'::notice title=Core comparisons skipped::{reason}; skipped, not passed.')
     return 0
 
 
