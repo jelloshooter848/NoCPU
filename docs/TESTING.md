@@ -119,15 +119,32 @@ have passed. Without the variable every original is captured fresh, as before.
 Docker image IDs are recorded, not keyed: the image is rebuilt on every CI
 runner and its ID changes each time, while the package inventory and the
 compiled binaries are byte-identical (checked on run 38335534370 against a local
-build). Any changed input is a miss and the scenario is captured fresh; every
-hit and miss is printed with its reason and recorded in `reference-cache.jsonl`
-next to the run. Before use, an entry's recorded inputs must equal the current
-ones and every file must match its recorded SHA-256. A hit skips only the
-Docker run: the original analysis, the fresh-process repeat check and every
-native/Wasm comparison still run on the cached streams. The analysis outputs
-(`evidence.json`, `positions.csv`, `snapshot-positions.json`) are never cached.
-Each scenario keeps one entry; `python3 tools/reference-cache.py prune` drops
-entries for scenarios no longer declared.
+build). Restore and store both refuse the cache unless the run's
+`capture-image-id.txt` equals `build/native/toolchain-provenance/image-id.txt`,
+so a capture made with another `NOCPU_NATIVE_IMAGE` is never cached or replaced
+by a cached one. The key is computed once, before capture, and a store fails if
+any input changed during the run. Any changed input is a miss and the scenario
+is captured fresh; every hit and miss is printed with its reason and recorded in
+`reference-cache.jsonl` next to the run. Before use, an entry's recorded inputs
+must equal the current ones and every file must match its recorded SHA-256.
+
+A hit skips only the Docker run. The original analysis and every native/Wasm
+comparison still run on the cached streams. The fresh-process repeat check
+(two independent original processes producing identical streams) was proven
+when the entry was stored, which requires it; on a hit the two cached attempts
+are compared again, but the original is not re-run, so that check is not
+re-proven. A restored scenario's `capture-image-id.txt` (for Pong, the run's
+`capture-image-id.txt` and so `build_identity.toolchain_image_id` in its report)
+names the image that captured it; `native_toolchain_image_id` names the image
+of this run. The analysis outputs (`evidence.json`, `positions.csv`,
+`snapshot-positions.json`) are never cached. Each scenario keeps one entry;
+`python3 tools/reference-cache.py prune` drops entries for scenarios no longer
+declared.
+
+The cache is an optimisation for pull request and branch CI and for local work.
+Its entries are hashed but not signed, so any step of a run that can write the
+cache could forge one. Release runs therefore never use it and capture every
+original fresh (see [RELEASING.md](RELEASING.md)).
 
 ROM-backed captures are never cached. Their frames are ROM-derived, and a
 GitHub Actions cache can be restored by any workflow run of the repository,
@@ -213,29 +230,38 @@ requests and by `release.yml` for releases) runs these jobs:
 
 | Job | Runs | What it does |
 | --- | --- | --- |
-| `scope` | always | `tools/ci-scope.py` lists the files changed since the merge base (pull request base, or the push's previous head) and decides whether the core comparisons run. |
+| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs and web UI files and looks up a marker that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
 | `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
-| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache, captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache. |
-| `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact. |
+| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, the `nocpu-compared-<hash>` marker. |
+| `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
 | `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. |
 | `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it, and never on a release. |
 
-The scope rule is deliberately small. The comparisons are skipped only when
-every changed file is documentation (`docs/**`, `bug-reports/**`, top-level
-`*.md`) or browser UI (`web/**`, `tests/browser/**`). Any other file (for
-example `core/`, `upstream/`, `tools/`, `tests/replays/`, `.github/`, the
-Makefile or the package files), a history it cannot diff, a manual run or a
-release runs everything. A skip is printed in the `scope` log, as a notice and
-in the `scope` and `verify` summaries as "skipped, not passed".
+The scope rule is decided by content, not by a diff, and is deliberately
+small. The core hash is a SHA-256 over the path, mode and blob of every tracked
+file except documentation (`docs/**`, `bug-reports/**`, top-level `*.md`) and
+browser UI (`web/**`, `tests/browser/**`); renames and deletions change it.
+After `core-compare` passes, it saves an Actions cache marker
+`nocpu-compared-<hash>`. A later run skips the comparisons only when a
+lookup-only restore finds the marker for its own hash, that is when an earlier
+run already passed them for identical content outside docs and UI. A docs-only
+push that follows a cancelled or failed core push therefore still runs them:
+its core content never passed. A missing marker, any error, and every release
+run everything. A skip is printed in the `scope` log, as a notice and in the
+`scope` and `verify` summaries as "skipped, not passed".
 
-The CI cache key is `nocpu-reference-v1-` plus a hash over every scenario's
-inputs; a run whose exact key is missing restores the newest older cache and
-re-checks each entry, so only scenarios whose inputs changed are captured
-again. Caches are scoped by GitHub: a pull request reads the caches of its base
-branch and the default branch and writes only its own, so a fork cannot place
-entries where other runs read them. Releases run the full comparison and may
-use cache hits, which bind the toolchain package inventory and compiled
-binaries as above.
+Original captures are cached in archives named `nocpu-reference-v1-` plus a hash
+over every scenario's inputs plus a digest of the stored entries. A run restores
+the newest archive for its inputs (or any older one) and re-checks each entry,
+so only scenarios whose inputs changed are captured again, and saves a new
+archive whenever its receipts show a newly stored entry. Caches are scoped by
+GitHub: a pull request reads the caches of its base branch and the default
+branch and writes only its own, so a fork cannot place entries or markers where
+other runs read them. Release runs never use the reference cache.
+
+Branch protection should require the single check `verify / verify` (the job
+names inside it changed in 0.1.2; `verify` requires all of them). The owner
+sets this in the repository settings.
 
 ## ROM-backed comparison (private fixtures)
 

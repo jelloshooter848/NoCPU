@@ -25,10 +25,17 @@ govern current releases.
   working branch. They never target `main`.
 
 CI (`.github/workflows/ci.yml`) verifies pushes to `main` and to the working
-branch, and every pull request. A change that touches only documentation or
-browser UI files skips the original/native/Wasm comparisons, and says so; the
-build, tests and all three browser engines always run. See
+branch, and every pull request. A run skips the original/native/Wasm
+comparisons, and says so, only when an earlier run already passed them for the
+same content outside documentation and browser UI files; the build, tests and
+all three browser engines always run. See
 [TESTING.md](TESTING.md#continuous-integration).
+
+Branch protection on `main` and the working branch should require the single
+status check **`verify / verify`**. It requires every other verification job
+(their names changed in 0.1.2: `scope`, `core-build`, `core-compare`, `package`
+and `browser (chromium|firefox|webkit)`), so it stays the one stable name to
+require. The owner sets this under Settings → Branches.
 
 ## Version numbers
 
@@ -164,13 +171,12 @@ Before opening a release pull request, confirm and record in it:
      original/native/Wasm comparisons, the browser builds and tests, then
      `tools/package-web.py --tag`, which packages the site with notices and the
      corresponding-source archive and refuses to package when the license
-     audits are not ready. A release never skips the comparisons. Its original
-     captures may come from the [reference
-     cache](TESTING.md#reference-cache): a hit requires the same upstream
-     bytes, reference tools, scenario inputs, FMA host and toolchain (package
-     inventory and byte-identical compiled `dice` binaries, which also stand in
-     for the image, whose ID changes on every rebuild), and the original
-     analysis and every native/Wasm comparison still run;
+     audits are not ready. A release never skips the comparisons and never
+     uses the [reference cache](TESTING.md#reference-cache): every original
+     capture runs fresh, so no entry written by an earlier run (which any step
+     of that run could have forged) stands in for a release. That costs about
+     13 minutes more than a pull request run whose originals are cached
+     (roughly 38 minutes instead of 25 for the verification);
    - it refuses to publish if the browser zip, the source archive or their
      checksums are missing, if checksums do not match, or if the packaged site
      lacks its license notices or matching source archive;
@@ -195,13 +201,15 @@ outside the code (a Pages outage, permissions), rerun it as described below.
 1. Leave the tag where it is; never move, delete or reuse it.
 2. Use the run's **Re-run failed jobs** once (works since `b310916`; the publish
    job since the 0.1.1 release). It covers failures in the verify jobs
-   (`core-reference`, `browser`) and in `publish`: the re-run reuses the core and
-   the release assets and notes that earlier attempts uploaded; see
+   (`core-build`, `core-compare`, `package`, any `browser` engine) and in
+   `publish`: the re-run reuses the core, the package, the release assets and
+   notes that earlier attempts uploaded; see
    [Redeploying, retrying or rolling back](#redeploying-retrying-or-rolling-back).
 3. If only `deploy-pages` failed, re-deploy with **Run workflow** on the tag
    instead.
-4. Avoid **Re-run all jobs**: it uploads a second `github-pages` artifact in the
-   same run, which the Pages deployment can reject as a duplicate.
+4. **Re-run all jobs** is safe for Pages since 0.1.2: each attempt names its
+   Pages artifact `github-pages-<sha>-<attempt>` and `deploy-pages` deploys the
+   one the verified attempt produced. It does repeat the whole verification.
 5. If the re-run also fails, or the failure is in the code or its checks, fix it
    on the working branch and ship the next patch version. Record in the
    roadmap and in the failed version's changelog section that it was tagged
