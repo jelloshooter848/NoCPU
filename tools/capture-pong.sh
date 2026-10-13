@@ -52,8 +52,10 @@ cache="${NOCPU_REFERENCE_CACHE:-}"
 fresh=true
 if [[ -n "$cache" ]]; then
     status=0
+    # The key is computed once, before capture; store refuses if any input changes meanwhile.
+    key=$(python3 "$repo_root/tools/reference-cache.py" key --kind pong --scenario pong --source "$reference_dir/source")
     python3 "$repo_root/tools/reference-cache.py" restore --kind pong --scenario pong \
-        --source "$reference_dir/source" --into "$reference_dir" \
+        --source "$reference_dir/source" --key "$key" --run "$reference_dir" --into "$reference_dir" \
         --receipt "$reference_dir/reference-cache.jsonl" || status=$?
     if [[ "$status" == 0 ]]; then
         fresh=false
@@ -87,7 +89,7 @@ python3 "$repo_root/tools/reference/analyze.py" "$reference_dir"
 python3 "$repo_root/tests/test-reference-analysis.py" --reference-dir "$reference_dir"
 if [[ -n "$cache" ]] && "$fresh"; then
     python3 "$repo_root/tools/reference-cache.py" store --kind pong --scenario pong \
-        --source "$reference_dir/source" --run "$reference_dir" --capture "$reference_dir" \
+        --source "$reference_dir/source" --key "$key" --run "$reference_dir" --capture "$reference_dir" \
         --receipt "$reference_dir/reference-cache.jsonl"
 fi
 printf 'Native Pong assertions passed: %s/report.json\n' "$reference_dir"

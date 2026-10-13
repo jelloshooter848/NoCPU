@@ -9,12 +9,17 @@ toolchain recipe and the built image's package inventory and binary hash, the
 adapted executable that actually produces the capture, tools/reference/**, the
 capture scripts, this tool, the scenario's manifest entry and replay bytes, and
 the host CPU's FMA flag. Any changed input is a miss and the capture runs
-fresh. A hit only replaces the Docker original run: the original analysis, the
-fresh-process repeat check and every native/Wasm comparison still run.
+fresh. A hit only replaces the Docker original run: the original analysis and
+every native/Wasm comparison still run on the cached bytes. The fresh-process
+repeat check (two independent original processes giving identical streams)
+was proven when the entry was stored; on a hit it compares the two cached
+attempts again but does not re-run the original. Restore and store both
+refuse a run whose capture image is not the image build-native.sh recorded.
 
 Only ROM-free scenarios (tests/replays/game-scenarios.json and Pong) can be
 cached. ROM-backed captures contain ROM-derived frames and are never stored.
-An entry is written only after its capture passed the original analysis.
+An entry is written only after its capture passed the original analysis and
+the repeat check. Release CI never uses this cache (see docs/RELEASING.md).
 """
 from __future__ import annotations
 
@@ -176,11 +181,32 @@ def inventory(directory: Path) -> dict:
     return files
 
 
-def restore(kind: str, scenario: str, source: Path, destination: Path) -> dict:
+def image_mismatch(run: Path) -> str | None:
+    """The run must capture with the image that build-native.sh recorded."""
+    try:
+        capture = (run / 'capture-image-id.txt').read_text().strip()
+        provenance = (ROOT / 'build/native/toolchain-provenance/image-id.txt').read_text().strip()
+    except OSError as error:
+        return f'cannot read the capture or provenance image ID ({error})'
+    if not capture or capture != provenance:
+        return f'capture image {capture or "(none)"} is not the provenance image {provenance} (NOCPU_NATIVE_IMAGE mismatch)'
+    return None
+
+
+def checked_key(kind: str, scenario: str, source: Path, expected: str | None) -> tuple[dict, str]:
     inputs = key_inputs(kind, scenario, source)
     key = digest_inputs(inputs)
+    if expected is not None and key != expected:
+        raise ValueError(f'Cache key inputs changed during the run for {kind}/{scenario}')
+    return inputs, key
+
+
+def restore(kind: str, scenario: str, source: Path, destination: Path, run: Path, expected: str | None = None) -> dict:
+    inputs, key = checked_key(kind, scenario, source, expected)
     entry = entry_dir(kind, scenario, key)
     record = {'scenario': scenario, 'kind': kind, 'key': key}
+    if mismatch := image_mismatch(run):
+        return {**record, 'hit': False, 'reason': mismatch}
     if not (entry / 'entry.json').is_file():
         return {**record, 'hit': False, 'reason': 'no entry for this key (an input changed or nothing cached yet)'}
     try:
@@ -206,12 +232,17 @@ def restore(kind: str, scenario: str, source: Path, destination: Path) -> dict:
             shutil.copy2(source_path, target)
     if inventory(destination) != metadata['files']:
         raise ValueError('Restored capture bytes differ from the cache entry')
-    return {**record, 'hit': True, 'produced': metadata.get('produced', {})}
+    produced = metadata.get('produced', {})
+    # Name the image that actually captured these streams, not the current one.
+    (destination / 'capture-image-id.txt').write_text(str(produced.get('toolchain_image_id')) + '\n')
+    return {**record, 'hit': True, 'produced': produced}
 
 
-def store(kind: str, scenario: str, source: Path, capture: Path, image_id: str) -> dict:
-    inputs = key_inputs(kind, scenario, source)
-    key = digest_inputs(inputs)
+def store(kind: str, scenario: str, source: Path, capture: Path, run: Path, expected: str | None = None) -> dict:
+    inputs, key = checked_key(kind, scenario, source, expected)
+    if mismatch := image_mismatch(run):
+        return {'scenario': scenario, 'key': key, 'stored': False, 'reason': mismatch}
+    image_id = (run / 'capture-image-id.txt').read_text().strip()
     entry = entry_dir(kind, scenario, key)
     if (entry / 'entry.json').is_file():
         return {'scenario': scenario, 'key': key, 'stored': False, 'reason': 'already cached'}
@@ -270,8 +301,17 @@ def prune() -> list[str]:
     return removed
 
 
+def content_key() -> str:
+    """Digest of the entries now in the cache, to name a CI cache archive."""
+    root = cache_root()
+    entries = sorted(path.parent.relative_to(root).as_posix() for path in root.glob('*/*/*/entry.json'))
+    return digest_inputs(entries)
+
+
 def passed_scenarios(run: Path, kind: str) -> set[str]:
     """Scenarios whose original analysis passed in this run's report."""
+    if not (run / 'report.json').is_file():
+        return set()
     report = json.loads((run / 'report.json').read_text())
     if kind == 'pong':
         return {'pong'} if report.get('passed') is True else set()
@@ -285,12 +325,17 @@ def main() -> int:
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('combined-key', help='print the key over all cacheable scenarios')
     commands.add_parser('prune', help='drop entries for undeclared scenarios')
+    commands.add_parser('content-key', help='print a digest of the entries in the cache')
     for name in ('key', 'restore', 'store'):
         command = commands.add_parser(name)
         command.add_argument('--kind', choices=('pong', 'game'), required=True)
         command.add_argument('--scenario', required=True)
         command.add_argument('--source', type=Path, help='adapted source directory holding the capture executable')
+        if name in ('restore', 'store'):
+            command.add_argument('--key', help='key computed before capture; the command fails if the inputs changed since')
         if name == 'restore':
+            command.add_argument('--run', type=Path, required=True,
+                                 help='capture run whose capture-image-id.txt must equal the provenance image')
             command.add_argument('--into', type=Path, required=True)
             command.add_argument('--receipt', type=Path, required=True)
         if name == 'store':
@@ -301,6 +346,9 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == 'combined-key':
         print(combined_key())
+        return 0
+    if args.command == 'content-key':
+        print(content_key())
         return 0
     if args.command == 'prune':
         for item in prune():
@@ -313,7 +361,7 @@ def main() -> int:
         raise SystemExit('--source must hold the built adapted dice executable')
     receipt_lines = []
     if args.command == 'restore':
-        result = restore(args.kind, args.scenario, args.source, args.into)
+        result = restore(args.kind, args.scenario, args.source, args.into, args.run, args.key)
         if result['hit']:
             produced = result['produced']
             print(f"Reference cache HIT {args.kind}/{args.scenario} key {result['key'][:16]}: "
@@ -327,8 +375,7 @@ def main() -> int:
             result = {'scenario': args.scenario, 'stored': False, 'reason': 'original analysis did not pass; not cached'}
             print(f'Reference cache: not storing {args.kind}/{args.scenario}: {result["reason"]}')
         else:
-            image = (args.run / 'capture-image-id.txt').read_text().strip()
-            result = store(args.kind, args.scenario, args.source, args.capture, image)
+            result = store(args.kind, args.scenario, args.source, args.capture, args.run, args.key)
             print(f"Reference cache: {'stored' if result['stored'] else 'kept'} {args.kind}/{args.scenario} key {result['key'][:16]}"
                   + ('' if result['stored'] else f" ({result['reason']})"))
         receipt_lines.append({'kind': args.kind, **result})

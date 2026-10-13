@@ -37,6 +37,8 @@ class ReferenceCacheTests(unittest.TestCase):
             'build/native/toolchain-provenance/packages.tsv': 'gcc\t7.5\n',
             'build/native/toolchain-provenance/base-image.txt': 'base=ubuntu@sha256:0\n',
             'build/native/toolchain-provenance/binary.sha256': 'a' * 64 + '  dice\n',
+            'build/native/toolchain-provenance/image-id.txt': 'sha256:image\n',
+            'run/capture-image-id.txt': 'sha256:image\n',
             'run/source/dice': 'adapted executable',
         }
         for name, text in files.items():
@@ -72,12 +74,12 @@ class ReferenceCacheTests(unittest.TestCase):
             (directory / attempt / 'epoch0/evidence.json').write_text('{"derived": true}')
             (directory / f'{attempt}.log').write_text('log\n')
 
-    def store(self, scenario='pongdoubles-default'):
-        return cache.store('game', scenario, self.source, self.root / 'run' / scenario, 'sha256:image')
+    def store(self, scenario='pongdoubles-default', expected=None):
+        return cache.store('game', scenario, self.source, self.root / 'run' / scenario, self.root / 'run', expected)
 
-    def restore(self, scenario='pongdoubles-default'):
+    def restore(self, scenario='pongdoubles-default', expected=None):
         destination = Path(tempfile.mkdtemp(dir=self.temp.name)) / scenario
-        return cache.restore('game', scenario, self.source, destination), destination
+        return cache.restore('game', scenario, self.source, destination, self.root / 'run', expected), destination
 
     def test_unchanged_inputs_hit_with_identical_bytes_and_no_derived_files(self):
         self.assertTrue(self.store()['stored'])
@@ -88,6 +90,36 @@ class ReferenceCacheTests(unittest.TestCase):
                          (original / 'baseline/epoch0/frames.gray').read_bytes())
         self.assertFalse((destination / 'baseline/epoch0/evidence.json').exists())
         self.assertEqual(result['produced']['toolchain_image_id'], 'sha256:image')
+        self.assertEqual((destination / 'capture-image-id.txt').read_text().strip(), 'sha256:image',
+                         'a hit names the image that captured it')
+
+    def test_hit_records_the_capturing_image_not_the_current_one(self):
+        self.store()
+        for name in ('build/native/toolchain-provenance/image-id.txt', 'run/capture-image-id.txt'):
+            (self.root / name).write_text('sha256:rebuilt\n')
+        result, destination = self.restore()
+        self.assertTrue(result['hit'])
+        self.assertEqual((destination / 'capture-image-id.txt').read_text().strip(), 'sha256:image')
+
+    def test_capture_image_must_be_the_provenance_image(self):
+        (self.root / 'run/capture-image-id.txt').write_text('sha256:other\n')
+        stored = self.store()
+        self.assertFalse(stored['stored'])
+        self.assertIn('NOCPU_NATIVE_IMAGE', stored['reason'])
+        (self.root / 'run/capture-image-id.txt').write_text('sha256:image\n')
+        self.assertTrue(self.store()['stored'])
+        (self.root / 'run/capture-image-id.txt').write_text('sha256:other\n')
+        result, _ = self.restore()
+        self.assertFalse(result['hit'])
+        self.assertIn('provenance image', result['reason'])
+
+    def test_key_is_pinned_before_capture(self):
+        key = cache.digest_inputs(cache.key_inputs('game', 'pongdoubles-default', self.source))
+        (self.root / 'tests/replays/pongdoubles.tsv').write_text('1 start 0\n')  # changed mid-run
+        with self.assertRaisesRegex(ValueError, 'changed during the run'):
+            self.store(expected=key)
+        with self.assertRaisesRegex(ValueError, 'changed during the run'):
+            self.restore(expected=key)
 
     def test_each_changed_input_misses(self):
         self.store()
@@ -155,18 +187,29 @@ class ReferenceCacheTests(unittest.TestCase):
 
     def test_only_passed_scenarios_are_stored_and_rom_games_never(self):
         self.assertEqual(cache.passed_scenarios(self.root / 'run', 'game'), {'pongdoubles-default'})
+        (self.root / 'run/capture-report.json').write_text(json.dumps({'repeats': [
+            {'scenario': 'pongdoubles-default', 'exact': False}]}))
+        self.assertEqual(cache.passed_scenarios(self.root / 'run', 'game'), set(),
+                         'a passed analysis whose fresh repeat differed is never stored')
         with self.assertRaisesRegex(ValueError, 'ROM-backed'):
             cache.key_inputs('game', 'indy4-default', None)
         with self.assertRaisesRegex(ValueError, 'Unknown'):
             cache.key_inputs('game', 'stuntcycle-anything', None)
 
     def test_pong_entry_round_trip(self):
-        stored = cache.store('pong', 'pong', self.source, self.root / 'run/pong-capture', 'sha256:image')
+        stored = cache.store('pong', 'pong', self.source, self.root / 'run/pong-capture', self.root / 'run')
         self.assertTrue(stored['stored'])
         destination = Path(tempfile.mkdtemp(dir=self.temp.name))
-        self.assertTrue(cache.restore('pong', 'pong', self.source, destination)['hit'])
+        (destination / 'capture-image-id.txt').write_text('sha256:image\n')
+        self.assertTrue(cache.restore('pong', 'pong', self.source, destination, destination)['hit'])
         (self.root / 'tests/replays/pong.tsv').write_text('0 coin 0\n')
-        self.assertFalse(cache.restore('pong', 'pong', self.source, Path(tempfile.mkdtemp(dir=self.temp.name)))['hit'])
+        self.assertFalse(cache.restore('pong', 'pong', self.source, Path(tempfile.mkdtemp(dir=self.temp.name)),
+                                       self.root / 'run')['hit'])
+
+    def test_content_key_tracks_stored_entries(self):
+        empty = cache.content_key()
+        self.store()
+        self.assertNotEqual(cache.content_key(), empty)
 
     def test_combined_key_tracks_inputs(self):
         first = cache.combined_key()

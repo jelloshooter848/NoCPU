@@ -87,16 +87,21 @@ if [[ -n "$CACHE" && "$EXPLORE" == 1 ]]; then
 fi
 [[ -n "$CACHE" ]] || echo 'Reference cache disabled (NOCPU_REFERENCE_CACHE unset): every original scenario is captured fresh.'
 CACHED_IDS=()
+declare -A KEYS=()
 FRESH_IDS=()
 while IFS=$'\t' read -r ID GAME REPLAY DIP POT; do
   if [[ -n "$CACHE" ]]; then
     STATUS=0
-    python3 tools/reference-cache.py restore --kind game --scenario "$ID" --source "$RUN/source" \
-      --into "$RUN/$ID" --receipt "$RUN/reference-cache.jsonl" < /dev/null || STATUS=$?
+    # The key is computed once, before capture; store refuses if any input changes meanwhile.
+    KEYS[$ID]=$(python3 tools/reference-cache.py key --kind game --scenario "$ID" --source "$RUN/source" < /dev/null)
+    python3 tools/reference-cache.py restore --kind game --scenario "$ID" --source "$RUN/source" --key "${KEYS[$ID]}" \
+      --run "$RUN" --into "$RUN/$ID" --receipt "$RUN/reference-cache.jsonl" < /dev/null || STATUS=$?
     if [[ "$STATUS" == 0 ]]; then CACHED_IDS+=("$ID"); continue; fi
     [[ "$STATUS" == 3 ]] || { echo "Reference cache restore failed for $ID" >&2; exit 1; }
   fi
   FRESH_IDS+=("$ID")
+  mkdir -p "$RUN/$ID"
+  cp "$RUN/capture-image-id.txt" "$RUN/$ID/capture-image-id.txt"
   for ATTEMPT in baseline repeat; do
     python3 - "$RUN" <<'PY'
 import shutil, sys
@@ -129,7 +134,7 @@ ANALYSIS=0
 python3 tools/reference/analyze-games.py "$RUN" || ANALYSIS=$?
 if [[ -n "$CACHE" ]]; then
   for ID in "${FRESH_IDS[@]}"; do
-    python3 tools/reference-cache.py store --kind game --scenario "$ID" --source "$RUN/source" \
+    python3 tools/reference-cache.py store --kind game --scenario "$ID" --source "$RUN/source" --key "${KEYS[$ID]}" \
       --run "$RUN" --capture "$RUN/$ID" --receipt "$RUN/reference-cache.jsonl"
   done
 fi

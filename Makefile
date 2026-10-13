@@ -22,6 +22,7 @@ test: check
 	$(PYTHON) tests/reference/test_owned_case.py
 	$(PYTHON) tests/test-core-handoff.py
 	$(PYTHON) tests/test-reference-cache.py
+	$(PYTHON) tests/test-capture-cache-wiring.py
 	$(PYTHON) tests/test-ci-scope.py
 	$(PYTHON) tests/test-web-release.py
 	$(PYTHON) tests/test-dev-rom-exclusion.py
