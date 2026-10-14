@@ -55,7 +55,7 @@ async function untilCircuit(page: Page, predicate: (snapshot: any) => boolean, s
 }
 
 for (const id of ['stuntcycle', 'indy4']) {
-  test(`${id} missing ROM launch stays recoverable and explains import`, async ({ page }) => {
+  test(`${id} missing ROM launch stays recoverable and explains import`, { tag: `@game-${id}` }, async ({ page }) => {
     await page.goto('./?debug'); await page.getByTestId('open-library').click();
     await page.getByTestId(`game-${id}`).click();
     await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
@@ -64,7 +64,7 @@ for (const id of ['stuntcycle', 'indy4']) {
     await expect(page.getByTestId('rom-launch-message')).toBeVisible();
     await expect(page.getByTestId('game-audio-status')).toContainText('unavailable');
   });
-  test(`${id} private ROM keyboard and mouse controls, silent lifecycle and original raster`, async ({ page }, testInfo) => {
+  test(`${id} private ROM keyboard and mouse controls, silent lifecycle and original raster`, { tag: `@game-${id}` }, async ({ page }, testInfo) => {
     test.skip(!privateDir, 'Private original ROM fixture directory is unavailable; gameplay not exercised.');
     // Indy 4 needs about 30 simulated seconds here (each car joins about 6.4 s
     // after its coin); allow hosts that simulate at a quarter of real time.
@@ -258,7 +258,7 @@ for (const id of ['stuntcycle', 'indy4']) {
   });
 }
 
-test('Indy four independent controllers preserve every steering/pedal slot and neutral rearm across suspension', async ({ page }) => {
+test('Indy four independent controllers preserve every steering/pedal slot and neutral rearm across suspension', { tag: '@game-indy4' }, async ({ page }) => {
   test.skip(!privateDir, 'Private original ROM fixtures unavailable; four-slot controls not exercised.');
   await installGamepads(page, 4); await launch(page, 'indy4');
   for (let slot = 0; slot < 4; slot++) await padState(page, slot, { axis: [0, 0] });
@@ -309,7 +309,7 @@ test('Indy four independent controllers preserve every steering/pedal slot and n
   await expect.poll(async () => (await state(page)).driving.axes).toEqual([0, 0, 0, 32767]);
 });
 
-test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the same shared throttle circuit', async ({ page }) => {
+test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the same shared throttle circuit', { tag: '@game-stuntcycle' }, async ({ page }) => {
   test.skip(!privateDir, 'Private original ROM fixtures unavailable; Stunt credit/start circuit not exercised.');
   await launch(page, 'stuntcycle');
   await expect.poll(async () => (await state(page)).nativeRunning).toBe(false);
@@ -355,7 +355,7 @@ test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the sa
 });
 
 
-test('Stunt measured20% throttle produces original raw8-to9 score progression in browser software', async ({ page }, testInfo) => {
+test('Stunt measured20% throttle produces original raw8-to9 score progression in browser software', { tag: '@game-stuntcycle' }, async ({ page }, testInfo) => {
   test.skip(!privateDir, 'Private original ROM fixtures unavailable; representative Stunt gameplay not exercised.');
   test.setTimeout(90_000);
   await installGamepads(page); await launch(page, 'stuntcycle');

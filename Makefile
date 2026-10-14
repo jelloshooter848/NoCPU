@@ -27,6 +27,7 @@ test: check
 	$(PYTHON) tests/test-ci-workflow.py
 	$(PYTHON) tests/test-strip-rom-report.py
 	$(PYTHON) tests/test-web-release.py
+	$(PYTHON) tests/test-desktop-acceptance.py
 	$(PYTHON) tests/test-manual-checks.py
 	$(PYTHON) tests/test-dev-rom-exclusion.py
 

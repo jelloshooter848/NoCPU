@@ -12,6 +12,10 @@ name: Verify DICE browser distribution
         description: Commit to verify (a release passes its tag's commit); defaults to the triggering commit
         type: string
         default: ''
+    secrets:
+      NOCPU_ROMS_TOKEN:
+        description: Read-only token for the private ROM fixtures; without it the ROM browser job is blocked
+        required: false
     outputs:
       pages_artifact:
         description: Name of this attempt's Pages artifact, for actions/deploy-pages
@@ -21,10 +25,14 @@ permissions:
 # Job graph (docs/TESTING.md, "Continuous integration"):
 #   scope ──────────────┐
 #   core-build ─┬─ core-compare (original/native/Wasm; skipped only for docs/UI-only changes)
-#               └─ package ── browser (chromium | firefox | webkit in parallel)
+#               └─ package ─┬─ browser (chromium | firefox | webkit in parallel)
+#   rom-access ─────────────┴─ rom-browser (Stunt Cycle/Indy 4 from private ROMs, chromium + firefox)
+#   browser + rom-browser ──── acceptance (the desktop acceptance record of this exact package)
 #   verify requires every job, and accepts a skipped core-compare only when
 #   scope decided so and this is not a release. scope skips it only when a
 #   passing core-compare already recorded the same non-docs, non-UI content.
+#   rom-browser may be skipped only when the ROM secret is absent and this is
+#   not a release; a release also requires a passed acceptance record.
 jobs:
   scope:
     runs-on: ubuntu-24.04
@@ -432,6 +440,28 @@ jobs:
         NOCPU_TEST_PACKAGED: '1'
         ENGINE: ${{ matrix.engine }}
       run: npm run test:browser -- --project="$ENGINE"
+    # Outcomes of the @game-tagged tests, the engine's browser.version() and the
+    # runtime digest recomputed from the tested files; failures are recorded too.
+    - name: Collect desktop acceptance results for ${{ matrix.engine }}
+      if: always()
+      env:
+        ENGINE: ${{ matrix.engine }}
+      run: |-
+        if [ ! -f tools/desktop-acceptance.py ]; then
+          echo 'This commit predates generated desktop acceptance; nothing to collect.'; exit 0
+        fi
+        python3 tools/desktop-acceptance.py collect --engine "$ENGINE" --source public \
+          --report build/browser-matrix.json --identity "build/browser-identity/$ENGINE.json" \
+          --site build/pages --output "build/acceptance-inputs/public-$ENGINE.json"
+    - name: Retain the desktop acceptance results
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: acceptance-input-public-${{ matrix.engine }}
+        path: build/acceptance-inputs/
+        if-no-files-found: ignore
+        retention-days: 14
+        overwrite: true
     - name: Retain all browser diagnostics and tested package identities
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -443,7 +473,188 @@ jobs:
           build/playwright-report/**
           build/browser-results/**
           build/browser-matrix.json
+          build/browser-identity/**
         if-no-files-found: warn
+        retention-days: 14
+        overwrite: true
+  rom-access:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      configured: ${{ steps.secret.outputs.configured }}
+    steps:
+    - name: Check private ROM fixture access is configured
+      id: secret
+      env:
+        HAS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN != '' }}
+      run: |-
+        if [ "$HAS_TOKEN" = true ]; then
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+        else
+          echo '::warning title=ROM browser tests blocked::blocked: NOCPU_ROMS_TOKEN not configured; Stunt Cycle/Indy 4 browser play was skipped, not passed.'
+          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** Stunt Cycle/Indy 4 browser play was skipped, not passed; no desktop acceptance can pass.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'configured=false' >> "$GITHUB_OUTPUT"
+        fi
+  # Stunt Cycle and Indy 4 played from the private ROMs in the exact package the
+  # browser jobs test. ROM bytes, frames and traces stay on the runner: the run
+  # is ROM-safe (no traces, videos, screenshots or HTML report) and only the
+  # stripped JSON results and the acceptance inputs are uploaded.
+  rom-browser:
+    needs:
+    - package
+    - rom-access
+    if: needs.rom-access.outputs.configured == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ inputs.ref || github.sha }}
+        fetch-depth: 0
+    - name: Fetch and audit private ROM fixtures into ignored build/roms
+      env:
+        NOCPU_ROMS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN }}
+      run: ./tools/fetch-roms.sh
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned npm dependencies, Chromium and Firefox with a headless audio sink
+      run: |-
+        mkdir -p build/npm-cache
+        npm ci --cache "$PWD/build/npm-cache" --no-audit --no-fund
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install chromium firefox
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+    - name: Fetch only the packaged site from this same workflow run (any attempt)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: ${{ needs.package.outputs.package_artifact }}
+        path: build
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
+    - name: Reject missing, extra or changed packaged files
+      working-directory: build
+      run: |-
+        sha256sum --check --strict --quiet pages-transfer.sha256
+        diff <(find pages -type f | sort) <(sed 's/^[0-9a-f]*  //' pages-transfer.sha256 | sort)
+        echo "Packaged site verified: $(wc -l < pages-transfer.sha256) files"
+    # NOCPU_TEST_ROM_SAFE turns off traces, videos, failure screenshots and the
+    # HTML report (playwright.config.ts): their frames would be ROM-derived.
+    - name: Play Stunt Cycle and Indy 4 from the private ROMs in Chromium and Firefox
+      env:
+        NOCPU_ROM_DIR: build/roms
+        NOCPU_TEST_PACKAGED: '1'
+        NOCPU_TEST_ROM_SAFE: '1'
+      run: |-
+        specs=(tests/browser/v060-driving.spec.ts)
+        if [ -f tests/browser/browser-identity.spec.ts ]; then specs=(tests/browser/browser-identity.spec.ts "${specs[@]}"); fi
+        ./tools/run-browser-tests.sh --project=chromium --project=firefox "${specs[@]}"
+    - name: Keep payload-free results only and collect the acceptance inputs
+      if: always()
+      run: |-
+        mkdir -p build/rom-browser-reports
+        # Results, errors and JSON evidence only; screenshots are dropped and
+        # the filter refuses any output that still carries image data.
+        if [ -f build/rom-browser-matrix.json ]; then
+          python3 tools/strip-rom-report.py build/rom-browser-matrix.json build/rom-browser-reports/rom-browser-results.json
+        fi
+        if [ -f tools/desktop-acceptance.py ] && [ -f build/rom-browser-reports/rom-browser-results.json ]; then
+          for engine in chromium firefox; do
+            python3 tools/desktop-acceptance.py collect --engine "$engine" --source rom \
+              --report build/rom-browser-reports/rom-browser-results.json \
+              --identity "build/browser-identity/$engine.json" \
+              --site build/pages --output "build/acceptance-inputs/rom-$engine.json"
+          done
+        fi
+    - name: Upload the stripped ROM browser results (no ROMs, frames or audio)
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: rom-browser-results
+        path: build/rom-browser-reports/
+        if-no-files-found: warn
+        retention-days: 14
+        overwrite: true
+    - name: Retain the desktop acceptance results
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: acceptance-input-rom
+        path: build/acceptance-inputs/
+        if-no-files-found: ignore
+        retention-days: 14
+        overwrite: true
+  # The desktop acceptance record of the exact package the browser jobs tested
+  # (tools/desktop-acceptance.py; policy in tests/release-readiness.json). A
+  # release, or any run whose ROM job ran, requires it to pass; release.yml
+  # checks it again and publishes it as nocpu-X.Y.Z-acceptance.json.
+  acceptance:
+    needs:
+    - package
+    - browser
+    - rom-access
+    - rom-browser
+    if: always() && needs.package.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ inputs.ref || github.sha }}
+    - name: Fetch only the packaged site from this same workflow run (any attempt)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: ${{ needs.package.outputs.package_artifact }}
+        path: build
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
+    - name: Reject missing, extra or changed packaged files
+      working-directory: build
+      run: |-
+        sha256sum --check --strict --quiet pages-transfer.sha256
+        diff <(find pages -type f | sort) <(sed 's/^[0-9a-f]*  //' pages-transfer.sha256 | sort)
+    - name: Fetch every engine's collected results from this run
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        pattern: acceptance-input-*
+        merge-multiple: true
+        path: build/acceptance-inputs
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
+    - name: Generate the desktop acceptance record (required to pass on a release)
+      env:
+        RELEASE: ${{ inputs.release }}
+        ROM_BROWSER: ${{ needs.rom-browser.result }}
+      run: |-
+        if [ ! -f tools/desktop-acceptance.py ]; then
+          echo '::notice::This commit predates generated desktop acceptance; no record is produced.'; exit 0
+        fi
+        version=$(python3 -c 'import json; print(json.load(open("build/pages/BUILD-MANIFEST.json"))["version"])')
+        record="build/acceptance/nocpu-$version-acceptance.json"
+        mkdir -p build/acceptance-inputs
+        require=()
+        if [ "$RELEASE" = true ] || [ "$ROM_BROWSER" = success ]; then require=(--require-passed); fi
+        status=0
+        python3 tools/desktop-acceptance.py combine --inputs build/acceptance-inputs --site build/pages \
+          --output "$record" "${require[@]}" | tee build/acceptance-summary.txt || status=$?
+        { echo '### Desktop acceptance'; echo '```'; cat build/acceptance-summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        exit "$status"
+    - name: Retain the desktop acceptance record
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: desktop-acceptance
+        path: build/acceptance/
+        if-no-files-found: ignore
         retention-days: 14
         overwrite: true
   verify:
@@ -453,6 +664,9 @@ jobs:
     - core-compare
     - package
     - browser
+    - rom-access
+    - rom-browser
+    - acceptance
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -465,10 +679,15 @@ jobs:
         COMPARE: ${{ needs.core-compare.result }}
         PACKAGE: ${{ needs.package.result }}
         BROWSER: ${{ needs.browser.result }}
+        ROM_ACCESS: ${{ needs.rom-access.result }}
+        ROM_CONFIGURED: ${{ needs.rom-access.outputs.configured }}
+        ROM_BROWSER: ${{ needs.rom-browser.result }}
+        ACCEPTANCE: ${{ needs.acceptance.result }}
         RELEASE: ${{ inputs.release }}
       run: |-
         status=0
-        for job in "scope=$SCOPE" "core-build=$BUILD" "package=$PACKAGE" "browser=$BROWSER"; do
+        for job in "scope=$SCOPE" "core-build=$BUILD" "package=$PACKAGE" "browser=$BROWSER" \
+                   "rom-access=$ROM_ACCESS" "acceptance=$ACCEPTANCE"; do
           if [ "${job#*=}" = success ]; then echo "$job"; else echo "::error::$job"; status=1; fi
         done
         if [ "$COMPARE" = success ]; then
@@ -478,6 +697,15 @@ jobs:
           echo '**Core original/native/Wasm comparisons skipped by scope (content already compared; only docs/web UI differ), not passed in this run.**' >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::error::core-compare=$COMPARE (scope core=$CORE_SCOPE, release=$RELEASE)"
+          status=1
+        fi
+        if [ "$ROM_BROWSER" = success ]; then
+          echo "rom-browser=success"
+        elif [ "$ROM_BROWSER" = skipped ] && [ "$ROM_ACCESS" = success ] && [ "$ROM_CONFIGURED" = false ] && [ "$RELEASE" != true ]; then
+          echo "rom-browser=skipped: blocked, NOCPU_ROMS_TOKEN not configured. Skipped, not passed."
+          echo '**ROM browser tests blocked (no NOCPU_ROMS_TOKEN): skipped, not passed; desktop acceptance did not pass.**' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::error::rom-browser=$ROM_BROWSER (configured=$ROM_CONFIGURED, release=$RELEASE)"
           status=1
         fi
         exit "$status"

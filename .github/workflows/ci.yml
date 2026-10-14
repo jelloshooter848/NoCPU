@@ -18,6 +18,10 @@ jobs:
       run: python3 tools/release_check.py
   verify:
     uses: ./.github/workflows/verify-browser.yml
+    # Only the ROM browser job's fetch step reads it; fork pull requests get none
+    # and that job is reported as blocked, not passed.
+    secrets:
+      NOCPU_ROMS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN }}
 'on':
   push:
     branches:

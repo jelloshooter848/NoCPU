@@ -34,7 +34,7 @@ async function serveKeyboard(page: Page): Promise<void> {
   await expect.poll(async () => (await breakoutSnapshot(page)).serve).toBe(false);
 }
 
-test('Breakout retains original colored portrait frames, shared paddle, explicit Coin/Start/Serve and generated native media', async ({ page }, testInfo) => {
+test('Breakout retains original colored portrait frames, shared paddle, explicit Coin/Start/Serve and generated native media', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await launchBreakout(page); const cold = await breakoutSnapshot(page);
   expect(cold.options).toEqual({ bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 3 });
   expect(cold.display).toEqual({ width: 324, height: 432, pixelFormat: 'rgba8888' });
@@ -65,7 +65,7 @@ test('Breakout retains original colored portrait frames, shared paddle, explicit
     nativeRunningSource: 'original ATTRACT_n E6.9, separate from raw creditQ_n', physicalQualification: false, audioScope: 'native PCM and browser scheduling; no speaker claim' }, null, 2)), contentType: 'application/json' });
 });
 
-test('Breakout keyboard and mouse move original pixels, preserve full endpoints and release held mouse Serve on focus loss', async ({ page }, testInfo) => {
+test('Breakout keyboard and mouse move original pixels, preserve full endpoints and release held mouse Serve on focus loss', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await launchBreakout(page); await startBreakout(page); const initial = await visibleBreakoutRaster(page);
   await page.keyboard.down('ArrowLeft'); await expect.poll(async () => (await breakoutSnapshot(page)).directions).toEqual([-1]);
   await expect.poll(async () => (await breakoutSnapshot(page)).axes[0]).toBeLessThan(-7000); await page.keyboard.up('ArrowLeft');
@@ -99,7 +99,7 @@ test('Breakout keyboard and mouse move original pixels, preserve full endpoints 
   await testInfo.attach('breakout-horizontal-endpoints.json', { body: Buffer.from(JSON.stringify({ initial, canvas, integerTargets: [left, right], after: await breakoutSnapshot(page) })), contentType: 'application/json' });
 });
 
-test('Breakout remapped shared controller and Serve sources retain ownership, neutralize opposition and rearm after menus/disconnect', async ({ page }, testInfo) => {
+test('Breakout remapped shared controller and Serve sources retain ownership, neutralize opposition and rearm after menus/disconnect', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await installGamepads(page); await launchBreakout(page); await startBreakout(page); await settings(page);
   await page.getByTestId('binding-serve').click(); await page.keyboard.press('KeyQ');
   await expect(page.getByTestId('binding-serve')).toHaveText('Q');
@@ -124,7 +124,7 @@ test('Breakout remapped shared controller and Serve sources retain ownership, ne
   await testInfo.attach('breakout-input-scope.json', { body: Buffer.from(JSON.stringify({ controller: 'synthetic navigator.getGamepads platform fixture', keyboard: 'Playwright browser driver', physicalController: false, after: await breakoutSnapshot(page) })), contentType: 'application/json' });
 });
 
-test('Breakout authentic two-credit Start2 and all four DIPs survive reset/relaunch without changing existing game settings', async ({ page }, testInfo) => {
+test('Breakout authentic two-credit Start2 and all four DIPs survive reset/relaunch without changing existing game settings', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await launchBreakout(page); await expect(page.getByTestId('status')).toContainText('two coins for Start 2P');
   await page.getByTestId('insert-coin').click(); await page.getByTestId('start-game-2').click(); await breakoutAdvance(page, 500000);
   const insufficientCredit = await breakoutSnapshot(page); expect(insufficientCredit.run).toBe(false);
@@ -191,7 +191,7 @@ test('version-2 settings preserve literal custom three-game mappings and private
   expect(saved.preferences.muted).toBe(true); expect(saved.preferences.bindingsByGame.breakout.gamepad.players).toHaveLength(1);
 });
 
-test('Breakout keeps its whole rotated raster in view with usable actions at desktop window sizes', async ({ page }, testInfo) => {
+test('Breakout keeps its whole rotated raster in view with usable actions at desktop window sizes', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await launchBreakout(page); await startBreakout(page); const geometry: unknown[] = [];
   for (const size of [{ width: 1024, height: 600 }, { width: 1280, height: 720 }, { width: 1920, height: 1080 }, { width: 800, height: 1000 }]) {
     await page.setViewportSize(size);
@@ -201,7 +201,7 @@ test('Breakout keeps its whole rotated raster in view with usable actions at des
   await testInfo.attach('breakout-desktop-geometry.json', { body: Buffer.from(JSON.stringify(geometry, null, 2)), contentType: 'application/json' });
 });
 
-test('Breakout held Serve and paddle contacts pause/reset/dispose cleanly before an unchanged Pong session', async ({ page }, testInfo) => {
+test('Breakout held Serve and paddle contacts pause/reset/dispose cleanly before an unchanged Pong session', { tag: '@game-breakout' }, async ({ page }, testInfo) => {
   await launchBreakout(page); await startBreakout(page); await serveKeyboard(page); await page.keyboard.down('ArrowLeft'); await page.keyboard.down('KeyS');
   await expect.poll(async () => (await breakoutSnapshot(page)).serve).toBe(true); const before = await breakoutSnapshot(page);
   await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));

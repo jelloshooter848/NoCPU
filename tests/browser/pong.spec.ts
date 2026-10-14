@@ -56,7 +56,7 @@ async function missingWasmServer(): Promise<{ url: string; wasmSha256: string; r
   }
 }
 
-test('loads genuine Wasm at the Pages base path and starts the original circuit', async ({ page }) => {
+test('loads genuine Wasm at the Pages base path and starts the original circuit', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   const wasmResponses: Promise<void>[] = [];
   page.on('response', (response) => {
@@ -95,7 +95,7 @@ test('loads genuine Wasm at the Pages base path and starts the original circuit'
   await expect(page.getByTestId('version')).toContainText(version);
 });
 
-test('pause, reset, mute and focus loss recover without stale inputs or catch-up', async ({ page }) => {
+test('pause, reset, mute and focus loss recover without stale inputs or catch-up', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -216,7 +216,7 @@ test('reset completion survives same-turn blur and resume without freezing contr
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
-test('the mouse over the display covers the full native paddle range for the chosen player', async ({ page }, testInfo) => {
+test('the mouse over the display covers the full native paddle range for the chosen player', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await start(page);
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
@@ -521,7 +521,7 @@ test('backgrounding cancels a pending audio gesture before it completes', async 
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(started);
 });
 
-test('a sustained browser session generates circuit scoring and bounded media', async ({ page }, testInfo) => {
+test('a sustained browser session generates circuit scoring and bounded media', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -555,7 +555,7 @@ test('a sustained browser session generates circuit scoring and bounded media', 
   await expect.poll(async () => (await snapshot(page)).scores).toEqual([0, 0]);
 });
 
-test('desktop window sizes keep the whole original raster and the action bar in view', async ({ page }, testInfo) => {
+test('desktop window sizes keep the whole original raster and the action bar in view', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await start(page);
   const geometry: unknown[] = [];
   for (const size of [{ width: 1024, height: 600 }, { width: 1024, height: 768 }, { width: 1280, height: 720 },
