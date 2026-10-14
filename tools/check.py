@@ -214,6 +214,52 @@ def verify_browser_metadata(root: Path, version: str) -> list[str]:
 
 
 MANUAL_RESULTS = {"pass", "fail", "partial"}
+# Per-game browser specs: every test carries a @game-<id> tag (it counts towards
+# that game's desktop acceptance record) unless exempted here with a reason.
+GAME_SPECS = {
+    "tests/browser/pong.spec.ts": {
+        "a missing Wasm asset produces an actionable error instead of simulated gameplay":
+            "delivery failure handling; no circuit runs",
+        "distributed assets, source and notices match the build manifest": "package contents, not gameplay",
+    },
+    "tests/browser/v040-game-ui.spec.ts": {
+        "historical custom Pong settings migrate intact while new-game remaps persist independently":
+            "preferences migration",
+    },
+    "tests/browser/v050-breakout.spec.ts": {
+        "version-2 settings preserve literal custom three-game mappings and private sound choices while Breakout "
+        "gets independent defaults": "preferences migration",
+    },
+    "tests/browser/v060-driving.spec.ts": {},
+}
+# Generic specs whose tests are not about one game's play.
+GENERIC_SPECS = {"tests/browser/library-controls.spec.ts", "tests/browser/storage-display.spec.ts",
+                 "tests/browser/browser-identity.spec.ts"}
+TEST_CALL = re.compile(r"^\s*test\((['`])(.*?)\1,\s*(\{\s*tag:[^}]*\})?", re.M)
+
+
+def verify_game_tags(root: Path) -> list[str]:
+    """Every per-game browser spec test is tagged @game-<id> or explicitly exempt."""
+    errors = []
+    specs = {path.relative_to(root).as_posix() for path in (root / "tests/browser").glob("*.spec.ts")}
+    for name in sorted(specs - set(GAME_SPECS) - GENERIC_SPECS):
+        errors.append(f"Browser spec {name} must be listed as a per-game or generic spec in tools/check.py")
+    for name, exempt in GAME_SPECS.items():
+        text = (root / name).read_text()
+        seen = set()
+        for match in TEST_CALL.finditer(text):
+            title, tag = match.group(2), match.group(3) or ""
+            seen.add(title)
+            if title in exempt:
+                if "@game-" in tag:
+                    errors.append(f"{name}: exempt test is tagged anyway: {title}")
+            elif "@game-" not in tag:
+                errors.append(f"{name}: test lacks a @game-<id> tag (or an exemption in tools/check.py): {title}")
+        errors.extend(f"{name}: exemption names no test: {title}" for title in sorted(set(exempt) - seen))
+    return errors
+
+
+
 
 
 def verify_manual_checks(root: Path) -> list[str]:
@@ -251,6 +297,7 @@ def main() -> int:
         errors.extend(verify_payloads(ROOT))
         errors.extend(verify_license_notices(ROOT))
         errors.extend(verify_manual_checks(ROOT))
+        errors.extend(verify_game_tags(ROOT))
         # The restarted desktop-first line ships a browser build from 0.1.0, so
         # browser metadata (which reports missing foundation files) always applies.
         if release_check.is_semver(version):

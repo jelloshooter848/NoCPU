@@ -6,6 +6,9 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -56,7 +59,7 @@ class AcceptanceTests(unittest.TestCase):
                   'sha256': acceptance.sha256((self.site / name).read_bytes())} for name in ('core/nocpu.wasm', 'index.html')]
         self.digest = acceptance.load_packager().runtime_digest(files)
         self.manifest = {'version': '0.1.3', 'stage': 'release', 'tag': 'v0.1.3', 'source_commit': 'a' * 40,
-                         'runtime_sha256': self.digest, 'runtime_files': files,
+                         'runtime_sha256': self.digest, 'runtime_files': files, 'files': files,
                          'release_readiness': {'desktop_acceptance': dict(POLICY, policy='generated_at_release', scope='s')}}
         (self.site / 'BUILD-MANIFEST.json').write_text(json.dumps(self.manifest))
 
@@ -68,12 +71,12 @@ class AcceptanceTests(unittest.TestCase):
         site.pop('policy')
         return site
 
-    def results(self, **changes):
+    def results(self, run=None, **changes):
         site = self.site_identity()
         out = []
         for engine in ('chromium', 'firefox'):
-            out.append(acceptance.collect(report(engine, **changes.get(engine, {})), identity(engine), engine, 'public', site))
-            out.append(acceptance.collect(report(engine, rom=True), identity(engine), engine, 'rom', site))
+            out.append(acceptance.collect(report(engine, **changes.get(engine, {})), identity(engine), engine, 'public', site, run))
+            out.append(acceptance.collect(report(engine, rom=True), identity(engine), engine, 'rom', site, run))
         return out
 
     def test_every_required_game_passed_in_every_required_engine_is_passed(self):
@@ -169,6 +172,50 @@ class AcceptanceTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises((ValueError, KeyError)):
                 acceptance.check_record(changed, release)
 
+    def test_a_job_without_fresh_results_never_passes(self):
+        # An earlier attempt's passing artifacts are still present, but this attempt's job did not succeed.
+        run = {'id': 7, 'attempt': 2, 'url': 'u'}
+        results = self.results(run={'id': 7, 'attempt': 1, 'url': 'u'})
+        for jobs, expected in (({'browser': 'success', 'rom-browser': 'success'}, 'passed'),
+                               ({'browser': 'failure', 'rom-browser': 'success'}, 'failed'),
+                               ({'browser': 'success', 'rom-browser': 'cancelled'}, 'incomplete'),
+                               ({'browser': 'success', 'rom-browser': 'skipped'}, 'incomplete')):
+            with self.subTest(jobs=jobs):
+                record = acceptance.combine(results, self.site_identity(), POLICY, run, jobs)
+                self.assertEqual(record['status'], expected, record['problems'])
+                self.assertEqual(record['jobs'], dict(sorted(jobs.items())))
+        self.assertEqual(record['browsers'][0]['runs']['rom'], {'id': 7, 'attempt': 1, 'url': 'u'})
+
+    def test_a_missing_results_marker_replaces_stale_results_and_blocks_passing(self):
+        run = {'id': 7, 'attempt': 2, 'url': 'u'}
+        results = [r for r in self.results(run=run) if not (r['engine'] == 'firefox' and r['source'] == 'rom')]
+        results.append(acceptance.missing_marker('firefox', 'rom', 'report missing', run))
+        record = acceptance.combine(results, self.site_identity(), POLICY, run, {'browser': 'success', 'rom-browser': 'success'})
+        self.assertEqual(record['status'], 'incomplete')
+        self.assertIn('firefox (rom): no fresh results in attempt 2: report missing', record['problems'])
+        self.assertEqual(record['browsers'][1]['missing_sources'], ['rom'])
+        with self.assertRaisesRegex(ValueError, 'required for this release'):
+            acceptance.check_record(record, acceptance.identity_from_manifest(self.manifest, self.digest))
+
+    def test_inputs_must_come_from_this_workflow_run(self):
+        run = {'id': 7, 'attempt': 1, 'url': 'u'}
+        with self.assertRaisesRegex(ValueError, 'another workflow run'):
+            acceptance.combine(self.results(run={'id': 6, 'attempt': 3, 'url': 'u'}), self.site_identity(), POLICY, run)
+        with self.assertRaisesRegex(ValueError, 'another workflow run'):
+            acceptance.combine(self.results(), self.site_identity(), POLICY, run)
+
+    def test_collect_writes_a_marker_when_a_job_produced_no_results(self):
+        output = Path(self.temp.name) / 'out/rom-firefox.json'
+        env = dict(os.environ, GITHUB_RUN_ID='7', GITHUB_RUN_ATTEMPT='2')
+        result = subprocess.run([sys.executable, str(ROOT / 'tools/desktop-acceptance.py'), 'collect', '--engine', 'firefox',
+                                 '--source', 'rom', '--report', str(Path(self.temp.name) / 'absent.json'),
+                                 '--identity', str(Path(self.temp.name) / 'absent-identity.json'),
+                                 '--site', str(self.site), '--output', str(output)], capture_output=True, text=True, env=env)
+        self.assertEqual(result.returncode, 1)
+        marker = json.loads(output.read_text())
+        self.assertEqual((marker['kind'], marker['engine'], marker['source']), (acceptance.MISSING_KIND, 'firefox', 'rom'))
+        self.assertEqual((marker['run']['id'], marker['run']['attempt']), (7, 2))
+
     def test_zip_identity_recomputes_the_runtime_digest(self):
         archive = Path(self.temp.name) / 'web.zip'
 
@@ -181,7 +228,12 @@ class AcceptanceTests(unittest.TestCase):
         pack()
         self.assertEqual(acceptance.zip_identity(archive)['runtime_sha256'], self.digest)
         pack({'index.html': b'<html>other</html>'})
-        with self.assertRaisesRegex(ValueError, 'differs from its manifest'):
+        with self.assertRaisesRegex(ValueError, 'differs from the manifest'):
+            acceptance.zip_identity(archive)
+        pack()
+        with zipfile.ZipFile(archive, 'a') as bundle:
+            bundle.writestr('extra.js', 'unlisted')
+        with self.assertRaisesRegex(ValueError, "extra \\['extra.js'\\]"):
             acceptance.zip_identity(archive)
 
 

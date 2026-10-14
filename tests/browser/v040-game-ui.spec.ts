@@ -149,7 +149,7 @@ test('historical custom Pong settings migrate intact while new-game remaps persi
   await testInfo.attach('v1-to-v2-custom-control-migration.json', { body: Buffer.from(JSON.stringify({ historical: bindings, migrated: persisted }, null, 2)), contentType: 'application/json' });
 });
 
-test('original circuit settings remain separate from the active session until explicit Apply and reset', async ({ page }, testInfo) => {
+test('original circuit settings remain separate from the active session until explicit Apply and reset', { tag: ['@game-pong', '@game-pongdoubles', '@game-spacerace'] }, async ({ page }, testInfo) => {
   const evidence: unknown[] = [];
   for (const [index, gameId] of supported.entries()) {
     await launchFromLibrary(page, gameId, index === 0);

@@ -415,7 +415,15 @@ engines, whether a release requires it) is `desktop_acceptance` in
   skipped in the public run and passed in the ROM run counts as passed; skipped
   everywhere does not) and marks a game passed in an engine only when it has a
   tagged test, all its tagged tests passed and no test of that engine failed.
-  `verify` checks a record against a release zip.
+  Each result is bound to its workflow run and attempt; when a job has no
+  usable report, `collect` writes a missing-results marker instead (and fails
+  the job), and `combine --job browser=… --job rom-browser=…` refuses `passed`
+  unless both jobs succeeded in this run. `verify` checks a record against a
+  release zip, including that the zip holds exactly the manifest's files.
+- `tools/check.py` requires a `@game-<id>` tag on every test of the per-game
+  specs (`pong`, `v040-game-ui`, `v050-breakout`, `v060-driving`) except the
+  few it exempts by title with a reason; a new spec must be listed there as
+  per-game or generic.
 
 To reproduce it locally after packaging (`make web-preview`) and running the
 suites:

@@ -222,7 +222,7 @@ for (const id of ['stuntcycle', 'indy4']) {
 }
 
 for (const id of ['stuntcycle', 'indy4']) {
-  test(`${id} player archive session, opt-in retention, backup, removal and re-import`, async ({ page }) => {
+  test(`${id} player archive session, opt-in retention, backup, removal and re-import`, { tag: `@game-${id}` }, async ({ page }) => {
     test.skip(!privateDir, 'Private original ROM fixtures unavailable; selected archive lifecycle not exercised.');
     const bytes = readFileSync(join(privateDir!, id === 'stuntcycle' ? 'stuntcyc.zip' : 'indy4.zip'));
     await page.goto('./?debug'); await titleSettings(page);

@@ -441,7 +441,9 @@ jobs:
         ENGINE: ${{ matrix.engine }}
       run: npm run test:browser -- --project="$ENGINE"
     # Outcomes of the @game-tagged tests, the engine's browser.version() and the
-    # runtime digest recomputed from the tested files; failures are recorded too.
+    # runtime digest recomputed from the tested files, bound to this run attempt.
+    # Without a usable report collect writes a missing-results marker instead,
+    # which replaces any earlier attempt's artifact of the same name.
     - name: Collect desktop acceptance results for ${{ matrix.engine }}
       if: always()
       env:
@@ -459,7 +461,7 @@ jobs:
       with:
         name: acceptance-input-public-${{ matrix.engine }}
         path: build/acceptance-inputs/
-        if-no-files-found: ignore
+        if-no-files-found: warn
         retention-days: 14
         overwrite: true
     - name: Retain all browser diagnostics and tested package identities
@@ -563,14 +565,17 @@ jobs:
         if [ -f build/rom-browser-matrix.json ]; then
           python3 tools/strip-rom-report.py build/rom-browser-matrix.json build/rom-browser-reports/rom-browser-results.json
         fi
-        if [ -f tools/desktop-acceptance.py ] && [ -f build/rom-browser-reports/rom-browser-results.json ]; then
+        # Without a stripped report, collect writes missing-results markers.
+        status=0
+        if [ -f tools/desktop-acceptance.py ]; then
           for engine in chromium firefox; do
             python3 tools/desktop-acceptance.py collect --engine "$engine" --source rom \
               --report build/rom-browser-reports/rom-browser-results.json \
               --identity "build/browser-identity/$engine.json" \
-              --site build/pages --output "build/acceptance-inputs/rom-$engine.json"
+              --site build/pages --output "build/acceptance-inputs/rom-$engine.json" || status=1
           done
         fi
+        exit "$status"
     - name: Upload the stripped ROM browser results (no ROMs, frames or audio)
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -586,7 +591,7 @@ jobs:
       with:
         name: acceptance-input-rom
         path: build/acceptance-inputs/
-        if-no-files-found: ignore
+        if-no-files-found: warn
         retention-days: 14
         overwrite: true
   # The desktop acceptance record of the exact package the browser jobs tested
@@ -633,6 +638,7 @@ jobs:
     - name: Generate the desktop acceptance record (required to pass on a release)
       env:
         RELEASE: ${{ inputs.release }}
+        BROWSER: ${{ needs.browser.result }}
         ROM_BROWSER: ${{ needs.rom-browser.result }}
       run: |-
         if [ ! -f tools/desktop-acceptance.py ]; then
@@ -645,7 +651,8 @@ jobs:
         if [ "$RELEASE" = true ] || [ "$ROM_BROWSER" = success ]; then require=(--require-passed); fi
         status=0
         python3 tools/desktop-acceptance.py combine --inputs build/acceptance-inputs --site build/pages \
-          --output "$record" "${require[@]}" | tee build/acceptance-summary.txt || status=$?
+          --output "$record" --job browser="$BROWSER" --job rom-browser="$ROM_BROWSER" "${require[@]}" \
+          | tee build/acceptance-summary.txt || status=$?
         { echo '### Desktop acceptance'; echo '```'; cat build/acceptance-summary.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
         exit "$status"
     - name: Retain the desktop acceptance record
@@ -654,7 +661,7 @@ jobs:
       with:
         name: desktop-acceptance
         path: build/acceptance/
-        if-no-files-found: ignore
+        if-no-files-found: warn
         retention-days: 14
         overwrite: true
   verify:

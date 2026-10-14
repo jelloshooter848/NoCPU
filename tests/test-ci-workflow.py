@@ -110,6 +110,20 @@ class DesktopAcceptanceTests(unittest.TestCase):
         self.assertIn('[ "$ROM_BROWSER" = skipped ] && [ "$ROM_ACCESS" = success ] && [ "$ROM_CONFIGURED" = false ] '
                       '&& [ "$RELEASE" != true ]', verify)
 
+    def test_record_counts_only_results_this_run_freshly_produced(self):
+        acceptance = job('acceptance')
+        self.assertIn('BROWSER: ${{ needs.browser.result }}', acceptance)
+        self.assertIn('ROM_BROWSER: ${{ needs.rom-browser.result }}', acceptance)
+        self.assertIn('--job browser="$BROWSER" --job rom-browser="$ROM_BROWSER"', acceptance)
+        for name in ('browser', 'rom-browser'):
+            uploads = [step for step in steps(job(name)) if 'name: acceptance-input-' in step]
+            self.assertEqual(len(uploads), 1, name)
+            self.assertIn('overwrite: true', uploads[0])
+            self.assertNotIn('if-no-files-found: ignore', uploads[0])
+            collect = [step for step in steps(job(name)) if 'desktop-acceptance.py collect' in step]
+            self.assertEqual(len(collect), 1, name)
+            self.assertEqual(condition(collect[0]), 'always()')
+
     def test_publish_verifies_the_record_against_the_release_zip_before_releasing(self):
         release = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertIn('NOCPU_ROMS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN }}', release.split('  publish:')[0])

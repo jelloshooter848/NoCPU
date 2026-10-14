@@ -252,6 +252,14 @@ GitHub Release, and deploys it. Use this to:
 
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
 
+The workflows on `main` verify tags from **v0.1.2 on**, and since 0.1.3 their
+`rom-browser` job needs the `NOCPU_ROMS_TOKEN` secret (a release fails without
+it). For an older tag, run the workflow definition that tag shipped with:
+choose the tag itself under "Use workflow from", or
+`gh workflow run release.yml --ref <tag> -f tag=<tag>`. That run deploys
+only if the `github-pages` environment's deployment rules allow the tag (see
+[One-time setup](#one-time-setup)).
+
 To retry only the failed jobs of a run (the run's **Re-run failed jobs**, or
 `gh run rerun <run-id> --failed`), no new dispatch is needed. The
 `core-compare` and `package` jobs use the core built by the `core-build` job of
@@ -362,14 +370,19 @@ run's own results ([TESTING.md](TESTING.md#desktop-acceptance-record)):
    tagged `@game-<id>`, with the runtime digest recomputed from the files it
    tested (`tools/desktop-acceptance.py collect`);
 2. the `acceptance` job combines them for the package into
-   `nocpu-X.Y.Z-acceptance.json` (`combine`). It is `passed` only when every
+   `nocpu-X.Y.Z-acceptance.json` (`combine`). Each input is bound to this
+   workflow run and its attempt; a job that produced no results writes a
+   missing-results marker over its artifact, and `combine` receives the
+   `browser` and `rom-browser` job results, so an earlier attempt's passing
+   results can never stand in for a job that failed or was not run. It is
+   `passed` only when both jobs succeeded and every
    policy game has at least one tagged test and all of them passed in every
    policy engine, and no test failed in those engines; otherwise `failed` or
    `incomplete`, with the reasons in `problems`. A release run fails here
    unless it passed;
 3. the publish step re-checks the record against the release zip (`verify`):
    the tag, version, commit and runtime digest (recomputed from the zip) must
-   match, the policy must equal the one in the zip's manifest, and a `passed`
+   match, the zip must hold exactly the files its manifest lists, the policy must equal the one in the zip's manifest, and a `passed`
    status must agree with the per-game results it lists. Then it attaches the
    record and its `.sha256` to the GitHub Release.
 

@@ -161,7 +161,7 @@ test('pause, reset, mute and focus loss recover without stale inputs or catch-up
   await expect.poll(async () => (await snapshot(page)).run, { timeout: 15_000 }).toBe(true);
 });
 
-test('reset completion survives same-turn blur and resume without freezing controls', async ({ page }) => {
+test('reset completion survives same-turn blur and resume without freezing controls', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -313,7 +313,7 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
   }
 });
 
-test('audio interruption and visibility loss pause safely and recover from a new gesture', async ({ page }) => {
+test('audio interruption and visibility loss pause safely and recover from a new gesture', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -343,7 +343,7 @@ test('audio interruption and visibility loss pause safely and recover from a new
   await waitSimulation(page, BigInt(resumed.timeps) + 300_000_000_000n);
 });
 
-test('an unresolved audio resume cannot freeze play and sound retry recovers safely', async ({ page }) => {
+test('an unresolved audio resume cannot freeze play and sound retry recovers safely', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -385,7 +385,7 @@ test('an unresolved audio resume cannot freeze play and sound retry recovers saf
   expect(await page.evaluate(() => (window as any).__audioProbe.started)).toBe(played);
 });
 
-test('a delayed valid audio activation recovers sound while play continues', async ({ page }, testInfo) => {
+test('a delayed valid audio activation recovers sound while play continues', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();
@@ -483,7 +483,7 @@ test('a delayed valid audio activation recovers sound while play continues', asy
   await expect.poll(async () => page.evaluate(() => (window as any).__audioProbe.started)).toBeGreaterThan(started);
 });
 
-test('backgrounding cancels a pending audio gesture before it completes', async ({ page }) => {
+test('backgrounding cancels a pending audio gesture before it completes', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await start(page);
   await page.evaluate(async () => {
@@ -576,7 +576,7 @@ test('desktop window sizes keep the whole original raster and the action bar in 
   await testInfo.attach('desktop-layout-geometry.json', { body: JSON.stringify(geometry, null, 2), contentType: 'application/json' });
 });
 
-test('title and game menus support keyboard navigation without leaking gameplay input', async ({ page }, testInfo) => {
+test('title and game menus support keyboard navigation without leaking gameplay input', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await page.goto('./?debug');
   await expect(page.getByTestId('play-pong')).toBeVisible();
@@ -653,7 +653,7 @@ test('title and game menus support keyboard navigation without leaking gameplay 
   expect((await snapshot(page)).axes).toEqual(paused.axes);
 });
 
-test('returning to the title stops playback and starting again creates a fresh circuit', async ({ page }, testInfo) => {
+test('returning to the title stops playback and starting again creates a fresh circuit', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await start(page);
   await page.getByTestId('insert-coin').click();

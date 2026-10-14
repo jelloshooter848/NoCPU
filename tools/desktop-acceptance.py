@@ -39,7 +39,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RECORD_SCHEMA = 1
-RESULT_SCHEMA = 1
+RESULT_SCHEMA = 2
+MISSING_KIND = 'nocpu-browser-results-missing'
 ENGINES = ('chromium', 'firefox', 'webkit')
 SOURCES = ('public', 'rom')
 TAG_PREFIX = '@game-'
@@ -97,6 +98,17 @@ def site_identity(site: Path) -> dict:
 def zip_identity(archive: Path) -> dict:
     with zipfile.ZipFile(archive) as bundle:
         manifest = json.loads(bundle.read('BUILD-MANIFEST.json'))
+        # The zip holds exactly the files the manifest lists (plus the manifest itself), byte for byte.
+        names = bundle.namelist()
+        listed = {entry['path']: entry for entry in manifest.get('files', [])}
+        if len(names) != len(set(names)) or set(names) != set(listed) | {'BUILD-MANIFEST.json'}:
+            extra = sorted(set(names) - set(listed) - {'BUILD-MANIFEST.json'})
+            absent = sorted(set(listed) - set(names))
+            raise ValueError(f'Release zip members differ from the manifest files list (extra {extra}, missing {absent})')
+        for name, entry in listed.items():
+            data = bundle.read(name)
+            if len(data) != entry['size'] or sha256(data) != entry['sha256']:
+                raise ValueError(f'Release zip member differs from the manifest: {name}')
         return identity_from_manifest(manifest, checked_runtime(manifest, bundle.read))
 
 
@@ -125,7 +137,13 @@ def outcome(test: dict) -> str:
     return 'failed'
 
 
-def collect(report: dict, identity: dict, engine: str, source: str, site: dict) -> dict:
+def missing_marker(engine: str, source: str, reason: str, run: dict | None) -> dict:
+    """Written in place of results when a job produced none, so an earlier attempt's results never stand in."""
+    return {'schema_version': RESULT_SCHEMA, 'kind': MISSING_KIND, 'engine': engine, 'source': source,
+            'reason': reason, 'run': run}
+
+
+def collect(report: dict, identity: dict, engine: str, source: str, site: dict, run: dict | None = None) -> dict:
     if engine not in ENGINES or source not in SOURCES:
         raise ValueError(f'Unknown engine {engine!r} or source {source!r}')
     if identity.get('project') != engine or identity.get('engine') != engine:
@@ -156,7 +174,7 @@ def collect(report: dict, identity: dict, engine: str, source: str, site: dict) 
         stats['failed'] += len(report['errors'])
     return {
         'schema_version': RESULT_SCHEMA, 'kind': 'nocpu-browser-results', 'engine': engine, 'source': source,
-        'browser': identity, 'site': site, 'runtime_sha256': site['runtime_sha256'], 'stats': stats,
+        'browser': identity, 'site': site, 'runtime_sha256': site['runtime_sha256'], 'stats': stats, 'run': run,
         'tests': sorted(tests, key=lambda item: (item['file'], item['title'])),
     }
 
@@ -173,13 +191,26 @@ def policy_of(readiness: dict) -> dict:
     return {key: desktop.get(key) for key in ('required_for_release', 'games', 'browsers')}
 
 
-def combine(results: list[dict], site: dict, policy: dict, run: dict | None = None) -> dict:
+def combine(results: list[dict], site: dict, policy: dict, run: dict | None = None,
+            jobs: dict[str, str] | None = None) -> dict:
+    """The acceptance record. `jobs` maps each producing job (browser, rom-browser) to its result in this
+    run; any job that did not succeed keeps the record from passing, whatever artifacts are present."""
     games, required = policy['games'], policy['browsers']
     by_engine: dict[str, list[dict]] = {}
     problems: list[str] = []
+    missing: dict[str, list[str]] = {}
     for result in results:
-        if result.get('schema_version') != RESULT_SCHEMA or result.get('kind') != 'nocpu-browser-results':
+        if result.get('schema_version') != RESULT_SCHEMA or result.get('kind') not in ('nocpu-browser-results', MISSING_KIND):
             raise ValueError('Unsupported browser result')
+        if run is not None and (result.get('run') or {}).get('id') != run['id']:
+            raise ValueError(f"{result.get('engine')} ({result.get('source')}) results come from another workflow run")
+        if result['kind'] == MISSING_KIND:
+            where = f"{result['engine']} ({result['source']})"
+            attempt = (result.get('run') or {}).get('attempt')
+            problems.append(f"{where}: no fresh results" + (f' in attempt {attempt}' if attempt else '')
+                            + f": {result.get('reason', 'unknown')}")
+            missing.setdefault(result['engine'], []).append(result['source'])
+            continue
         if result['runtime_sha256'] != site['runtime_sha256'] or result['site'] != site:
             raise ValueError(f"{result['engine']} ({result['source']}) results are for another build than the tested site")
         by_engine.setdefault(result['engine'], []).append(result)
@@ -193,6 +224,10 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
         if len(versions) > 1:
             raise ValueError(f'{engine} results come from different browser builds: {sorted(versions)}')
         entry = {'engine': engine, 'required': engine in required, 'sources': sources, 'games': {}}
+        if any(run_.get('run') for run_ in runs):
+            entry['runs'] = {run_['source']: run_['run'] for run_ in runs}
+        if missing.get(engine):
+            entry['missing_sources'] = sorted(missing[engine])
         if not runs:
             entry.update(status='not_run')
             problems.append(f'{engine}: no results')
@@ -233,7 +268,7 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
         if failed_runs:
             problems.append(f'{engine}: ' + ', '.join(failed_runs))
         entry['status'] = 'failed' if failed_runs else 'passed' if all(
-            value['status'] == 'passed' for value in entry['games'].values()) else 'incomplete'
+            value['status'] == 'passed' for value in entry['games'].values()) and not missing.get(engine) else 'incomplete'
         browsers.append(entry)
     required_entries = [entry for entry in browsers if entry['required']]
     if all(entry.get('status') == 'passed' for entry in required_entries) and not problems:
@@ -243,6 +278,11 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
         status = 'failed'
     else:
         status = 'incomplete'
+    unfinished = {name: result for name, result in (jobs or {}).items() if result != 'success'}
+    for name, result in sorted(unfinished.items()):
+        problems.append(f'job {name}: {result or "unknown"}, so its results are not fresh evidence for this run')
+    if status == 'passed' and (unfinished or problems):
+        status = 'failed' if 'failure' in unfinished.values() else 'incomplete'
     record = {
         'schema_version': RECORD_SCHEMA, 'project': 'NoCPU', 'kind': 'desktop-acceptance',
         'version': site['version'], 'stage': site['stage'], 'tag': site['tag'], 'source_commit': site['source_commit'],
@@ -256,6 +296,8 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
     }
     if run:
         record['workflow_run'] = run
+    if jobs:
+        record['jobs'] = dict(sorted(jobs.items()))
     return record
 
 
@@ -315,12 +357,15 @@ def main() -> int:
     one.add_argument('--report', type=Path, required=True)
     one.add_argument('--identity', type=Path, required=True)
     one.add_argument('--site', type=Path, required=True)
-    one.add_argument('--output', type=Path, required=True)
+    one.add_argument('--output', type=Path, required=True,
+                     help='results, or on any failure a missing-results marker (and exit 1)')
     many = commands.add_parser('combine')
     many.add_argument('--inputs', type=Path, required=True, help='directory of collected *.json results')
     many.add_argument('--site', type=Path, required=True)
     many.add_argument('--output', type=Path, required=True)
     many.add_argument('--require-passed', action='store_true')
+    many.add_argument('--job', action='append', default=[], metavar='NAME=RESULT',
+                      help="a producing job's result in this run (needs.<job>.result); repeat per job")
     check = commands.add_parser('verify')
     check.add_argument('--record', type=Path, required=True)
     check.add_argument('--zip', type=Path, required=True)
@@ -328,10 +373,14 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.command == 'collect':
-            site = site_identity(args.site)
-            site.pop('policy')
-            result = collect(json.loads(args.report.read_text()), json.loads(args.identity.read_text()),
-                             args.engine, args.source, site)
+            try:
+                site = site_identity(args.site)
+                site.pop('policy')
+                result = collect(json.loads(args.report.read_text()), json.loads(args.identity.read_text()),
+                                 args.engine, args.source, site, run_info())
+            except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+                write_json(args.output, missing_marker(args.engine, args.source, str(exc), run_info()))
+                raise
             write_json(args.output, result)
             print(f"{args.engine} ({args.source}): {result['stats']} at runtime {site['runtime_sha256']}")
         elif args.command == 'combine':
@@ -340,8 +389,14 @@ def main() -> int:
             if not isinstance(policy, dict):
                 raise ValueError('The tested site carries no desktop acceptance policy')
             results = [json.loads(path.read_text()) for path in sorted(args.inputs.glob('*.json'))]
+            jobs = {}
+            for item in args.job:
+                name, _, result = item.partition('=')
+                if not name:
+                    raise ValueError(f'--job needs NAME=RESULT, not {item!r}')
+                jobs[name] = result
             record = combine(results, site, {key: policy.get(key) for key in ('required_for_release', 'games', 'browsers')},
-                             run_info())
+                             run_info(), jobs)
             write_json(args.output, record)
             print(f"Desktop acceptance {record['status']} for {site['version']} runtime {site['runtime_sha256']}")
             for game, engines in record['summary'].items():
