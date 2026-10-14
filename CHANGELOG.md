@@ -17,8 +17,9 @@ releases below.
 
 ### Changed
 
-- The title screen no longer has a Play Pong button. Continue starts the game you last played,
-  and the Library, which leads the menu until you have played a game, starts any of them.
+- The title screen no longer has a Play Pong button. Continue starts the last game you played
+  (remembered once it has loaded), and the Library, which leads the menu until you have played a
+  game, starts any of them.
 
 ## [0.1.3] - 2026-10-14
 

@@ -301,10 +301,14 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
     await expect(page.getByTestId('reset')).toBeDisabled();
+    // Continue offers only a game that actually loaded.
+    const rememberedGame = () => page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences') ?? '{}').preferences?.lastGameId ?? null);
+    expect(await rememberedGame()).toBeNull();
     await captureShellPanel(page, testInfo, 'error');
     fixture.restore();
     await page.locator('#retry').click();
     await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+    await expect.poll(rememberedGame).toBe('pong');
     await waitSimulation(page, 800_000_000_000n);
     await expect(page.getByTestId('error')).toBeHidden();
     await expect(page.getByTestId('insert-coin')).toBeEnabled();

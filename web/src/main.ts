@@ -497,7 +497,6 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
     showScreen('game-info');
     return;
   }
-  settingsUI.setLastGame(gameId);
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
   worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
@@ -521,6 +520,9 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
         acceptSnapshot(message.snapshot);
         if (document.hidden || !document.hasFocus()) pauseGame();
         else { setClock(true); showScreen('playing'); }
+        // Continue remembers only a game that actually loaded. The write happens
+        // after the game is running and can never stop or delay a launch.
+        try { settingsUI.setLastGame(activeGameId); } catch { /* Continue is a convenience. */ }
         break;
       case 'output':
         if (message.epoch !== clockEpoch || paused || resetting) break;
