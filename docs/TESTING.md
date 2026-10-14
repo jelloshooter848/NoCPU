@@ -311,8 +311,10 @@ NOCPU_ROM_DIR=build/roms NOCPU_TEST_PACKAGED=1 NOCPU_TEST_ROM_SAFE=1 \
 failure screenshots and skip the HTML report, since their frames are
 ROM-derived; results go to `build/rom-browser-matrix.json`, which still holds
 the tests' own screenshot attachments. `tools/strip-rom-report.py` reduces it
-to outcomes, errors and JSON/text attachments and refuses output that still
-carries image or trace data; only that file and the comparison reports are
+to outcomes and errors plus the attachments on its allow-list (today only
+`stunt-original-score9-software.json`), each at most 4 KiB of JSON with no
+numeric array longer than 64 values. It drops and names every other
+attachment and refuses output that still carries image or trace data; only that file and the comparison reports are
 uploaded. The token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
 the variables, the dev-server auto-load and the secret setup. To audit
 fixtures by hand:

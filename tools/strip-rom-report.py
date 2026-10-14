@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Reduce a ROM-backed Playwright JSON report to payload-free results.
 
-Keeps test titles, outcomes, timings, errors and JSON or plain-text
-attachments; drops every other attachment (screenshots and anything stored on
-disk), since ROM-backed frames must never leave the runner. Refuses to write
-output that still looks like image data.
+Keeps test titles, outcomes, timings and errors, plus only the attachments
+named in ALLOWED: small JSON evidence (at most MAX_BYTES, no long numeric
+arrays that could carry pixels). Every other attachment (screenshots, files on
+disk, unlisted or oversized JSON) is dropped and listed by name, since
+ROM-backed frames must never leave the runner. Refuses to write output that
+still looks like image data.
 """
 import argparse
 import base64
@@ -14,7 +16,45 @@ import sys
 from pathlib import Path
 
 KEEP = {'application/json', 'text/plain'}
+# Attachments reviewed as payload-free; add a name only after reviewing what the test writes.
+ALLOWED = {'stunt-original-score9-software.json'}
+MAX_BYTES = 4096
+MAX_NUMERIC_RUN = 64
 FORBIDDEN = ('image/', 'video/', 'iVBORw0KGgo', '/9j/', 'R0lGOD', 'UklGR', 'trace.zip')
+
+
+def longest_numeric_list(value):
+    if isinstance(value, list):
+        own = len(value) if value and all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in value) else 0
+        return max([own] + [longest_numeric_list(item) for item in value])
+    if isinstance(value, dict):
+        return max([0] + [longest_numeric_list(item) for item in value.values()])
+    return 0
+
+
+def rejection(item):
+    """Why an attachment is dropped, or None to keep it."""
+    if not isinstance(item, dict):
+        return 'not an attachment record'
+    name = item.get('name')
+    if name not in ALLOWED:
+        return 'name not on the allow-list'
+    if item.get('contentType') not in KEEP or 'body' not in item or 'path' in item:
+        return 'not an inline JSON/text body'
+    try:
+        body = base64.b64decode(item['body'], validate=True)
+    except (ValueError, TypeError):
+        return 'body is not base64'
+    if len(body) > MAX_BYTES:
+        return f'body is {len(body)} bytes, over {MAX_BYTES}'
+    if item['contentType'] == 'application/json':
+        try:
+            parsed = json.loads(body)
+        except ValueError:
+            return 'body is not JSON'
+        if longest_numeric_list(parsed) > MAX_NUMERIC_RUN:
+            return f'numeric array longer than {MAX_NUMERIC_RUN}'
+    return None
 
 
 def strip(node, dropped):
@@ -24,10 +64,13 @@ def strip(node, dropped):
             if key == 'attachments' and isinstance(value, list):
                 kept = []
                 for item in value:
-                    if isinstance(item, dict) and item.get('contentType') in KEEP and 'body' in item and 'path' not in item:
-                        kept.append({'name': item.get('name'), 'contentType': item['contentType'], 'body': item['body']})
+                    reason = rejection(item)
+                    if reason is None:
+                        kept.append({'name': item['name'], 'contentType': item['contentType'], 'body': item['body']})
                     else:
-                        dropped.append(item.get('name') if isinstance(item, dict) else repr(item))
+                        name = item.get('name') if isinstance(item, dict) else repr(item)
+                        dropped.append(f'{name}: {reason}')
+                        print(f'Dropped attachment {name}: {reason}')
                 result[key] = kept
             else:
                 result[key] = strip(value, dropped)
@@ -65,7 +108,8 @@ def main() -> int:
         print('Refusing to write: the filtered report still contains image or trace data.', file=sys.stderr)
         return 1
     report['nocpu_filter'] = {'dropped_attachments': sorted(set(map(str, dropped))),
-                              'kept_content_types': sorted(KEEP)}
+                              'allowed_attachments': sorted(ALLOWED), 'max_attachment_bytes': MAX_BYTES,
+                              'max_numeric_array': MAX_NUMERIC_RUN}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(f'Payload-free ROM browser results: {args.output} ({len(dropped)} attachments dropped)')
