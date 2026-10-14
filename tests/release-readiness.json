@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "release_ready": true,
   "blockers": [],
   "release_scope": "0.1.2 verification release: faster CI (cached original reference captures for pull request and branch runs, content-scoped comparison skips, parallel browser engines; releases always capture fresh), the ROM-backed Stunt Cycle and Indy 4 browser tests in CI, and the Indy 4 Firefox test fix. The game core and browser app code are unchanged from 0.1.1; there are no gameplay changes. Desktop acceptance (the desktop browser checks in docs/TESTING.md) is still pending, so it makes no desktop accuracy claim; the physical-device gate stays deferred.",
