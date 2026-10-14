@@ -234,8 +234,11 @@ requests and by `release.yml` for releases) runs these jobs:
 | `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
 | `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, the `nocpu-compared-<hash>` marker. |
 | `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
-| `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. |
-| `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it, and never on a release. |
+| `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. Collects the engine's `browser.version()` and its `@game-` test outcomes for the acceptance record. |
+| `rom-access` | always | Reports whether the `NOCPU_ROMS_TOKEN` secret is available (never for fork pull requests). |
+| `rom-browser` | when the secret is available | Fetches the private ROM fixtures and plays Stunt Cycle and Indy 4 in Chromium and Firefox against the same packaged site, ROM-safe; uploads only the stripped results and the acceptance inputs. |
+| `acceptance` | after the browser jobs | Combines every engine's results into the desktop acceptance record of this package (`tools/desktop-acceptance.py`). Must pass on a release, and on any run whose `rom-browser` job ran. |
+| `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it, and a skipped `rom-browser` only when the secret is absent; neither on a release. |
 
 The scope rule is decided by content, not by a diff, and is deliberately
 small. The core hash is a SHA-256 over the path, mode and blob of every tracked
@@ -296,15 +299,18 @@ ROM-derived and must never be published. Without fixtures it reports
 `SKIPPED (blocked: no ROM access)`; that is not a pass. Both games inherit
 DICE's missing audio hookup, so equal PCM is not audible sound.
 
-The separate `rom-validation.yml` workflow runs these steps with the
+The separate `rom-validation.yml` workflow runs these comparisons with the
 `NOCPU_ROMS_TOKEN` secret and is skipped, with a `blocked` notice, when the
-secret is absent (always for fork pull requests). After the comparisons it
-builds and packages a preview and runs `tests/browser/v060-driving.spec.ts`
-against the private ROMs in Chromium and Firefox:
+secret is absent (always for fork pull requests). The ROM-backed browser tests
+run in the `rom-browser` job of `verify-browser.yml` instead (since 0.1.3),
+against the exact package the other browser jobs test, so their results count
+towards that package's [desktop acceptance record](#desktop-acceptance-record);
+releases run them too. Locally, against a packaged site:
 
 ```sh
 NOCPU_ROM_DIR=build/roms NOCPU_TEST_PACKAGED=1 NOCPU_TEST_ROM_SAFE=1 \
-  ./tools/run-browser-tests.sh --project=chromium --project=firefox tests/browser/v060-driving.spec.ts
+  ./tools/run-browser-tests.sh --project=chromium --project=firefox \
+  tests/browser/browser-identity.spec.ts tests/browser/v060-driving.spec.ts
 ```
 
 `NOCPU_TEST_ROM_SAFE=1` makes `playwright.config.ts` record no traces, videos or
@@ -320,8 +326,10 @@ allow-list (today only `stunt-original-score9-software.json`), each at most
 every other attachment. It then refuses, naming the JSON path, any remaining
 field with a base64 image or archive signature, a `data:` image or video URI or
 a `trace.zip` reference, and any attachment body or stdout/stderr buffer that
-does not decode or decodes to an image or archive. Only that file and the
-comparison reports are uploaded. The token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
+does not decode or decodes to an image or archive. Only that file, the
+acceptance inputs collected from it (test titles, outcomes and the browser
+identity) and, from `rom-validation.yml`, the comparison reports are uploaded.
+In both workflows the token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
 the variables, the dev-server auto-load and the secret setup. To audit
 fixtures by hand:
 
@@ -381,10 +389,57 @@ read-only `/proc/self/uid_map` in a cloud sandbox). A failed launch is a runner
 limitation, not a gameplay result.
 
 Automated browser projects show that the build loads and runs in those engines.
-Desktop acceptance evidence for a release also names the real browser and
-version it was played in (at least Chrome and Firefox for the 0.1.x
-acceptance) and is recorded in the [release readiness
-record](RELEASING.md#release-readiness-record).
+They are Playwright's builds of Chromium, Firefox and WebKit, not Google
+Chrome, a Mozilla release Firefox or Safari, and evidence names them that way.
+
+### Desktop acceptance record
+
+Every CI and release run generates the desktop acceptance record of the
+package it tested; a release publishes it as `nocpu-X.Y.Z-acceptance.json`
+([RELEASING.md](RELEASING.md#the-desktop-acceptance-record)). The policy (games,
+engines, whether a release requires it) is `desktop_acceptance` in
+[tests/release-readiness.json](../tests/release-readiness.json).
+
+- `tests/browser/browser-identity.spec.ts` writes
+  `build/browser-identity/<project>.json`: the engine, its
+  `browser.version()`, headless mode, the Playwright version, the OS and the
+  device profile's emulated user agent. Every test of a project runs in that
+  same browser (one worker).
+- Game coverage comes from Playwright tags: a test that exercises a game's
+  play carries `@game-<id>` (`pong`, `pongdoubles`, `spacerace`, `breakout`,
+  `stuntcycle`, `indy4`). Tag a new game's tests the same way and add the game
+  to the policy.
+- `tools/desktop-acceptance.py collect` reduces one run's Playwright JSON
+  report to the tagged outcomes, after recomputing the runtime digest from the
+  tested site's files. `combine` merges every engine and run (a ROM test
+  skipped in the public run and passed in the ROM run counts as passed; skipped
+  everywhere does not) and marks a game passed in an engine only when it has a
+  tagged test, all its tagged tests passed and no test of that engine failed.
+  Each result is bound to its workflow run and attempt; when a job has no
+  usable report, `collect` writes a missing-results marker instead (and fails
+  the job), and `combine --job browser=… --job rom-browser=…` refuses `passed`
+  unless both jobs succeeded in this run. `verify` checks a record against a
+  release zip, including that the zip holds exactly the manifest's files.
+- `tools/check.py` requires a `@game-<id>` tag on every test of the per-game
+  specs (`pong`, `v040-game-ui`, `v050-breakout`, `v060-driving`) except the
+  few it exempts by title with a reason; a new spec must be listed there as
+  per-game or generic.
+
+To reproduce it locally after packaging (`make web-preview`) and running the
+suites:
+
+```sh
+NOCPU_TEST_PACKAGED=1 ./tools/run-browser-tests.sh --project=chromium   # repeat per engine,
+python3 tools/desktop-acceptance.py collect --engine chromium --source public \
+  --report build/browser-matrix.json --identity build/browser-identity/chromium.json \
+  --site build/pages --output build/acceptance-inputs/public-chromium.json
+# ...the same for firefox, and with --source rom on the stripped ROM report...
+python3 tools/desktop-acceptance.py combine --inputs build/acceptance-inputs \
+  --site build/pages --output build/acceptance/record.json
+```
+
+Optional human checks belong in [ACCEPTANCE.md](ACCEPTANCE.md#supplementary-manual-desktop-checks);
+they are supplementary and never replace the generated record.
 
 ## Release path
 
@@ -413,9 +468,11 @@ source/notice hashes; they do not replace the full local matrix.
 
 ## What is still untested
 
-Fifteen of the 21 DICE 0.9 games are unported, and for the six ported games the
-restarted line has not yet re-run its comparisons against the reduced desktop
-frontend (a 0.1.x task). No result covers every game's controls, DIP settings,
+Fifteen of the 21 DICE 0.9 games are unported. The six ported games pass their
+bounded original/native/Wasm comparisons ([ACCEPTANCE.md](ACCEPTANCE.md)), with
+the coverage gaps listed there, and automated browser checks in Playwright's
+engine builds; nobody has yet recorded a manual check in a release Chrome or
+Firefox. No result covers every game's controls, DIP settings,
 scoring, multiplayer, reset and audio. Eight games have no active DICE audio
 hookup; inherited silence and untested playback are separate statuses. Record
 each result with its build, scenario and actual environment instead of

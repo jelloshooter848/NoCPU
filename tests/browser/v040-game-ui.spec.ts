@@ -10,7 +10,7 @@ import { activateGame, advanceGame, gamePause, gameSettings, gameSnapshot,
 const supported = ['pong', 'pongdoubles', 'spacerace'] as const;
 const version = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim();
 
-test('selected circuits have distinct coin/start access, real frame/PCM output and clean cross-game disposal', async ({ page }, testInfo) => {
+test('selected circuits have distinct coin/start access, real frame/PCM output and clean cross-game disposal', { tag: ['@game-pong', '@game-pongdoubles', '@game-spacerace'] }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await page.addInitScript(() => {
     const target = window as any; target.__gameCommands = [];
@@ -66,7 +66,7 @@ test('selected circuits have distinct coin/start access, real frame/PCM output a
   await testInfo.attach('selected-circuit-lifecycle.json', { body: Buffer.from(JSON.stringify(evidence, null, 2)), contentType: 'application/json' });
 });
 
-test('the mouse drives the chosen Doubles player across its full range and is unused by Space Race', async ({ page }, testInfo) => {
+test('the mouse drives the chosen Doubles player across its full range and is unused by Space Race', { tag: ['@game-pongdoubles', '@game-spacerace'] }, async ({ page }, testInfo) => {
   await launchFromLibrary(page, 'pongdoubles'); await activateGame(page, 'pongdoubles');
   await initialGameObjects(page, 'pongdoubles');
   await gameSettings(page);
@@ -149,7 +149,7 @@ test('historical custom Pong settings migrate intact while new-game remaps persi
   await testInfo.attach('v1-to-v2-custom-control-migration.json', { body: Buffer.from(JSON.stringify({ historical: bindings, migrated: persisted }, null, 2)), contentType: 'application/json' });
 });
 
-test('original circuit settings remain separate from the active session until explicit Apply and reset', async ({ page }, testInfo) => {
+test('original circuit settings remain separate from the active session until explicit Apply and reset', { tag: ['@game-pong', '@game-pongdoubles', '@game-spacerace'] }, async ({ page }, testInfo) => {
   const evidence: unknown[] = [];
   for (const [index, gameId] of supported.entries()) {
     await launchFromLibrary(page, gameId, index === 0);
@@ -187,7 +187,7 @@ test('original circuit settings remain separate from the active session until ex
   await testInfo.attach('per-game-original-settings.json', { body: Buffer.from(JSON.stringify(evidence, null, 2)), contentType: 'application/json' });
 });
 
-test('new-game desktop window sizes keep the whole raster in view with usable actions', async ({ page }, testInfo) => {
+test('new-game desktop window sizes keep the whole raster in view with usable actions', { tag: ['@game-pongdoubles', '@game-spacerace'] }, async ({ page }, testInfo) => {
   const geometry: unknown[] = [];
   for (const [index, gameId] of (['pongdoubles', 'spacerace'] as const).entries()) {
     await launchFromLibrary(page, gameId, index === 0); await activateGame(page, gameId);
@@ -204,7 +204,7 @@ test('new-game desktop window sizes keep the whole raster in view with usable ac
   await testInfo.attach('new-game-desktop-geometry.json', { body: Buffer.from(JSON.stringify(geometry, null, 2)), contentType: 'application/json' });
 });
 
-test('Pong Doubles keeps all four keyboard/controller channels independent and requires neutral after recovery', async ({ page }, testInfo) => {
+test('Pong Doubles keeps all four keyboard/controller channels independent and requires neutral after recovery', { tag: '@game-pongdoubles' }, async ({ page }, testInfo) => {
   await installFourGamepads(page); await launchFromLibrary(page, 'pongdoubles'); await activateGame(page, 'pongdoubles');
   const before = await gameSnapshot(page);
   await initialGameObjects(page, 'pongdoubles');
@@ -240,7 +240,7 @@ test('Pong Doubles keeps all four keyboard/controller channels independent and r
   await testInfo.attach('doubles-independent-channels.json', { body: Buffer.from(JSON.stringify({ before, final: await gameSnapshot(page) }, null, 2)), contentType: 'application/json' });
 });
 
-test('Space Race moves actual rockets and releases digital direction on opposing sources, centered pads and lifecycle boundaries', async ({ page }, testInfo) => {
+test('Space Race moves actual rockets and releases digital direction on opposing sources, centered pads and lifecycle boundaries', { tag: '@game-spacerace' }, async ({ page }, testInfo) => {
   await installFourGamepads(page); await launchFromLibrary(page, 'spacerace');
   const initial = await gameSnapshot(page); expect(initial.axes).toEqual([]); expect(initial.attract).toBeNull(); expect(initial.hits).toBeNull();
   let movement: Awaited<ReturnType<typeof sourceCalibratedSpaceMovement>> | undefined;

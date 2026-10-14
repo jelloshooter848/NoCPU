@@ -91,7 +91,7 @@ test('all audited games have truthful library, ROM, sound and control informatio
   await expect(page.getByTestId('open-library')).toBeFocused();
 });
 
-test('return to library disposes the running circuit and audio before a fresh ROM-free Pong start', async ({ page }) => {
+test('return to library disposes the running circuit and audio before a fresh ROM-free Pong start', { tag: '@game-pong' }, async ({ page }) => {
   await installAudioProbe(page);
   await page.goto('?debug');
   await start(page);

@@ -32,11 +32,13 @@ class BrowserReleaseTests(unittest.TestCase):
         (self.dist / 'core/nocpu.js').write_text('export default function NoCPU() {}')
         (self.dist / 'core/nocpu.wasm').write_bytes(b'\x00asm\x01\x00\x00\x00')
         self.digest = web.runtime_digest(web.runtime_files(self.dist))
+        shutil.copytree(ROOT / 'tests/fixtures', self.root / 'tests/fixtures')
         self.readiness = {
-            'schema_version': 2, 'version': '0.2.0', 'release_ready': True, 'blockers': [],
+            'schema_version': 3, 'version': '0.2.0', 'release_ready': True, 'blockers': [],
             'release_scope': 'Test release scope',
-            'desktop_acceptance': {'status': 'pending', 'scope': 'Six-game comparisons and desktop browser checks',
-                                   'games': [], 'browsers': [], 'evidence': None},
+            'desktop_acceptance': {'policy': 'generated_at_release', 'required_for_release': True,
+                                   'games': ['pong', 'stuntcycle'], 'browsers': ['chromium', 'firefox'],
+                                   'scope': 'Generated from the release run browser jobs'},
             'physical_device_gate': {'status': 'deferred', 'basis': 'AGENTS.md defers device qualification'},
         }
         self.write_readiness()
@@ -110,43 +112,38 @@ class BrowserReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'escapes source'):
             web.copy_notice_supporting_files(self.root, output, allowed, 'source/source.tar.gz')
 
-    def test_baseline_with_pending_desktop_acceptance_and_deferred_device_gate_passes(self):
+    def test_desktop_acceptance_policy_and_deferred_device_gate_pass(self):
         self.assertEqual(web.verify_readiness(self.root, '0.2.0'), self.readiness)
-
-    def test_passed_desktop_acceptance_names_actual_browsers_games_and_evidence(self):
-        self.readiness['desktop_acceptance'].update(
-            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
-            browsers=[{'name': 'Chromium', 'version': '145.0.7632.6'}])
+        self.readiness['desktop_acceptance'].update(required_for_release=False, browsers=['chromium', 'firefox', 'webkit'])
         self.write_readiness()
         self.assertEqual(web.verify_readiness(self.root, '0.2.0'), self.readiness)
-        self.assertEqual(web.verify_readiness(self.root, '0.2.0', self.digest), self.readiness)
+
+    def test_desktop_acceptance_records_policy_never_a_hand_written_result(self):
+        # A result written before the release commit can never match the release build, so the
+        # record holds no status, digest, browser versions or evidence: the release run makes them.
         original = copy.deepcopy(self.readiness)
         changes = [
-            lambda value: value.update(browsers=[]),
-            lambda value: value.update(browsers=[{'name': 'Chromium', 'version': ''}]),
-            lambda value: value.update(browsers=['Chromium']),
+            lambda value: value.update(status='passed'),
+            lambda value: value.update(runtime_sha256='0' * 64),
+            lambda value: value.update(evidence='build/evidence/report.json'),
+            lambda value: value.update(browsers=[{'name': 'Chromium', 'version': '145.0.7632.6'}]),
+            lambda value: value.update(browsers=['chromium']),
+            lambda value: value.update(browsers=['chrome', 'firefox']),
+            lambda value: value.update(browsers=['chromium', 'firefox', 'firefox']),
             lambda value: value.update(games=[]),
-            lambda value: value.update(evidence=None),
-            lambda value: value.pop('runtime_sha256'),
-            lambda value: value.update(runtime_sha256='not-a-digest'),
+            lambda value: value.update(games=['pong', 'pong']),
+            lambda value: value.update(games=['tetris']),
+            lambda value: value.update(policy='hand_written'),
+            lambda value: value.update(required_for_release='yes'),
+            lambda value: value.update(scope=''),
+            lambda value: value.pop('games'),
         ]
         for change in changes:
             self.readiness = copy.deepcopy(original)
             change(self.readiness['desktop_acceptance'])
             self.write_readiness()
             with self.subTest(change=change), self.assertRaises(ValueError):
-                web.verify_readiness(self.root, '0.2.0', self.digest)
-
-    def test_passed_desktop_acceptance_must_match_the_packaged_runtime(self):
-        self.readiness['desktop_acceptance'].update(
-            status='passed', games=['pong'], evidence='build/evidence/report.json', runtime_sha256=self.digest,
-            browsers=[{'name': 'Firefox', 'version': '140.0'}])
-        self.write_readiness()
-        (self.dist / 'assets/game.js').write_text('const paddle = 2;')
-        changed = web.runtime_digest(web.runtime_files(self.dist))
-        self.assertNotEqual(changed, self.digest)
-        with self.assertRaisesRegex(ValueError, 'packaged browser runtime'):
-            web.verify_readiness(self.root, '0.2.0', changed)
+                web.verify_readiness(self.root, '0.2.0')
 
     def test_blocked_inconsistent_or_device_gated_readiness_rejected(self):
         changes = [
@@ -160,9 +157,7 @@ class BrowserReleaseTests(unittest.TestCase):
             lambda value: value['physical_device_gate'].update(status='required'),
             lambda value: value['physical_device_gate'].update(basis=''),
             lambda value: value.pop('desktop_acceptance'),
-            lambda value: value['desktop_acceptance'].update(status='accepted'),
-            lambda value: value['desktop_acceptance'].update(scope=''),
-            lambda value: value['desktop_acceptance'].update(browsers=[{'name': 'Firefox', 'version': '140'}]),
+            lambda value: value.update(schema_version=2),
         ]
         original = copy.deepcopy(self.readiness)
         for change in changes:

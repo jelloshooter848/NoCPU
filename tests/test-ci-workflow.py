@@ -86,5 +86,53 @@ class ScopeJobTests(unittest.TestCase):
                       verify)
 
 
+class DesktopAcceptanceTests(unittest.TestCase):
+    def test_rom_token_reaches_only_the_fixture_fetch_step(self):
+        rom = steps(job('rom-browser'))
+        holders = [step for step in rom if 'secrets.NOCPU_ROMS_TOKEN' in step]
+        self.assertEqual(len(holders), 1)
+        self.assertIn('./tools/fetch-roms.sh', holders[0])
+        play = rom[find(rom, 'Play Stunt Cycle and Indy 4')]
+        self.assertIn("NOCPU_TEST_ROM_SAFE: '1'", play)
+        upload = [step for step in rom if 'upload-artifact' in step]
+        self.assertTrue(upload)
+        for step in upload:
+            self.assertNotIn('build/roms', step)
+            self.assertNotIn('rom-browser-matrix.json', step)
+
+    def test_release_requires_a_passed_record_and_never_a_skipped_rom_job(self):
+        generate = steps(job('acceptance'))[find(steps(job('acceptance')), 'desktop-acceptance.py combine')]
+        self.assertIn('if [ "$RELEASE" = true ] || [ "$ROM_BROWSER" = success ]; then require=(--require-passed); fi', generate)
+        verify = job('verify')
+        for name in ('rom-access', 'rom-browser', 'acceptance'):
+            self.assertIn(f'    - {name}\n', verify)
+        self.assertIn('"acceptance=$ACCEPTANCE"', verify)
+        self.assertIn('[ "$ROM_BROWSER" = skipped ] && [ "$ROM_ACCESS" = success ] && [ "$ROM_CONFIGURED" = false ] '
+                      '&& [ "$RELEASE" != true ]', verify)
+
+    def test_record_counts_only_results_this_run_freshly_produced(self):
+        acceptance = job('acceptance')
+        self.assertIn('BROWSER: ${{ needs.browser.result }}', acceptance)
+        self.assertIn('ROM_BROWSER: ${{ needs.rom-browser.result }}', acceptance)
+        self.assertIn('--job browser="$BROWSER" --job rom-browser="$ROM_BROWSER"', acceptance)
+        for name in ('browser', 'rom-browser'):
+            uploads = [step for step in steps(job(name)) if 'name: acceptance-input-' in step]
+            self.assertEqual(len(uploads), 1, name)
+            self.assertIn('overwrite: true', uploads[0])
+            self.assertNotIn('if-no-files-found: ignore', uploads[0])
+            collect = [step for step in steps(job(name)) if 'desktop-acceptance.py collect' in step]
+            self.assertEqual(len(collect), 1, name)
+            self.assertEqual(condition(collect[0]), 'always()')
+
+    def test_publish_verifies_the_record_against_the_release_zip_before_releasing(self):
+        release = (ROOT / '.github/workflows/release.yml').read_text()
+        self.assertIn('NOCPU_ROMS_TOKEN: ${{ secrets.NOCPU_ROMS_TOKEN }}', release.split('  publish:')[0])
+        publish = release.split('  publish:')[1].split('  deploy-pages:')[0]
+        check = publish.index('desktop-acceptance.py verify --record "$record" --zip "$zip" --tag "$TAG"')
+        self.assertLess(check, publish.index('gh release create'))
+        self.assertIn('release-assets/*.json', publish)
+        self.assertIn('requires a desktop acceptance record and this run produced none', publish)
+
+
 if __name__ == '__main__':
     unittest.main()

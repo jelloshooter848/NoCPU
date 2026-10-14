@@ -4,6 +4,10 @@ name: ROM-backed validation
 # descriptors and ROM-derived frames/PCM stay on the runner; only payload-free
 # JSON reports are uploaded. Without the secret (including every fork pull
 # request) the validation job is skipped and reported as blocked, never passed.
+# The ROM-backed browser tests (Stunt Cycle and Indy 4 in Chromium and Firefox)
+# run in verify-browser.yml's rom-browser job instead, against the exact package
+# the other browser jobs test, so their results bind to that build's runtime
+# digest and feed the desktop acceptance record.
 'on':
   push:
     branches:
@@ -60,26 +64,6 @@ jobs:
       run: ./tools/build-core.sh all
     - name: Compare ROM-backed Stunt Cycle and Indy 4 across original, native and Wasm
       run: python3 tools/compare-rom-games.py
-    - name: Build the production frontend
-      run: npm run build:web
-    - name: Production bundle carries no dev ROM endpoint or fixture bytes
-      run: python3 tests/test-dev-rom-exclusion.py
-    - name: Install Playwright Chromium and Firefox with a headless audio sink
-      run: |-
-        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install chromium firefox
-        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox
-        sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
-    - name: Package a source-matched preview of the tested build
-      run: python3 tools/package-web.py --preview --archive-dir build/release
-    # NOCPU_TEST_ROM_SAFE turns off traces, videos, failure screenshots and the
-    # HTML report (playwright.config.ts): their frames would be ROM-derived.
-    - name: Play Stunt Cycle and Indy 4 from the private ROMs in Chromium and Firefox
-      env:
-        NOCPU_ROM_DIR: build/roms
-        NOCPU_TEST_PACKAGED: '1'
-        NOCPU_TEST_ROM_SAFE: '1'
-      run: ./tools/run-browser-tests.sh --project=chromium --project=firefox tests/browser/v060-driving.spec.ts
     - name: Collect payload-free reports only
       if: always()
       run: |-
@@ -87,11 +71,6 @@ jobs:
         for report in build/rom-comparison/*/report.json; do
           [ -f "$report" ] && cp "$report" "build/rom-validation-reports/$(basename "$(dirname "$report")")-report.json"
         done
-        # Results, errors and JSON evidence only; screenshots are dropped and
-        # the filter refuses any output that still carries image data.
-        if [ -f build/rom-browser-matrix.json ]; then
-          python3 tools/strip-rom-report.py build/rom-browser-matrix.json build/rom-validation-reports/rom-browser-results.json
-        fi
         true
     - name: Upload comparison reports (no ROMs, frames or audio)
       if: always()
