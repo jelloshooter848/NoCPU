@@ -11,7 +11,9 @@ still looks like image data.
 """
 import argparse
 import base64
+import binascii
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -80,8 +82,37 @@ def strip(node, dropped):
     return node
 
 
+MAGIC = (b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff', b'GIF87a', b'GIF89a', b'RIFF', b'PK\x03\x04')
+
+
 def payload_free(text: str) -> bool:
     return not any(marker in text for marker in FORBIDDEN)
+
+
+def lenient_decode(text: str) -> bytes | None:
+    """Best-effort base64 decode of any string; None when nothing decodes.
+
+    Never used to clear data: callers scan the raw string as well, so a body
+    that is not valid base64 is still checked as text.
+    """
+    cleaned = re.sub(r'[^A-Za-z0-9+/]', '', text.replace('-', '+').replace('_', '/'))
+    cleaned = cleaned[:len(cleaned) - len(cleaned) % 4]
+    if not cleaned:
+        return None
+    try:
+        return base64.b64decode(cleaned)
+    except (binascii.Error, ValueError):
+        return None
+
+
+def encoded_payload_free(text: str) -> bool:
+    """Scan a possibly-base64 string both raw and, where it decodes, decoded."""
+    if not payload_free(text):
+        return False
+    decoded = lenient_decode(text)
+    if decoded is None:
+        return True
+    return payload_free(decoded.decode('utf-8', 'replace')) and not any(magic in decoded for magic in MAGIC)
 
 
 def main() -> int:
@@ -91,20 +122,23 @@ def main() -> int:
     args = parser.parse_args()
     dropped = []
     report = strip(json.loads(args.report.read_text()), dropped)
-    # JSON/text bodies are base64; decode to check they carry no image data either.
+    # Attachment bodies and stdout/stderr buffers are base64; any other field
+    # may be too. Scan the whole text raw, and every such string decoded too.
     text = json.dumps(report, indent=2)
-    decoded = []
+    encoded = []
+
     def bodies(node):
         if isinstance(node, dict):
-            if 'body' in node and isinstance(node['body'], str):
-                decoded.append(base64.b64decode(node['body'] + '==').decode('utf-8', 'replace'))
+            for key in ('body', 'buffer'):
+                if isinstance(node.get(key), str):
+                    encoded.append(node[key])
             for value in node.values():
                 bodies(value)
         elif isinstance(node, list):
             for value in node:
                 bodies(value)
     bodies(report)
-    if not payload_free(text) or not all(payload_free(body) for body in decoded):
+    if not payload_free(text) or not all(encoded_payload_free(value) for value in encoded):
         print('Refusing to write: the filtered report still contains image or trace data.', file=sys.stderr)
         return 1
     report['nocpu_filter'] = {'dropped_attachments': sorted(set(map(str, dropped))),

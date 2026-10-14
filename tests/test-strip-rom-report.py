@@ -66,6 +66,33 @@ class StripTests(unittest.TestCase):
         self.assertEqual(kept, [])
         self.assertTrue(any('numeric array' in item for item in data['nocpu_filter']['dropped_attachments']))
 
+    def test_bodies_of_any_length_are_scanned_without_crashing(self):
+        # Run 38503290638 crashed on an 89-character body outside the attachments.
+        for length in (89, 90, 91, 93, 1, 5):
+            report = {'config': {'metadata': {'note': {'body': 'A' * length}}}, 'suites': []}
+            with tempfile.TemporaryDirectory() as directory:
+                source, output = Path(directory, 'in.json'), Path(directory, 'out.json')
+                source.write_text(json.dumps(report))
+                result = subprocess.run([sys.executable, str(ROOT / 'tools/strip-rom-report.py'), str(source), str(output)],
+                                        capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, f'{length}: {result.stderr}')
+
+    def test_image_bytes_in_a_misaligned_body_or_buffer_are_refused(self):
+        # One leading byte shifts the base64 so the PNG prefix text never appears raw.
+        hidden = base64.b64encode(b'x' + b'\x89PNG\r\n\x1a\n' + bytes(40)).decode()
+        self.assertNotIn('iVBORw0KGgo', hidden)
+        jpeg = base64.b64encode(b'yy' + b'\xff\xd8\xff\xe0' + bytes(40)).decode()
+        for node in ({'body': hidden + 'A'}, {'body': hidden + 'AB'}, {'buffer': jpeg + 'A'}, {'buffer': jpeg}):
+            report = {'suites': [{'specs': [{'tests': [{'results': [{'stdout': [node], 'attachments': []}]}]}]}]}
+            with tempfile.TemporaryDirectory() as directory:
+                source, output = Path(directory, 'in.json'), Path(directory, 'out.json')
+                source.write_text(json.dumps(report))
+                result = subprocess.run([sys.executable, str(ROOT / 'tools/strip-rom-report.py'), str(source), str(output)],
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0, node)
+                self.assertFalse(output.exists())
+                self.assertIn('Refusing to write', result.stderr)
+
     def test_image_data_that_survives_filtering_is_refused(self):
         # A kept attachment whose JSON carries base64 PNG text: the final scan refuses to write.
         result, data, kept = run([{'name': ALLOWED, 'contentType': 'application/json', 'body': encode({'frame': PNG})}])
