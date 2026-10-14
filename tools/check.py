@@ -213,6 +213,32 @@ def verify_browser_metadata(root: Path, version: str) -> list[str]:
     return errors
 
 
+MANUAL_RESULTS = {"pass", "fail", "partial"}
+
+
+def verify_manual_checks(root: Path) -> list[str]:
+    """Optional human desktop checks in docs/ACCEPTANCE.md: supplementary, but each row must be complete."""
+    text = (root / "docs/ACCEPTANCE.md").read_text()
+    match = re.search(r"<!-- manual-checks:start -->\n(.*?)<!-- manual-checks:end -->", text, re.S)
+    if not match:
+        return ["docs/ACCEPTANCE.md lacks the manual-checks table markers"]
+    rows = [line for line in match.group(1).splitlines() if line.strip()]
+    if len(rows) < 2 or not rows[0].startswith("| Date | Build | Browser | OS | Games played | Result | Notes |"):
+        return ["docs/ACCEPTANCE.md manual-checks table header changed"]
+    errors = []
+    for line in rows[2:]:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 7:
+            errors.append(f"Manual check row needs 7 cells: {line}")
+            continue
+        date, build, browser, system, games, result, _notes = cells
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) or not re.fullmatch(r"`?v\d+\.\d+\.\d+\S*?`?", build) \
+                or not re.search(r"\d", browser) or not system or not games or result.lower() not in MANUAL_RESULTS:
+            errors.append(f"Manual check row needs a date, build string, browser with version, OS, games and "
+                          f"pass/fail/partial: {line}")
+    return errors
+
+
 def main() -> int:
     version = ""
     errors = [f"Required repository file missing: {name}" for name in REQUIRED if not (ROOT / name).is_file()]
@@ -224,6 +250,7 @@ def main() -> int:
         errors.extend(verify_source(ROOT))
         errors.extend(verify_payloads(ROOT))
         errors.extend(verify_license_notices(ROOT))
+        errors.extend(verify_manual_checks(ROOT))
         # The restarted desktop-first line ships a browser build from 0.1.0, so
         # browser metadata (which reports missing foundation files) always applies.
         if release_check.is_semver(version):
