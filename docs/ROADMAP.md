@@ -83,7 +83,7 @@ the release steps.
 | Reset baseline | 0.1.0 | Tagged 2026-10-13, not published (release run failed; see owner decision) |
 | Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | In review |
 | Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | In review: 6/6 pass, Indy 4 renderer fix ([ACCEPTANCE.md](ACCEPTANCE.md)) |
-| Speed up CI | 0.1.x patch | Planned |
+| Faster CI; ROM browser tests in CI; Indy 4 Firefox test fix | 0.1.2 | In progress |
 | Remaining reset leftovers | 0.1.x patch | Planned |
 | ROM-free batch A | 0.2.0 | Planned |
 | ROM-free batch B | 0.3.0 | Planned |
@@ -196,6 +196,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-13 — 0.2.0 stays the first ROM-free batch.** 0.2.0 remains ROM-free batch A (Rebound, Gotcha, Quadrapong, Crossfire); the later milestones are unchanged.
 - **2026-10-13 — v0.1.0 tagged but not published.** The v0.1.0 release run failed one flaky legacy emulated-iPhone test, and "Re-run failed jobs" could not fetch the core artifact from the first attempt (fixed in 0.1.x). Nothing was deployed and the GitHub release has no assets. The `v0.1.0` tag stays as it is (tags are never moved); 0.1.1 is the first published release.
 - **2026-10-13 — Speed up CI.** A 0.1.x patch speeds up CI: the original DICE reference captures are cached, keyed by the upstream, reference-build and scenario hashes; comparisons are skipped when the core and scenarios are unchanged; the emulated phones are gone (done in Phase 2); and the browser engines run as parallel jobs. The full comparison always runs when the core or the scenarios change.
+- **2026-10-14 — 0.1.2 ships the faster CI.** The faster CI and its proof ship as v0.1.2: original reference captures reused when nothing they depend on changed (releases always capture fresh), comparisons skipped only for content an earlier run already compared, browser engines in parallel, the ROM-backed Stunt Cycle and Indy 4 browser tests in CI (Chromium and Firefox), and the Indy 4 Firefox test fix. No gameplay changes. The release commit follows once CI is green and the work is reviewed.
 
 ## After 1.0
 

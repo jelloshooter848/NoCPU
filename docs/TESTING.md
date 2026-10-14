@@ -282,7 +282,22 @@ DICE's missing audio hookup, so equal PCM is not audible sound.
 
 The separate `rom-validation.yml` workflow runs these steps with the
 `NOCPU_ROMS_TOKEN` secret and is skipped, with a `blocked` notice, when the
-secret is absent (always for fork pull requests). [ROMS.md](ROMS.md) documents
+secret is absent (always for fork pull requests). After the comparisons it
+builds and packages a preview and runs `tests/browser/v060-driving.spec.ts`
+against the private ROMs in Chromium and Firefox:
+
+```sh
+NOCPU_ROM_DIR=build/roms NOCPU_TEST_PACKAGED=1 NOCPU_TEST_ROM_SAFE=1 \
+  ./tools/run-browser-tests.sh --project=chromium --project=firefox tests/browser/v060-driving.spec.ts
+```
+
+`NOCPU_TEST_ROM_SAFE=1` makes `playwright.config.ts` record no traces, videos or
+failure screenshots and skip the HTML report, since their frames are
+ROM-derived; results go to `build/rom-browser-matrix.json`, which still holds
+the tests' own screenshot attachments. `tools/strip-rom-report.py` reduces it
+to outcomes, errors and JSON/text attachments and refuses output that still
+carries image or trace data; only that file and the comparison reports are
+uploaded. The token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
 the variables, the dev-server auto-load and the secret setup. To audit
 fixtures by hand:
 

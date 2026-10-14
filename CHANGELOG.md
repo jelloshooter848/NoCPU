@@ -13,6 +13,12 @@ releases below.
 
 ## [Unreleased]
 
+### Changed
+
+- Faster verification: reference recordings of the original are reused when nothing they depend
+  on changed, browser engines run in parallel, and the ROM-backed games are now tested in Chromium
+  and Firefox on every run. No gameplay changes.
+
 ## [0.1.1] - 2026-10-13
 
 The first published release of the restarted desktop-first line; `v0.1.0` was tagged but not
