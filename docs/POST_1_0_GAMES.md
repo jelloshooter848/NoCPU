@@ -81,8 +81,27 @@ Evidence grades:
 | Pursuit | Five 17×11 sheets in TM-019, about 300 ppi | TM-019 plus 51-page service information keyed to schematic regions ([IA](https://archive.org/details/pursuit_tm-019_ptm)) | None | None found | None found | **B** |
 | World Cup | "SCHEMATIC, WORLD CUP" drawings inside the Goal IV TM-035 manual (shared A000823 board) | Own manual not found | None | None found | None found | **C** |
 | Goal IV | Several 11×17 sheets in TM-035 | TM-035, 98 pp, plus supplement; separate high-resolution scan ([IA](https://archive.org/details/goal_iv_tm-035_ptm), [IA hi-res](https://archive.org/details/atari-goal-iv-service-manual)) | None | None found | None found | **B** |
-| Computer Space | Sync Star / Motion / Memory boards at 600–727 ppi 1-bit ([IA](https://archive.org/details/computer_space_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/C/ComputerSpace.pdf)) | Same 36-page manual | None (hard-wired image patterns) | Gate-level FPGA "release 1.0" (fpgaarcade, 2015): sound is sampled, no license stated ([thread](https://forums.arcade-museum.com/threads/computer-space-fpga-release-1-0.364662/)); PDP-1 port is not a circuit model | Many real-hardware uploads; [machine registry](https://www.computerspacefan.com/rogues/) | **A−** |
+| Computer Space | Sync Star / Motion / Memory boards at 600–727 ppi 1-bit ([IA](https://archive.org/details/computer_space_ptm), [KLOV](https://www.arcade-museum.com/manuals-videogames/C/ComputerSpace.pdf)) | Same 36-page manual | None (hard-wired image patterns) | Gate-level FPGA "release 1.0" (fpgaarcade, 2015): sound is sampled, no license stated ([thread](https://forums.arcade-museum.com/threads/computer-space-fpga-release-1-0.364662/)); its MiSTer port with partly modelled sound ([Arcade-ComputerSpace_MiSTer](https://github.com/MiSTer-devel/Arcade-ComputerSpace_MiSTer)); PDP-1 port is not a circuit model. Redrawn, board-checked schematics: [ComputerSpaceSchematics](https://github.com/pong74ls/ComputerSpaceSchematics). See [references](#computer-space-references-owner-supplied-2026-10-14) | Many real-hardware uploads; [machine registry](https://www.computerspacefan.com/rogues/) | **A−** |
 | Magnavox Odyssey | 1TL200 service manual, 600 dpi ([IA](https://archive.org/details/MagnavoxOdyssey)) | 1972 installation & game rules ([IA](https://archive.org/details/odyssey-installation-and-game-rules-1972-magnavox-standard)) | None | Magnavody simulator (GPL-3.0+, fidelity not established); OdySim (behavioural); no MiSTer core | Plentiful | **B** (docs only); scope risk unchanged |
+
+### Computer Space: references (owner-supplied, 2026-10-14)
+
+Research only; nothing here authorizes porting Computer Space or copying any of
+this material. Each source was read on 2026-10-14 (file listings, READMEs, HDL
+headers and the forum thread's first page); no binaries were downloaded into
+the repository.
+
+| Reference | What it is | License / terms | Sound | Last update | Use for NoCPU |
+| --- | --- | --- | --- | --- | --- |
+| [pong74ls/ComputerSpaceSchematics](https://github.com/pong74ls/ComputerSpaceSchematics) | Nine PDFs, redrawn (not scans) from scans of the original schematics: Memory, Motion and Sync Star (Model 1) board schematics and PCB layouts, backplane wiring, bill of materials, and a Sync Star Model 2 schematic. Errors in the original drawings were corrected against a real board set (serial 9392); logical symbols replace pin-layout drawings. The Model 2 sheet is unverified (the author owns no Model 2 board) | No LICENSE file and no terms stated: all rights reserved by default | Drawn as part of the board schematics | 2016-04-23 (version 1A; 9 commits since 2016-03-17) | Primary evidence, secondary to the original scans: cross-check every correction against the IA/KLOV scans, and record which drawing a model follows. Not redistributable |
+| [MiSTer-devel/Arcade-ComputerSpace_MiSTer](https://github.com/MiSTer-devel/Arcade-ComputerSpace_MiSTer) | MiSTer port (Sorgelig, 2017) of the 2015 VHDL model below, with DarFPGA's v1.1 changes (2017: sync fixes, a rocket-movement bug fix, separate video levels) and later fixes (2021: DIP switches, start/end logic, explosion sound). `rtl/` holds the gate-by-gate Memory, Motion and Sync Star board VHDL (asynchronous flip-flops resynchronized to a fast clock, analog timers as counters); `releases/` holds prebuilt `.rbf` bitstreams | No LICENSE/COPYING file. The MiSTer wrapper and `sys/` files carry GPL headers; the board VHDL (Mattias G, 2015) states none; `computer_space_sound.vhd` (DarFPGA) says "Educational use only" and forbids redistributing synthesized files with ROMs | Partly modelled: turn and both missile sounds are gated counter frequencies taken from the Motion Board schematics; ambiance, thrust and explosion are approximations (filtered noise shaped to the original samples' spectra) | 2025-12-09 (`sys` framework update); game logic last changed 2021-01-13 | Comparison reference for behavior and timing questions only. Its board logic has no license, so no code is copied; its approximated noise voices are not a sound reference |
+| [Computer Space FPGA release 1.0](https://forums.arcade-museum.com/threads/computer-space-fpga-release-1-0.364662/) (fpgaarcade, KLOV forum) | The original 2015 VHDL model for a Terasic DE0-Nano, posted with a JIC bitstream, a VHDL zip, interface schematics and a Quartus project link. Copied "wire by wire" from the schematics, with timer values and star layout checked against real-board measurements (Mike Salay) | None stated in the thread's first page | Sampled (signed 8-bit, 11 kHz, from computerspacefan.com), with the sample range shortened to fit memory | 2015-12-30, with replies into January 2016 (DE1 and Xilinx ports announced) | Same as the MiSTer port, which descends from it; its board measurements are useful secondary evidence for analog timer values |
+
+Effect on the grade: still **A−**. The redrawn set adds a second, board-checked
+reading of the schematics, and the MiSTer port adds partly circuit-derived
+sound, but there is still no reference whose sound and analog timing are
+modelled from the circuit throughout, and no reference code that NoCPU could
+reuse.
 
 Discovered leads not previously listed:
 
@@ -97,7 +116,7 @@ This ranking orders investigation by documentation readiness only. It does not a
 1. **Tank** (A): multi-revision schematics and manuals, a dumped ROM, and an existing (non-working) MAME netlist with sound to compare against.
 2. **Gran Trak 10** (A−): netlist and both ROM revisions exist. It needs a higher-resolution schematic scan and must account for known schematic errata.
 3. **Death Race** (A−): a complete 18-sheet set with audio, all PROMs dumped, and abundant footage. There is no reference simulation.
-4. **Computer Space** (A−): sharp complete schematics, no ROM, a gate-level FPGA to compare with (sound is sampled and the license is unknown, so no code reuse), and real-hardware recordings.
+4. **Computer Space** (A−): sharp complete schematics plus a board-checked redrawn set, no ROM, a gate-level FPGA model and its MiSTer port to compare with (sound sampled or approximated; no license on the board logic, so no code reuse), and real-hardware recordings.
 5. **Pursuit, Goal IV, Gunman, Monaco GP, Gran Trak 20, Tank II** (B): each lacks a reference simulation, recordings, or a ROM sanity check.
 6. **Touch-Me, Western Gun, Fonz** (B−), then **Magnavox Odyssey** (B for documents, with product-scope risk).
 7. **World Cup, Wheels II, Pro Monaco GP** (C), and **Destruction Derby, Bombs Away, Cobra Gunship, Moto-Cross** (D): these need new primary sources before any further work.
@@ -139,7 +158,7 @@ The list below predates the evidence inventory above. It ranks candidates by pro
 - **Heavyweight Champ (Sega's original 1976 game):** unusually early boxing; physical cabinet controls make faithful touch adaptation a design issue. Distinguish later games with the same name.
 - **Pursuit, World Cup and Goal IV (Atari/Kee):** additional no-ROM opportunities listed in Atari's catalog. Schematics and gameplay references remain the gates.
 - **Ball Park and T.V. Flipper (Midway):** baseball/pinball diversify the library. Header listings establish leads, not implementation completeness; T.V. Flipper's ROM requirement is unresolved there.
-- **Computer Space (Nutting, 1971):** excellent thematic flagship for circuit-based space combat. Separate investigation needed for schematics, analog behavior and existing independent simulations; no global emulation-absence claim is made.
+- **Computer Space (Nutting, 1971):** excellent thematic flagship for circuit-based space combat. Schematics and existing simulations are surveyed under [references](#computer-space-references-owner-supplied-2026-10-14); analog behavior (sound, timers) still needs investigation. No global emulation-absence claim is made.
 - **Magnavox Odyssey (1972):** a possible later home-hardware collection. Its analog/discrete circuits fit the theme, but overlays, physical props and player-enforced rules broaden the product substantially.
 
 ## Suggested sequencing
