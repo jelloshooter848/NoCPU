@@ -175,8 +175,9 @@ Before opening a release pull request, confirm and record in it:
      uses the [reference cache](TESTING.md#reference-cache): every original
      capture runs fresh, so no entry written by an earlier run (which any step
      of that run could have forged) stands in for a release. That costs about
-     13 minutes more than a pull request run whose originals are cached
-     (roughly 38 minutes instead of 25 for the verification);
+     19 minutes: the first run of this workflow, which captured everything
+     fresh, took 37 minutes, against 19 minutes for the same commit with
+     cached originals (see [TESTING.md](TESTING.md#continuous-integration));
    - it refuses to publish if the browser zip, the source archive or their
      checksums are missing, if checksums do not match, or if the packaged site
      lacks its license notices or matching source archive;

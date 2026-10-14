@@ -259,6 +259,22 @@ GitHub: a pull request reads the caches of its base branch and the default
 branch and writes only its own, so a fork cannot place entries or markers where
 other runs read them. Release runs never use the reference cache.
 
+Measured on the first runs of this workflow (run 38492310183, commit
+`500ee1a`, 4-vCPU `ubuntu-24.04` runners):
+
+| Job | Every original captured fresh | Originals from the cache |
+| --- | --- | --- |
+| `scope` | 6 s | 6 s |
+| `core-build` | 3 min 4 s | 3 min 4 s |
+| `package` | 28 s | 28 s |
+| `browser (chromium / firefox / webkit)` | 4 min 2 s / 5 min 33 s / 5 min 39 s | same |
+| `core-compare` | 34 min 10 s (16 captures 11 min, replays 11 min, comparison 7 min) | 15 min 28 s (restore 8 s, replays 7 min, comparison 4 min) |
+| whole run | 37 min 23 s | about 19 min |
+
+A run whose content outside docs and web UI already passed skips
+`core-compare` and takes about 9 minutes. The cached originals for all
+seventeen entries archive to 56 MB.
+
 Branch protection should require the single check `verify / verify` (the job
 names inside it changed in 0.1.2; `verify` requires all of them). The owner
 sets this in the repository settings.
