@@ -1,7 +1,7 @@
 # Original-derived DICE core
 
-The core sources (carried unchanged from the legacy 0.6.0 line into the restarted 0.1.0) compile original DICE 0.9 Pong, Pong Doubles, Space Race,
-Breakout, Stunt Cycle and Indy 4 circuits and the chip scheduler
+The core compiles the original DICE 0.9 Pong, Pong Doubles, Space Race,
+Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5) and the chip scheduler
 without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
 [`upstream/dice-0.9/`](../upstream/dice-0.9) remain byte-identical; the preparation
@@ -42,9 +42,7 @@ Breakout adds a single shared horizontal paddle, distinct Start1/Start2 and a
 held Serve switch. Its canonical axis has the original reversed resistor range:
 `15047 + (axis + 32768) * (-15000) / 65536` ohms; the positive endpoint remains
 47.2288818359375 ohms. Two alternating players share that input slot. Coin,
-Start and Serve remain independent actions. The browser queues up to eight
-explicit Start selections behind queued coins, with original-time 100 ms held
-and 100 ms released intervals; pause, reset and release cancel pending actions.
+Start and Serve remain independent actions.
 Those four circuits are ROM-free. Stunt Cycle and Indy 4 require exact private
 player-supplied descriptor bytes. `nocpu_rom_begin(game)` selects the staging
 game; `nocpu_rom_buffer(slot,size)` supplies a bounded module-owned buffer;
@@ -67,9 +65,9 @@ bits 3..6, coinage index into bit 7 and disabled-free-game into bit 8; default
 76 and potentiometer zero. Indy 4 requires DIP zero and timer resistance
 220000..1220000 ohms, default 720000. Both inherit absent original mono-output
 hookups; no replacement sound is generated. Indy 4 preserves the original
-resistor-derived color raster. These authored contracts require the independent
-source, original/native/Wasm and browser gates in
-[0.6.0_VALIDATION.md](../docs/legacy/0.6.0_VALIDATION.md).
+resistor-derived color raster. Their original/native/Wasm comparison is
+`tools/compare-rom-games.py` with private fixtures (see
+[TESTING.md](../docs/TESTING.md)).
 The original audio constructor emits one zero-valued PCM sample despite those
 absent active hookups. Preserve it in raw captures and distinguish initialization
 from ongoing samples; actual cross-runtime byte/time comparison remains required.
@@ -96,7 +94,7 @@ a requested boundary. Host pause means no advance calls; it does not change
 the circuit clock or perform catch-up after a hidden tab resumes.
 
 Frames are top-down RGBA with opaque alpha. The original measured 632 × 432
-reference client crops to 576 × 432 for the three landscape titles and
+reference client crops to 576 × 432 for the five landscape titles and
 324 × 432 for Breakout's clockwise portrait projection. Read the actual frame
 dimensions through the ABI. Breakout preserves the original GLfloat rotation,
 including its small trigonometric terms, before raster coverage; it applies the
@@ -138,10 +136,11 @@ Hosts drain both event queues each tick. All time words remain exact integers.
 
 [`native_runner.cpp`](native_runner.cpp) drives the same API with
 [`tests/replays/pong.tsv`](../tests/replays/pong.tsv) and writes original-shaped
-evidence files. Read the [adaptation inventory](../docs/PORT_PONG.md),
-[testing instructions](../docs/TESTING.md), and
-[0.2.0 validation report](../docs/legacy/0.2.0_VALIDATION.md) for build commands and actual
-fidelity results. The remaining 15 games are outside this compiled batch.
+evidence files; with `--game`, `--dip` and `--pot-ohms` it replays the other
+compiled games. Read the [adaptation inventory](../docs/PORT_PONG.md) and
+[testing instructions](../docs/TESTING.md) for build and comparison commands,
+and [GAME_COMPATIBILITY.md](../docs/GAME_COMPATIBILITY.md#verification-status)
+for recorded results. The remaining 15 games are not compiled yet.
 Pong Doubles uses DICE's default audio gain of 10; Space Race keeps its explicit
 gain of 50 and its original 566/filter/mixer audio graph. Fresh circuit creation
 also replaces audio objects, preventing selected-title gain from leaking into

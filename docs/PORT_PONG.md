@@ -1,9 +1,13 @@
 # Pong platform adaptation
 
-The portable target is the original DICE 0.9 Pong circuit, its digital/analog
-chip definitions, and the original scheduler. It does not reproduce Pong's
-behavior in JavaScript. The browser hosts display, controls, pacing, and PCM
-delivery around the same C++ core used by the headless native runner.
+The portable core runs the original DICE 0.9 circuits, their digital/analog
+chip definitions and the original scheduler. It does not reproduce game
+behavior in JavaScript. The browser hosts display, controls, pacing and PCM
+delivery around the same C++ core used by the headless native runner. Pong was
+the first circuit ported, and this page describes the platform adaptations in
+its terms; the same boundaries serve the other five compiled games, whose
+per-game input, settings and observation contracts are in
+[core/README.md](../core/README.md).
 
 [`tools/prepare-core.py`](../tools/prepare-core.py) starts from the audited
 historical directory and writes a separate build copy. The generated
@@ -34,7 +38,7 @@ output separately.
 DICE stores paddle positions and 555 resistances in static descriptors. A new
 portable machine restores both paddle descriptors, four monostable 555
 descriptors and the winning-score DIP descriptor. This intentionally supplies
-fresh-machine reset semantics. The 0.1.0 native application recreation retained
+fresh-machine reset semantics. The original application's New Game recreation retained
 some static state; its second epoch is a characterization of that inherited
 lifecycle and is not the portable reset baseline.
 
@@ -62,7 +66,8 @@ picosecond deadlines as floating-point `Number` values.
 
 The frame pointer and audio/collision pointers remain module-owned. Hosts copy
 media before the next modifying call, drain bounded queues each tick, and pause
-by stopping advances. Device playback remains a host responsibility: a PCM
-capture verifies generated samples, while real-device tests verify audibility
-and interruptions. See [the core boundary](../core/README.md) and
-[0.2.0 validation](legacy/0.2.0_VALIDATION.md) for ownership and measured limits.
+by stopping advances. Playback remains a host responsibility: a PCM capture
+verifies generated samples, not audibility or interruption handling. See [the
+core boundary](../core/README.md) for ownership rules and [TESTING.md](TESTING.md)
+for the comparisons; the first measured Pong port results are in the legacy
+[0.2.0 validation](legacy/0.2.0_VALIDATION.md).

@@ -1,12 +1,12 @@
 # Contributing to NoCPU
 
-Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). NoCPU has restarted desktop-first at 0.1.0: the target is accurate play of every DICE 0.9 game in desktop browsers with keyboard and mouse, while mobile/touch UI and phone qualification are deferred until after desktop accuracy. Preserve the measured original/native/Wasm behavior of the six ported circuits. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
+Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). NoCPU has restarted desktop-first at 0.1.0: the target is accurate play of every DICE 0.9 game in desktop browsers with keyboard and mouse through a minimal interface. Mobile/touch UI, phone qualification and Home Screen support are deferred until after desktop accuracy; do not add them to desktop work. Preserve the measured original/native/Wasm behavior of the six ported circuits. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
 
 ## Make a reviewable change
 
 1. Work on the long-lived working branch (currently `restart/desktop-first`); it reaches `main` only through release pull requests merged with a merge commit. Parallel work may use a short-lived `wip/<version>-<topic>` branch merged back into the working branch. Describe each change's concrete trigger and expected behavior.
 2. Keep the original source under `upstream/dice-0.9/` unchanged. Put NoCPU adapters or reference instrumentation outside that directory and record intentional derived changes in the provenance/patch documentation.
-3. Run `python3 tools/check.py`. For native or capture changes, also run `./tools/build-native.sh` and `./tools/capture-pong.sh`. For browser/core changes, run the matching core comparisons and browser checks in [TESTING.md](docs/TESTING.md). Explain skipped checks and their blockers.
+3. Run `python3 tools/check.py`. For native or capture changes, also run `./tools/build-native.sh` and `./tools/capture-pong.sh`. For browser/core changes, run the original/native/Wasm comparisons and desktop browser checks in [TESTING.md](docs/TESTING.md); a newly ported game is accepted only when its comparison passes. Explain skipped checks and their blockers.
 4. Update the compatibility matrix when a result changes. Record the scenario, toolchain/build identifier, observed evidence, and remaining untested behavior.
 5. Update relevant docs. Add a player-facing line under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md) (Added/Changed/Fixed/Removed) for any change players notice; internal-only changes need none. Use the [pull request template](.github/pull_request_template.md) to state validation and limitations.
 

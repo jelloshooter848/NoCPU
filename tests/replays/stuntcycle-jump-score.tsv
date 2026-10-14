@@ -1,0 +1,9 @@
+# Stunt Cycle 22 s one-player pass at default DIP 76: steady low analog
+# throttle chosen by portable calibration to clear jumps; seed 848.
+# Equality evidence only; it does not claim free-game threshold awards.
+500 coin 1
+650 coin 0
+1000 start 1
+1150 start 0
+1500 throttle 10000
+22000 recreate 1

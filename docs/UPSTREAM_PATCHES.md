@@ -1,21 +1,26 @@
 # Upstream patch ledger
 
 `upstream/dice-0.9/` is the exact 566-file import identified in
-[`PROVENANCE.md`](PROVENANCE.md). No archival source file is patched.
+[`PROVENANCE.md`](PROVENANCE.md). No archival source file is patched. Every
+adaptation is applied by a script to a generated copy under ignored `build/`,
+and each script writes its complete text diff there.
 
 | Change | Location | Purpose / fidelity impact |
 | --- | --- | --- |
 | Import DICE 0.9 | `upstream/dice-0.9/` | Preserve original reference bytes; SHA-256 checked for every file |
-| Preserve root GPL text and restore supplemental dependency notices | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `docs/licenses/` | Attribution and distribution documentation; no runtime change |
-| Native reference build | `tools/`, generated `build/native/` | Build a fresh copy using the unchanged original Makefile with the isolated historical compiler/Qt/SDL toolchain; no source patch or extra compiler flags |
+| Root GPL text and supplemental dependency notices | `LICENSE`, `THIRD_PARTY_NOTICES.md`, `docs/licenses/` | Attribution and distribution documentation; no runtime change |
+| Native reference build | `tools/build-native.sh`, generated `build/native/` | Build a fresh copy with the unchanged original Makefile in the isolated historical compiler/Qt/SDL toolchain; no source patch or extra compiler flags |
 | Instrumented reference adapter | `tools/reference/apply_adapter.py`, generated `build/reference/` | Deterministic input and observation for replay measurements; a separately identified instrumented build |
-| Portable Pong adapter | `tools/prepare-core.py`, `core/`, generated `build/core/source/` | Substitute platform display/input/audio boundaries, expose a bounded native/Wasm ABI and restore fresh-machine reset state; exact changes and comparison scope are recorded in [PORT_PONG.md](PORT_PONG.md) |
-| Six-circuit/ROM adapter (added in legacy 0.6.0; carried into restarted 0.1.0) | `tools/prepare-core.py`, `core/platform/portable_rom.cpp`, `core/platform/rom_session.h`, `core/api.cpp` | Add original Stunt Cycle/Indy 4 and required chip compilation, exact-descriptor owned ROM lookup, cold descriptor restoration and original DIP/pot configuration. ABI 4 retains earlier IDs/exports. No archive parsing, network ROM fetch, netlist rewriting or replacement audio; actual acceptance remains in [0.6.0_VALIDATION.md](legacy/0.6.0_VALIDATION.md). |
-| Observation lifetime repair (added in legacy 0.6.0; carried into restarted 0.1.0) | `tools/prepare-core.py`, `tools/reference/apply_adapter.py`, maintained observation hooks | Unregister observed nodes before original pruning deletes them and fail closed when required selected pins are unavailable. Stunt Cycle GOOD_JUMP observes the logical inverse of live K7.6 rather than retaining the deleted K7.5 output. This changes observation ownership, not the scheduler or netlist; compromised pilot telemetry requires fresh execution and cannot qualify gameplay. |
+| Portable core adapter | `tools/prepare-core.py`, `core/`, generated `build/core/source/` | Replace Qt/SDL/OpenGL host access with owned display/input/audio boundaries, expose the bounded native/Wasm ABI, initialize the supply-chip `custom_update` pointer, bounds-check descriptor iteration, and append per-game restoration of mutable descriptors for a fresh-machine reset. Details in [PORT_PONG.md](PORT_PONG.md) |
+| Six-circuit and ROM support | `tools/prepare-core.py`, `core/platform/portable_rom.cpp`, `core/platform/rom_session.h`, `core/api.cpp` | Compile Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4 and their chips; exact-descriptor, core-owned ROM lookup; cold descriptor restoration and original DIP/potentiometer configuration. No archive parsing, network ROM fetch, netlist rewriting or replacement audio |
+| Portable renderer rasterization (0.1.1) | `core/platform/portable_video.inc` (`Video::draw` scanline quads and `Video::draw_quad` for rotated games and overlays), `tools/reference/check-config-isolation.py` | Reproduce the reference's Mesa 20.0.8 llvmpipe rasterization of DICE's `GL_QUADS`.<br>- The ortho scale is `2.0F/(right-left)` in float, as `_math_matrix_ortho` computes it after `_mesa_Ortho` casts the bounds to GLfloat.<br>- The vertex transform stays unfused.<br>- The viewport is applied as one fused multiply-add (`llvm.fmuladd`), in absolute coordinates of the 632×432 client window.<br>- y is mapped directly to the `Y_0_TOP` window (negated scale, `fb_height-(y+h/2)` translate).<br>- Vertices snap to the 1/256-pixel grid with ties to even.<br>- The fill rule is `bottom_edge_rule`: left and bottom edges are inclusive, so a pixel center on a horizontal edge belongs to the scanline above.<br>GL probes in the pinned image match every pixel: every v_size 1–600, random scanline times, clipped quads, and boundary-critical and pixel-center-tie times at the ROTATE_0 and Breakout ROTATE_90 geometries.<br>llvmpipe enables no guard band, so quads past the viewport are clipped and the new vertices get unfused window coordinates (`draw_pipe_clip.c`). For DICE geometry this changes no pixel: the clipped x is exactly the viewport edge, and clipped y could differ only at v_size ≥ 1271.<br>The reference depends on host FMA: llvmpipe fuses only on CPUs that have it. The isolation check records `host_cpu_fma` in `container-environment.json` and refuses captures without it. See [bug report](../bug-reports/2026-10-13-indy4-row213-scanline.md). |
+| Observation lifetime repair | `tools/prepare-core.py`, `tools/reference/apply_adapter.py` | Unregister observed chips before original pruning deletes them, and fail closed when a required pin is unavailable. Stunt Cycle GOOD_JUMP observes the logical inverse of live K7.6 instead of the deleted K7.5 output. Changes observation ownership, not the scheduler or netlist |
+
+## Reference adapter
 
 The reference adapter requires an exact single match for each source insertion
-and writes its complete text diff to ignored `build/reference/adapter.diff`.
-It changes only the generated build copy:
+and writes its complete diff to `build/reference/adapter.diff`. It changes only
+the generated build copy:
 
 - `main.cpp`: select a recorded random seed, drive replay input/observation, and
   advance to a replay deadline using integer simulation time.
@@ -28,34 +33,33 @@ It changes only the generated build copy:
 - `chips/video.cpp`: capture the original OpenGL back buffer before swapping.
 - Add `reference_api.h` and `reference_driver.cpp` to that generated copy.
 
-The adapter does not change game descriptors, netlists, chip truth tables, or
-the event-queue algorithm. A fixed seed, input schedule, observation hooks, and
+The adapter does not change game descriptors, netlists, chip truth tables or
+the event-queue algorithm. A fixed seed, input schedule, observation hooks and
 changed run boundaries distinguish this instrumented executable from the
-untouched native executable; comparisons must record those settings. Frame
-capture and PCM taps are evidence of generated output, not proof of display,
-speaker, complete gameplay, or hardware fidelity. Refer to
-[`TESTING.md`](TESTING.md) and the recorded fixture for the
-current validation results.
+untouched native executable; comparisons record those settings. Frame capture
+and PCM taps are evidence of generated output, not of display, speaker,
+complete gameplay or hardware fidelity.
 
-The 0.2.0 portable adapter records its own `adapter.diff` and compiled-source
-inventory. It replaces Qt/SDL/OpenGL host access with owned platform boundaries,
-while retaining Pong's netlist, chip logic and integer event scheduler. Its
-generated `chip.cpp` initializes `custom_update` to null in the null-description
-VCC/GND supply-chip branch; this repairs the allocator-dependent repeated-machine
-failure without changing archival bytes. It also restores mutable Pong
-descriptors for fresh reset and checks descriptor iteration bounds before
-reading. [PORT_PONG.md](PORT_PONG.md) documents every adaptation and its reason.
-The original fresh capture, adapted native and Wasm replay outputs match exactly
-in the reviewed scenario; that evidence is recorded in
-[0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md) and does not establish physical-phone
-playback or hardware fidelity.
+## Portable core adapter
+
+The portable adapter records its own `adapter.diff` and compiled-source
+inventory under `build/core/`. It keeps the netlists, chip logic and integer
+event scheduler. Two inherited defects are repaired in the generated copy only:
+the null-description VCC/GND supply chips get a null `custom_update` pointer
+(fixing an allocator-dependent failure of repeated machines), and descriptor
+iteration is bounds-checked before reading an entry. Each compiled game gets an
+appended function that restores its mutable static descriptors, so a new
+machine starts cold. [PORT_PONG.md](PORT_PONG.md) explains each adaptation and
+[core/README.md](../core/README.md) the resulting ABI.
+
+## Other references
 
 The original source was compared with DirtBagXon/DICE revision
 `742e8b48c38138491c55e85cd3c4f7342d641a6f`. Its desktop dependency migrations,
-alignment change, and other differences are reference findings, not imported
+alignment change and other differences are reference findings, not imported
 patches. Modernization must remain explicit outside the archival tree.
 
-Future adaptations must record their exact tool/path, changed files, reason,
-validation, and fidelity implications here. Generated instrumentation is a
-different executable from the untouched native reference and must be identified
-as such in any reported result.
+Future adaptations record their exact tool/path, changed files, reason,
+validation and fidelity implications here. Generated instrumentation is a
+different executable from the untouched native reference and must be
+identified as such in any reported result.

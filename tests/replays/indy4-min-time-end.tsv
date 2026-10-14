@@ -1,0 +1,43 @@
+# Indy 4 66 s pass at the minimum 220000-ohm Play Time pot: two coins,
+# Gas, Hand Brake and keyboard left/right wheel keys for cars 1-2 until the
+# play timer ends the race, then a third coin restarts car 3; seed 848.
+# Equality evidence only; it does not claim a complete race outcome.
+500 coin1 1
+650 coin1 0
+900 coin2 1
+1050 coin2 0
+1500 gas1 1
+1500 gas2 1
+2000 left1 1
+2600 left1 0
+3000 right2 1
+3600 right2 0
+5000 right1 1
+5400 right1 0
+6000 left2 1
+6300 left2 0
+8000 brake1 1
+8300 brake1 0
+9000 left1 1
+9200 left1 0
+12000 right2 1
+12300 right2 0
+15000 left1 1
+15300 left1 0
+18000 right2 1
+18200 right2 0
+24000 brake2 1
+24300 brake2 0
+30000 left1 1
+30400 left1 0
+36000 right2 1
+36400 right2 0
+50000 gas1 0
+50000 gas2 0
+61000 coin3 1
+61150 coin3 0
+61500 gas3 1
+62000 wheel3 12000
+64000 wheel3 0
+65000 gas3 0
+66000 recreate 1

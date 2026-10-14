@@ -1,15 +1,12 @@
 # Source provenance
 
-The selected [0.6.0 batch](legacy/0.6.0_TASKS.md) retains this immutable original
-inventory while adding original-derived Stunt Cycle and Indy 4, a core ROM
-adapter and browser launch/control integration. Fresh source/compiler/link/
-frontend inputs and corresponding-source archives must be bound to each
-accepted candidate; prior runtime/component approvals remain historical.
-Private fixture access identifies test inputs, never redistribution permission.
-
-NoCPU 0.1.0 preserves DICE 0.9 as its native reference. The browser port starts
-after this foundation release; importing source does not establish browser,
-mobile, audio, or full gameplay fidelity.
+NoCPU preserves DICE 0.9 unchanged under `upstream/dice-0.9/` as its native
+reference and as the source of the circuits compiled into the portable core.
+Adapters, tools and generated build copies live outside that directory and are
+listed in [UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md). Importing the source does
+not by itself establish browser, audio or gameplay fidelity; that comes from
+the comparisons in [TESTING.md](TESTING.md). Private ROM fixture access
+identifies test inputs, never redistribution permission.
 
 ## Original source
 
@@ -81,8 +78,10 @@ not retroactively substituted for this import.
 
 See [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) for exact exception
 scope and [`tests/license-audit.json`](../tests/license-audit.json) for the
-machine-readable source-release assessment. This assessment applies to the
-0.1.0 source package, not future binary, Wasm, ROM, or vendor-library bundles.
+machine-readable source-release assessment. That assessment covers source-only
+distribution; compiled native binaries, Wasm, ROMs and toolchain containers are
+outside it. The browser build has its own audit in
+[BROWSER_DISTRIBUTION.md](BROWSER_DISTRIBUTION.md).
 
 ## Preservation rules
 

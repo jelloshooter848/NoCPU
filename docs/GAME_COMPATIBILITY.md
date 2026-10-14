@@ -1,20 +1,28 @@
 # DICE 0.9 game inventory
 
-> Restarted line (0.1.0, desktop-first): the plan and acceptance rules are in [ROADMAP.md](ROADMAP.md). Status prose and evidence rows below that name a version (0.1.0–0.6.0) refer to the legacy line (tag `legacy-0.6.0`); rewrite pending Phase 2.
+All 21 games registered by DICE 0.9 are the NoCPU 1.0 scope (see the
+[roadmap](ROADMAP.md)). This page records what the original source declares for
+each game and what has been verified. Source declarations describe intended
+capabilities, not verified gameplay.
 
-NoCPU preserves all 21 original DICE 0.9 registrations as the 1.0 scope; this inventory and the native reference foundation were established by the legacy 0.1.0 milestone. Source declarations describe intended capabilities, not completed gameplay verification.
+## Port status
 
-At the restart the core compiles six circuits: Pong, Pong Doubles, Space Race and Breakout (ROM-free) and Stunt Cycle and Indy 4 (player-supplied ROMs). The other fifteen titles are unported. Restarted-line acceptance for all six is pending the 0.1.x desktop comparisons and browser checks in the [roadmap](ROADMAP.md); the 0.1.0 reset baseline makes no new accuracy claim, and legacy evidence is not a restarted-line pass.
+| Status | Games |
+| --- | --- |
+| Compiled by the core, ROM-free | Pong, Pong Doubles, Space Race, Breakout |
+| Compiled by the core, player-supplied ROM | Stunt Cycle, Indy 4 |
+| Unported, ROM-free | Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way |
+| Unported, ROM-backed | Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase |
 
-Legacy-line status (historical): the legacy [0.6.0 contract](legacy/0.6.0_TASKS.md) added Stunt Cycle and Indy 4; its [ledger](legacy/0.6.0_VALIDATION.md) accepted 4 of 8 gates, including the complete original/native/Wasm comparison, with browser and delivery gates open when the line ended. Both inherit no active DICE mono-output hookup; expected silence and historical unfinished audio are separate from port regressions. The legacy [0.5.0 preview](legacy/0.5.0_VALIDATION.md) published Pong, Pong Doubles, Space Race and Breakout with online iPhone Home Screen support after independent fidelity, notice and matching-source review (exact-main CI 281 passes/nine annotated CDP skips of 290; 20 live cases; 104 public files). Its physical phone/controller qualification remained pending; bonus-credit threshold awards and event overflow were unexercised. [0.4.0 results](legacy/0.4.0_VALIDATION.md) retain their historical three-game scope.
+The six compiled games had original/native/Wasm comparison evidence in the
+legacy line (see [Verification status](#verification-status)). On the
+restarted line their comparisons and desktop browser checks are re-run in the
+0.1.x patch releases; until then no game is accepted as accurate on the
+restarted line, and legacy evidence is not a restarted-line pass.
+
+## Source inventory
 
 The machine-readable [game manifest](../tests/fixtures/game-manifest.json) contains every labeled input, active DIP setting/default, exposed potentiometer range, rotation, overlay geometry, audio declaration, and required ROM descriptor. [The source audit](../tools/audit-games.py) compares those fields against the preserved C++ source without requiring ROMs.
-
-The new-game calibration records inherited Space Race behavior: original
-Start activates `GAME_ON` without credit. Its alternate coinage remains a
-source-declared setting; repeated Start/timer restart does not prove two-credit
-consumption. This is a documented original limitation, preserved separately
-from port comparisons and future physical results.
 
 ```sh
 python3 tools/audit-games.py
@@ -57,28 +65,31 @@ Indy 4 declares a color monitor; the remaining games use the original `MONOCHRON
 
 ## Verification status
 
-The ten external ROM sets have passed actual CRC and observed-size validation using `tools/audit-roms.py --rom-dir PATH`. During the preceding DICE comparison, those ten games and Pong reached basic native rendered output in both original and rebuilt programs. That checks startup and rendering only. It does not establish complete controls, game rules, scoring, timing, audible audio, fidelity to the physical cabinet, or acceptable phone performance.
+Each kind of evidence below is separate: a metadata audit is not a ROM load, a
+basic render is not gameplay, and generated PCM is not audible sound. Rows that
+name the legacy line come from its ledgers in [docs/legacy/](legacy/README.md)
+(tag `legacy-0.6.0`) and are history, not restarted-line acceptance.
 
-| Coverage | Current evidence |
+| Coverage | Evidence |
 | --- | --- |
-| All 21 game registrations and exposed descriptors | Source/manifest audit passes without external assets |
-| Ten ROM-dependent games | Private ZIP bytes pass required CRC and observed-size checks |
-| Ten ROM-dependent games plus Pong | Earlier basic rendering observed in both comparison builds |
-| Pong portable native/Wasm replay | Coin-start, independent paddles, rally contacts, scoring, coin restart and reset pass; frames/PCM and circuit observations match the original fresh baseline exactly |
-| Pong Doubles and Space Race portable native/Wasm | Six original-derived scenarios compare exact timing/events/media through both portable reset epochs; 24 behavioral epochs and 326 sampled PPM pairs pass independent review |
-| Legacy 0.5.0 four-game batch including Breakout | Original sixteen-scenario batch and portable 64 behavioral epochs pass exact streams/RGB hashes/selected color PPMs/reset; canonical Breakout ABI 502/502 across 70 traces and legacy ABI 295/295 across 45, current source/package/browser/public evidence accepted; bonus-credit threshold awards unexercised |
-| Seven ROM-free titles not yet ported (Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way) | Source-inventoried and explicitly unported; no browser render/play claim |
-| Coin/start, movement, actions, scoring/end/restart | The six compiled circuits have separately recorded legacy replay coverage (browser coverage for the four ROM-free titles; Stunt Cycle/Indy 4 browser gates open); full acceptance across all 21 games remains pending |
-| DIP options and potentiometer adjustments | Doubles' 11/15 score and Space Race's default/alternate coinage and 470/970/1470-kilohm scenarios are checked; inherited Space credit accounting remains unproven. Breakout's source/config readback, representative coinage/cabinet/ball-count behavior and shared paddle are checked; bonus awards and unported-title runtime settings remain untested |
-| Audible audio and audio/video synchronization | The four ROM-free compiled titles' generated PCM and automated delivery have software evidence; physical speaker playback and synchronization remain pending |
-| Browser, Android, iPhone/iPad in legacy 0.1.0 | Not implemented in that foundation milestone |
-| Pong browser in legacy 0.2.0 | Public preview verified; clean CI has 57 passes/3 expected CDP touch skips, ten selected live-site cases pass; physical phones pending |
+| All 21 registrations and exposed descriptors | `tools/audit-games.py` passes without external assets |
+| Ten ROM-dependent games | `tools/audit-roms.py` checks public metadata without ROMs; with the private fixtures (`--rom-dir`) all ten sets pass the CRC and observed-size checks |
+| Ten ROM-dependent games plus Pong | Basic native rendering observed in original DICE and the DirtBagXon rebuild during the legacy 0.1.0 comparison; startup and rendering only |
+| Pong | Legacy: portable native/Wasm replay of coin-start, independent paddles, rally contacts, scoring, coin restart and reset matched the original fresh capture ([0.2.0](legacy/0.2.0_VALIDATION.md)) |
+| Pong Doubles, Space Race | Legacy: six original-derived scenarios matched timing, events and media through both portable reset epochs, covering Doubles' 11/15 score and Space Race's coinage and 470/970/1470-kilohm play time ([0.4.0](legacy/0.4.0_VALIDATION.md)) |
+| Breakout | Legacy: the sixteen-scenario ROM-free batch matched streams, RGB hashes, selected color snapshots and reset, with canonical ABI traces; coinage, cabinet, ball count and the shared paddle covered, bonus-credit awards unexercised ([0.5.0](legacy/0.5.0_VALIDATION.md)) |
+| Stunt Cycle, Indy 4 | Legacy: the original/native/Wasm comparison gate was accepted with private fixtures; browser and delivery gates were still open when the line ended ([0.6.0](legacy/0.6.0_VALIDATION.md)) |
+| Restarted line, six compiled games | Comparisons and desktop browser checks pending (0.1.x) |
+| Fifteen unported games | Source-inventoried only; no render or play claim |
+| Audible audio and audio/video synchronization | Not verified for any game; automated checks cover generated PCM and its scheduling only |
 
-The manifest's `validation` fields retain the historical 0.1.0 source/native
-audit scope. Current four-game replay/browser results are recorded separately
-in [0.5.0 validation](legacy/0.5.0_VALIDATION.md); they do not upgrade all 21 games to
-verified gameplay. The historical Pong browser rows above retain their original
-version/attempt scope.
+Known inherited behaviors: original Space Race Start activates `GAME_ON`
+without a credit, and repeated Start/timer restarts do not prove two-credit
+consumption under its alternate coinage. These are DICE 0.9 behaviors,
+preserved and kept separate from port comparisons.
+
+The manifest's `validation` fields record the legacy 0.1.0 source/native audit
+scope only; they do not mark any game as verified gameplay.
 
 ## Inputs and adjustable settings
 

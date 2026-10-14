@@ -1,10 +1,29 @@
 # Build and validation
 
+Acceptance on the restarted line, as set by the [roadmap](ROADMAP.md), is the
+original/native/Wasm comparison for each ported game plus desktop browser
+checks naming the actual browser and version. This page lists the commands and
+what each one does and does not establish. Run heavy builds and captures one
+at a time: they share generated directories under `build/`.
+
 ## Requirements
 
-Run the fixture-free audits with Python 3.10 or newer from the repository root. Native build and capture scripts require Bash, Docker, and access to a running Docker daemon. The validated native toolchain is Linux amd64 with historical Ubuntu 18.04 packages. Other CPU architectures and host-native Qt builds have not been validated. The first image build needs network access to the pinned official Ubuntu image and Ubuntu package repositories with signature verification; later compilation can use the cached image without network access.
-
-The image uses historical Qt4, SDL 1.2, and GCC versions needed by the original source. The base image and direct dependency versions are pinned and checked. Transitive apt packages are not fully snapshot-pinned, so this is a reproducible build recipe rather than a claim of hermetic or byte-identical builds. Do not disable package signatures or transport verification to make an old dependency install succeed.
+- **Repository checks:** Python 3.10 or newer.
+- **Native reference:** Bash and Docker with a running daemon, on Linux amd64.
+  The pinned image uses historical Ubuntu 18.04 packages (Qt4, SDL 1.2, GCC
+  7.5) needed by the original source. The first image build needs network
+  access to the official Ubuntu image and package repositories, with signature
+  verification; later builds use the cached image offline. Base image and
+  direct dependency versions are pinned, transitive apt packages are not, so
+  this is a reproducible recipe rather than a hermetic build. Never disable
+  package signature or transport verification.
+- **Core and browser:** Node.js 22.12 or newer, npm, Bash 4 or newer, Git, a
+  native C++14 compiler such as GCC, and zlib development files (the native
+  evidence runner links `-lz` for lossless RGB capture; the Wasm build does
+  not). Emscripten 3.1.74 is pinned and installed by
+  `./tools/install-web-toolchain.sh`.
+- **Browser automation:** Playwright 1.58.2 with Chromium, Firefox and WebKit
+  and their platform libraries.
 
 ## Repository checks
 
@@ -12,246 +31,211 @@ The image uses historical Qt4, SDL 1.2, and GCC versions needed by the original 
 python3 tools/check.py
 python3 tools/audit-games.py
 python3 tools/audit-roms.py
-```
-
-The foundation check audits the repository contracts. Game and ROM audits compare source declarations with tracked metadata without requiring game ROM payloads. `audit-roms.py` checks actual archive bytes only when `--rom-dir` is supplied. Read their output: metadata consistency does not establish that a title loads, plays, or has accurate sound. The [compatibility matrix](GAME_COMPATIBILITY.md) is the record of per-game evidence.
-
-```sh
 npm ci --cache build/npm-cache --no-audit --no-fund
 make test
 ```
 
-Install the pinned npm dependencies before the full regression command: the
-0.3.0 distribution tests verify actual fflate input bytes in disposable copies.
-The fixture-free Python audits above still run without Node dependencies.
+`tools/check.py` checks the repository contracts: the byte-identical
+`upstream/dice-0.9/` inventory, license notices, version fields, the changelog
+rules and the absence of ROM or binary payloads. The game and ROM audits compare
+the source declarations with the [game
+manifest](../tests/fixtures/game-manifest.json) without needing ROM files;
+`audit-roms.py` reads archive bytes only when given `--rom-dir`. Metadata
+consistency does not show that a game loads, plays or sounds right.
 
-`make test` also checks the Home Screen icons read-only with
-`node tools/render-icons.mjs --check`. The PNGs must reproduce exactly from
-the retained SVG and recipe. After an intentional source-art change, regenerate
-them with `node tools/render-icons.mjs` before building. Production frontend
-builds repeat the read-only check and bind the recipe hash into provenance;
-packaging rejects missing or changed post-build recipe inputs.
-
-This runs repository integrity checks and source-release, game/ROM-metadata,
-browser-distribution and reference-analysis regressions. Without captured artifacts, seven actual
-reference-mutation cases are skipped while their fourteen timing/input unit
-checks run. After the native capture, enable those cases explicitly:
+`make test` runs `check.py` and the Python regression suites: release and
+packaging tools, game audits, reference-capture analysis, full-RGB comparison,
+core hand-off and the dev-ROM exclusion test. (The legacy CI-change classifier
+and runtime-baseline tests, and the docs-only CI fast path they served, have
+been removed: CI runs the full verification on every push and pull request.) Install the
+npm dependencies first; the distribution tests read the actual fflate bytes.
+Without a native capture, the reference-mutation cases are skipped while their
+unit checks run. After `./tools/capture-pong.sh`, run them against real
+media:
 
 ```sh
 python3 tests/test-reference-analysis.py --reference-dir build/reference
 ```
 
-The CI browser qualification runs this command immediately after its fresh
-capture. It verifies that incomplete real media or altered replay logs are
-rejected, using disposable copies under ignored `build/audit-reference/`.
-Browser/core tests below have additional prerequisites.
+These copy the capture under ignored `build/audit-reference/`, truncate media
+or alter replay rows, and require each altered copy to fail.
 
-## Portable core and browser
-
-Restarted 0.1.0 acceptance follows the [roadmap](ROADMAP.md): original/native/Wasm
-comparisons for each compiled game plus desktop browser checks. Version-specific
-prose below is legacy-line content; rewrite pending Phase 2. The core compiles
-Stunt Cycle and Indy 4, which require compatible player-supplied ROMs; the legacy
-[0.6.0 ledger](legacy/0.6.0_VALIDATION.md) and
-[device packet](legacy/DEVICE_QUALIFICATION_0.6.md) are historical evidence only.
-Reuse the existing pinned toolchain and frozen dependencies. All heavy execution has one owner;
-do not run competing builds/captures or duplicate an active validator job.
-The new titles inherit missing active DICE audio hookups. Actual compatible
-fixtures are required for their gameplay/reference/browser launch coverage;
-synthetic loader rejection and fixture-free metadata remain separate checks.
-`make test` also runs `python3 tests/test-full-rgb.py`: synthetic lossless
-RGB/gzip decoder fault and valid-multiframe checks. This checks the comparator,
-including equally invalid metadata, rather than exercising either ROM-backed
-circuit. Actual selected-game captures retain every decoded color frame and
-must pass the independently reviewed scenario/configuration/media contracts.
-Retain every raw PCM byte too: the selected titles' absent active audio hookups
-coexist with one original constructor zero sample. Measure initialization and
-ongoing counts separately, compare complete original/native/Wasm PCM without
-dropping/coercing samples, and keep physical speaker claims separate.
-
-The delivered [0.5.0 contract](legacy/0.5.0_TASKS.md) compiles original-derived Pong,
-Pong Doubles, Space Race and Breakout with online Home Screen/standalone support.
-The complete sixteen-scenario original/native/Wasm batch, reset/ABI, components
-and matching-source delivery pass independent review. Exact-main full CI
-accounts for 290 instances: 281 passes/nine existing annotated CDP skips. All
-107 HTTP bodies and the separate 20 live cases pass, as recorded in
-[0.5.0 validation](legacy/0.5.0_VALIDATION.md). The [four-game/Home Screen physical
-packet](legacy/DEVICE_QUALIFICATION_0.5.md) keeps actual installed-iPhone tests separate
-from browser emulation. Initial old-core Home checks and incomplete/scoped local
-matrices retain their recorded stage identities.
-
-The historical delivered [0.4.0 contract](legacy/0.4.0_TASKS.md) compiles original-derived Pong,
-Pong Doubles and Space Race. Its actual new-game reference/native/Wasm fidelity
-and authorized proportionate local browser scopes pass independent review.
-The delivered preview also passes exact-main full-matrix CI (214 passed/six
-existing annotated CDP skips), matching-source/component review, every public
-file and all 15 selected live cases, as recorded in
-[0.4.0 validation](legacy/0.4.0_VALIDATION.md). Physical qualification remains pending.
-The older Pong
-instructions and measured results below retain their historical scope.
-
-The browser tools require Node.js 22.12 or newer, npm, Python 3.10 or newer,
-Bash 4 or newer, Git and a native C++14 compiler such as GCC. Emscripten 3.1.74
-is the pinned Wasm compiler. Browser automation also needs the platform
-libraries required by Playwright Chromium, Firefox and WebKit. The historical
-Qt4 container is needed for the original comparison, not normal browser play.
-Selected-game lossless RGB observation additionally requires zlib development
-headers/library for native evidence builds. The native runner records `-lz`;
-this observer dependency is absent from the Wasm/browser link inventory and
-does not authorize distribution of native executables or toolchain containers.
-
-Install frozen npm dependencies and the pinned Wasm toolchain, then build:
+## Native reference
 
 ```sh
-./tools/install-web-toolchain.sh
-./tools/build-core.sh all
-npm run build:web
+./tools/build-native.sh            # or --jobs 4; BUILD_JOBS also works
+./tools/capture-pong.sh
+```
+
+`build-native.sh` builds `build/native/dice` from a generated copy of the
+original source in the `nocpu-dice-qt4:0.1.0` toolchain image
+(`--rebuild-image` rebuilds it; `NOCPU_NATIVE_IMAGE` names another tag). The
+compile container needs no network once the image exists. The binary depends
+on the toolchain's libraries and is not a portable executable.
+
+`capture-pong.sh` runs the controlled [Pong reference](PONG_REFERENCE.md):
+an instrumented copy replays [`tests/replays/pong.tsv`](../tests/replays/pong.tsv)
+under Xvfb with SDL dummy audio and writes `build/reference/report.json` with
+frames, PCM, inputs, telemetry and collision traces for two epochs in two fresh
+processes. A pass proves the observations it checks: it taps generated PCM, not
+speaker output, and an attract-mode screenshot is not a pass.
+
+The ROM-free batch reference uses the sixteen scenarios in
+[`tests/replays/game-scenarios.json`](../tests/replays/game-scenarios.json)
+(Pong Doubles, Space Race and Breakout):
+
+```sh
+./tools/capture-games.sh           # or: make reference-games
+```
+
+Output goes to `build/reference-games/`, whose `latest.txt` moves only after the
+complete scenario set passes. `--scenario ID` captures one scenario; `--explore`
+is an unqualified calibration run that cannot clear the gate.
+`NOCPU_GAME_REFERENCE_ROOT` may select another output root under `build/` or
+`/tmp`.
+
+## Portable core and original/native/Wasm comparison
+
+```sh
+./tools/install-web-toolchain.sh   # npm ci plus the pinned emsdk and Emscripten 3.1.74
+./tools/build-core.sh all          # or: native, wasm
+make core-compare
+```
+
+`build-core.sh` regenerates `build/core/source/` and records the adapter diff,
+compiled sources, dependencies, linker map, compiler version, flags and
+input/output hashes under `build/core/`. The Wasm target also copies its module
+into ignored `web/public/core/` for Vite. Do not run two core builds at once.
+
+The Wasm output does not depend on the checkout path. `build-core.sh` builds
+the Emscripten system libraries with `embuilder` (deterministic
+`-ffile-prefix-map` paths) into a dedicated cache,
+`build/emscripten-cache-repro-<key>`, keyed by the Emscripten version and the
+library list, then links with a frozen cache so nothing is rebuilt
+path-dependently; NoCPU's own sources are compiled with
+`-ffile-prefix-map=<checkout>=/nocpu`. The same commit therefore gives
+byte-identical `nocpu.wasm` and `nocpu.js` in any directory, including CI's
+`/home/runner/work/NoCPU/NoCPU`. `NOCPU_EM_CACHE` selects another cache
+directory.
+
+`make core-compare` runs, in order:
+
+1. the portable native runner and `node tools/replay-core.mjs` on the Pong
+   replay, then `python3 tools/compare-core.py`, which writes
+   `build/core/comparison.json`. It compares PCM, input/event timing,
+   telemetry and collision transitions with the original fresh capture, and
+   native against Wasm frames/PCM and reset isolation. Portable reset restores
+   fresh descriptors; the original application's second in-process epoch keeps
+   static state and is not the fresh-reset baseline.
+2. `./tools/replay-games.sh`, which replays every captured ROM-free scenario
+   through native and Wasm for two reset epochs, runs `tools/compare-games.py`
+   and the multi-game and Breakout ABI probes, and records the run under
+   `build/core/game-evidence/` (`NOCPU_GAME_EVIDENCE_ROOT` may override it).
+   Streams compare full-frame RGB hashes, raw PCM and input/event/telemetry
+   records; selected full-color snapshots compare byte for byte.
+
+Read the per-scenario reports before claiming fidelity, and report frame
+equality, settled geometry tolerances and PCM separately.
+[PORT_PONG.md](PORT_PONG.md) lists the platform adaptations being compared.
+
+## ROM-backed comparison (private fixtures)
+
+```sh
+./tools/fetch-roms.sh                 # or: make roms; exit 77 = blocked, no ROM access
+python3 tools/compare-rom-games.py    # or: make rom-compare; exit 77 = skipped, no fixtures
+```
+
+`fetch-roms.sh` fetches the private development/CI fixtures into ignored
+`build/roms/` and audits them. `compare-rom-games.py` runs the Stunt Cycle and
+Indy 4 scenarios in [`tests/replays/rom-scenarios.json`](../tests/replays/rom-scenarios.json)
+through original DICE, the native runner and Wasm, after
+`./tools/build-native.sh` and `./tools/build-core.sh all`, and writes
+`build/rom-comparison/<timestamp>/report.json`. Its frames and audio are
+ROM-derived and must never be published. Without fixtures it reports
+`SKIPPED (blocked: no ROM access)`; that is not a pass. Both games inherit
+DICE's missing audio hookup, so equal PCM is not audible sound.
+
+The separate `rom-validation.yml` workflow runs these steps with the
+`NOCPU_ROMS_TOKEN` secret and is skipped, with a `blocked` notice, when the
+secret is absent (always for fork pull requests). [ROMS.md](ROMS.md) documents
+the variables, the dev-server auto-load and the secret setup. To audit
+fixtures by hand:
+
+```sh
+python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures
+python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures --game indy4
+```
+
+Keep fixtures outside the checkout or in ignored `build/roms/`, never print
+credentials or payloads, and report ROM-dependent checks without access as
+skipped or blocked.
+
+## Desktop browser checks
+
+```sh
+npm run build                      # Wasm, TypeScript check and Vite build
 npm run preview -- --host 127.0.0.1
 ```
 
-The installer runs `npm ci`, installs the pinned SDK commit and activates
-Emscripten 3.1.74. Open `http://127.0.0.1:4173/NoCPU/` after building.
-`npm run dev` starts a development server after Wasm files have been built;
-`npm run build` rebuilds Wasm, checks TypeScript and produces the Vite runtime.
-The production base defaults to `/NoCPU/`; `NOCPU_BASE_PATH` can select another
-absolute path ending in `/`. The package lock pins npm dependency versions and
-integrity hashes.
+Open `http://127.0.0.1:4173/NoCPU/`. `npm run build:web` skips the Wasm rebuild,
+and `npm run dev` serves a development build once the Wasm files exist. The
+production base is `/NoCPU/`; `NOCPU_BASE_PATH` selects another absolute path
+ending in `/`.
 
-`build-core.sh native`, `wasm` and `all` select targets. It regenerates
-`build/core/source`, then records the adapter diff, compiled source list,
-dependency list, linker map, compiler version, flags and input/output hashes
-under `build/core/`. Do not run simultaneous core builds against that shared
-generated directory. The Wasm target also copies its generated module into
-ignored `web/public/core/` for Vite. Build artifacts remain outside tracked
-source.
+`npm run test:foundations` runs the Node unit tests for controls, settings and
+the bounded ROM/ZIP reader, using synthetic archives with no ROM payloads. It
+also covers the About build string (tag build, untagged build with its short
+commit, no manifest) and the mouse preferences: the version-5 preferences
+record with its per-game `mouseByGame` assignment, version-4 records loading
+without loss, and invalid mouse slots recovering to the default.
 
-The independently verified 0.3.0 preview retains Play Pong, Insert coin, default W/S and Up/Down
-paddles, external simultaneous touch tracks, pause/resume, reset, mute and
-volume. It adds a source-derived 21-title library/info shell, keyboard/gamepad
-remapping, preferences and optional local ROM management. Only Pong is
-playable and requires no ROM import; compatibility/import results do not
-qualify the other twenty circuits in that historical preview. The later
-[0.3.1 preview](legacy/0.3.1_VALIDATION.md) adds the qualification recorder and remains
-historical evidence. The public site now serves the independently verified
-four-game 0.5.0 preview described above; its exact deployed identity, software
-results and pending physical qualification are in
-[0.5.0 validation](legacy/0.5.0_VALIDATION.md).
-
-### Original, portable-native and Wasm comparison
-
-First build and capture the historical reference using the native commands
-below. After `build-core.sh all`, run:
+The Playwright suite drives the production build in three desktop projects,
+**chromium**, **firefox** and **webkit**, using Playwright's desktop device
+profiles with keyboard and mouse input; there are no emulated phone projects.
+The tests drive the keyboard bindings and the mouse paddle, Serve and throttle
+mappings described in [web/README.md](../web/README.md#what-it-offers).
+Install and run:
 
 ```sh
-build/core/native/pong-runner --output build/core/native-evidence --replay tests/replays/pong.tsv --seed 848 --epochs 2
-node tools/replay-core.mjs
-python3 tools/compare-core.py
+./tools/install-web-toolchain.sh --browsers   # Debian 13 amd64: pinned engines and signed local libraries
+./tools/run-browser-tests.sh                  # all projects
+./tools/run-browser-tests.sh --project=firefox
 ```
 
-The comparison writes `build/core/comparison.json`. It compares generated PCM,
-exact input/event timing, circuit telemetry and collision transitions with the
-original fresh circuit. It compares portable native and Wasm frames/PCM and
-same-module reset isolation separately. The portable reset restores fresh
-descriptor values; the historical application's second in-process epoch
-retained static state and is not its fresh-reset baseline. Render reports name
-full-frame/observation equality and measured settled geometry tolerances;
-read actual results before claiming pixel equality. [PORT_PONG.md](PORT_PONG.md)
-records preserved behavior and deliberate platform adaptations.
+On another Linux host, install the engines with
+`PLAYWRIGHT_BROWSERS_PATH=./build/playwright npx playwright install --with-deps chromium firefox webkit`.
+The wrapper sets local library and cache paths and runs the tests through an
+isolated PulseAudio null sink, so audio scheduling is exercised for real but
+speaker playback is not. Results go to `build/browser-matrix.json` and
+`build/playwright-report/`. The private tests in `tests/browser/v060-driving.spec.ts`
+(for example "stuntcycle private ROM keyboard and mouse controls, silent
+lifecycle and original raster") load ROMs from `NOCPU_ROM_DIR` and are skipped
+without fixtures.
 
-For the current batch, capture the complete sixteen-scenario original
-Doubles/Space Race/Breakout set
-after the fresh original build and Pong capture, then compare the actual
-portable native and Wasm outputs:
+A sandboxed runner may stop a browser from launching (Firefox has failed on a
+read-only `/proc/self/uid_map` in a cloud sandbox). A failed launch is a runner
+limitation, not a gameplay result.
+
+Automated browser projects show that the build loads and runs in those engines.
+Desktop acceptance evidence for a release also names the real browser and
+version it was played in (at least Chrome and Firefox for the 0.1.x
+acceptance) and is recorded in the [release readiness
+record](RELEASING.md#release-readiness-record).
+
+## Release path
 
 ```sh
-./tools/capture-games.sh
-./tools/replay-games.sh
+make web-preview      # package build/web with notices and source, for local review
+make web-release      # package for the current VERSION tag (release gates apply)
+make browser          # run the browser suite against the packaged site
 ```
 
-`make reference-games` selects the original new-game capture. `make core-compare`
-retains the Pong commands above and then runs the new-game replay comparison.
-The new tools retain timestamped evidence under `build/reference-games/` and
-`build/core/game-evidence/`; their latest pointers are updated only after the
-complete expected scenario set passes. A short `--explore` original capture is
-explicitly unqualified calibration and cannot clear the production gate.
-The replay wrapper also requires both the existing multi-game ABI probe and
-the dedicated Breakout probe against qualified pilot/rally references. The
-seven compared streams retain full-frame RGB hashes, supplemental red-channel
-gray observations, raw PCM and input/event/telemetry records; selected full-color
-PPMs are bound to their frame hashes and compare byte-for-byte. Optional
-`NOCPU_GAME_REFERENCE_ROOT` and `NOCPU_GAME_EVIDENCE_ROOT` select reviewed local
-output roots under repository `build/` or `/tmp` when measured capacity requires
-them. CI keeps its ordinary default paths. Retain historical evidence and the
-documented storage reserve before replacing shared latest outputs.
-Read actual per-scenario reports, media coverage and failed-run history before
-claiming fidelity. Native/Wasm gameplay and physical-device results remain
-separate. Validation owns all shared builds/capture execution.
-
-### Browser checks
-
-After the frozen `npm ci` install, run `npm run test:foundations` for the
-control, preferences and bounded ROM/ZIP modules. The shared CI runs this
-meaningful suite after dependency installation. Its temporary synthetic
-archives contain no private ROM payloads and do not establish other-game
-loading or gameplay. Browser tests independently exercise the actual app,
-gamepad/IndexedDB interactions and existing circuit/audio/touch behavior.
-After the core build, run `npm run test:qualification` for native-time/active-interval collection,
-measurement limits and artifact-identity failure cases. Controlled test inputs
-remain separate from actual physical-device observations. CI requires both suites.
-
-On this Debian 13 amd64 cloud environment, the installer can also download the
-exact Playwright 1.58.2 engines and signed, locally extracted browser libraries:
-
-```sh
-./tools/install-web-toolchain.sh --browsers
-./tools/run-browser-tests.sh
-```
-
-On another supported Linux CI host, install system dependencies and browser
-engines using Playwright's standard installer instead:
-
-```sh
-PLAYWRIGHT_BROWSERS_PATH=./build/playwright npx playwright install --with-deps chromium firefox webkit
-./tools/run-browser-tests.sh
-```
-
-The wrapper supplies local library/cache paths where required. Do not bypass
-transport or package verification. Individual checks can select a project,
-for example `./tools/run-browser-tests.sh --project=chromium`.
-
-In this cloud workspace, Firefox's launcher encountered a read-only
-`/proc/self/uid_map` inside the command filesystem sandbox. Running the browser
-check through the environment's approved command path resolved that launch
-restriction. This is a runner limitation; a failed launch is not a gameplay
-result.
-
-The configured projects cover Chromium, Firefox, WebKit, an emulated Android
-viewport and an emulated iPhone viewport. They exercise actual production Wasm
-loading and frontend behavior. An emulated phone viewport is not a physical
-phone, Playwright WebKit is not an actual iPhone Safari session, and intercepted
-audio buffers do not prove speaker playback. [0.3.0_VALIDATION.md](legacy/0.3.0_VALIDATION.md)
-records historical app-foundation qualification; the earlier public preview
-and partial actual-iPhone feedback remain in
-[0.2.1_VALIDATION.md](legacy/0.2.1_VALIDATION.md), and earlier checks remain in
-[0.2.0_VALIDATION.md](legacy/0.2.0_VALIDATION.md).
-
-The current [four-game/Home Screen physical-device packet](legacy/DEVICE_QUALIFICATION_0.5.md)
-and [fillable report](DEVICE_REPORT_TEMPLATE.md) bind the selected title/options
-and actual phone/controller observations to the tested runtime. The historical
-[0.3.1 recorder report](legacy/0.3.1_VALIDATION.md) and [Pong baseline
-packet](DEVICE_QUALIFICATION.md) retain their original scope. The current
-[0.5.0 validation](legacy/0.5.0_VALIDATION.md) records publication and hardware limits;
-no collector export or automated profile completes the actual-device gate by
-itself.
-These packets are legacy records: the restarted line's release readiness
-record keeps the physical-device gate deferred, and it does not gate releases
-(see [RELEASING.md](RELEASING.md#release-readiness-record)).
-
-The Pages packager supplies source downloads/notices omitted from an ordinary
-Vite preview. Follow [RELEASING.md](RELEASING.md) to check the complete packaged
-artifact and its links.
-
-After deployment, the same two smoke checks can target the actual Pages site:
+`tools/package-web.py` builds the site into `build/pages/` with the license
+notices and the corresponding-source archive and refuses a release package when
+the license audits or the release readiness record are not ready.
+`NOCPU_TEST_PACKAGED=1` makes Playwright serve that packaged directory instead
+of the Vite preview. After deployment, two smoke checks can target the live
+site (an explicit base disables the local server):
 
 ```sh
 NOCPU_TEST_BASE_URL=https://jelloshooter848.github.io/NoCPU/ \
@@ -259,69 +243,18 @@ NOCPU_TEST_PACKAGED=1 ./tools/run-browser-tests.sh --project=chromium \
   --grep 'loads genuine Wasm|distributed assets'
 ```
 
-An explicit remote base disables the local test server. These checks exercise
-the deployed Wasm, coin-start, rendered paddles, PCM scheduling and matching
-source/notices hashes. Local fault injection and the full engine matrix remain
-separate checks; a remote smoke pass does not replace them or physical phones.
-
-## Native build
-
-```sh
-./tools/build-native.sh
-./tools/build-native.sh --jobs 4
-```
-
-The default parallelism is two jobs. `BUILD_JOBS` can also select parallelism. `--rebuild-image` rebuilds the toolchain image; `NOCPU_NATIVE_IMAGE` can name the local image tag, which defaults to `nocpu-dice-qt4:0.1.0`.
-
-Compilation happens in a separate generated copy and creates `build/native/dice`. The imported source is not edited. The compilation container needs no network once the toolchain image exists. Generated objects, binaries, settings, and evidence belong in ignored `build/` output.
-
-The executable uses the toolchain's libraries and native display/audio services. Running it directly on an arbitrary host is not a supported portable-binary contract. The capture script supplies the isolated services needed for reference scenarios.
-
-## Controlled Pong reference
-
-```sh
-./tools/capture-pong.sh
-```
-
-This command runs the [Pong reference scenario](PONG_REFERENCE.md) and writes `build/reference/report.json` plus generated evidence under `build/reference/`. The baseline and repeat runs retain per-epoch WAV audio, rendered frames, frame hashes, input timestamps, telemetry, and collision observations. Its [input replay](../tests/replays/pong.tsv), output summaries, and adapter patches are reviewed separately from the untouched historical source. A passing scenario proves only the observations it checks; inspect the capture report before describing sound, scoring, reset, or replay determinism as verified.
-
-Pong needs no game ROM fixture. Its coin input starts play; it has no separate start-button claim. Reference validation must include independent paddle inputs, a rally, scoring, non-silent captured PCM, and reset/restart behavior to satisfy the 0.1.0 exit gate. The replay uses the original New Game operation to destroy and recreate the circuit while retaining the input/video objects; this characterizes shared state rather than assuming a completely fresh process. Fixed-seed runs in fresh processes check repeatability separately; successive circuit epochs are not assumed identical.
-
-A screenshot of attract mode or merely selecting a dummy audio device does not satisfy the exit gate. The capture adapter taps generated signed 16-bit mono PCM at 48,000 Hz and observes OpenGL-rendered frames. This does not prove audible speaker playback or historical sound accuracy. The final reference report records what was observed and what remains untested.
-
-## Private ROM fixture validation
-
-Fetch the private development/CI fixtures into ignored `build/roms/` and audit them, then run the ROM-backed Stunt Cycle and Indy 4 comparison after the native reference and core builds:
-
-```sh
-./tools/fetch-roms.sh                 # exit 77: blocked, no ROM access
-python3 tools/compare-rom-games.py    # exit 77: skipped, no fixture directory
-python3 tests/test-dev-rom-exclusion.py   # after npm run build:web
-```
-
-[ROMS.md](ROMS.md) documents the environment variables (`NOCPU_ROMS_REPO`, `NOCPU_ROMS_REF`, `NOCPU_ROM_DIR`, `NOCPU_ROMS_TOKEN`), what the comparison checks, the dev-server auto-load and the CI secret. The separate `rom-validation.yml` workflow runs these with the `NOCPU_ROMS_TOKEN` secret and reports `blocked: NOCPU_ROMS_TOKEN not configured` with the job skipped when the secret is absent, including on fork pull requests. The private browser test `tests/browser/v060-driving.spec.ts` also reads `NOCPU_ROM_DIR`.
-
-With compatible files available outside the public checkout or in an ignored directory:
-
-```sh
-python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures
-python3 tools/audit-roms.py --rom-dir /path/to/private-fixtures --game antiaircraft
-```
-
-The validator accepts original DICE runtime ZIP basenames and documented short archive aliases. It reads members in memory and checks CRCs and audited byte sizes; missing, corrupt, or incompatible sets fail validation. It does not extract or copy payloads into the repository. See [ROMS.md](ROMS.md) for retrieval/access expectations and exact requirements.
-
-Fixture access must be verified in each environment. Do not print credentials or ROM payloads. Jobs without access report ROM-dependent validation as skipped or blocked. Pull requests from forks never receive the fixture secret; only same-repository branches can. Compatible bytes do not establish distribution permission.
-
-Audit the actual Stunt Cycle and Indy 4 fixtures separately with
-`--game stuntcycle` and `--game indy4` when needed. Keep fixtures outside this
-checkout or in ignored `build/roms/`; never stage them. The ordinary CI workflow
-retains the full four-game reference/regression gates and fixture-free
-new-game error/metadata coverage; it must not claim actual new-game gameplay
-when fixtures are absent. ROM-backed comparison results come from
-`tools/compare-rom-games.py`, locally or in `rom-validation.yml`.
+They check the deployed Wasm, coin-start, rendering, PCM scheduling and the
+source/notice hashes; they do not replace the full local matrix.
+[RELEASING.md](RELEASING.md) has the release checklist and workflow.
 
 ## What is still untested
 
-Earlier comparison builds and basic render checks are historical observations, not a full regression suite. The original 21-game list remains incompletely tested for controls, audio, scoring, DIP switches, multiplayer, reset, and historical fidelity. Eight games have no active mono-output hookup in the original source; inherited absent audio and untested playback are separate statuses. Browser, touch, Android/iPhone, and mobile performance results do not exist in 0.1.0. Record each result with its build, scenario, and actual environment instead of generalizing from Pong.
-
-The [0.1.0 validation report](legacy/0.1.0_VALIDATION.md) records the integrated milestone results and remaining limitations. Report failures using the [bug-report template](../bug-reports/TEMPLATE.md). Release qualification and packaging have additional checks in [RELEASING.md](RELEASING.md).
+Fifteen of the 21 DICE 0.9 games are unported, and for the six ported games the
+restarted line has not yet re-run its comparisons against the reduced desktop
+frontend (a 0.1.x task). No result covers every game's controls, DIP settings,
+scoring, multiplayer, reset and audio. Eight games have no active DICE audio
+hookup; inherited silence and untested playback are separate statuses. Record
+each result with its build, scenario and actual environment instead of
+generalizing from Pong; [GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md) holds
+the per-game record. Report failures with the [bug-report
+template](../bug-reports/TEMPLATE.md).

@@ -18,9 +18,8 @@ export interface Controls {
   handleKeyDown(event: KeyboardEvent): boolean; handleKeyUp(event: KeyboardEvent): boolean;
   release(): void; setEnabled(enabled: boolean): void; setBindings(bindings: Bindings): void;
   setGame(gameId: PlayableGameId, bindings: Bindings): void;
-  setTouchButtons(slot: number, up: boolean, down: boolean): void;
-  setTouchServe(held: boolean): void;
-  setTouchPedals(slot: number, gas: boolean, brake: boolean): void;
+  /** A held Serve from the mouse button over the display (Breakout). */
+  setPointerServe(held: boolean): void;
   pollGamepads(gamepads?: readonly (Gamepad | null)[]): void; getState(): ControlState;
 }
 const directional = (action: ActionId): boolean => /^p[1-4](Up|Down|Left|Right)$/.test(action);
@@ -39,49 +38,45 @@ export function createControls(options: ControlOptions): Controls {
   let armedAxes: boolean[] = [];
   let lastAxes: (number | undefined)[] = [];
   let axisDirections: number[] = [];
-  let touchButtons: { up: boolean; down: boolean }[] = [];
-  let touchPedals: { gas: boolean; brake: boolean }[] = [];
   let gas: boolean[] = [];
   let brake: boolean[] = [];
   let directions: number[] = [];
-  let touchServe = false;
+  let pointerServe = false;
   let serve = false;
   let connected: ConnectedGamepad[] = [];
   let revision = 0;
   function resetPlayers(): void {
     const count = controlPlayerCount(gameId);
     armedAxes = Array(count).fill(false); lastAxes = Array(count).fill(undefined);
-    axisDirections = Array(count).fill(0); touchButtons = Array.from({ length: count }, () => ({ up: false, down: false }));
+    axisDirections = Array(count).fill(0);
     directions = Array(count).fill(0);
-    touchPedals = Array.from({ length: count }, () => ({ gas: false, brake: false }));
     gas = Array(count).fill(false); brake = Array(count).fill(false);
   }
   resetPlayers();
   function updateDirections(): void {
     const active = (action: ActionId): boolean => heldButtons.has(action) || bindings.keyboard[action].some((code) => heldKeys.has(code));
     const next = directions.map((_, slot) => {
-      const up = active(directionAction(slot, 'Up', gameId)) || axisDirections[slot] < 0 || touchButtons[slot].up;
-      const down = active(directionAction(slot, 'Down', gameId)) || axisDirections[slot] > 0 || touchButtons[slot].down;
+      const up = active(directionAction(slot, 'Up', gameId)) || axisDirections[slot] < 0;
+      const down = active(directionAction(slot, 'Down', gameId)) || axisDirections[slot] > 0;
       return Number(down) - Number(up);
     });
     if (next.some((direction, slot) => direction !== directions[slot])) { directions = next; options.onDirections([...next]); }
   }
   function updateServe(): void {
-    const next = enabled && gameId === 'breakout' && (touchServe || heldButtons.has('serve') || bindings.keyboard.serve.some((code) => heldKeys.has(code)));
+    const next = enabled && gameId === 'breakout' && (pointerServe || heldButtons.has('serve') || bindings.keyboard.serve.some((code) => heldKeys.has(code)));
     if (next !== serve) { serve = next; options.onServe?.(next); }
   }
   function updatePedals(): void {
     const active = (action: ActionId): boolean => heldButtons.has(action) || bindings.keyboard[action].some((code) => heldKeys.has(code));
-    const nextGas = gas.map((_, slot) => enabled && gameId === 'indy4' && (touchPedals[slot].gas || active(`p${slot + 1}Gas` as ActionId)));
-    const nextBrake = brake.map((_, slot) => enabled && gameId === 'indy4' && (touchPedals[slot].brake || active(`p${slot + 1}Brake` as ActionId)));
+    const nextGas = gas.map((_, slot) => enabled && gameId === 'indy4' && active(`p${slot + 1}Gas` as ActionId));
+    const nextBrake = brake.map((_, slot) => enabled && gameId === 'indy4' && active(`p${slot + 1}Brake` as ActionId));
     if (nextGas.some((held, slot) => held !== gas[slot]) || nextBrake.some((held, slot) => held !== brake[slot])) {
       gas = nextGas; brake = nextBrake; options.onButtons?.([...gas], [...brake]);
     }
   }
   function release(): void {
     revision += 1; heldKeys.clear(); heldButtons.clear(); armedButtons.clear(); lastButtons.clear();
-    touchServe = false; updateServe();
-    touchPedals.forEach((value) => { value.gas = false; value.brake = false; }); updatePedals();
+    pointerServe = false; updateServe(); updatePedals();
     resetPlayers(); options.onDirections([...directions]);
   }
   function actionFor(code: string): ActionId | undefined { return actionsForGame(gameId).find((action) => bindings.keyboard[action].includes(code)); }
@@ -104,15 +99,7 @@ export function createControls(options: ControlOptions): Controls {
     setEnabled(next) { if (enabled !== next) { enabled = next; release(); } },
     setBindings(next) { bindings = cloneBindings(next); release(); },
     setGame(next, nextBindings) { release(); gameId = next; bindings = cloneBindings(nextBindings); resetPlayers(); },
-    setTouchButtons(slot, up, down) {
-      if (!enabled || (gameId !== 'spacerace' && gameId !== 'indy4') || !Number.isInteger(slot) || slot < 0 || slot >= touchButtons.length) return;
-      touchButtons[slot] = { up, down }; updateDirections();
-    },
-    setTouchServe(held) { if (!enabled || gameId !== 'breakout') return; touchServe = held; updateServe(); },
-    setTouchPedals(slot, heldGas, heldBrake) {
-      if (!enabled || gameId !== 'indy4' || !Number.isInteger(slot) || slot < 0 || slot >= touchPedals.length) return;
-      touchPedals[slot] = { gas: heldGas, brake: heldBrake }; updatePedals();
-    },
+    setPointerServe(held) { if (!enabled || gameId !== 'breakout') return; pointerServe = held; updateServe(); },
     pollGamepads(supplied) {
       const pads = supplied ?? defaultPads();
       const nextConnected = pads.filter((pad): pad is Gamepad => !!pad && pad.connected !== false).map((pad) => ({ index: pad.index, id: pad.id, mapping: pad.mapping, axes: pad.axes.length, buttons: pad.buttons.length }));

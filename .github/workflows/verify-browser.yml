@@ -14,78 +14,14 @@ name: Verify DICE browser distribution
         default: ''
 permissions:
   contents: read
-  actions: read
 jobs:
-  classify:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      documentation_only: ${{ steps.mode.outputs.documentation_only }}
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        persist-credentials: false
-        ref: ${{ inputs.ref || github.sha }}
-        fetch-depth: 0
-    - name: Classify changes and verify an exact prior FULL runtime baseline
-      id: mode
-      env:
-        EVENT: ${{ github.event_name }}
-        REF: ${{ github.ref }}
-        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        HEAD_SHA: ${{ inputs.ref || github.sha }}
-        FINAL_RELEASE: ${{ inputs.release }}
-        GH_TOKEN: ${{ github.token }}
-        GH_REPO: ${{ github.repository }}
-      run: |-
-        mkdir -p build
-        python3 tools/classify-ci-change.py --event "$EVENT" --ref "$REF" --base "$BASE_SHA" --head "$HEAD_SHA" > build/ci-classification.json
-        python3 - <<'PY_CLASSIFY'
-        import json,os,pathlib,subprocess
-        root=pathlib.Path('build/ci-baseline'); root.mkdir(parents=True,exist_ok=True)
-        mode=False
-        try:
-            if json.load(open('build/ci-classification.json'))['documentation_only'] and os.environ['FINAL_RELEASE'] != 'true':
-                repo=os.environ['GH_REPO']; base=os.environ['BASE_SHA']
-                def api(path):
-                    return json.loads(subprocess.run(['gh','api',path],check=True,capture_output=True,text=True).stdout)
-                runs=api(f'repos/{repo}/actions/workflows/ci.yml/runs?head_sha={base}&status=completed&per_page=100')['workflow_runs']
-                run=next(r for r in runs if r.get('conclusion')=='success' and r.get('head_branch')=='main' and r.get('event') in {'push','workflow_dispatch'})
-                jobs=api(f'repos/{repo}/actions/runs/{run["id"]}/attempts/{run["run_attempt"]}/jobs?per_page=100')
-                if jobs.get('total_count',0)>100: raise ValueError('Incomplete baseline job API inventory')
-                artifacts=api(f'repos/{repo}/actions/runs/{run["id"]}/artifacts?per_page=100')
-                if artifacts.get('total_count',0)>100: raise ValueError('Incomplete baseline artifact API inventory')
-                name=f'core-runtime-transfer-{base}-{run["run_attempt"]}'
-                matching=[a for a in artifacts['artifacts'] if a.get('name')==name]
-                if len(matching)!=1: raise ValueError('Missing/duplicate baseline transfer artifact')
-                artifact=matching[0]
-                for label,data in [('run',run),('jobs',jobs),('artifact',artifact)]:
-                    (root/(label+'.json')).write_text(json.dumps(data))
-                with (root/'core.zip').open('wb') as output:
-                    subprocess.run(['gh','api',f'repos/{repo}/actions/artifacts/{artifact["id"]}/zip'],check=True,stdout=output)
-                proof=subprocess.run(['python3','tools/ci-runtime-baseline.py','--base',base,'--run',str(root/'run.json'),'--jobs',str(root/'jobs.json'),'--artifact',str(root/'artifact.json'),'--archive',str(root/'core.zip')],check=True,capture_output=True,text=True).stdout
-                (root/'verified-baseline.json').write_text(proof)
-                mode=True
-        except Exception as error:
-            print('No verified prior FULL baseline; full checks required:',type(error).__name__)
-        with open(os.environ['GITHUB_OUTPUT'],'a') as output:
-            output.write('documentation_only='+str(mode).lower()+'\n')
-        PY_CLASSIFY
-    - name: Retain classifier and payload-free baseline identity
-      if: always()
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-      with:
-        name: ci-mode-and-baseline
-        path: |-
-          build/ci-classification.json
-          build/ci-baseline/verified-baseline.json
-        if-no-files-found: warn
-        retention-days: 14
   core-reference:
-    needs: classify
-    if: needs.classify.outputs.documentation_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    # The browser job downloads the core by this name. "Re-run failed jobs"
+    # keeps this job's outputs from the attempt that built and tested the core.
+    outputs:
+      core_artifact: ${{ steps.core-name.outputs.name }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -133,11 +69,17 @@ jobs:
         are reported there as blocked, not passed, when it is absent."},indent=2)+"\n")'
     - name: Bind the five tested Wasm transfer files to this exact clean checkout
       run: python3 tools/core-handoff.py --write build/core/core-transfer.json
+    - name: Name the core transfer after this run attempt
+      id: core-name
+      env:
+        SHA: ${{ github.sha }}
+        ATTEMPT: ${{ github.run_attempt }}
+      run: echo "name=core-runtime-transfer-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
     - name: Upload the exact-run tested core transfer
       id: core-transfer
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
-        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        name: ${{ steps.core-name.outputs.name }}
         path: |-
           build/core/core-transfer.json
           build/core/wasm/nocpu.js
@@ -212,12 +154,15 @@ jobs:
           build/core/core-transfer.json
         if-no-files-found: warn
         retention-days: 14
+        overwrite: true
   browser:
-    needs:
-    - classify
-    - core-reference
-    if: needs.classify.outputs.documentation_only != 'true'
+    needs: core-reference
     runs-on: ubuntu-24.04
+    # actions: read lets the download below list this run's artifacts across
+    # attempts, so a re-run of this job alone finds the core built earlier.
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 90
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -236,15 +181,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
-    - name: Fetch only the tested core from this same workflow run
+    - name: Fetch only the tested core from this same workflow run (any attempt)
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
-        name: core-runtime-transfer-${{ github.sha }}-${{ github.run_attempt }}
+        name: ${{ needs.core-reference.outputs.core_artifact }}
         path: build/core
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
     - name: Reject checkout, tree, version, provenance or byte drift before using the transferred core
       run: python3 tools/core-handoff.py --verify build/core/core-transfer.json --install-runtime
-    - name: Test phone qualification collection and artifact identity
-      run: npm run test:qualification
     - name: Build production frontend at the project Pages path
       env:
         NOCPU_BASE_PATH: /NoCPU/
@@ -278,6 +223,7 @@ jobs:
           build/browser-matrix.json
         if-no-files-found: warn
         retention-days: 14
+        overwrite: true
     - name: Retain verified matching source and browser release assets
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -285,56 +231,25 @@ jobs:
         path: build/release/
         if-no-files-found: error
         retention-days: 7
+        overwrite: true
     - name: Prepare the tested Pages artifact
       uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
       with:
         path: build/pages
         retention-days: 7
-  narrative:
-    needs: classify
-    if: needs.classify.outputs.documentation_only == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        persist-credentials: false
-        ref: ${{ inputs.ref || github.sha }}
-        fetch-depth: 0
-    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
-      with:
-        node-version: 22.22.0
-    - name: Install frozen JavaScript dependencies without runtime builds
-      run: npm ci --cache ./build/npm-cache --no-audit --no-fund
-    - name: Check preservation, source tooling, and failure-injection tests
-      run: make test
-    - name: Test web control, preferences and ROM foundations
-      run: npm run test:foundations
   verify:
     needs:
-    - classify
     - core-reference
     - browser
-    - narrative
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-    - name: Require every applicable exact-source verification job
+    - name: Require the core reference and browser verification jobs
       env:
-        CLASSIFY: ${{ needs.classify.result }}
-        DOCS: ${{ needs.classify.outputs.documentation_only }}
         CORE: ${{ needs.core-reference.result }}
         BROWSER: ${{ needs.browser.result }}
-        NARRATIVE: ${{ needs.narrative.result }}
       run: |-
-        python3 - <<'PY_VERIFY'
-        import os
-        r=os.environ
-        if r['CLASSIFY']!='success': raise SystemExit('Classification did not succeed')
-        if r['DOCS']=='true':
-            if not (r['NARRATIVE']=='success' and r['CORE']=='skipped' and r['BROWSER']=='skipped'): raise SystemExit('Incomplete verified narrative path')
-        elif r['DOCS']=='false':
-            if not (r['CORE']=='success' and r['BROWSER']=='success' and r['NARRATIVE']=='skipped'): raise SystemExit('Incomplete FULL verification path')
-        else: raise SystemExit('Missing verification mode')
-        PY_VERIFY
+        if [ "$CORE" != success ] || [ "$BROWSER" != success ]; then
+          echo "::error::core-reference=$CORE browser=$BROWSER"; exit 1
+        fi

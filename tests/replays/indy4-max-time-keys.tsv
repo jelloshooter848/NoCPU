@@ -1,0 +1,32 @@
+# Indy 4 24 s pass at the maximum 1220000-ohm Play Time pot: dollar bill
+# and red coin (calibration: all four cars enter play near 9.4 s), then Gas,
+# Hand Brake and keyboard left/right wheel keys for cars 3-4 (the pilot covers
+# analog wheels for all four); seed 848.
+# Equality evidence only; it does not claim play-timer expiry.
+500 dollar 1
+650 dollar 0
+900 coin4 1
+1050 coin4 0
+1500 gas3 1
+1500 gas4 1
+2000 left3 1
+2000 right4 1
+2600 left3 0
+2600 right4 0
+10000 right3 1
+10000 left4 1
+10500 right3 0
+10500 left4 0
+12000 brake3 1
+12300 brake3 0
+13000 brake4 1
+13300 brake4 0
+14000 left3 1
+14000 left4 1
+15000 left3 0
+15000 left4 0
+17000 right3 1
+17400 right3 0
+20000 gas3 0
+20000 gas4 0
+24000 recreate 1

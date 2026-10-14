@@ -1,37 +1,79 @@
-# NoCPU browser application
+# NoCPU desktop browser application
 
-> Legacy-line content; the restarted line follows [docs/ROADMAP.md](../docs/ROADMAP.md); rewrite pending Phase 2.
+The frontend is the minimal desktop interface defined in the
+[roadmap](../docs/ROADMAP.md) "Goal". It runs the DICE 0.9 circuits that the
+core compiles (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4)
+in desktop browsers with keyboard, mouse and optional gamepads. The other
+fifteen DICE games are listed but not ported yet.
 
-The restarted 0.1.0 frontend is still the legacy app. Its core compiles Pong,
-Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4; fifteen circuits
-remain unported. Phase 2 reduces it to the minimal desktop interface. The
-descriptions below are historical: the legacy [0.4.0 contract](../docs/legacy/0.4.0_TASKS.md)
-added Pong Doubles and Space Race ([validation](../docs/legacy/0.4.0_VALIDATION.md)),
-following the [0.3.1 preview](../docs/legacy/0.3.1_VALIDATION.md).
+## What it offers
 
-The independently verified [0.3.0 app foundation](../docs/legacy/0.3.0_TASKS.md) preview adds
-game-first library/info, shared controls/remapping, persistent preferences and
-optional local ROM management. All 21 games have source-derived metadata, but
-only Pong is playable. ROM compatibility never implies browser availability.
-Clean CI passes 132 cases with three documented CDP skips; the selected actual
-live suite passes 92 with three such skips. All 90 public HTTPS files match the
-reviewed exact-main artifact. Deployed source/runtime and pending physical
-qualification belong in [0.3.0 validation](../docs/legacy/0.3.0_VALIDATION.md).
+- **Game picker.** The title screen has Play Pong and the Library, which lists
+  all 21 titles with their maker, year, ROM requirement, controls and audio
+  status; unported titles are marked "Browser port pending".
+- **Game canvas.** The circuit's own raster, at its original orientation and
+  aspect ratio, as large as the window allows above a single action bar
+  (coin, start and Pause · Esc buttons, plus a short status line). The
+  frontend draws no substitute court, score or sound.
+- **Controls help.** How to play shows the rules and the current keyboard,
+  mouse and gamepad assignments for each game.
+- **Keyboard and mouse.** Default keys: W/S and Up/Down move the Pong paddles,
+  Enter inserts a coin, Space opens the menu and Escape pauses or goes back.
+  For the paddle games (Pong, Pong Doubles, Breakout) moving the mouse over the
+  display sets the chosen player's paddle across the full original range; each
+  edge of the display keeps a 5% margin so both endpoints are reachable. In
+  Breakout the left mouse button over the display holds Serve. In Stunt Cycle
+  the left button held over the display sets the shared throttle from idle
+  (left) to full (right) and releasing it idles. Space Race and Indy 4 use the
+  keyboard or a gamepad. Settings → Controls chooses which player the mouse
+  drives, or turns it off, for each game.
+- **ROM loading.** Settings → Local ROMs validates player-supplied ZIPs against
+  the audited CRC and size requirements, locally; files are never uploaded.
+  Imports last for the visit unless "Remember in this browser" is chosen.
+- **Pause and reset.** Pause · Esc stops the circuit clock; the menu offers
+  Resume, Reset game, Settings, How to play, About and returning to the library
+  or title.
+- **Volume and mute** in Settings → Sound.
+- **DIP and potentiometer settings** for each game in Settings → Controls; they
+  apply when the game starts or after Apply & reset game.
+- **About** shows the DICE credit, links to the GPL and the third-party notices
+  shipped with the build and to its corresponding-source archive, and the build
+  string: `vX.Y.Z` for a site packaged from its release tag, `vX.Y.Z-dev.<sha>`
+  for any other packaged build (from `BUILD-MANIFEST.json`), and `vX.Y.Z-dev`
+  without a manifest, as on the Vite dev server.
 
-The Pong frontend introduced in 0.2.0 presents ROM-free Pong from DICE's original-derived C++ circuit engine. The 0.2.1 patch changes its touch controls. It uses TypeScript and Vite, a dedicated WebAssembly worker, a Canvas display, and Web Audio playback of the engine's signed mono PCM. The frontend contains no replacement game rules or synthesized Pong effects. Current physical Android/iPhone qualification is tracked separately in [0.3.0 validation](../docs/legacy/0.3.0_VALIDATION.md); [0.2.1 validation](../docs/legacy/0.2.1_VALIDATION.md) retains its historical deployment and partial device feedback, and the earlier runtime is recorded in [0.2.0 validation](../docs/legacy/0.2.0_VALIDATION.md).
+## How it works
 
-`main.ts` owns the player interface and ordered control/input requests. `core.worker.ts` loads the Wasm module from the site's configured base path, preserves picosecond telemetry as a string, copies module-owned video/PCM before transfer, and clears consumed buffers. The worker advances simulation from its own bounded clock; Canvas presentation cadence cannot slow the circuit. Transfers are bounded, and paused or hidden time is discarded rather than replayed as a backlog.
+`main.ts` owns the interface and orders control and input requests.
+`core.worker.ts` loads the Wasm module from the site's base path, keeps
+picosecond time as a string, copies module-owned video and PCM before
+transfer, and clears consumed buffers. The worker advances the simulation on
+its own bounded clock, so canvas presentation never slows the circuit; paused
+or hidden time is discarded rather than replayed. Audio plays the engine's
+signed mono PCM with a short bounded lead and is cleared on pause, reset and
+interruption.
 
-The 0.3.0 shell fills the browser viewport. Its title screen offers quick Play Pong, the 21-title library, Settings, How to play and About, with the source version visible. Library information distinguishes browser availability from ROM compatibility and preserves source-derived controls, player counts, shared groups and audio limitations. Only Pong can launch. Play Pong loads the original attract display; Insert coin starts a game. During play, the circuit court, external P1/P2 tracks and compact coin/menu controls remain visible. There is no duplicate frontend score or substitute court. The circuit raster retains its 4:3 aspect ratio; unused space accommodates the browser/device viewport. Optional fullscreen can fail or be unavailable without preventing ordinary browser play.
+`controls.ts` turns keyboard and gamepad input into the circuit's switches and
+absolute axes; `app-settings.ts` and `preferences.ts` keep sound, control
+assignments, the mouse assignment and game settings in a versioned
+`localStorage` record (version 5; versions 0-4 migrate on load, and malformed
+or unavailable storage falls back to defaults for the visit). `roms.ts` and
+`zip.ts` implement the bounded local ROM reader and store. `build-info.ts`
+computes the About build string.
 
-Default keyboard controls are W/S for player 1, Up/Down for player 2, Enter for coin and Space for the menu; Escape remains a menu/Back shortcut. Settings can reassign keyboard actions, controller buttons, player joystick axes, direction and deadzone. How to play reflects current assignments. Labeled P1/P2 vertical touch tracks sit entirely outside the court: below it in portrait and in the side letterboxes in landscape. Each track captures one pointer independently, shows its current thumb position and covers the full original joystick axis range between its visible endpoints; two players can drag at once. Court touches do not move either paddle. Cancellation, disconnect, blur and pause clear transient held inputs while retaining the last absolute paddle position.
+## Building and testing
 
-Menu pauses the circuit and offers Resume, Reset game, Settings, How to play, About, Return to library and Return to title. Returning to library or title destroys the circuit and clears active input/audio. Back from a secondary panel follows its origin and restores focus, never resumes play implicitly. About retains DICE attribution, version/build identification, GPL and component notices, and matching source access. Loading and failure/retry screens stay inside the same shell. Panels may scroll internally; the document and gameplay gestures do not scroll. Physical safe-area spacing and compact portrait/landscape layouts are part of the shell's acceptance checks.
+Run `npm ci`, `npm run test:foundations`, `npm run build` and `npm run preview`
+from the repository root with the prerequisites in [testing](../docs/TESTING.md).
+The default URL base is `/NoCPU/`; `NOCPU_BASE_PATH` sets another absolute path
+ending in `/`. `npm run dev` also offers the private ROM fixtures from
+`build/roms` (see [ROMS.md](../docs/ROMS.md)) to the local development server
+only; production builds never contain that loader. The packaged site supplies
+the license notices and the matching corresponding-source archive, including
+the preferred source of the pinned fflate ZIP helper.
 
-Settings stores sound, volume and control assignments in a versioned local preference record. Malformed records recover to defaults; unavailable or full storage permits session-only settings. Restore default controls resets assignments. Local ROM management accepts player-supplied ZIPs against audited active CRC and observed-size requirements; descriptor filenames are documentary. Imports remain available for the session unless the player opts into device storage. Valid retained archives can be backed up; browser clearing/eviction requires re-import. A known corrupt saved record is marked as needing re-import and remains removable. Storage/import failures are reported without blocking ROM-free Pong or making an unavailable game playable. Files are processed locally and are not uploaded.
-
-The first player gesture unlocks audio. Playback keeps a short bounded lead, preserves that lead when inserting another coin, and discards old audio on pause/reset/interruption. A backgrounded page requires the player to resume. Device activation has a bounded wait and never prevents simulation from resuming; unavailable sound has an Enable sound retry control. Expired activation attempts cannot resume playback after backgrounding.
-
-Run `npm ci`, `npm run test:foundations`, `npm run build`, and `npm run preview` from the repository root using the prerequisites in [testing](../docs/TESTING.md). The default URL base is `/NoCPU/`; `NOCPU_BASE_PATH` can configure a different absolute path ending in `/`. The packaged Pages artifact supplies runtime licenses and its matching corresponding-source archive, including preferred source for the pinned fflate ZIP helper. Build identity and preview/release status are read from the artifact's `BUILD-MANIFEST.json`; unavailable metadata retains the preview label. This lets the tested runtime remain unchanged when promoting a preview to a release.
-
-`?debug` exposes read-only snapshots for automated validation: integer time as a decimal string, circuit scoring/hit state, input ownership, worker timings, and PCM scheduling metrics. `wasmMemoryCapacityBytes` is the allocated Wasm memory capacity, not total browser process memory. `coreOverruns` counts samples the core could not retain. This is validation observability; rendered gameplay always comes from the circuit's output. Read [architecture](../docs/ARCHITECTURE.md) and the [roadmap](../docs/ROADMAP.md) for the current app foundation and later game-circuit support.
+`?debug` exposes read-only snapshots for automated tests: integer time as a
+decimal string, circuit scoring and hit state, input ownership, worker timings
+and PCM scheduling metrics. `wasmMemoryCapacityBytes` is the allocated Wasm
+memory, not total browser memory. Rendered gameplay always comes from the
+circuit's output.

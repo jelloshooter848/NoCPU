@@ -243,6 +243,9 @@ def main():
               'rom_source': source, 'archives': {game: path.name for game, path in archives.items()},
               'image_id': subprocess.run(['docker', 'image', 'inspect', '--format', '{{.Id}}', IMAGE],
                                          capture_output=True, text=True).stdout.strip(),
+              # The original capture refuses hosts without FMA (check-config-isolation.py).
+              'host_cpu_fma': any(line.startswith('flags') and 'fma' in line.split(':', 1)[1].split()
+                                  for line in Path('/proc/cpuinfo').read_text().splitlines()),
               'scenarios': [], 'limitations': [
                   'Exact equality covers the listed bounded replays only, not complete gameplay.',
                   'Generated PCM equality does not establish audible speaker output; both games inherit absent DICE audio hookups.',

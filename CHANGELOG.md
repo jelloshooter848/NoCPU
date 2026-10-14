@@ -13,7 +13,38 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-13
+
+The first published release of the restarted desktop-first line; `v0.1.0` was tagged but not
+published.
+
+### Added
+
+- Mouse controls: move the mouse over the game to set a paddle across its full range (Pong, Pong
+  Doubles, Breakout); hold the left button for Breakout's Serve and for Stunt Cycle's throttle.
+  Settings chooses which player the mouse controls, or turns it off.
+- The About panel shows the build string (`vX.Y.Z` for releases, `vX.Y.Z-dev.<commit>` otherwise)
+  with the DICE credit, license notices and source download.
+
+### Changed
+
+- A plain desktop layout: the original game picture fills the window above one action bar (coin,
+  start, Pause · Esc); menus are simpler. Your saved settings carry over.
+
+### Fixed
+
+- Indy 4: one raster row could show the wrong scanline while a car crossed it; the renderer now
+  matches the original DICE (Mesa llvmpipe) rasterization in all compared scenarios.
+
+### Removed
+
+- Touch controls, phone layouts, the phone qualification recorder and Home Screen (PWA) install
+  support, deferred to the post-1.0 mobile phase.
+
 ## [0.1.0] - 2026-10-13
+
+Tagged but not published: the release workflow did not complete, so no build was deployed. 0.1.1
+is the first published release.
 
 The first release of the restarted desktop-first line, a baseline: it keeps the legacy browser app
 while the desktop interface and the renewed accuracy checks follow in 0.1.x updates.
@@ -41,5 +72,6 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...v0.1.0

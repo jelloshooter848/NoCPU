@@ -2,7 +2,7 @@
 // Original-pilot-derived Breakout observations; no native state/media injection.
 import { expect, type Page } from '@playwright/test';
 import type { BreakoutOptions } from '../../web/src/game-contract';
-import type { Bounds, Insets } from './helpers';
+import type { Bounds } from './helpers';
 
 export interface BreakoutObservation {
   gameId: string; options: BreakoutOptions; generation: number; resetId: number; clockEpoch: number;
@@ -118,32 +118,24 @@ export async function breakoutBall(page: Page): Promise<{ x: number; y: number; 
     return objects[0];
   });
 }
-export async function expectBreakoutGeometry(page: Page, insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 }): Promise<unknown> {
+export async function expectBreakoutGeometry(page: Page): Promise<unknown> {
   const viewport = page.viewportSize()!, canvas = (await page.getByTestId('game-canvas').boundingBox())!;
   expect(canvas.width / canvas.height).toBeCloseTo(324 / 432, 3);
+  const hud = (await page.locator('.game-hud').boundingBox())!;
+  expect(canvas.y + canvas.height, 'The raster stays above the action bar').toBeLessThanOrEqual(hud.y + .001);
+  expect(canvas.height, 'The rotated raster uses the available window height').toBeGreaterThanOrEqual(Math.min(hud.y, viewport.width / (324 / 432)) * .9);
   const bounds: { id: string; target: Bounds }[] = [];
-  for (const id of ['paddle-p1', 'serve-game', 'insert-coin', 'start-game', 'start-game-2', 'pause']) {
+  for (const id of ['insert-coin', 'start-game', 'start-game-2', 'pause']) {
     const control = page.getByTestId(id); await expect(control).toBeVisible(); const target = (await control.boundingBox())!;
-    expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44);
-    for (const box of [canvas, target]) {
-      expect(box.x).toBeGreaterThanOrEqual(insets.left - .001); expect(box.y).toBeGreaterThanOrEqual(insets.top - .001);
-      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width - insets.right + .001);
-      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - insets.bottom + .001);
-    }
-    const separation = Math.max(target.x - canvas.x - canvas.width, canvas.x - target.x - target.width,
-      target.y - canvas.y - canvas.height, canvas.y - target.y - target.height);
-    expect(separation, `${id} is outside the native raster`).toBeGreaterThanOrEqual(8 - .001);
+    expect(target.height).toBeGreaterThanOrEqual(32);
+    expect(target.x).toBeGreaterThanOrEqual(-.001); expect(target.x + target.width).toBeLessThanOrEqual(viewport.width + .001);
+    expect(target.y + target.height).toBeLessThanOrEqual(viewport.height + .001);
     expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'),
       { x: target.x + target.width / 2, y: target.y + target.height / 2 })).toBe(id);
     bounds.push({ id, target });
   }
-  const track = (await page.getByTestId('paddle-p1').locator('.control-track').boundingBox())!;
-  expect(track.width).toBeGreaterThanOrEqual(120); expect(track.height).toBe(4);
-  await expect(page.getByTestId('paddle-p1')).toHaveAttribute('aria-orientation', 'horizontal');
-  for (const id of ['paddle-p2', 'paddle-p3', 'paddle-p4', 'direction-p1-up', 'direction-p2-up']) await expect(page.getByTestId(id)).toBeHidden();
-  for (let i = 0; i < bounds.length; i++) for (let j = i + 1; j < bounds.length; j++) {
-    const a = bounds[i].target, b = bounds[j].target;
-    expect(Math.min(a.x + a.width, b.x + b.width) <= Math.max(a.x, b.x) || Math.min(a.y + a.height, b.y + b.height) <= Math.max(a.y, b.y)).toBe(true);
+  for (const fx of [.02, .5, .98]) for (const fy of [.02, .5, .98]) {
+    expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName, { x: canvas.x + canvas.width * fx, y: canvas.y + canvas.height * fy })).toBe('CANVAS');
   }
-  return { viewport, insets, canvas, track, controls: bounds };
+  return { viewport, canvas, hud, controls: bounds };
 }

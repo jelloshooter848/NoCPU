@@ -47,22 +47,25 @@ replace the legacy "preview" stage. After 1.0.0 the usual SemVer rules apply.
 [`VERSION`](../VERSION) is the single source of the version. `tools/check.py`
 requires the version fields in `package.json`, `package-lock.json`,
 `tests/release-readiness.json` and `tests/browser-license-audit.json` to match
-it, so a version bump updates those fields in the same commit.
+it, and the browser audit's `corresponding_source` (`path` and the archive
+name in `delivery`) to name `nocpu-X.Y.Z-source.tar.gz` for that version, so a
+version bump updates all of those fields in the same commit.
 
-The About panel will show the build string (the Phase 2 desktop UI, a 0.1.x
-patch release, implements it; 0.1.0 still shows `buildId`):
+The About panel shows the build string, computed by `web/src/build-info.ts`
+from the packaged site's `BUILD-MANIFEST.json`:
 
-- a build packaged from a release tag shows **`vX.Y.Z`** (or `vX.Y.Z-rc.N`);
-- any other build (local development, CI, the working branch) shows
-  **`vX.Y.Z-dev.<sha>`**, the last version set in `VERSION` plus the short
-  commit, so the build is newer than that release;
-- a build without its manifest (for example the Vite dev server) shows
+- a site packaged from its release tag (manifest `stage` is `release` and
+  `tag` equals `v` + `VERSION`) shows **`vX.Y.Z`** (or `vX.Y.Z-rc.N`);
+- any other packaged build (local development, CI, the working branch) shows
+  **`vX.Y.Z-dev.<sha>`**, the last version set in `VERSION` plus the first
+  seven characters of the manifest's `source_commit`, so the build is newer
+  than that release;
+- a build without a matching manifest (for example the Vite dev server) shows
   `vX.Y.Z-dev`.
 
-The packaged site's `BUILD-MANIFEST.json` already carries what this needs:
-`version`, `stage` (`release` for a tag build; untagged builds currently say
-`preview`), `tag`, and `buildId`/`source_commit` (the full commit SHA) with
-`source_tree_state`. Today the app shows `buildId` and a preview label.
+The manifest carries `version`, `stage` (`release` for a tag build, `preview`
+otherwise), `tag`, and `buildId`/`source_commit` (the full commit SHA) with
+`source_tree_state`.
 
 Bug reports quote this string (see [bug-reports/README.md](../bug-reports/README.md)).
 
@@ -178,6 +181,23 @@ branch and release the next patch version (`vX.Y.Z+1`), noting in its
 changelog section that `vX.Y.Z` was not published. If it failed for reasons
 outside the code (a Pages outage, permissions), rerun it as described below.
 
+**If a release run fails:**
+
+1. Leave the tag where it is; never move, delete or reuse it.
+2. Use the run's **Re-run failed jobs** once (works since `b310916`; the publish
+   job since the 0.1.1 release). It covers failures in the verify jobs
+   (`core-reference`, `browser`) and in `publish`: the re-run reuses the core and
+   the release assets and notes that earlier attempts uploaded; see
+   [Redeploying, retrying or rolling back](#redeploying-retrying-or-rolling-back).
+3. If only `deploy-pages` failed, re-deploy with **Run workflow** on the tag
+   instead.
+4. Avoid **Re-run all jobs**: it uploads a second `github-pages` artifact in the
+   same run, which the Pages deployment can reject as a duplicate.
+5. If the re-run also fails, or the failure is in the code or its checks, fix it
+   on the working branch and ship the next patch version. Record in the
+   roadmap and in the failed version's changelog section that it was tagged
+   but not published, as for `v0.1.0`.
+
 The zip is the exact site that was deployed, built for the `/NoCPU/` path:
 serve it from a folder of that name (for example
 `mkdir NoCPU && unzip nocpu-0.2.0-web.zip -d NoCPU && python3 -m http.server`,
@@ -202,6 +222,19 @@ GitHub Release, and deploys it. Use this to:
 - retry a release whose run failed for reasons outside the code.
 
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
+
+To retry only the failed jobs of a run (the run's **Re-run failed jobs**, or
+`gh run rerun <run-id> --failed`), no new dispatch is needed. The browser job
+uses the core built and tested by the `core-reference` job of the same run, an
+artifact named after the attempt that built it
+(`core-runtime-transfer-<sha>-<attempt>`). A re-run keeps that job's outputs,
+which carry the name, and the browser job downloads it by run ID with
+`actions: read`, so a re-run of the browser job alone finds the core from the
+earlier attempt. The byte-drift and provenance check (`tools/core-handoff.py
+--verify`) still runs on the downloaded core. Evidence uploads overwrite their
+fixed-name artifacts from the failed attempt. (The v0.1.0 run's "Re-run failed
+jobs" failed at once because the download looked for the core under the new
+attempt's name.)
 
 The workflow definition (and the shared verification it calls) comes from the
 branch the run is started from; the checked, built and published code comes

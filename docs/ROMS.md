@@ -1,4 +1,4 @@
-# External ROM test fixtures
+# ROM requirements and private fixtures
 
 Eleven of the original 21 games need no external ROMs. The ten games below require small graphics or timing PROM dumps even though their game logic has no CPU. NoCPU's public repository, release archives, Pages output, logs, and CI artifacts must contain no game-ROM payloads. A hidden directory in a public Git repository is still public.
 
@@ -135,17 +135,22 @@ Steeplechase's two active horse-video descriptors are required. The source's bug
 
 ## Evidence and distribution
 
-The selected [0.6.0 batch](legacy/0.6.0_TASKS.md) integrates Stunt Cycle and Indy 4
-with player-supplied compatible files. The browser validates exact descriptors
-and the core independently checks actual staged size/CRC; trusted fixture
-gameplay, loader failure paths and metadata audits have separate coverage.
-Reset retains circuit-owned ROMs; destroy clears staged/live buffers. Imports
-remain local and optional retention is the player's choice. No in-app ROM retrieval
-service, public fixture checkout or bundled ROM is authorized. The private
-fixture token is limited to the separate ROM validation workflow above.
-Fixture-free CI must explicitly skip/block actual new-game gameplay. See the
-historical [0.6.0 validation](legacy/0.6.0_VALIDATION.md).
+Of the ROM-dependent games, the core currently compiles Stunt Cycle and Indy 4.
+In the browser the player selects their own ZIP; the frontend reads it locally,
+checks every required descriptor's CRC and size against the manifest, and hands
+the exact bytes to the core, which checks them again (see
+[ARCHITECTURE.md](ARCHITECTURE.md#portable-core-abi-4)). Reset keeps the loaded
+ROM bytes in the core; destroying the circuit clears them. The other eight ROM-backed games are
+unported.
 
-All ten supplied sets have passed this audit. Earlier native comparison runs also reached basic rendered output using each set in original DICE and the modern rebuilding. Controls, audible sound, complete gameplay, cabinet accuracy, and browser/mobile behavior remain unverified.
+All ten private fixture sets pass this audit, and in the legacy line each
+reached basic rendered output in original DICE and the DirtBagXon rebuild.
+Controls, audible sound and complete gameplay remain unverified for the
+unported games; per-game evidence is in
+[GAME_COMPATIBILITY.md](GAME_COMPATIBILITY.md#verification-status).
 
-Keeping fixtures private solves repeatable access for authorized testing. It does not establish redistribution permission. Browser ROM import keeps user-provided bytes local; no public download, bundled fixture, or ROM retrieval service is part of 0.1.0. Do not add private-repository credentials to source, workflows, reports, or releases; CI reads the token only from the `NOCPU_ROMS_TOKEN` Actions secret.
+Keeping fixtures private gives authorized testers repeatable access; it does not
+establish redistribution permission. No bundled ROM, public fixture copy or
+in-app ROM retrieval service is authorized. Do not add private-repository
+credentials to source, workflows, reports or releases; CI reads the token only
+from the `NOCPU_ROMS_TOKEN` Actions secret.

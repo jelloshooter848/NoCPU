@@ -2,9 +2,17 @@
 
 NoCPU is a continuation of **DICE**, the Discrete Integrated Circuit Emulator, by the DICE Team. It preserves arcade games built from discrete logic rather than a game-program CPU. The goal is accurate play of all 21 games in DICE 0.9 in **desktop browsers**, using keyboard and mouse with a minimal interface: a game picker, the original game raster, controls help and user-supplied ROM loading.
 
-**Restarted desktop-first line, from version 0.1.0.** NoCPU has restarted with a desktop-first plan; see the [roadmap](docs/ROADMAP.md). Mobile/touch play, phone device qualification and iPhone Home Screen support are deferred until after desktop accuracy. Versions up to 0.6.0 belong to the legacy line, preserved at tag `legacy-0.6.0` with its records under [docs/legacy/](docs/legacy/).
+**Restarted desktop-first line, from version 0.1.0.** See the [roadmap](docs/ROADMAP.md). Mobile/touch play, phone device qualification and iPhone Home Screen support are deferred until after desktop accuracy. Versions up to 0.6.0 belong to the legacy line, preserved at tag `legacy-0.6.0` with its records under [docs/legacy/](docs/legacy/README.md).
 
-The C++/Wasm core currently compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The current frontend is the legacy app and still contains mobile/touch, qualification and Home Screen code that the next restart phase removes. The [GitHub Releases](https://github.com/jelloshooter848/NoCPU/releases) page lists each published build with its notes, and the Pages site serves the latest final release. 0.1.0 is the reset baseline: it keeps the legacy frontend and makes no new accuracy claim; the desktop interface and renewed comparisons follow in 0.1.x releases (see the [changelog](CHANGELOG.md)).
+The C++/Wasm core compiles six original DICE 0.9 circuits: **Pong, Pong Doubles, Space Race and Breakout** (ROM-free) and **Stunt Cycle and Indy 4** (player-supplied ROMs; both inherit DICE's missing audio). The other fifteen titles remain unported and are still part of the 1.0 scope. The 0.1.x patch releases reduce the browser frontend to the minimal desktop interface and re-run the original/native/Wasm comparisons for the six compiled games; until those comparisons pass, no restarted release claims accuracy. The [GitHub Releases](https://github.com/jelloshooter848/NoCPU/releases) page lists each published build with its notes, and the Pages site serves the latest final release (see the [changelog](CHANGELOG.md)).
+
+## Playing
+
+The app opens on a title screen and a library of all 21 titles; the six ported games are playable, and the others are marked as pending ports. The original game picture fills the window above a single action bar with coin, start and **Pause · Esc**. How to play shows each game's current controls.
+
+- **Keyboard (defaults):** W/S and Up/Down move the two Pong paddles (and the Space Race rockets), Enter inserts a coin, 1 starts a game where the circuit has a Start switch (2 starts two players in Breakout and Stunt Cycle), Space opens the menu, Escape pauses or goes back, R resets and M mutes. Pong Doubles adds T/G and I/K for players three and four; Breakout moves its paddle with Left/Right and serves with S; Stunt Cycle opens and closes the throttle with W/S; Indy 4 steers and uses gas/brake with W/A/S/D, the arrow keys, I/J/K/L and Numpad 8/4/5/6, and takes coins on 1-4 and the dollar bill on 5.
+- **Mouse:** in Pong, Pong Doubles and Breakout, moving the mouse over the game sets a paddle across its full original range. In Breakout the held left button is Serve; in Stunt Cycle the held left button opens the throttle from idle (left edge) to full (right edge). Space Race and Indy 4 use the keyboard or a gamepad. Settings → Controls chooses which player the mouse controls, or turns it off, for each game.
+- Keys and gamepad assignments can be changed per game in Settings, which also holds sound, the game's DIP and potentiometer settings and local ROM loading. About shows the build string (`vX.Y.Z` for releases, `vX.Y.Z-dev.<commit>` otherwise), the DICE credit, the license notices and the source download.
 
 ## Start here
 
@@ -15,7 +23,7 @@ The C++/Wasm core currently compiles six original DICE 0.9 circuits: **Pong, Pon
 - [Architecture and platform boundaries](docs/ARCHITECTURE.md)
 - [Source provenance](docs/PROVENANCE.md) and [third-party notices](THIRD_PARTY_NOTICES.md)
 - [Contributing](CONTRIBUTING.md), [bug reports](bug-reports/README.md), and [releasing](docs/RELEASING.md)
-- Legacy line records (0.1.0–0.6.0): [changelog](docs/legacy/CHANGELOG.md), per-version task and validation ledgers in [docs/legacy/](docs/legacy/)
+- Legacy line records (0.1.0–0.6.0): [changelog](docs/legacy/CHANGELOG.md), task contracts, validation ledgers and device-qualification packets in [docs/legacy/](docs/legacy/README.md)
 
 ## Browser development
 
@@ -49,7 +57,7 @@ DICE 0.9 registers Pong, Pong Doubles, Rebound, Gotcha, Space Race, Stunt Cycle,
 
 Ten games have active ROM requirements. ROM payloads are not included in this public repository. Use your own compatible files; source-code licensing does not grant permission to distribute game ROMs. The [ROM guide](docs/ROMS.md) describes validation and private fixture handling.
 
-Earlier native checks found compatible CRCs and basic loading/rendering for ten supplied ROM sets in both the original DICE build and the newer fork. That evidence does not establish complete gameplay, audio, historical accuracy, or phone compatibility for those games. Current results and untested behavior belong in the [compatibility matrix](docs/GAME_COMPATIBILITY.md).
+Earlier native checks found compatible CRCs and basic loading/rendering for ten supplied ROM sets in both the original DICE build and the newer fork. That evidence does not establish complete gameplay, audio or historical accuracy for those games. Current results and untested behavior belong in the [compatibility matrix](docs/GAME_COMPATIBILITY.md).
 
 DICE also leaves sound circuitry unfinished in several games: eight have no active mono-output hookup. The 1.0 goal preserves implemented DICE sound and documents those inherited gaps; reconstructing missing historical sound is later accuracy work.
 
@@ -58,10 +66,10 @@ DICE also leaves sound circuitry unfinished in several games: eight have no acti
 | Path | Purpose |
 | --- | --- |
 | `upstream/dice-0.9/` | Original DICE source, kept independently identifiable and checked against an inventory |
-| `core/` | Six-game development interface, validated session-owned ROM handoff and documented adaptations of the original engine |
-| `web/` | Game-first browser frontend, touch/keyboard/gamepad controls, rendering and audio delivery |
-| `tools/` | Source/game/ROM audits, native builds, reference capture, and release checks |
-| `tests/` | Audited metadata and controlled reference scenarios |
+| `core/` | ABI 4 interface to the six compiled circuits, validated ROM handoff and documented adaptations of the original engine |
+| `web/` | Desktop browser frontend: game picker, keyboard/mouse controls, Canvas rendering and Web Audio delivery |
+| `tools/` | Source/game/ROM audits, native and core builds, reference capture, original/native/Wasm comparison, packaging and release checks |
+| `tests/` | Audited metadata, replay scenarios, regression suites and desktop browser tests |
 | `docs/` | Architecture, provenance, compatibility, testing, releases, and roadmap |
 | `bug-reports/` | One reproducible report per problem |
 | `build/` | Ignored local binaries and generated evidence |
