@@ -45,9 +45,8 @@ consistency does not show that a game loads, plays or sounds right.
 
 `make test` runs `check.py` and the Python regression suites: release and
 packaging tools, game audits, reference-capture analysis, full-RGB comparison,
-core hand-off and the dev-ROM exclusion test. (The legacy CI-change classifier
-and runtime-baseline tests, and the docs-only CI fast path they served, have
-been removed: CI runs the full verification on every push and pull request.) Install the
+core hand-off, the reference-cache keys, the CI scope rule and the dev-ROM
+exclusion test. Install the
 npm dependencies first; the distribution tests read the actual fflate bytes.
 Without a native capture, the reference-mutation cases are skipped while their
 unit checks run. After `./tools/capture-pong.sh`, run them against real
@@ -89,10 +88,69 @@ The ROM-free batch reference uses the sixteen scenarios in
 ```
 
 Output goes to `build/reference-games/`, whose `latest.txt` moves only after the
-complete scenario set passes. `--scenario ID` captures one scenario; `--explore`
-is an unqualified calibration run that cannot clear the gate.
+complete scenario set passes (`last-run.txt` names the newest run of any
+selection). `--scenario ID` or `--scenarios ID,ID,...` captures a selection;
+`--explore` is an unqualified calibration run that cannot clear the gate.
 `NOCPU_GAME_REFERENCE_ROOT` may select another output root under `build/` or
-`/tmp`.
+`/tmp`. `NOCPU_ANALYZE_JOBS=N` analyzes up to N scenarios at once (default 1);
+the checks are the same.
+
+### Reference cache
+
+The original DICE tree never changes, so an original capture is a pure function
+of its inputs. With `NOCPU_REFERENCE_CACHE=build/reference-cache` (any directory
+below `build/` or `/tmp`), `capture-pong.sh` and `capture-games.sh` reuse a
+cached capture instead of running the original in Docker, and store each newly
+captured scenario once its original analysis and fresh-process repeat check
+have passed. Without the variable every original is captured fresh, as before.
+[`tools/reference-cache.py`](../tools/reference-cache.py) keys each entry
+(Pong, or one ROM-free scenario) by a SHA-256 over:
+
+- every byte of `upstream/dice-0.9/`;
+- the toolchain recipe (`tools/native/**`, `tools/build-native.sh`) and the
+  built image's identity: its base-image digest, its `dpkg-query` package
+  inventory and the SHA-256 of the pristine `dice` it compiles;
+- the SHA-256 of the adapted `dice` executable that produces the capture;
+- `tools/reference/**`, both capture scripts and the cache tool itself;
+- the scenario's manifest entry (with the manifest seed and schema) and its
+  replay bytes;
+- whether the host CPU has FMA (the original capture refuses hosts without it).
+
+Docker image IDs are recorded, not keyed: the image is rebuilt on every CI
+runner and its ID changes each time, while the package inventory and the
+compiled binaries are byte-identical (checked on run 38335534370 against a local
+build). Restore and store both refuse the cache unless the run's
+`capture-image-id.txt` equals `build/native/toolchain-provenance/image-id.txt`,
+so a capture made with another `NOCPU_NATIVE_IMAGE` is never cached or replaced
+by a cached one. The key is computed once, before capture, and a store fails if
+any input changed during the run. Any changed input is a miss and the scenario
+is captured fresh; every hit and miss is printed with its reason and recorded in
+`reference-cache.jsonl` next to the run. Before use, an entry's recorded inputs
+must equal the current ones and every file must match its recorded SHA-256.
+
+A hit skips only the Docker run. The original analysis and every native/Wasm
+comparison still run on the cached streams. The fresh-process repeat check
+(two independent original processes producing identical streams) was proven
+when the entry was stored, which requires it; on a hit the two cached attempts
+are compared again, but the original is not re-run, so that check is not
+re-proven. A restored scenario's `capture-image-id.txt` (for Pong, the run's
+`capture-image-id.txt` and so `build_identity.toolchain_image_id` in its report)
+names the image that captured it; `native_toolchain_image_id` names the image
+of this run. The analysis outputs (`evidence.json`, `positions.csv`,
+`snapshot-positions.json`) are never cached. Each scenario keeps one entry;
+`python3 tools/reference-cache.py prune` drops entries for scenarios no longer
+declared.
+
+The cache is an optimisation for pull request and branch CI and for local work.
+Its entries are hashed but not signed, so any step of a run that can write the
+cache could forge one. Release runs therefore never use it and capture every
+original fresh (see [RELEASING.md](RELEASING.md)).
+
+ROM-backed captures are never cached. Their frames are ROM-derived, and a
+GitHub Actions cache can be restored by any workflow run of the repository,
+including pull requests that never see the ROM secret. The cache tool refuses
+the scenarios in `tests/replays/rom-scenarios.json`, and `compare-rom-games.py`
+keeps capturing the original fresh in the ROM-backed validation workflow.
 
 ## Portable core and original/native/Wasm comparison
 
@@ -133,10 +191,77 @@ directory.
    `build/core/game-evidence/` (`NOCPU_GAME_EVIDENCE_ROOT` may override it).
    Streams compare full-frame RGB hashes, raw PCM and input/event/telemetry
    records; selected full-color snapshots compare byte for byte.
+   `NOCPU_REPLAY_JOBS=N` runs up to N native/Wasm replays and scenario
+   comparisons at once (default 1); the ABI probes run alongside the
+   comparison. `--original RUN --subset` replays a `--scenarios` selection: its
+   report keeps `full_batch: false`, prints `SUBSET ONLY`, skips the Breakout ABI
+   probe unless both Breakout originals are present, and never moves `latest.txt`.
 
 Read the per-scenario reports before claiming fidelity, and report frame
 equality, settled geometry tolerances and PCM separately.
 [PORT_PONG.md](PORT_PONG.md) lists the platform adaptations being compared.
+
+`make reference-full` captures (or restores from `build/reference-cache`) Pong
+and all sixteen scenarios and runs `make core-compare`; it is the local
+equivalent of CI's comparison job. Pass `NOCPU_REFERENCE_CACHE=` to capture
+every original fresh.
+
+## Quick local check
+
+```sh
+make quick
+```
+
+For agents iterating locally: `make test`, the native reference and core
+builds, Pong, and one scenario per ROM-free game (`pongdoubles-default`,
+`spacerace-default`, `breakout-default`; `NOCPU_QUICK_SCENARIOS` overrides)
+compared original/native/Wasm against cached originals. The first run fills
+`build/reference-cache` (about 1 GB); later runs skip the Docker captures. A
+quick pass is not the whole-batch qualification. Run the full comparison
+(`make reference-full`, or let CI run it) before claiming a comparison pass and
+whenever `core/`, `upstream/`, `tools/reference/`, the capture, replay or
+compare tools, `tests/replays/` or the native toolchain change. CI runs it for
+every such change and for every release.
+
+## Continuous integration
+
+`.github/workflows/verify-browser.yml` (called by `ci.yml` for pushes and pull
+requests and by `release.yml` for releases) runs these jobs:
+
+| Job | Runs | What it does |
+| --- | --- | --- |
+| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs and web UI files and looks up a marker that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
+| `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
+| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, the `nocpu-compared-<hash>` marker. |
+| `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
+| `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. |
+| `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it, and never on a release. |
+
+The scope rule is decided by content, not by a diff, and is deliberately
+small. The core hash is a SHA-256 over the path, mode and blob of every tracked
+file except documentation (`docs/**`, `bug-reports/**`, top-level `*.md`) and
+browser UI (`web/**`, `tests/browser/**`); renames and deletions change it.
+After `core-compare` passes, it saves an Actions cache marker
+`nocpu-compared-<hash>`. A later run skips the comparisons only when a
+lookup-only restore finds the marker for its own hash, that is when an earlier
+run already passed them for identical content outside docs and UI. A docs-only
+push that follows a cancelled or failed core push therefore still runs them:
+its core content never passed. A missing marker, any error, and every release
+run everything. A skip is printed in the `scope` log, as a notice and in the
+`scope` and `verify` summaries as "skipped, not passed".
+
+Original captures are cached in archives named `nocpu-reference-v1-` plus a hash
+over every scenario's inputs plus a digest of the stored entries. A run restores
+the newest archive for its inputs (or any older one) and re-checks each entry,
+so only scenarios whose inputs changed are captured again, and saves a new
+archive whenever its receipts show a newly stored entry. Caches are scoped by
+GitHub: a pull request reads the caches of its base branch and the default
+branch and writes only its own, so a fork cannot place entries or markers where
+other runs read them. Release runs never use the reference cache.
+
+Branch protection should require the single check `verify / verify` (the job
+names inside it changed in 0.1.2; `verify` requires all of them). The owner
+sets this in the repository settings.
 
 ## ROM-backed comparison (private fixtures)
 
