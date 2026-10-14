@@ -22,7 +22,6 @@ KEEP = {'application/json', 'text/plain'}
 ALLOWED = {'stunt-original-score9-software.json'}
 MAX_BYTES = 4096
 MAX_NUMERIC_RUN = 64
-FORBIDDEN = ('image/', 'video/', 'iVBORw0KGgo', '/9j/', 'R0lGOD', 'UklGR', 'trace.zip')
 
 
 def longest_numeric_list(value):
@@ -82,37 +81,67 @@ def strip(node, dropped):
     return node
 
 
-MAGIC = (b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff', b'GIF87a', b'GIF89a', b'RIFF', b'PK\x03\x04')
+# Image or trace data that could survive the attachment filter. Text markers
+# need a full base64 signature at the start of a base64 run of at least
+# MIN_RUN characters (or a data: URI); decoded bytes need a full file
+# signature at offset 0. Generic words such as "image/" in free text (a
+# commit message in Playwright's CI metadata, for example) are not evidence.
+MIN_RUN = 32
+BASE64_IMAGE = re.compile(
+    r'(?<![A-Za-z0-9+/])(?:iVBORw0KGgo|/9j/4|R0lGODlh|R0lGODdh|UklGR[A-Za-z0-9+/]{6}XRUJQ|UEsDB)'
+    r'[A-Za-z0-9+/]{%d,}' % (MIN_RUN - 12))
+DATA_URI = re.compile(r'data:(?:image|video)/[A-Za-z0-9.+-]+;base64,', re.I)
+MAGIC = (b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff', b'GIF87a', b'GIF89a', b'PK\x03\x04', b'\x1aE\xdf\xa3')
 
 
-def payload_free(text: str) -> bool:
-    return not any(marker in text for marker in FORBIDDEN)
+def text_findings(text: str) -> list[str]:
+    found = []
+    if BASE64_IMAGE.search(text):
+        found.append('base64 image or archive signature')
+    if DATA_URI.search(text):
+        found.append('data: image or video URI')
+    if 'trace.zip' in text:
+        found.append('Playwright trace reference')
+    return found
 
 
-def lenient_decode(text: str) -> bytes | None:
-    """Best-effort base64 decode of any string; None when nothing decodes.
+def bytes_findings(data: bytes) -> list[str]:
+    found = []
+    if data.startswith(MAGIC) or (data[:4] == b'RIFF' and data[8:12] in (b'WEBP', b'AVI ')):
+        found.append('file signature in decoded data')
+    found.extend(text_findings(data.decode('utf-8', 'replace')))
+    return found
 
-    Never used to clear data: callers scan the raw string as well, so a body
-    that is not valid base64 is still checked as text.
+
+def findings(report) -> list[str]:
+    """Every reason not to publish, by JSON path; never the data itself.
+
+    Declared base64 fields (kept attachment bodies, stdout/stderr buffers) are
+    strictly decoded and scanned decoded and raw; one that does not decode is a
+    finding, not a pass. Every other string is scanned as text.
     """
-    cleaned = re.sub(r'[^A-Za-z0-9+/]', '', text.replace('-', '+').replace('_', '/'))
-    cleaned = cleaned[:len(cleaned) - len(cleaned) % 4]
-    if not cleaned:
-        return None
-    try:
-        return base64.b64decode(cleaned)
-    except (binascii.Error, ValueError):
-        return None
+    result = []
 
-
-def encoded_payload_free(text: str) -> bool:
-    """Scan a possibly-base64 string both raw and, where it decodes, decoded."""
-    if not payload_free(text):
-        return False
-    decoded = lenient_decode(text)
-    if decoded is None:
-        return True
-    return payload_free(decoded.decode('utf-8', 'replace')) and not any(magic in decoded for magic in MAGIC)
+    def walk(node, path):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                walk(value, path + [str(key)])
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                walk(value, path + [str(index)])
+        elif isinstance(node, str):
+            where = '/'.join(path)
+            declared = (len(path) >= 3 and path[-3] == 'attachments' and path[-1] == 'body') or \
+                (len(path) >= 3 and path[-3] in ('stdout', 'stderr') and path[-1] == 'buffer')
+            reasons = text_findings(node)
+            if declared:
+                try:
+                    reasons += bytes_findings(base64.b64decode(node, validate=True))
+                except (binascii.Error, ValueError):
+                    reasons.append('declared base64 field does not decode')
+            result.extend(f'{where}: {reason}' for reason in reasons)
+    walk(report, [])
+    return result
 
 
 def main() -> int:
@@ -122,23 +151,10 @@ def main() -> int:
     args = parser.parse_args()
     dropped = []
     report = strip(json.loads(args.report.read_text()), dropped)
-    # Attachment bodies and stdout/stderr buffers are base64; any other field
-    # may be too. Scan the whole text raw, and every such string decoded too.
-    text = json.dumps(report, indent=2)
-    encoded = []
-
-    def bodies(node):
-        if isinstance(node, dict):
-            for key in ('body', 'buffer'):
-                if isinstance(node.get(key), str):
-                    encoded.append(node[key])
-            for value in node.values():
-                bodies(value)
-        elif isinstance(node, list):
-            for value in node:
-                bodies(value)
-    bodies(report)
-    if not payload_free(text) or not all(encoded_payload_free(value) for value in encoded):
+    problems = findings(report)
+    if problems:
+        for problem in problems:
+            print('Refusing:', problem, file=sys.stderr)
         print('Refusing to write: the filtered report still contains image or trace data.', file=sys.stderr)
         return 1
     report['nocpu_filter'] = {'dropped_attachments': sorted(set(map(str, dropped))),
