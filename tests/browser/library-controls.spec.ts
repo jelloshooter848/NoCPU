@@ -123,8 +123,52 @@ test('return to library disposes the running circuit and audio before a fresh RO
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
-test('the title offers Continue for the last started playable game and leads with Library otherwise', { tag: '@game-pong' }, async ({ page }) => {
-  const resume = page.getByTestId('continue-game');
+test('the title leads with Library, and the Library opens on the last game played', { tag: '@game-pongdoubles' }, async ({ page }) => {
+  const library = page.getByTestId('open-library');
+  const titleButtons = page.locator('[data-panel="title"] .menu-actions button');
+  await page.goto('?debug');
+  await screen(page, 'title');
+  await expect(titleButtons).toHaveText(['Library', 'Settings', 'How to play', 'About']);
+  await expect(page.getByTestId('continue-game')).toHaveCount(0);
+  await expect(library).toBeFocused();
+  await expect(library).toHaveClass(/primary-button/);
+  // With nothing played yet the Library opens on its first game.
+  await library.click();
+  await screen(page, 'library');
+  await expect(page.locator('.library-game').first()).toBeFocused();
+  await page.getByTestId('back').click();
+  await screen(page, 'title');
+  await playFromLibrary(page, 'pongdoubles');
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await pauseMenu(page);
+  await page.getByTestId('return-title').click();
+  await screen(page, 'title');
+  await expect(titleButtons).toHaveText(['Library', 'Settings', 'How to play', 'About']);
+  await expect(library).toBeFocused();
+  await expect(library).toHaveClass(/primary-button/);
+  await page.keyboard.press('Enter');
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-pongdoubles')).toBeFocused();
+  // Back from a game's info page still returns focus to the game chosen.
+  await page.getByTestId('game-breakout').click();
+  await screen(page, 'game-info');
+  await page.getByTestId('back').click();
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-breakout')).toBeFocused();
+  await page.getByTestId('back').click();
+  await screen(page, 'title');
+  await page.reload();
+  await screen(page, 'title');
+  await expect(library).toBeFocused();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
+  expect(saved.version).toBe(6);
+  expect(saved.preferences.lastGameId).toBe('pongdoubles');
+  await library.click();
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-pongdoubles')).toBeFocused();
+});
+
+test('a remembered game is kept only while playable; stale ids open the Library on its first game without a warning', async ({ page }) => {
   const library = page.getByTestId('open-library');
   const remember = (lastGameId: unknown) => page.evaluate((lastGameId) => {
     const stored = JSON.parse(localStorage.getItem('nocpu.preferences')!);
@@ -132,74 +176,32 @@ test('the title offers Continue for the last started playable game and leads wit
     localStorage.setItem('nocpu.preferences', JSON.stringify(stored));
   }, lastGameId);
   await page.goto('?debug');
-  await screen(page, 'title');
-  await expect(resume).toBeHidden();
-  await expect(library).toBeFocused();
-  await expect(library).toHaveClass(/primary-button/);
-  await playFromLibrary(page);
-  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
-  await pauseMenu(page);
-  await page.getByTestId('return-title').click();
-  await screen(page, 'title');
-  await expect(resume).toHaveText('Continue: Pong');
-  await expect(resume).toBeFocused();
-  await expect(library).not.toHaveClass(/primary-button/);
+  await titleSettings(page);
+  await page.locator('#volume').fill('50');
+  // A playable ROM game is remembered even while its ROM is not imported.
+  await remember('stuntcycle');
   await page.reload();
   await screen(page, 'title');
-  await expect(resume).toHaveText('Continue: Pong');
-  await expect(resume).toBeFocused();
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
-  expect(saved.version).toBe(6);
-  expect(saved.preferences.lastGameId).toBe('pong');
-  await resume.click();
-  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
-  expect(await page.evaluate(async () => (await (window as any).__nocpuDebug.snapshot()).gameId)).toBe('pong');
+  await library.click();
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
   // A remembered game that is unknown or not playable in this build is ignored
   // without disturbing the saved settings.
   for (const stale of ['antiaircraft', 'bogus', 7]) {
     await remember(stale);
     await page.reload();
     await screen(page, 'title');
-    await expect(resume).toBeHidden();
     await expect(library).toBeFocused();
     await expect(library).toHaveClass(/primary-button/);
+    await library.click();
+    await screen(page, 'library');
+    await expect(page.locator('.library-game').first()).toBeFocused();
+    await expect(page.locator('.library-game').first()).toHaveAttribute('data-game-id', 'pong');
+    await page.getByTestId('back').click();
     await titleSettings(page);
     await expect(page.getByTestId('preferences-status')).toHaveText('Settings are saved on this device.');
+    await expect(page.locator('#volume')).toHaveValue('50');
   }
-});
-
-test('Continue to a remembered ROM game without its ROM opens the game info message as Play does', async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as any).__continueWorkers = 0;
-    const NativeWorker = window.Worker;
-    window.Worker = class extends NativeWorker {
-      constructor(url: string | URL, options?: WorkerOptions) { super(url, options); (window as any).__continueWorkers += 1; }
-    };
-  });
-  await page.goto('?debug');
-  await titleSettings(page);
-  await page.locator('#volume').fill('50');
-  await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('nocpu.preferences')!);
-    stored.preferences.lastGameId = 'stuntcycle';
-    localStorage.setItem('nocpu.preferences', JSON.stringify(stored));
-  });
-  await page.reload();
-  await screen(page, 'title');
-  await expect(page.getByTestId('continue-game')).toHaveText('Continue: Stunt Cycle');
-  await expect(page.getByTestId('continue-game')).toBeFocused();
-  await page.getByTestId('continue-game').click();
-  await screen(page, 'game-info');
-  await expect(page.locator('#game-info-heading')).toHaveText('Stunt Cycle');
-  await expect(page.getByTestId('rom-launch-message')).toBeVisible();
-  await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
-  expect(await page.evaluate(() => (window as any).__continueWorkers), 'A missing ROM must fail before constructing a core worker').toBe(0);
-  await page.getByTestId('back').click();
-  await screen(page, 'library');
-  await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
-  await page.getByTestId('back').click();
-  await screen(page, 'title');
-  await expect(page.getByTestId('continue-game')).toHaveText('Continue: Stunt Cycle');
 });
 
 test('keyboard assignment consumes capture, rejects conflicts, updates help and persists actual paddle controls', async ({ page }) => {

@@ -8,8 +8,8 @@ fifteen DICE games are listed but not ported yet.
 
 ## What it offers
 
-- **Game picker.** The title screen has Continue, for the last game played,
-  and the Library, which lists all 21 titles with their maker, year, ROM
+- **Game picker.** The title screen leads with the Library, which opens on
+  the last game played and lists all 21 titles with their maker, year, ROM
   requirement, controls and audio status; unported titles are marked "Browser
   port pending".
 - **Game canvas.** The circuit's own raster, at its original orientation and

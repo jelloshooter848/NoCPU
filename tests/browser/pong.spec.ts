@@ -301,7 +301,7 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
     await expect(page.getByTestId('reset')).toBeDisabled();
-    // Continue offers only a game that actually loaded.
+    // Only a game that actually loaded is remembered for the Library.
     const rememberedGame = () => page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences') ?? '{}').preferences?.lastGameId ?? null);
     expect(await rememberedGame()).toBeNull();
     await captureShellPanel(page, testInfo, 'error');
@@ -583,7 +583,7 @@ test('desktop window sizes keep the whole original raster and the action bar in 
 test('title and game menus support keyboard navigation without leaking gameplay input', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await page.goto('./?debug');
-  await expect(page.getByTestId('continue-game')).toBeHidden();
+  await expect(page.getByTestId('continue-game')).toHaveCount(0);
   await expect(page.getByTestId('open-library')).toBeFocused();
   await captureShellPanel(page, testInfo, 'title');
   await page.keyboard.press('Enter');
@@ -674,8 +674,7 @@ test('returning to the title stops playback and starting again creates a fresh c
   await pauseMenu(page);
   await page.getByTestId('return-title').click();
   await page.keyboard.up('s');
-  await expect(page.getByTestId('continue-game')).toHaveText('Continue: Pong');
-  await expect(page.getByTestId('continue-game')).toBeFocused();
+  await expect(page.getByTestId('open-library')).toBeFocused();
   await expect(page.getByTestId('insert-coin')).toBeHidden();
   await expectViewportShell(page);
   const played = await page.evaluate(() => (window as any).__audioProbe.started);
@@ -686,7 +685,10 @@ test('returning to the title stops playback and starting again creates a fresh c
     catch { return true; }
   }), 'Returning to title disposes the old circuit observation').toBe(true);
   await page.screenshot({ path: testInfo.outputPath('shell-returned-title.png') });
-  await page.getByTestId('continue-game').click();
+  await page.getByTestId('open-library').click();
+  await expect(page.getByTestId('game-pong')).toBeFocused();
+  await page.getByTestId('game-pong').click();
+  await page.getByTestId('play-selected').click();
   await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
   await waitSimulation(page, 800_000_000_000n);
   const fresh = await snapshot(page);

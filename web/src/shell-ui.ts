@@ -38,7 +38,6 @@ export function createShellMarkup(base: string, source: string, build: string): 
           <h1 id="title-heading" class="game-logo">NoCPU</h1>
           <p class="game-subtitle">DICE circuit games in your desktop browser</p>
           <div class="menu-actions">
-            <button class="primary-button play-button" data-testid="continue-game" hidden>Continue</button>
             <button class="primary-button" data-action="library" data-testid="open-library">Library</button>
             <button data-action="settings">Settings</button>
             <button data-action="help">How to play</button>

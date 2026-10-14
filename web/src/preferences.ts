@@ -15,7 +15,7 @@ export interface Preferences {
   bindingsByGame: Record<Exclude<PlayableGameId, 'pong'>, Bindings>;
   optionsByGame: GameOptionsById;
   mouseByGame: MouseSlots;
-  /** The last game the player started, offered as Continue on the title screen. */
+  /** The last game the player started; the Library opens focused on it. */
   lastGameId: PlayableGameId | null;
 }
 export interface PreferencesResult { preferences: Preferences; status: 'available' | 'unavailable' | 'recovered'; message?: string }
@@ -68,8 +68,8 @@ function recover(value: unknown, version = PREFERENCES_VERSION): { preferences: 
       if (validMouseSlot(gameId, mouse[gameId])) preferences.mouseByGame[gameId] = mouse[gameId] as number | null; else changed = true;
     }
   }
-  // A remembered game that is no longer playable is dropped silently: Continue
-  // simply stays hidden and no setting the player chose is lost.
+  // A remembered game that is no longer playable is dropped silently: the
+  // Library opens on its first game and no setting the player chose is lost.
   if (version >= 6 && isPlayableGameId(value.lastGameId)) preferences.lastGameId = value.lastGameId;
   return { preferences, changed };
 }
