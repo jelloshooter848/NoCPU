@@ -10,6 +10,11 @@ if (remoteBase) {
   }
 }
 
+// ROM-backed runs (NOCPU_TEST_ROM_SAFE=1) record no traces, videos, failure
+// screenshots or HTML report: their frames would be ROM-derived. The JSON report
+// is filtered by tools/strip-rom-report.py before anything leaves the runner.
+const romSafe = process.env.NOCPU_TEST_ROM_SAFE === '1';
+
 export default defineConfig({
   testDir: './tests/browser',
   timeout: 60_000,
@@ -18,12 +23,15 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  reporter: [['list'], ['html', { outputFolder: 'build/playwright-report', open: 'never' }], ['json', { outputFile: 'build/browser-matrix.json' }]],
+  reporter: romSafe
+    ? [['list'], ['json', { outputFile: 'build/rom-browser-matrix.json' }]]
+    : [['list'], ['html', { outputFolder: 'build/playwright-report', open: 'never' }], ['json', { outputFile: 'build/browser-matrix.json' }]],
   outputDir: 'build/browser-results',
   use: {
     baseURL: remoteBase ?? 'http://127.0.0.1:4173/NoCPU/',
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    trace: romSafe ? 'off' : 'retain-on-failure',
+    screenshot: romSafe ? 'off' : 'only-on-failure',
+    video: 'off',
   },
   webServer: remoteBase ? undefined : {
     command: process.env.NOCPU_TEST_PACKAGED === '1'
