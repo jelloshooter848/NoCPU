@@ -13,6 +13,8 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-14
+
 ### Added
 
 - Each release now publishes a desktop acceptance record (`nocpu-X.Y.Z-acceptance.json`) showing
@@ -86,7 +88,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...v0.1.0
