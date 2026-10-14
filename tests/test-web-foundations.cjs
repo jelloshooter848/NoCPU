@@ -264,7 +264,7 @@ test('version-1 migration preserves custom Pong keys, pad axes, buttons and soun
   assert.deepEqual(migrated.preferences.bindingsByGame.pongdoubles, schema.defaultBindings('pongdoubles'));
   assert.deepEqual(migrated.preferences.bindingsByGame.spacerace, schema.defaultBindings('spacerace'));
   assert.equal(prefs.savePreferences(migrated.preferences, old).status, 'available');
-  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 5);
+  assert.equal(JSON.parse(old.getItem(prefs.PREFERENCES_KEY)).version, 6);
   assert.deepEqual(prefs.loadPreferences(old).preferences, migrated.preferences);
 });
 
@@ -355,7 +355,7 @@ test('version-2 migration preserves arbitrary three-game mappings, options and s
   assert.deepEqual(migrated.preferences.bindingsByGame.breakout, schema.defaultBindings('breakout'));
   assert.deepEqual(migrated.preferences.optionsByGame.breakout, { bonusCredit: 300, cabinet: 'normal', coinage: 1, balls: 3 });
   assert.equal(prefs.savePreferences(migrated.preferences, storage).status, 'available');
-  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 5);
+  assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 6);
   assert.deepEqual(prefs.loadPreferences(storage).preferences, migrated.preferences);
 });
 
@@ -435,7 +435,7 @@ test('Version 4 preferences load without loss and default the desktop mouse assi
   assert.equal(result.preferences.optionsByGame.spacerace.coinage, 2);
   assert.deepEqual(result.preferences.mouseByGame, prefs.DEFAULT_PREFERENCES.mouseByGame);
   const saved = prefs.savePreferences(result.preferences, storage);
-  assert.equal(saved.status, 'available'); assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 5);
+  assert.equal(saved.status, 'available'); assert.equal(JSON.parse(storage.getItem(prefs.PREFERENCES_KEY)).version, 6);
   // Version 4 with an invalid field still loads, reporting only that recovery.
   const bad = structuredClone(previous); bad.volume = 7;
   const recovered = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 4, preferences: bad })));
@@ -454,6 +454,23 @@ test('mouse assignments persist per game and invalid slots recover to the defaul
     assert.equal(result.preferences.mouseByGame.pongdoubles, 3);
   }
   assert.equal(prefs.isMouseGame('spacerace'), false); assert.equal(prefs.isMouseGame('indy4'), false);
+});
+
+test('the last started game persists, version 5 migrates silently and an unplayable remembered id is ignored', () => {
+  assert.equal(prefs.DEFAULT_PREFERENCES.lastGameId, null);
+  const value = prefs.clonePreferences(); value.lastGameId = 'breakout'; value.volume = .33;
+  const storage = memoryStorage(); assert.equal(prefs.savePreferences(value, storage).status, 'available');
+  assert.equal(prefs.loadPreferences(storage).preferences.lastGameId, 'breakout');
+  const previous = structuredClone(value); delete previous.lastGameId; previous.mouseByGame.pong = 1;
+  const migrated = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: previous })));
+  assert.equal(migrated.status, 'available'); assert.equal(migrated.message, undefined);
+  assert.equal(migrated.preferences.lastGameId, null); assert.equal(migrated.preferences.volume, .33); assert.equal(migrated.preferences.mouseByGame.pong, 1);
+  // Older versions never stored a remembered game, so a stray field there is not trusted.
+  assert.equal(prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: value }))).preferences.lastGameId, null);
+  for (const stale of ['antiaircraft', 'unknown', 3, '', undefined]) {
+    const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: { ...value, lastGameId: stale } })));
+    assert.equal(result.status, 'available'); assert.equal(result.preferences.lastGameId, null); assert.equal(result.preferences.volume, .33);
+  }
 });
 
 test('About build string: tag build, untagged dev build with short commit, and no manifest', () => {

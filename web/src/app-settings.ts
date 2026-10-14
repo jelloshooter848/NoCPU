@@ -53,6 +53,14 @@ export function createSettingsUI(options: SettingsOptions) {
     options.onPreferences(preferences);
     if (bindingsChanged) options.onBindings(preferences);
   }
+  // Remembering the last game is not a settings change, so a load or migration
+  // notice stays visible; only a newly failing save is reported.
+  function setLastGame(lastGameId: PlayableGameId): void {
+    if (preferences.lastGameId === lastGameId) return;
+    const saved = savePreferences({ ...preferences, lastGameId });
+    preferences = saved.preferences;
+    if (saved.status === 'unavailable' && loaded.status === 'available') { loaded = saved; preferencesStatus(); }
+  }
   function renderBindings(): void {
     const bindings = selectedBindings();
     const actions = actionsForGame(controlGameId);
@@ -346,6 +354,7 @@ export function createSettingsUI(options: SettingsOptions) {
     get capturing() { return !!capture; },
     setVolume: (volume: number) => setPreferences({ ...preferences, volume }),
     setMuted: (muted: boolean) => setPreferences({ ...preferences, muted }),
+    setLastGame,
     cancelCapture, handleCaptureKey, pollCapture, syncGamepads, refreshRoms, romDescription, romReady,
     runtimeMembers: library.runtimeMembers,
     showRomError: (message: string) => { romStatus.textContent = message; },

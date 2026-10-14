@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { auditedGames, invalidAntiAircraftZips, syntheticGameZip, syntheticDump, zip } from './rom-fixtures';
 import { screen, titleSettings, importZip, storedArchive } from './app-helpers';
-import { snapshot, start, expectViewportShell, waitSimulation } from './helpers';
+import { snapshot, start, expectViewportShell, waitSimulation, playFromLibrary } from './helpers';
 
 test('preferences retain chosen sound settings and recover documented migrations, corruption and unsupported versions', async ({ page }) => {
   await page.goto('?debug');
@@ -15,7 +15,7 @@ test('preferences retain chosen sound settings and recover documented migrations
   await page.getByTestId('mute').click();
   await expect(page.getByTestId('mute')).toHaveAttribute('aria-pressed', 'true');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
-  expect(saved.version).toBe(5);
+  expect(saved.version).toBe(6);
   expect(saved.preferences.volume).toBe(.23);
   expect(saved.preferences.muted).toBe(true);
   await page.reload();
@@ -47,7 +47,7 @@ test('preferences retain chosen sound settings and recover documented migrations
   await titleSettings(page);
   await expect(page.getByTestId('binding-p1Down')).toHaveText('S');
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
@@ -67,7 +67,7 @@ test('denied preference reads and writes leave sound controls and ROM-free play 
   await page.keyboard.press('j');
   await expect(page.getByTestId('binding-p1Down')).toHaveText('J');
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
@@ -82,7 +82,7 @@ test('denied preference reads and writes leave sound controls and ROM-free play 
     await expect(writableFailure.getByTestId('preferences-status')).toContainText('could not be saved');
     await expect(writableFailure.locator('#volume')).toHaveValue('17');
     await writableFailure.getByTestId('back').click();
-    await writableFailure.getByTestId('play-pong').click();
+    await playFromLibrary(writableFailure);
     await expect(writableFailure.getByTestId('insert-coin')).toBeEnabled();
   } finally { await writableFailure.close(); }
 });
@@ -204,7 +204,7 @@ test('remembered ZIP replacement, corruption, eviction and remove recover from a
   await page.getByTestId('remove-antiaircraft').click();
   await expect(page.getByTestId('rom-item-antiaircraft')).toHaveCount(0);
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
@@ -234,7 +234,7 @@ test('storage denial, quota failure and one bounded unresponsive store preserve 
   expect(watchdogs.aborts).toBeGreaterThanOrEqual(1);
   expect(Date.now() - began, 'One store failure must resolve once, not ten sequential timeouts').toBeLessThan(8500);
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
@@ -306,7 +306,7 @@ test('fullscreen success, unsupported and rejected requests preserve ordinary ga
   await expect(page.getByTestId('fullscreen-status')).toContainText('unavailable');
   await page.screenshot({ path: testInfo.outputPath('fullscreen-unavailable-fallback.png') });
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);

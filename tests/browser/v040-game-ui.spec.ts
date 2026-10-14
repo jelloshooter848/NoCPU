@@ -125,7 +125,7 @@ test('historical custom Pong settings migrate intact while new-game remaps persi
   await expect(page.getByTestId('binding-p3Up')).toHaveText('T'); await expect(page.getByTestId('gamepad-p4-pad')).toHaveValue('3');
   await page.getByTestId('binding-p3Up').click(); await page.keyboard.press('u'); await expect(page.getByTestId('binding-p3Up')).toHaveText('U');
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
-  expect(persisted.version).toBe(5); expect(persisted.preferences.volume).toBe(.23); expect(persisted.preferences.muted).toBe(true);
+  expect(persisted.version).toBe(6); expect(persisted.preferences.volume).toBe(.23); expect(persisted.preferences.muted).toBe(true);
   for (const action of Object.keys(bindings.keyboard)) {
     expect(persisted.preferences.bindings.keyboard[action]).toEqual(bindings.keyboard[action as keyof typeof bindings.keyboard]);
     expect(persisted.preferences.bindings.gamepad.buttons[action]).toEqual(bindings.gamepad.buttons[action as keyof typeof bindings.gamepad.buttons]);

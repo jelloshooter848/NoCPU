@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { auditedGames } from './rom-fixtures';
 import { screen, titleSettings, installGamepads, padState, padPresent } from './app-helpers';
 import { snapshot, start, waitSimulation, paddles, initialRenderedPaddles, installAudioProbe,
-  openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectDesktopLayout } from './helpers';
+  openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectDesktopLayout, playFromLibrary } from './helpers';
 
 test('all audited games have truthful library, ROM, sound and control information with six implemented circuits and player-ROM launch gates', async ({ page }) => {
   await page.addInitScript(() => {
@@ -121,6 +121,85 @@ test('return to library disposes the running circuit and audio before a fresh RO
   expect(BigInt(fresh.timeps)).toBeLessThan(BigInt(running.timeps));
   await page.getByTestId('insert-coin').click();
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
+});
+
+test('the title offers Continue for the last started playable game and leads with Library otherwise', { tag: '@game-pong' }, async ({ page }) => {
+  const resume = page.getByTestId('continue-game');
+  const library = page.getByTestId('open-library');
+  const remember = (lastGameId: unknown) => page.evaluate((lastGameId) => {
+    const stored = JSON.parse(localStorage.getItem('nocpu.preferences')!);
+    stored.preferences.lastGameId = lastGameId;
+    localStorage.setItem('nocpu.preferences', JSON.stringify(stored));
+  }, lastGameId);
+  await page.goto('?debug');
+  await screen(page, 'title');
+  await expect(resume).toBeHidden();
+  await expect(library).toBeFocused();
+  await expect(library).toHaveClass(/primary-button/);
+  await playFromLibrary(page);
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await pauseMenu(page);
+  await page.getByTestId('return-title').click();
+  await screen(page, 'title');
+  await expect(resume).toHaveText('Continue: Pong');
+  await expect(resume).toBeFocused();
+  await expect(library).not.toHaveClass(/primary-button/);
+  await page.reload();
+  await screen(page, 'title');
+  await expect(resume).toHaveText('Continue: Pong');
+  await expect(resume).toBeFocused();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!));
+  expect(saved.version).toBe(6);
+  expect(saved.preferences.lastGameId).toBe('pong');
+  await resume.click();
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  expect(await page.evaluate(async () => (await (window as any).__nocpuDebug.snapshot()).gameId)).toBe('pong');
+  // A remembered game that is unknown or not playable in this build is ignored
+  // without disturbing the saved settings.
+  for (const stale of ['antiaircraft', 'bogus', 7]) {
+    await remember(stale);
+    await page.reload();
+    await screen(page, 'title');
+    await expect(resume).toBeHidden();
+    await expect(library).toBeFocused();
+    await expect(library).toHaveClass(/primary-button/);
+    await titleSettings(page);
+    await expect(page.getByTestId('preferences-status')).toHaveText('Settings are saved on this device.');
+  }
+});
+
+test('Continue to a remembered ROM game without its ROM opens the game info message as Play does', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__continueWorkers = 0;
+    const NativeWorker = window.Worker;
+    window.Worker = class extends NativeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) { super(url, options); (window as any).__continueWorkers += 1; }
+    };
+  });
+  await page.goto('?debug');
+  await titleSettings(page);
+  await page.locator('#volume').fill('50');
+  await page.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem('nocpu.preferences')!);
+    stored.preferences.lastGameId = 'stuntcycle';
+    localStorage.setItem('nocpu.preferences', JSON.stringify(stored));
+  });
+  await page.reload();
+  await screen(page, 'title');
+  await expect(page.getByTestId('continue-game')).toHaveText('Continue: Stunt Cycle');
+  await expect(page.getByTestId('continue-game')).toBeFocused();
+  await page.getByTestId('continue-game').click();
+  await screen(page, 'game-info');
+  await expect(page.locator('#game-info-heading')).toHaveText('Stunt Cycle');
+  await expect(page.getByTestId('rom-launch-message')).toBeVisible();
+  await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
+  expect(await page.evaluate(() => (window as any).__continueWorkers), 'A missing ROM must fail before constructing a core worker').toBe(0);
+  await page.getByTestId('back').click();
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
+  await page.getByTestId('back').click();
+  await screen(page, 'title');
+  await expect(page.getByTestId('continue-game')).toHaveText('Continue: Stunt Cycle');
 });
 
 test('keyboard assignment consumes capture, rejects conflicts, updates help and persists actual paddle controls', async ({ page }) => {
@@ -267,7 +346,7 @@ test('gamepad capture rejects conflicts, assigns independent axes and consumes t
   await expect(page.locator('#game-help-content')).toContainText('Player 1 (left paddle): controller 1, axis 3');
   await expect(page.locator('#game-help-content')).toContainText('Controller 1 · button 3');
   await page.getByTestId('back').click();
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();
   const fresh = await snapshot(page);
   expect(fresh.attract).toBe(true);
@@ -327,7 +406,7 @@ test('library, info and settings stay reachable inside small desktop windows', a
     await screen(page, 'library');
     await page.screenshot({ path: testInfo.outputPath(`library-${viewport.width}x${viewport.height}.png`) });
     await page.getByTestId('back').click();
-    await page.getByTestId('play-pong').click();
+    await playFromLibrary(page);
     await expect(page.getByTestId('insert-coin')).toBeEnabled();
     await expectDesktopLayout(page);
   }

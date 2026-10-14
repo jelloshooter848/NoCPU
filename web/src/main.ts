@@ -27,7 +27,7 @@ void fetch(`${base}BUILD-MANIFEST.json`, { cache: 'no-store' }).then(async (resp
   element('#build-string').textContent = build;
   element('[data-testid="title-version"]').textContent = build;
 }).catch(() => { /* No manifest: keep the development build string. */ });
-const playButton = element<HTMLButtonElement>('[data-testid="play-pong"]');
+const continueButton = element<HTMLButtonElement>('[data-testid="continue-game"]');
 const startButton = element<HTMLButtonElement>('[data-testid="start-game"]');
 const start2Button = element<HTMLButtonElement>('[data-testid="start-game-2"]');
 const coinButton = element<HTMLButtonElement>('[data-testid="insert-coin"]');
@@ -141,7 +141,21 @@ settingsUI.syncGamepads([]);
 
 function focusGame(): void { canvas.focus({ preventScroll: true }); }
 
+// Continue offers the last started game while it is still playable; otherwise
+// Library is the primary title action.
+function continueGameId(): PlayableGameId | undefined {
+  const gameId = settingsUI.preferences.lastGameId;
+  return gameId && GAMES.some((game) => game.id === gameId && game.playable) ? gameId : undefined;
+}
+function renderTitle(): void {
+  const gameId = continueGameId();
+  continueButton.hidden = !gameId;
+  continueButton.textContent = gameId ? `Continue: ${getGame(gameId).name}` : 'Continue';
+  element('[data-testid="open-library"]').classList.toggle('primary-button', !gameId);
+}
+
 function showScreen(next: Screen): void {
+  if (next === 'title') renderTitle();
   screen = next;
   shell.dataset.screen = next;
   const playing = next === 'playing';
@@ -161,7 +175,7 @@ function showScreen(next: Screen): void {
     const panel = element<HTMLElement>(`[data-panel="${next}"]`);
     panel.tabIndex = -1;
     const focusTarget = (next === 'library' ? panel.querySelector<HTMLElement>('.library-game') : undefined)
-      ?? panel.querySelector<HTMLElement>('button:not(:disabled), a, input:not(:disabled), select') ?? panel;
+      ?? panel.querySelector<HTMLElement>('button:not(:disabled):not([hidden]), a, input:not(:disabled), select') ?? panel;
     focusTarget.focus({ preventScroll: true });
   }
 }
@@ -483,6 +497,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
     showScreen('game-info');
     return;
   }
+  settingsUI.setLastGame(gameId);
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
   worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
@@ -608,7 +623,7 @@ function disposeGame(destination: 'title' | 'library'): void {
   resetButton.disabled = true;
   updatePads();
   updateSoundButton();
-  status.textContent = 'Choose Play Pong to start.';
+  status.textContent = 'Choose a game from the Library.';
   hudStatus.textContent = '';
   context?.clearRect(0, 0, canvas.width, canvas.height);
   navigation.length = 0;
@@ -769,7 +784,7 @@ window.addEventListener('pageshow', (event) => {
     audio.pause();
   }
 });
-playButton.addEventListener('click', () => { void startGame(); });
+continueButton.addEventListener('click', () => { const gameId = continueGameId(); if (gameId) void startGame(gameId); });
 element('#retry').addEventListener('click', () => { void startGame(activeGameId); });
 coinButton.addEventListener('click', () => insertCoin());
 document.querySelectorAll<HTMLButtonElement>('.indy-coin').forEach((button) => {
