@@ -81,9 +81,9 @@ the release steps.
 | Milestone | Release | Status |
 | --- | --- | --- |
 | Reset baseline | 0.1.0 | Tagged 2026-10-13, not published (release run failed; see owner decision) |
-| Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.x patch | In review |
-| Original/native/Wasm comparisons re-run for the six ported games | 0.1.x patch | In review: 6/6 pass, Indy 4 renderer fix ([ACCEPTANCE.md](ACCEPTANCE.md)) |
-| Faster CI; ROM browser tests in CI; Indy 4 Firefox test fix | 0.1.2 | In progress |
+| Desktop UI (Phase 2): mobile, touch and device qualification removed; minimal desktop UI with build string | 0.1.1 | Released (2026-10-14) |
+| Original/native/Wasm comparisons re-run for the six ported games | 0.1.1 | Released (2026-10-14): 6/6 pass, Indy 4 renderer fix ([ACCEPTANCE.md](ACCEPTANCE.md)); desktop browser acceptance still pending |
+| Faster CI; ROM browser tests in CI; Indy 4 Firefox test fix | 0.1.2 | In review |
 | Remaining reset leftovers | 0.1.x patch | Planned |
 | ROM-free batch A | 0.2.0 | Planned |
 | ROM-free batch B | 0.3.0 | Planned |
@@ -111,6 +111,8 @@ content at that point: the new agent rules, roadmap, release process and ROM
 tooling, with the legacy browser UI still in place. It makes no desktop accuracy
 claim. The tag stays, but the release was not published: its release run failed
 (see the owner decision of 2026-10-13), so 0.1.1 is the first published release.
+v0.1.1 was published on 2026-10-14 (release run 38491883569, GitHub Release and Pages
+from commit `b0eec13`).
 
 1. Rewrite the agent rules, roadmap and version. (Done.)
 2. Replace the legacy physical-device release gate with a desktop release readiness record that keeps the device gate deferred. (Done.)
