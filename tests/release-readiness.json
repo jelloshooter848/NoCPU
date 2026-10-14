@@ -1,15 +1,15 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "version": "0.1.2",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.1.2 verification release: faster CI (cached original reference captures for pull request and branch runs, content-scoped comparison skips, parallel browser engines; releases always capture fresh), the ROM-backed Stunt Cycle and Indy 4 browser tests in CI, and the Indy 4 Firefox test fix. The game core and browser app code are unchanged from 0.1.1; there are no gameplay changes. Desktop acceptance (the desktop browser checks in docs/TESTING.md) is still pending, so it makes no desktop accuracy claim; the physical-device gate stays deferred.",
+  "release_scope": "0.1.3 reset-closing patch: each release generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core and browser app code are unchanged from 0.1.2; there are no gameplay changes. The physical-device gate stays deferred.",
   "desktop_acceptance": {
-    "status": "pending",
-    "scope": "Original/native/Wasm comparisons for the six ported games (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) re-run against the reduced desktop frontend, plus the desktop browser checks in docs/TESTING.md in at least Chrome and Firefox. Scheduled for the 0.1.x patch releases (docs/ROADMAP.md).",
-    "games": [],
-    "browsers": [],
-    "evidence": null
+    "policy": "generated_at_release",
+    "required_for_release": true,
+    "games": ["pong", "pongdoubles", "spacerace", "breakout", "stuntcycle", "indy4"],
+    "browsers": ["chromium", "firefox"],
+    "scope": "The release workflow's browser jobs test the exact packaged site; tools/desktop-acceptance.py turns their results into the nocpu-X.Y.Z-acceptance.json release asset, bound to that site's runtime_sha256. It is passed only when every listed game's tagged browser tests passed in every listed engine (Playwright builds of Chromium and Firefox; Stunt Cycle and Indy 4 from the private ROM fixtures), and publishing refuses a release without it. Original/native/Wasm comparisons are recorded in docs/ACCEPTANCE.md; optional human checks there are supplementary and never replace this gate."
   },
   "physical_device_gate": {
     "status": "deferred",
