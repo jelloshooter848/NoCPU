@@ -13,6 +13,12 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- Each release now publishes a desktop acceptance record (`nocpu-X.Y.Z-acceptance.json`) showing
+  that the six playable games passed their browser checks in Chromium and Firefox on exactly that
+  build. No gameplay changes.
+
 ## [0.1.2] - 2026-10-14
 
 ### Changed

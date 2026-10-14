@@ -15,10 +15,12 @@ capabilities, not verified gameplay.
 | Unported, ROM-backed | Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase |
 
 The six compiled games had original/native/Wasm comparison evidence in the
-legacy line (see [Verification status](#verification-status)). On the
-restarted line their comparisons and desktop browser checks are re-run in the
-0.1.x patch releases; until then no game is accepted as accurate on the
-restarted line, and legacy evidence is not a restarted-line pass.
+legacy line (see [Verification status](#verification-status)); legacy evidence
+is not a restarted-line pass. On the restarted line all six passed their
+bounded original/native/Wasm comparisons in 0.1.1 ([ACCEPTANCE.md](ACCEPTANCE.md),
+with the coverage gaps listed there), and from 0.1.3 each release publishes a
+desktop acceptance record of automated browser checks in Playwright's Chromium
+and Firefox builds ([RELEASING.md](RELEASING.md#the-desktop-acceptance-record)).
 
 ## Source inventory
 
@@ -79,7 +81,7 @@ name the legacy line come from its ledgers in [docs/legacy/](legacy/README.md)
 | Pong Doubles, Space Race | Legacy: six original-derived scenarios matched timing, events and media through both portable reset epochs, covering Doubles' 11/15 score and Space Race's coinage and 470/970/1470-kilohm play time ([0.4.0](legacy/0.4.0_VALIDATION.md)) |
 | Breakout | Legacy: the sixteen-scenario ROM-free batch matched streams, RGB hashes, selected color snapshots and reset, with canonical ABI traces; coinage, cabinet, ball count and the shared paddle covered, bonus-credit awards unexercised ([0.5.0](legacy/0.5.0_VALIDATION.md)) |
 | Stunt Cycle, Indy 4 | Legacy: the original/native/Wasm comparison gate was accepted with private fixtures; browser and delivery gates were still open when the line ended ([0.6.0](legacy/0.6.0_VALIDATION.md)) |
-| Restarted line, six compiled games | Comparisons and desktop browser checks pending (0.1.x) |
+| Restarted line, six compiled games | Original/native/Wasm comparisons pass for the bounded scenarios in [ACCEPTANCE.md](ACCEPTANCE.md) (0.1.1). Automated browser tests pass in Playwright's Chromium, Firefox and WebKit builds in CI (Stunt Cycle and Indy 4 from private ROMs, Chromium and Firefox only); from 0.1.3 each release publishes them as its desktop acceptance record. No manual check in a release desktop browser is recorded yet |
 | Fifteen unported games | Source-inventoried only; no render or play claim |
 | Audible audio and audio/video synchronization | Not verified for any game; automated checks cover generated PCM and its scheduling only |
 
