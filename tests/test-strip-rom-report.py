@@ -99,8 +99,42 @@ class StripTests(unittest.TestCase):
                           {'name': ALLOWED, 'contentType': 'application/json', 'body': encode({'rawScore': 9})}]}]}]}]}]}
             result, data = run_report(report)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(data['config']['metadata']['gitCommit'], git_commit)
+            self.assertNotIn('metadata', data['config'])
+            self.assertTrue(all('metadata' not in project for project in data['config']['projects']))
             self.assertNotIn('iVBORw0KGgoAAAA', json.dumps(data))
+
+    def test_pr_source_diff_in_metadata_is_dropped_not_scanned(self):
+        # Run 38509694561 (PR merge ref 584f731): Playwright's gitDiff held this tool's own
+        # source, with its data-URI and trace patterns, in config.projects[*].metadata.
+        diff = ('diff --git a/tools/strip-rom-report.py b/tools/strip-rom-report.py\n'
+                "+DATA_URI = re.compile(r'data:(?:image|video)/[A-Za-z0-9.+-]+;base64,', re.I)\n"
+                "+            'data URI in stdout text': {'stdout': [{'text': 'data:image/png;base64,AAAA'}]},\n"
+                "+    if 'trace.zip' in text:\n")
+        metadata = {'ci': {'pr': {'title': 'Release v0.1.2: data:image/png;base64, trace.zip'}},
+                    'gitCommit': {'body': 'see trace.zip'}, 'gitDiff': diff}
+        report = {'config': {'metadata': metadata, 'projects': [{'name': 'chromium', 'metadata': metadata},
+                                                                {'name': 'firefox', 'metadata': metadata}]},
+                  'suites': []}
+        result, data = run_report(report)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('gitDiff', json.dumps(data))
+        self.assertIn('config.metadata: run metadata (commit, diff, CI) not published',
+                      data['nocpu_filter']['dropped_attachments'])
+        # The same text anywhere else is still refused.
+        report = {'config': {'projects': [{'name': 'chromium'}]},
+                  'suites': [{'specs': [{'tests': [{'results': [{'errors': [{'message': diff}], 'attachments': []}]}]}]}]}
+        result, data = run_report(report)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIsNone(data)
+
+    def test_browser_test_sources_cannot_trip_the_scan_through_error_snippets(self):
+        # A failing ROM test's errors carry a source snippet of the spec or its helpers.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('strip_rom_report', ROOT / 'tools/strip-rom-report.py')
+        tool = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tool)
+        for path in sorted((ROOT / 'tests/browser').glob('*.ts')):
+            self.assertEqual(tool.text_findings(path.read_text()), [], path.name)
 
     def test_image_data_outside_attachments_is_refused(self):
         png = base64.b64encode(b'\x89PNG\r\n\x1a\n' + bytes(64)).decode()

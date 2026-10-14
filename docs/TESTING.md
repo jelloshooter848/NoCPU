@@ -308,14 +308,20 @@ NOCPU_ROM_DIR=build/roms NOCPU_TEST_PACKAGED=1 NOCPU_TEST_ROM_SAFE=1 \
 ```
 
 `NOCPU_TEST_ROM_SAFE=1` makes `playwright.config.ts` record no traces, videos or
-failure screenshots and skip the HTML report, since their frames are
-ROM-derived; results go to `build/rom-browser-matrix.json`, which still holds
-the tests' own screenshot attachments. `tools/strip-rom-report.py` reduces it
-to outcomes and errors plus the attachments on its allow-list (today only
-`stunt-original-score9-software.json`), each at most 4 KiB of JSON with no
-numeric array longer than 64 values. It drops and names every other
-attachment and refuses output that still carries image or trace data; only that file and the comparison reports are
-uploaded. The token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
+failure screenshots, skip the HTML report (their frames are ROM-derived) and
+turn off Playwright's git capture (`captureGitInfo`), which on CI otherwise
+copies the commit message and the pull request's source diff into the report.
+Results go to `build/rom-browser-matrix.json`, which still holds the tests' own
+screenshot attachments. `tools/strip-rom-report.py` drops the run metadata
+(`config.metadata` and each project's `metadata`: CI links, PR title, commit,
+diff) and reduces the rest to outcomes and errors plus the attachments on its
+allow-list (today only `stunt-original-score9-software.json`), each at most
+4 KiB of JSON with no numeric array longer than 64 values. It drops and names
+every other attachment. It then refuses, naming the JSON path, any remaining
+field with a base64 image or archive signature, a `data:` image or video URI or
+a `trace.zip` reference, and any attachment body or stdout/stderr buffer that
+does not decode or decodes to an image or archive. Only that file and the
+comparison reports are uploaded. The token is exposed to the fetch step alone. [ROMS.md](ROMS.md) documents
 the variables, the dev-server auto-load and the secret setup. To audit
 fixtures by hand:
 

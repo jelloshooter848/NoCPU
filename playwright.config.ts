@@ -22,6 +22,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
+  // On CI Playwright copies the commit, PR title and source diff into the report
+  // metadata. ROM-backed reports leave the runner only after a strict scan, so
+  // they carry no repository text (tools/strip-rom-report.py also drops it).
+  ...(romSafe ? { captureGitInfo: { commit: false, diff: false } } : {}),
   retries: 0,
   reporter: romSafe
     ? [['list'], ['json', { outputFile: 'build/rom-browser-matrix.json' }]]

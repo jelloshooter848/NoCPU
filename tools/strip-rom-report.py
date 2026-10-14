@@ -144,13 +144,29 @@ def findings(report) -> list[str]:
     return result
 
 
+def drop_metadata(report, dropped):
+    """Remove Playwright's run metadata: CI info, the commit and the PR source diff.
+
+    It is repository text (the diff can contain this tool's own patterns), not
+    test results, and the published report does not need it.
+    """
+    config = report.get('config') if isinstance(report, dict) else None
+    if isinstance(config, dict):
+        if config.pop('metadata', None) is not None:
+            dropped.append('config.metadata: run metadata (commit, diff, CI) not published')
+        for index, project in enumerate(config.get('projects') or []):
+            if isinstance(project, dict) and project.pop('metadata', None) is not None:
+                dropped.append(f'config.projects[{index}].metadata: run metadata not published')
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('report', type=Path)
     parser.add_argument('output', type=Path)
     args = parser.parse_args()
     dropped = []
-    report = strip(json.loads(args.report.read_text()), dropped)
+    report = strip(drop_metadata(json.loads(args.report.read_text()), dropped), dropped)
     problems = findings(report)
     if problems:
         for problem in problems:
