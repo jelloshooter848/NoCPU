@@ -2,6 +2,7 @@
 """Compare retained original/new-game evidence without widening Pong gates."""
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
+import concurrent.futures
 import hashlib
 import importlib.util
 import json
@@ -77,28 +78,46 @@ def compare_scenario(original, evidence, scenario):
             'behavioral_epochs': epochs, 'passed': passed}
 
 
-def compare(original, evidence):
+def compare_one(original, evidence, scenario):
+    try:
+        return compare_scenario(original, evidence, scenario)
+    except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
+        return {'id': scenario['id'], 'game': scenario['game'],
+                'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']},
+                'passed': False, 'errors': [f'{type(error).__name__}: {error}']}
+
+
+def compare(original, evidence, *, allow_subset=False, jobs=1):
+    """Compare every declared scenario, or with allow_subset a selected run.
+
+    A subset result records full_batch false and never stands in for the
+    whole-batch qualification; the per-scenario checks are identical.
+    """
     reference = json.loads((original / 'report.json').read_text())
-    if not reference.get('passed') or not reference.get('full_batch'):
+    if not reference.get('passed') or not (reference.get('full_batch') or allow_subset):
         raise ValueError('Original whole declared batch must be qualified before comparison')
     whole_manifest = json.loads((ROOT / 'tests/replays/game-scenarios.json').read_text())
     original_bindings = analysis.game_media.validate_selection(original, whole_manifest)
     evidence_bindings = analysis.game_media.validate_selection(evidence, whole_manifest, capture_layout='portable')
-    if original_bindings['errors'] or not original_bindings['full_batch'] or evidence_bindings['errors'] or not evidence_bindings['full_batch']:
+    complete = original_bindings['full_batch'] and evidence_bindings['full_batch']
+    if original_bindings['errors'] or evidence_bindings['errors'] or not (complete or allow_subset) \
+            or original_bindings['requested_ids'] != evidence_bindings['requested_ids']:
         raise ValueError('Captured source/scenario binding failed: ' + json.dumps({'original': original_bindings, 'portable': evidence_bindings}))
-    manifest = whole_manifest['scenarios']
+    selected = set(original_bindings['requested_ids'])
+    manifest = [item for item in whole_manifest['scenarios'] if item['id'] in selected]
     result = {'schema_version': 1, 'version': (ROOT / 'VERSION').read_text().strip(), 'seed': 848,
               'original': str(original), 'scenarios': [], 'analog_tolerance': None,
+              'full_batch': bool(complete), 'selection_scope': 'complete_batch' if complete else 'selected_scenarios',
               'source_bindings': {'original': original_bindings, 'portable': evidence_bindings},
               'limitations': ['Generated PCM equality does not establish audible physical speaker output.',
                               'Original source TODOs and physical-phone qualifications remain separately reported.']}
-    for scenario in manifest:
-        try:
-            result['scenarios'].append(compare_scenario(original, evidence, scenario))
-        except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
-            result['scenarios'].append({'id': scenario['id'], 'game': scenario['game'],
-                                        'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']},
-                                        'passed': False, 'errors': [f'{type(error).__name__}: {error}']})
+    if jobs > 1:
+        # Independent scenarios in separate processes; results keep manifest order.
+        with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as pool:
+            count = len(manifest)
+            result['scenarios'] = list(pool.map(compare_one, [original] * count, [evidence] * count, manifest))
+    else:
+        result['scenarios'] = [compare_one(original, evidence, scenario) for scenario in manifest]
     result['passed'] = bool(result['scenarios']) and all(item['passed'] for item in result['scenarios'])
     (evidence / 'report.json').write_text(json.dumps(result, indent=2) + '\n')
     return result
@@ -108,13 +127,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--original', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
+    parser.add_argument('--allow-subset', action='store_true',
+                        help='compare a selected-scenario original run; the report keeps full_batch false')
+    parser.add_argument('--jobs', type=int, default=1, help='scenarios compared at once')
     args = parser.parse_args()
+    if args.jobs < 1:
+        parser.error('--jobs must be positive')
     try:
-        result = compare(args.original, args.evidence)
+        result = compare(args.original, args.evidence, allow_subset=args.allow_subset, jobs=args.jobs)
     except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
         result = {'schema_version': 1, 'original': str(args.original), 'scenarios': [],
                   'passed': False, 'errors': [f'{type(error).__name__}: {error}']}
         args.evidence.mkdir(parents=True, exist_ok=True)
         (args.evidence / 'report.json').write_text(json.dumps(result, indent=2) + '\n')
-    print(f"Additional-game original/native/Wasm comparison: {'PASS' if result['passed'] else 'FAIL'}; {args.evidence / 'report.json'}")
+    scope = '' if result.get('full_batch', True) or not result['passed'] else ' (SUBSET ONLY: not the whole-batch qualification)'
+    print(f"Additional-game original/native/Wasm comparison: {'PASS' if result['passed'] else 'FAIL'}{scope}; {args.evidence / 'report.json'}")
     raise SystemExit(0 if result['passed'] else 1)

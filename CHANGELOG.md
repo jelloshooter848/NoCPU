@@ -13,6 +13,14 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-14
+
+### Changed
+
+- Faster verification: reference recordings of the original are reused when nothing they depend
+  on changed, browser engines run in parallel, and the ROM-backed games are now tested in Chromium
+  and Firefox on every run. No gameplay changes.
+
 ## [0.1.1] - 2026-10-13
 
 The first published release of the restarted desktop-first line; `v0.1.0` was tagged but not
@@ -72,6 +80,7 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jelloshooter848/NoCPU/compare/legacy-0.6.0...v0.1.0

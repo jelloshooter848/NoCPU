@@ -12,14 +12,56 @@ name: Verify DICE browser distribution
         description: Commit to verify (a release passes its tag's commit); defaults to the triggering commit
         type: string
         default: ''
+    outputs:
+      pages_artifact:
+        description: Name of this attempt's Pages artifact, for actions/deploy-pages
+        value: ${{ jobs.package.outputs.pages_artifact }}
 permissions:
   contents: read
+# Job graph (docs/TESTING.md, "Continuous integration"):
+#   scope ──────────────┐
+#   core-build ─┬─ core-compare (original/native/Wasm; skipped only for docs/UI-only changes)
+#               └─ package ── browser (chromium | firefox | webkit in parallel)
+#   verify requires every job, and accepts a skipped core-compare only when
+#   scope decided so and this is not a release. scope skips it only when a
+#   passing core-compare already recorded the same non-docs, non-UI content.
 jobs:
-  core-reference:
+  scope:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    # The browser job downloads the core by this name. "Re-run failed jobs"
-    # keeps this job's outputs from the attempt that built and tested the core.
+    timeout-minutes: 5
+    outputs:
+      core: ${{ steps.scope.outputs.core }}
+      core_hash: ${{ steps.hash.outputs.core_hash }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ inputs.ref || github.sha }}
+    - name: Hash this commit's content outside docs and web UI files
+      id: hash
+      run: python3 tools/ci-scope.py hash
+    # Content, not a diff: a docs-only push after a cancelled or failed core
+    # push has core content that never passed, so it finds no marker.
+    - name: Look up a passing comparison of exactly this content
+      id: marker
+      if: ${{ !inputs.release }}
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+      with:
+        path: build/compared-marker
+        key: nocpu-compared-${{ steps.hash.outputs.core_hash }}
+        lookup-only: true
+    - name: Decide whether the core comparisons must run (releases and unrecorded content always do)
+      id: scope
+      env:
+        RELEASE: ${{ inputs.release }}
+        HIT: ${{ steps.marker.outputs.cache-hit }}
+        HASH: ${{ steps.hash.outputs.core_hash }}
+      run: python3 tools/ci-scope.py decide --hash "$HASH" --marker-hit "$HIT" --release "$RELEASE"
+  core-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The compare and package jobs download the core by this name. "Re-run
+    # failed jobs" keeps this job's outputs from the attempt that built it.
     outputs:
       core_artifact: ${{ steps.core-name.outputs.name }}
     steps:
@@ -37,11 +79,91 @@ jobs:
       run: make test
     - name: Test web control, preferences and ROM foundations
       run: npm run test:foundations
-    - name: Build original desktop reference
-      run: ./tools/build-native.sh --jobs 2
     - name: Build portable native and Wasm cores
       run: ./tools/build-core.sh all
-    - name: Capture and compare every old-four scenario with a measured disk preflight and monitored reserve
+    - name: Bind the five Wasm transfer files to this exact clean checkout
+      run: python3 tools/core-handoff.py --write build/core/core-transfer.json
+    - name: Name the core transfer after this run attempt
+      id: core-name
+      env:
+        SHA: ${{ github.sha }}
+        ATTEMPT: ${{ github.run_attempt }}
+      run: echo "name=core-runtime-transfer-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
+    - name: Upload the exact-run core transfer
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.core-name.outputs.name }}
+        path: |-
+          build/core/core-transfer.json
+          build/core/wasm/nocpu.js
+          build/core/wasm/nocpu.wasm
+          build/core/wasm/build-provenance.json
+          build/core/wasm/dependencies.mk
+          build/core/wasm/linker.map
+        if-no-files-found: error
+        retention-days: 7
+  core-compare:
+    needs:
+    - scope
+    - core-build
+    if: needs.scope.outputs.core == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    # actions: read lets the download below find the core of an earlier attempt.
+    permissions:
+      contents: read
+      actions: read
+    env:
+      # Releases never read or write the reference cache: every original is
+      # captured fresh, so no earlier run's entries can stand in for a release.
+      NOCPU_REFERENCE_CACHE: ${{ !inputs.release && 'build/reference-cache' || '' }}
+      NOCPU_ANALYZE_JOBS: '4'
+      NOCPU_REPLAY_JOBS: '4'
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ inputs.ref || github.sha }}
+        fetch-depth: 0
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Fetch the core under comparison from this same workflow run (any attempt)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: ${{ needs.core-build.outputs.core_artifact }}
+        path: build/core
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
+    - name: Reject checkout, tree, version, provenance or byte drift in the Wasm under comparison
+      run: python3 tools/core-handoff.py --verify build/core/core-transfer.json
+    - name: Build the portable native runner (the Wasm compared is the transferred, browser-tested one)
+      run: ./tools/build-core.sh native
+    - name: Build original desktop reference
+      run: ./tools/build-native.sh --jobs 4
+    - name: Release run captures every original fresh
+      if: ${{ inputs.release }}
+      run: |-
+        echo 'Release run: reference cache disabled (NOCPU_REFERENCE_CACHE unset); every original is captured fresh.'
+    - name: Key the original reference cache by every capture input
+      id: refkey
+      if: ${{ !inputs.release }}
+      run: echo "key=nocpu-reference-v1-$(python3 tools/reference-cache.py combined-key)" >> "$GITHUB_OUTPUT"
+    # Only ROM-free originals are cached (tools/reference-cache.py refuses ROM
+    # games). Each entry is re-keyed and its bytes re-hashed before use; a hit
+    # skips only the Docker original run of that scenario. Saved archives carry
+    # a content suffix, so the primary key never matches exactly and the newest
+    # archive for these inputs (or any older one) is restored.
+    - name: Restore cached original reference captures
+      if: ${{ !inputs.release }}
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+      with:
+        path: build/reference-cache
+        key: ${{ steps.refkey.outputs.key }}
+        restore-keys: |-
+          ${{ steps.refkey.outputs.key }}-
+          nocpu-reference-v1-
+    - name: Capture (or restore) and compare every old-four scenario with a measured disk preflight and monitored reserve
       run: |-
         python3 - <<'PY_SPACE'
         import json,os,pathlib,shutil,signal,subprocess,time
@@ -66,29 +188,40 @@ jobs:
       run: python3 -c 'import json,pathlib; pathlib.Path("build/selected-private-fixture-status.json").write_text(json.dumps({"games":["stuntcycle","indy4"],"private_fixture_comparison_in_this_job":"skipped","reason":"This
         job has no ROM fixture access. The ROM-backed original/native/Wasm comparisons run in the separate ROM-backed
         validation workflow (.github/workflows/rom-validation.yml) when the NOCPU_ROMS_TOKEN secret is configured, and
-        are reported there as blocked, not passed, when it is absent."},indent=2)+"\n")'
-    - name: Bind the five tested Wasm transfer files to this exact clean checkout
-      run: python3 tools/core-handoff.py --write build/core/core-transfer.json
-    - name: Name the core transfer after this run attempt
-      id: core-name
+        are reported there as blocked, not passed, when it is absent. ROM-backed captures are never cached."},indent=2)+"\n")'
+    - name: Find originals stored by this run
+      id: refstore
+      if: ${{ !inputs.release }}
       env:
-        SHA: ${{ github.sha }}
-        ATTEMPT: ${{ github.run_attempt }}
-      run: echo "name=core-runtime-transfer-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
-    - name: Upload the exact-run tested core transfer
-      id: core-transfer
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        KEY: ${{ steps.refkey.outputs.key }}
+      run: |-
+        python3 tools/reference-cache.py prune
+        if cat build/reference/reference-cache.jsonl build/reference-games/*/reference-cache.jsonl 2>/dev/null \
+            | grep -q '"stored": true'; then
+          echo "save=true" >> "$GITHUB_OUTPUT"
+          echo "key=$KEY-$(python3 tools/reference-cache.py content-key)" >> "$GITHUB_OUTPUT"
+        else
+          echo 'No new original captures were stored; the reference cache is not saved again.'
+          echo "save=false" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Save the qualified original captures for later runs
+      if: ${{ !inputs.release && steps.refstore.outputs.save == 'true' }}
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
       with:
-        name: ${{ steps.core-name.outputs.name }}
-        path: |-
-          build/core/core-transfer.json
-          build/core/wasm/nocpu.js
-          build/core/wasm/nocpu.wasm
-          build/core/wasm/build-provenance.json
-          build/core/wasm/dependencies.mk
-          build/core/wasm/linker.map
-        if-no-files-found: error
-        retention-days: 7
+        path: build/reference-cache
+        key: ${{ steps.refstore.outputs.key }}
+    - name: Record that this exact core content passed its comparisons
+      env:
+        HASH: ${{ needs.scope.outputs.core_hash }}
+        SHA: ${{ inputs.ref || github.sha }}
+      run: |-
+        mkdir -p build/compared-marker
+        printf 'core_hash=%s\ncommit=%s\n' "$HASH" "$SHA" > build/compared-marker/compared.txt
+    - name: Save the comparison marker that lets later docs/UI-only content skip
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+      with:
+        path: build/compared-marker
+        key: nocpu-compared-${{ needs.scope.outputs.core_hash }}
     - name: Retain verification evidence without executable native builds or private fixtures
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -96,6 +229,7 @@ jobs:
         name: pong-verification-evidence
         path: |
           build/reference/report.json
+          build/reference/reference-cache.jsonl
           build/reference/**/evidence.json
           build/reference/**/*.csv
           build/reference/**/*.ppm
@@ -106,6 +240,7 @@ jobs:
           build/reference/**/renderer-identity.txt
           build/reference-games/latest.txt
           build/reference-games/**/report.json
+          build/reference-games/**/reference-cache.jsonl
           build/reference-games/**/*.tsv
           build/reference-games/**/scenario-manifest.json
           build/reference-games/**/capture-image-id.txt
@@ -155,15 +290,18 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
         overwrite: true
-  browser:
-    needs: core-reference
+  package:
+    needs: core-build
     runs-on: ubuntu-24.04
-    # actions: read lets the download below list this run's artifacts across
-    # attempts, so a re-run of this job alone finds the core built earlier.
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: read
-    timeout-minutes: 90
+    # The browser jobs download the package by this name and release.yml
+    # deploys the Pages artifact by its name; a re-run keeps both.
+    outputs:
+      package_artifact: ${{ steps.package-name.outputs.name }}
+      pages_artifact: ${{ steps.package-name.outputs.pages }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -173,18 +311,14 @@ jobs:
     - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
       with:
         node-version: 22.22.0
-    - name: Install pinned web toolchain and browser engines
-      run: |
-        ./tools/install-web-toolchain.sh --browsers
-        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps chromium firefox webkit
-    - name: Install a signed-package audio sink for real headless browser audio
-      run: |
-        sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+    - name: Install pinned npm dependencies
+      run: |-
+        mkdir -p build/npm-cache
+        npm ci --cache "$PWD/build/npm-cache" --no-audit --no-fund
     - name: Fetch only the tested core from this same workflow run (any attempt)
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
-        name: ${{ needs.core-reference.outputs.core_artifact }}
+        name: ${{ needs.core-build.outputs.core_artifact }}
         path: build/core
         run-id: ${{ github.run_id }}
         github-token: ${{ github.token }}
@@ -206,15 +340,103 @@ jobs:
         else
           python3 tools/package-web.py --preview --archive-dir build/release
         fi
-    - name: Test packaged gameplay, controls, audio, and delivery in browser engines
+    - name: Hash every packaged file and name the package after this run attempt
+      id: package-name
+      env:
+        SHA: ${{ github.sha }}
+        ATTEMPT: ${{ github.run_attempt }}
+      run: |-
+        (cd build && find pages -type f -print0 | sort -z | xargs -0 sha256sum) > build/pages-transfer.sha256
+        echo "name=web-package-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
+        echo "pages=github-pages-$SHA-$ATTEMPT" >> "$GITHUB_OUTPUT"
+    - name: Upload the exact packaged site for the browser engines
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.package-name.outputs.name }}
+        path: |-
+          build/pages/
+          build/pages-transfer.sha256
+          build/web-provenance.json
+        include-hidden-files: true
+        if-no-files-found: error
+        retention-days: 7
+    # Publishing (release.yml) needs the verify job below, which requires every
+    # browser engine and the core comparison to pass.
+    - name: Retain matching source and browser release assets
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: verified-release-assets
+        path: build/release/
+        if-no-files-found: error
+        retention-days: 7
+        overwrite: true
+    - name: Prepare the Pages artifact (deployed only after verify passes)
+      uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+      with:
+        name: ${{ steps.package-name.outputs.pages }}
+        path: build/pages
+        retention-days: 7
+  browser:
+    needs: package
+    name: browser (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    # actions: read lets the download below list this run's artifacts across
+    # attempts, so a re-run of one engine alone finds the package built earlier.
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        engine:
+        - chromium
+        - firefox
+        - webkit
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ inputs.ref || github.sha }}
+        fetch-depth: 0
+    - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+      with:
+        node-version: 22.22.0
+    - name: Install pinned npm dependencies and the ${{ matrix.engine }} engine
+      env:
+        ENGINE: ${{ matrix.engine }}
+      run: |-
+        mkdir -p build/npm-cache
+        npm ci --cache "$PWD/build/npm-cache" --no-audit --no-fund
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install "$ENGINE"
+        PLAYWRIGHT_BROWSERS_PATH=./build/playwright ./node_modules/.bin/playwright install-deps "$ENGINE"
+    - name: Install a signed-package audio sink for real headless browser audio
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+    - name: Fetch only the packaged site from this same workflow run (any attempt)
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: ${{ needs.package.outputs.package_artifact }}
+        path: build
+        run-id: ${{ github.run_id }}
+        github-token: ${{ github.token }}
+    - name: Reject missing, extra or changed packaged files
+      working-directory: build
+      run: |-
+        sha256sum --check --strict --quiet pages-transfer.sha256
+        diff <(find pages -type f | sort) <(sed 's/^[0-9a-f]*  //' pages-transfer.sha256 | sort)
+        echo "Packaged site verified: $(wc -l < pages-transfer.sha256) files"
+    - name: Test packaged gameplay, controls, audio, and delivery in ${{ matrix.engine }}
       env:
         NOCPU_TEST_PACKAGED: '1'
-      run: npm run test:browser
+        ENGINE: ${{ matrix.engine }}
+      run: npm run test:browser -- --project="$ENGINE"
     - name: Retain all browser diagnostics and tested package identities
       if: always()
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
-        name: browser-verification-evidence
+        name: browser-verification-evidence-${{ matrix.engine }}
         path: |-
           build/pages/BUILD-MANIFEST.json
           build/web-provenance.json
@@ -224,32 +446,38 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
         overwrite: true
-    - name: Retain verified matching source and browser release assets
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-      with:
-        name: verified-release-assets
-        path: build/release/
-        if-no-files-found: error
-        retention-days: 7
-        overwrite: true
-    - name: Prepare the tested Pages artifact
-      uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
-      with:
-        path: build/pages
-        retention-days: 7
   verify:
     needs:
-    - core-reference
+    - scope
+    - core-build
+    - core-compare
+    - package
     - browser
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-    - name: Require the core reference and browser verification jobs
+    - name: Require every verification job; a skipped core comparison only by docs/UI scope, never on a release
       env:
-        CORE: ${{ needs.core-reference.result }}
+        SCOPE: ${{ needs.scope.result }}
+        CORE_SCOPE: ${{ needs.scope.outputs.core }}
+        BUILD: ${{ needs.core-build.result }}
+        COMPARE: ${{ needs.core-compare.result }}
+        PACKAGE: ${{ needs.package.result }}
         BROWSER: ${{ needs.browser.result }}
+        RELEASE: ${{ inputs.release }}
       run: |-
-        if [ "$CORE" != success ] || [ "$BROWSER" != success ]; then
-          echo "::error::core-reference=$CORE browser=$BROWSER"; exit 1
+        status=0
+        for job in "scope=$SCOPE" "core-build=$BUILD" "package=$PACKAGE" "browser=$BROWSER"; do
+          if [ "${job#*=}" = success ]; then echo "$job"; else echo "::error::$job"; status=1; fi
+        done
+        if [ "$COMPARE" = success ]; then
+          echo "core-compare=success"
+        elif [ "$COMPARE" = skipped ] && [ "$SCOPE" = success ] && [ "$CORE_SCOPE" = false ] && [ "$RELEASE" != true ]; then
+          echo "core-compare=skipped by scope: an earlier run passed it for identical content outside docs/web UI (see the scope job). Skipped, not passed here."
+          echo '**Core original/native/Wasm comparisons skipped by scope (content already compared; only docs/web UI differ), not passed in this run.**' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::error::core-compare=$COMPARE (scope core=$CORE_SCOPE, release=$RELEASE)"
+          status=1
         fi
+        exit "$status"

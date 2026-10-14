@@ -11,7 +11,10 @@ capture two fixed-seed native Pong runs, each with an in-process recreation.
 Outputs and assertion report: build/reference/report.json.
 
 Environment: NOCPU_NATIVE_IMAGE (same image used by build-native.sh),
-BUILD_JOBS (default 2), NOCPU_REFERENCE_TIMEOUT (seconds per run, default 180).
+BUILD_JOBS (default 2), NOCPU_REFERENCE_TIMEOUT (seconds per run, default 180),
+NOCPU_REFERENCE_CACHE (directory below build/ or /tmp/: reuse an original
+capture whose inputs are unchanged, see tools/reference-cache.py; the analysis
+below always runs).
 No ROM is required. SDL dummy playback is used; generated native PCM is captured.
 EOF
     exit 0
@@ -45,7 +48,25 @@ docker run --rm --platform linux/amd64 --network none \
     --workdir /source "$image" /bin/bash -euo pipefail -c 'make -j "$1"' \
     nocpu-reference-build "$jobs" > "$reference_dir/build.log" 2>&1
 
+cache="${NOCPU_REFERENCE_CACHE:-}"
+fresh=true
+if [[ -n "$cache" ]]; then
+    status=0
+    # The key is computed once, before capture; store refuses if any input changes meanwhile.
+    key=$(python3 "$repo_root/tools/reference-cache.py" key --kind pong --scenario pong --source "$reference_dir/source")
+    python3 "$repo_root/tools/reference-cache.py" restore --kind pong --scenario pong \
+        --source "$reference_dir/source" --key "$key" --run "$reference_dir" --into "$reference_dir" \
+        --receipt "$reference_dir/reference-cache.jsonl" || status=$?
+    if [[ "$status" == 0 ]]; then
+        fresh=false
+    elif [[ "$status" != 3 ]]; then
+        printf 'Reference cache restore failed.\n' >&2; exit 1
+    fi
+else
+    printf 'Reference cache disabled (NOCPU_REFERENCE_CACHE unset): capturing the original fresh.\n'
+fi
 for run in baseline repeat; do
+    "$fresh" || break
     mkdir -- "$reference_dir/$run"
     printf 'Capturing %s: two 16-second simulation epochs, seed 848.\n' "$run"
     # The historical nall::userpath requires getpwuid(getuid()) to succeed.
@@ -66,4 +87,9 @@ for run in baseline repeat; do
 done
 python3 "$repo_root/tools/reference/analyze.py" "$reference_dir"
 python3 "$repo_root/tests/test-reference-analysis.py" --reference-dir "$reference_dir"
+if [[ -n "$cache" ]] && "$fresh"; then
+    python3 "$repo_root/tools/reference-cache.py" store --kind pong --scenario pong \
+        --source "$reference_dir/source" --key "$key" --run "$reference_dir" --capture "$reference_dir" \
+        --receipt "$reference_dir/reference-cache.jsonl"
+fi
 printf 'Native Pong assertions passed: %s/report.json\n' "$reference_dir"

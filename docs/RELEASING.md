@@ -25,7 +25,17 @@ govern current releases.
   working branch. They never target `main`.
 
 CI (`.github/workflows/ci.yml`) verifies pushes to `main` and to the working
-branch, and every pull request.
+branch, and every pull request. A run skips the original/native/Wasm
+comparisons, and says so, only when an earlier run already passed them for the
+same content outside documentation and browser UI files; the build, tests and
+all three browser engines always run. See
+[TESTING.md](TESTING.md#continuous-integration).
+
+Branch protection on `main` and the working branch should require the single
+status check **`verify / verify`**. It requires every other verification job
+(their names changed in 0.1.2: `scope`, `core-build`, `core-compare`, `package`
+and `browser (chromium|firefox|webkit)`), so it stays the one stable name to
+require. The owner sets this under Settings → Branches.
 
 ## Version numbers
 
@@ -161,7 +171,13 @@ Before opening a release pull request, confirm and record in it:
      original/native/Wasm comparisons, the browser builds and tests, then
      `tools/package-web.py --tag`, which packages the site with notices and the
      corresponding-source archive and refuses to package when the license
-     audits are not ready;
+     audits are not ready. A release never skips the comparisons and never
+     uses the [reference cache](TESTING.md#reference-cache): every original
+     capture runs fresh, so no entry written by an earlier run (which any step
+     of that run could have forged) stands in for a release. That costs about
+     19 minutes: the first run of this workflow, which captured everything
+     fresh, took 37 minutes, against 19 minutes for the same commit with
+     cached originals (see [TESTING.md](TESTING.md#continuous-integration));
    - it refuses to publish if the browser zip, the source archive or their
      checksums are missing, if checksums do not match, or if the packaged site
      lacks its license notices or matching source archive;
@@ -186,13 +202,15 @@ outside the code (a Pages outage, permissions), rerun it as described below.
 1. Leave the tag where it is; never move, delete or reuse it.
 2. Use the run's **Re-run failed jobs** once (works since `b310916`; the publish
    job since the 0.1.1 release). It covers failures in the verify jobs
-   (`core-reference`, `browser`) and in `publish`: the re-run reuses the core and
-   the release assets and notes that earlier attempts uploaded; see
+   (`core-build`, `core-compare`, `package`, any `browser` engine) and in
+   `publish`: the re-run reuses the core, the package, the release assets and
+   notes that earlier attempts uploaded; see
    [Redeploying, retrying or rolling back](#redeploying-retrying-or-rolling-back).
 3. If only `deploy-pages` failed, re-deploy with **Run workflow** on the tag
    instead.
-4. Avoid **Re-run all jobs**: it uploads a second `github-pages` artifact in the
-   same run, which the Pages deployment can reject as a duplicate.
+4. **Re-run all jobs** is safe for Pages since 0.1.2: each attempt names its
+   Pages artifact `github-pages-<sha>-<attempt>` and `deploy-pages` deploys the
+   one the verified attempt produced. It does repeat the whole verification.
 5. If the re-run also fails, or the failure is in the code or its checks, fix it
    on the working branch and ship the next patch version. Record in the
    roadmap and in the failed version's changelog section that it was tagged
@@ -224,15 +242,19 @@ GitHub Release, and deploys it. Use this to:
 With the GitHub CLI: `gh workflow run release.yml -f tag=v0.2.0`.
 
 To retry only the failed jobs of a run (the run's **Re-run failed jobs**, or
-`gh run rerun <run-id> --failed`), no new dispatch is needed. The browser job
-uses the core built and tested by the `core-reference` job of the same run, an
-artifact named after the attempt that built it
-(`core-runtime-transfer-<sha>-<attempt>`). A re-run keeps that job's outputs,
-which carry the name, and the browser job downloads it by run ID with
-`actions: read`, so a re-run of the browser job alone finds the core from the
-earlier attempt. The byte-drift and provenance check (`tools/core-handoff.py
---verify`) still runs on the downloaded core. Evidence uploads overwrite their
-fixed-name artifacts from the failed attempt. (The v0.1.0 run's "Re-run failed
+`gh run rerun <run-id> --failed`), no new dispatch is needed. The
+`core-compare` and `package` jobs use the core built by the `core-build` job of
+the same run, an artifact named after the attempt that built it
+(`core-runtime-transfer-<sha>-<attempt>`); the three browser engine jobs use
+the site packaged by the `package` job, named the same way
+(`web-package-<sha>-<attempt>`). A re-run keeps the producing job's outputs,
+which carry the names, and the consumers download by run ID with
+`actions: read`, so a re-run of `core-compare`, `package` or a single browser
+engine alone finds what the earlier attempt built. The byte-drift and
+provenance check (`tools/core-handoff.py --verify`) still runs on the
+downloaded core, and each browser job checks every packaged file against the
+package's SHA-256 list. Evidence uploads overwrite their fixed-name artifacts
+from the failed attempt. (The v0.1.0 run's "Re-run failed
 jobs" failed at once because the download looked for the core under the new
 attempt's name.)
 

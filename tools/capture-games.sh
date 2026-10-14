@@ -5,14 +5,16 @@ set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
-  echo 'Usage: tools/capture-games.sh [--scenario ID | --explore]'
+  echo 'Usage: tools/capture-games.sh [--scenario ID | --scenarios ID,ID,... | --explore]'
   echo 'Requires the pinned original build. Fresh baseline/repeat processes capture original inputs, GL and PCM.'
+  echo 'NOCPU_REFERENCE_CACHE=DIR (below build/ or /tmp/) reuses original captures whose inputs are unchanged'
+  echo '(tools/reference-cache.py) and stores newly captured ones after the original analysis passes.'
   exit 0
 fi
 SELECTED=''
 EXPLORE=0
 EXPLORATION_MS=${NOCPU_GAME_EXPLORATION_MS:-7000}
-if [[ $# == 2 && "$1" == --scenario ]]; then SELECTED=$2; elif [[ $# == 1 && "$1" == --explore ]]; then EXPLORE=1; elif [[ $# != 0 ]]; then echo 'Use --help.' >&2; exit 2; fi
+if [[ $# == 2 && ( "$1" == --scenario || "$1" == --scenarios ) ]]; then SELECTED=$2; elif [[ $# == 1 && "$1" == --explore ]]; then EXPLORE=1; elif [[ $# != 0 ]]; then echo 'Use --help.' >&2; exit 2; fi
 NATIVE="$ROOT/build/native"
 DEST=${NOCPU_GAME_REFERENCE_ROOT:-"$ROOT/build/reference-games"}
 LATEST="$ROOT/build/reference-games/latest.txt"
@@ -51,7 +53,10 @@ exploration_ms = int(exploration_ms)
 if not 1000 <= exploration_ms <= 170000:
     raise SystemExit("Exploration must be bounded to 1000..170000 ms")
 manifest = json.loads(pathlib.Path('tests/replays/game-scenarios.json').read_text())
-scenarios = [item for item in manifest['scenarios'] if not selected or item['id'] == selected]
+wanted = [name for name in selected.split(',') if name]
+if len(set(wanted)) != len(wanted) or any(name not in {item['id'] for item in manifest['scenarios']} for name in wanted):
+    raise SystemExit('Unknown or duplicate selected game scenario')
+scenarios = [item for item in manifest['scenarios'] if not wanted or item['id'] in wanted]
 if explore == '1':
     scenarios = [item.copy() for item in scenarios if item['id'].endswith('-default')]
     for item in scenarios:
@@ -75,7 +80,28 @@ echo "Building original observation adapter: $RUN"
 docker run --rm --platform linux/amd64 --network none --user "$(id -u):$(id -g)" \
   --mount "type=bind,source=$RUN/source,target=/source" --workdir /source "$IMAGE" \
   /bin/bash -euo pipefail -c 'make -j "$1"' nocpu-game-reference-build "$JOBS" > "$RUN/build.log" 2>&1
+CACHE=${NOCPU_REFERENCE_CACHE:-}
+if [[ -n "$CACHE" && "$EXPLORE" == 1 ]]; then
+  echo 'Reference cache not used: exploration replays are not cacheable qualification inputs.'
+  CACHE=''
+fi
+[[ -n "$CACHE" ]] || echo 'Reference cache disabled (NOCPU_REFERENCE_CACHE unset): every original scenario is captured fresh.'
+CACHED_IDS=()
+declare -A KEYS=()
+FRESH_IDS=()
 while IFS=$'\t' read -r ID GAME REPLAY DIP POT; do
+  if [[ -n "$CACHE" ]]; then
+    STATUS=0
+    # The key is computed once, before capture; store refuses if any input changes meanwhile.
+    KEYS[$ID]=$(python3 tools/reference-cache.py key --kind game --scenario "$ID" --source "$RUN/source" < /dev/null)
+    python3 tools/reference-cache.py restore --kind game --scenario "$ID" --source "$RUN/source" --key "${KEYS[$ID]}" \
+      --run "$RUN" --into "$RUN/$ID" --receipt "$RUN/reference-cache.jsonl" < /dev/null || STATUS=$?
+    if [[ "$STATUS" == 0 ]]; then CACHED_IDS+=("$ID"); continue; fi
+    [[ "$STATUS" == 3 ]] || { echo "Reference cache restore failed for $ID" >&2; exit 1; }
+  fi
+  FRESH_IDS+=("$ID")
+  mkdir -p "$RUN/$ID"
+  cp "$RUN/capture-image-id.txt" "$RUN/$ID/capture-image-id.txt"
   for ATTEMPT in baseline repeat; do
     python3 - "$RUN" <<'PY'
 import shutil, sys
@@ -97,13 +123,24 @@ PY
       nocpu-game-reference-run "${TIMEOUT}s" "$GAME" "$(id -u)" "$(id -g)" > "$RUN/$ID/$ATTEMPT.log" 2>&1
   done
 done < "$RUN/scenarios.tsv"
+echo "Original scenarios: ${#FRESH_IDS[@]} captured fresh, ${#CACHED_IDS[@]} restored from the reference cache."
 python3 tools/reference/capture_metadata.py "$RUN"
 trap - ERR
 if [[ "$EXPLORE" == 1 ]]; then
   echo "Original short exploration captured; no qualification claim: $RUN/EXPLORATION.json"
   exit 0
 fi
-python3 tools/reference/analyze-games.py "$RUN"
+ANALYSIS=0
+python3 tools/reference/analyze-games.py "$RUN" || ANALYSIS=$?
+if [[ -n "$CACHE" ]]; then
+  for ID in "${FRESH_IDS[@]}"; do
+    python3 tools/reference-cache.py store --kind game --scenario "$ID" --source "$RUN/source" --key "${KEYS[$ID]}" \
+      --run "$RUN" --capture "$RUN/$ID" --receipt "$RUN/reference-cache.jsonl"
+  done
+fi
+mkdir -p "$(dirname -- "$LATEST")"
+printf '%s\n' "$RUN" > "$(dirname -- "$LATEST")/last-run.txt"
+[[ "$ANALYSIS" == 0 ]] || exit "$ANALYSIS"
 if python3 - "$RUN/report.json" <<'PY'
 import json, sys
 raise SystemExit(0 if json.load(open(sys.argv[1])).get('whole_batch_qualified') else 1)
