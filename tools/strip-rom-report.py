@@ -139,6 +139,28 @@ def main() -> int:
                 bodies(value)
     bodies(report)
     if not payload_free(text) or not all(encoded_payload_free(value) for value in encoded):
+        # DIAGNOSTIC (temporary): name each finding by JSON path, never its data.
+        def walk(node, path):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if key not in FORBIDDEN and any(marker in key for marker in FORBIDDEN):
+                        print('DIAG key', path, [m for m in FORBIDDEN if m in key])
+                    walk(value, path + [key])
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, path + [index])
+            elif isinstance(node, str):
+                found = [m for m in FORBIDDEN if m in node]
+                if found:
+                    print('DIAG raw', path, found, 'len', len(node), 'context',
+                          [node[max(0, node.find(m) - 12):node.find(m)].encode('unicode_escape').decode()[-24:] for m in found])
+                if path and path[-1] in ('body', 'buffer'):
+                    decoded = lenient_decode(node)
+                    if decoded is not None:
+                        dtext = decoded.decode('utf-8', 'replace')
+                        print('DIAG decoded', path, [m for m in FORBIDDEN if m in dtext],
+                              [m for m in MAGIC if m in decoded], 'len', len(node))
+        walk(report, [])
         print('Refusing to write: the filtered report still contains image or trace data.', file=sys.stderr)
         return 1
     report['nocpu_filter'] = {'dropped_attachments': sorted(set(map(str, dropped))),
