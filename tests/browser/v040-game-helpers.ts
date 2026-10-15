@@ -241,9 +241,12 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
       && (!reference || (state.generation === reference.generation && state.resetId === reference.resetId
         && state.clockEpoch === reference.clockEpoch && JSON.stringify(state.options) === JSON.stringify(reference.options)
         && JSON.stringify(state.crashes) === JSON.stringify(reference.crashes)));
+    // Set when the concurrent raster sampler (below) rejects a bracket.
+    let samplerFailure: unknown;
     const wait = async (phase: string, condition: (state: SpaceMovementNativeState) => boolean): Promise<SpaceMovementNativeState> => {
       const deadline = performance.now() + 10000;
       while (true) {
+        if (samplerFailure) throw samplerFailure;
         const state = await read(); observations.push({ phase, state });
         if (phase === 'coin_held' || phase === 'coin_released') coinSamples.push({ phase, state });
         if (reference) check(continuous(state), 'Session/activity/crash discontinuity during ' + phase);
@@ -252,7 +255,9 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
         await sleep();
       }
     };
+    let scheduledPhase = 'cold', scheduledTarget: bigint | undefined, acknowledging = false;
     const at = async (phase: string, target: bigint, heldDirections?: readonly number[]) => {
+      scheduledPhase = phase; scheduledTarget = target;
       const state = await wait(phase, state => {
         if (heldDirections) check(JSON.stringify(state.directions) === JSON.stringify(heldDirections),
           'Expected digital direction was lost during held native observations');
@@ -271,8 +276,9 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
       events.push({ kind, code, isTrusted: event.isTrusted, wallMs: performance.now() });
       canvas.dispatchEvent(event);
     };
-    const bracket = async (phase: string) => {
+    const bracket = async (phase: string, proceed?: (before: SpaceMovementNativeState) => boolean) => {
       const before = await read();
+      if (proceed && !proceed(before)) return undefined;
       let objects: ReturnType<typeof detect> | undefined, failure: string | undefined;
       try { objects = detect(canvas, 'spacerace'); } catch (error) { failure = String(error); }
       const after = await read(), accepted = continuous(before) && continuous(after) && Boolean(objects);
@@ -280,15 +286,6 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
       observations.push(observation);
       check(accepted, 'Rejected original rocket bracket ' + phase);
       return observation as typeof observation & { objects: ReturnType<typeof detect> };
-    };
-    const raster = async (phase: string, predicate: (objects: ReturnType<typeof detect>) => boolean) => {
-      const deadline = performance.now() + 10000;
-      while (true) {
-        const observation = await bracket(phase);
-        if (predicate(observation.objects)) return observation;
-        check(performance.now() < deadline, 'Original-raster predicate budget exceeded during ' + phase);
-        await sleep();
-      }
     };
     const click = (id: string) => {
       const button = document.querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!;
@@ -300,6 +297,8 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
     let loaded: SpaceMovementNativeState | undefined, reset: SpaceMovementNativeState | undefined;
     let coinHeld: SpaceMovementNativeState | undefined, coinReleased: SpaceMovementNativeState | undefined;
     let failure: string | undefined;
+    const rasterSamples: { phase: string; before: SpaceMovementNativeState; after: SpaceMovementNativeState; objects: ReturnType<typeof detect> }[] = [];
+    let sampling = false, sampler: Promise<void> | undefined;
     try {
       loaded = await read();
       click('pause'); click('reset');
@@ -325,9 +324,35 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
       await at('start_phase', millis(1000)); click('start-game');
       reference = await wait('active', state => state.run);
       await at('cold_phase', millis(1800));
-      const cold = await bracket('cold');
+      const cold = (await bracket('cold'))!;
       check(cold.before.directions.every(direction => direction === 0) && cold.after.directions.every(direction => direction === 0),
         'The fixed cold raster must precede movement with both digital channels neutral');
+      // Visible-sprite evidence never gates the native input schedule. The
+      // canvas presents a circuit frame pulled on a later animation frame, so
+      // in a slow browser it trails the native clock by 100-200 ms. Waiting
+      // for a raster predicate before the next scheduled edge let that
+      // wall-clock presentation lag push the edge outside the circuit-time
+      // envelope (CI main run 38778201809: Down observed 93 ms late). Brackets
+      // instead run concurrently with the native-time schedule, which only
+      // ever waits on native snapshots. A bracket's synchronous pixel read can
+      // still stall the page, so none starts while an input acknowledgment is
+      // awaited or within 100 ms of circuit time before the next scheduled edge.
+      sampling = true;
+      sampler = (async () => {
+        while (sampling) {
+          // Rechecked on the bracket's own fresh snapshot before any pixel read.
+          const quiet = (state?: SpaceMovementNativeState) => acknowledging
+            || (scheduledTarget !== undefined && state !== undefined && scheduledTarget - now(state) < millis(100));
+          if (quiet(lastNative)) { await sleep(); continue; }
+          try {
+            const observation = await bracket('raster_during_' + scheduledPhase, before => !quiet(before));
+            if (observation) rasterSamples.push({ phase: observation.phase, before: observation.before, after: observation.after, objects: observation.objects });
+          } catch (error) { samplerFailure = error; return; }
+          await sleep();
+        }
+      })();
+      // Native time at which each slot's held Down was first acknowledged.
+      const loweringFrom: (bigint | undefined)[] = [undefined, undefined];
       for (const [slot, upMs, downMs] of [[0, 2000, 2400], [1, 3200, 3600]] as const) {
         const pulse = async (direction: -1 | 1, phaseMs: number) => {
           const code = slot === 0 ? (direction < 0 ? 'KeyW' : 'KeyS') : (direction < 0 ? 'ArrowUp' : 'ArrowDown');
@@ -343,21 +368,27 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
           check(lastNeutral.directions.every(value => value === 0), 'Unexpected direction before ordinary keydown');
           let firstHeld: GameObservation | undefined, lastHeld: GameObservation | undefined, firstNeutral: GameObservation | undefined;
           try {
-            key('keydown', code);
+            key('keydown', code); acknowledging = true;
             firstHeld = await wait('held_ack', state => {
               check(state.directions.every((value, index) => value === 0 || value === expected[index]), 'Unexpected direction before held acknowledgment');
               return JSON.stringify(state.directions) === JSON.stringify(expected);
             });
+            acknowledging = false;
             check(now(lastNeutral) >= nominalBegin && now(firstHeld) <= nominalBegin + maximumOffset,
               'Actual keydown apply bracket exceeds the original-calibrated envelope');
-            lastHeld = await at(`p${slot + 1}_pulse_end`, nominalEnd, expected);
+            // Release at the nominal end, or later when a late native
+            // acknowledgment would otherwise leave the conservatively proven
+            // hold (lastHeld - firstHeld) below the calibrated minimum. Both
+            // targets are circuit times; every envelope check below is unchanged.
+            const releaseAt = now(firstHeld) + minimumHold > nominalEnd ? now(firstHeld) + minimumHold : nominalEnd;
+            lastHeld = await at(`p${slot + 1}_pulse_end`, releaseAt, expected);
             check(JSON.stringify(lastHeld.directions) === JSON.stringify(expected), 'Expected digital direction was lost before ordinary keyup');
           } finally {
-            key('keyup', code);
+            key('keyup', code); acknowledging = true;
             try { firstNeutral = await wait('neutral_ack', state => {
               check(state.directions.every((value, index) => value === 0 || value === expected[index]), 'Unexpected direction before neutral acknowledgment');
               return state.directions.every(value => value === 0);
-            }); }
+            }); acknowledging = false; }
             finally {
               observations.push({ phase: 'native_input_apply_brackets', slot, direction,
                 nominalBeginPs: nominalBegin.toString(), nominalEndPs: nominalEnd.toString(),
@@ -369,6 +400,7 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
             }
           }
           check(Boolean(firstHeld && lastHeld && firstNeutral), 'Missing native input-apply bracket');
+          if (direction > 0) loweringFrom[slot] = now(firstHeld!);
           check(now(lastNeutral) <= now(firstHeld!) && now(firstHeld!) <= now(lastHeld!) && now(lastHeld!) <= now(firstNeutral!),
             'Native input-apply bracket timestamps are not ordered');
           check(now(lastHeld!) >= nominalEnd && now(firstNeutral!) <= nominalEnd + maximumOffset,
@@ -377,14 +409,48 @@ export async function sourceCalibratedSpaceMovement(page: Page) {
             'Conservative actual held-duration interval exceeds the original-calibrated envelope');
         };
         await pulse(-1, upMs);
-        const raised = await raster(`p${slot + 1}_raised`, objects => cold.objects[slot].y - objects[slot].y > 25);
         await pulse(1, downMs);
-        await raster(`p${slot + 1}_lowered`, objects => objects[slot].y - raised.objects[slot].y > 5);
+      }
+      // Every calibrated input edge is complete. Visible evidence, in bracket
+      // order: a pose more than 25 px above the cold raster, then a pose more
+      // than 5 px below the highest pose seen since, presented after that
+      // slot's Down was acknowledged. Late presentation may only delay it.
+      const motion = (slot: number) => {
+        let raised: typeof rasterSamples[number] | undefined, peak: typeof raised, lowered: typeof raised;
+        for (const entry of rasterSamples) {
+          const y = entry.objects[slot].y;
+          if (!raised) { if (cold.objects[slot].y - y > 25) raised = peak = entry; continue; }
+          if (y < peak!.objects[slot].y) peak = entry;
+          if (loweringFrom[slot] !== undefined && now(entry.before) >= loweringFrom[slot]! && y - peak!.objects[slot].y > 5) { lowered = entry; break; }
+        }
+        return { raised, peak, lowered };
+      };
+      const complete = () => [0, 1].every(slot => motion(slot).lowered);
+      scheduledPhase = 'settled'; scheduledTarget = undefined;
+      const deadline = performance.now() + 10000;
+      while (!complete()) {
+        check(performance.now() < deadline, 'Original-raster predicate budget exceeded during ' + [0, 1].map(slot => {
+          const { raised, lowered } = motion(slot); return `p${slot + 1}_${!raised ? 'raised' : !lowered ? 'lowered' : 'done'}`; }).join('/'));
+        if (samplerFailure) throw samplerFailure;
+        await sleep();
+      }
+      sampling = false; await sampler;
+      if (samplerFailure) throw samplerFailure;
+      for (const slot of [0, 1]) {
+        const { raised, peak, lowered } = motion(slot);
+        observations.push({ phase: `p${slot + 1}_visible_motion`, coldY: cold.objects[slot].y,
+          raised: { phase: raised!.phase, y: raised!.objects[slot].y, beforePs: raised!.before.timeps, afterPs: raised!.after.timeps },
+          peak: { phase: peak!.phase, y: peak!.objects[slot].y, beforePs: peak!.before.timeps, afterPs: peak!.after.timeps },
+          lowered: { phase: lowered!.phase, y: lowered!.objects[slot].y, beforePs: lowered!.before.timeps, afterPs: lowered!.after.timeps },
+          downAcknowledgedPs: loweringFrom[slot]!.toString() });
       }
     } catch (error) { failure = String(error); }
-    finally { for (const code of ['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown']) key('keyup', code); }
+    finally {
+      sampling = false; await sampler;
+      for (const code of ['KeyW', 'KeyS', 'ArrowUp', 'ArrowDown']) key('keyup', code);
+    }
     return { stage: 'software motion assertion', physicalQualification: false, inputSource: 'synthetic DOM events; isTrusted=false; actual application handlers',
-      phaseLimit: 'Ordinary fresh Reset anchors native time. Start/cold requested phases are state observations, not exact switch edges. Every motion on/off apply bracket and conservative held-duration interval must fit the independently calibrated empirical envelope; delayed phases or changed session/options/crashes never silently qualify.',
+      phaseLimit: 'Ordinary fresh Reset anchors native time. Start/cold requested phases are state observations, not exact switch edges. Every motion on/off apply bracket and conservative held-duration interval must fit the independently calibrated empirical envelope; delayed phases or changed session/options/crashes never silently qualify. Visible raised/lowered original sprites are bracketed in order by a concurrent sampler and never gate the native input schedule.',
       replayDifference: 'The original retained replay includes a no-credit Start at200ms. This ordinary Coin-then-Start probe omits it; existing UI startup guard prevents emitting that early edge. It is a candidate source-calibrated trajectory, not an identical full replay.',
       loaded, reset, coinHeld, coinReleased, reference, events, observations, failure };
   });
