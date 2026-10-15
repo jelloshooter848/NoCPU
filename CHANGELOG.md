@@ -13,6 +13,13 @@ releases below.
 
 ## [Unreleased]
 
+### Changed
+
+- Faster verification: the long original/native/Wasm comparison is no longer repeated for
+  changes that touch only the interface, documentation or version number once the same game
+  core has been compared, including release updates. Releases still run it in full. No gameplay
+  changes.
+
 ## [0.1.6] - 2026-10-15
 
 ### Changed

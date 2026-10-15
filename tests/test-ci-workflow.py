@@ -3,8 +3,8 @@
 """Guard the CI invariants that keep skips and caches honest.
 
 Reads .github/workflows/verify-browser.yml as text (no YAML dependency): the
-compared marker is saved only after the comparisons pass, and releases never
-use the reference cache or the marker.
+compared marker artifact is uploaded only after the comparisons pass, and
+releases never use the reference cache or look up the marker.
 """
 import re
 import unittest
@@ -45,8 +45,11 @@ class CompareJobTests(unittest.TestCase):
 
     def test_marker_is_saved_only_after_passing_comparisons(self):
         compare = find(self.steps, 'Capture (or restore) and compare every')
-        record = find(self.steps, 'build/compared-marker/compared.txt')
-        save = find(self.steps, 'key: nocpu-compared-')
+        record = find(self.steps, '> build/compared-marker/compared.txt')
+        save = find(self.steps, 'name: nocpu-compared-${{ needs.scope.outputs.core_hash }}')
+        self.assertIn('actions/upload-artifact@', self.steps[save])
+        self.assertIn('path: build/compared-marker/compared.txt', self.steps[save])
+        self.assertNotIn('actions/cache', ''.join(step for step in self.steps if 'compared-marker' in step))
         self.assertLess(compare, record)
         self.assertLess(record, save)
         for index in (compare, record, save):
@@ -72,12 +75,22 @@ class CompareJobTests(unittest.TestCase):
 class ScopeJobTests(unittest.TestCase):
     def test_release_runs_everything_and_skips_the_marker_lookup(self):
         scope_steps = steps(job('scope'))
-        lookup = scope_steps[find(scope_steps, 'key: nocpu-compared-')]
-        self.assertIn('lookup-only: true', lookup)
+        lookup = scope_steps[find(scope_steps, 'ci-scope.py lookup')]
         self.assertEqual(condition(lookup), '${{ !inputs.release }}')
         decide = scope_steps[find(scope_steps, 'ci-scope.py decide')]
         self.assertIn('RELEASE: ${{ inputs.release }}', decide)
         self.assertIn('--release "$RELEASE"', decide)
+        self.assertIn('HIT: ${{ steps.marker.outputs.marker_hit }}', decide)
+
+    def test_markers_are_repository_wide_artifacts_not_branch_scoped_caches(self):
+        # Caches saved on the working branch or a pull request are invisible to
+        # main and to other pull requests; artifacts are visible to every run.
+        block = job('scope')
+        self.assertNotIn('actions/cache', block)
+        self.assertIn('      actions: read\n', block.split('\n    steps:\n', 1)[0])
+        lookup = steps(block)[find(steps(block), 'ci-scope.py lookup')]
+        self.assertIn('GITHUB_TOKEN: ${{ github.token }}', lookup)
+        self.assertIn('--hash "$HASH"', lookup)
 
     def test_verify_accepts_a_skip_only_by_scope_and_never_on_release(self):
         verify = job('verify')
