@@ -224,15 +224,24 @@ test('storage denial, quota failure and one bounded unresponsive store preserve 
       return tx as IDBTransaction;
     };
   });
-  const began = Date.now();
+  // The app's 2500 ms storage watchdogs run on the page clock. Hold it and
+  // advance it explicitly, so the bound below is page time spent by the app's
+  // own timers, not how fast the host loads the page.
+  const clockStart = Date.now();
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(clockStart + 1_000);
   await page.goto('?debug');
   await titleSettings(page);
-  await expect(page.getByTestId('storage-status')).not.toContainText('Checking local');
+  let pageMilliseconds = 0;
+  while (/Checking local/.test(await page.getByTestId('storage-status').innerText())) {
+    expect(pageMilliseconds, 'One store failure must resolve once, not ten sequential timeouts').toBeLessThan(8500);
+    await page.clock.runFor(100); pageMilliseconds += 100;
+  }
+  await page.clock.resume();
   await expect(page.getByTestId('storage-status')).toContainText('unavailable');
   const watchdogs = await page.evaluate(() => (window as any).__storageFault);
   expect(watchdogs.reads).toBeLessThanOrEqual(2);
   expect(watchdogs.aborts).toBeGreaterThanOrEqual(1);
-  expect(Date.now() - began, 'One store failure must resolve once, not ten sequential timeouts').toBeLessThan(8500);
   await page.getByTestId('back').click();
   await playFromLibrary(page);
   await expect(page.getByTestId('insert-coin')).toBeEnabled();

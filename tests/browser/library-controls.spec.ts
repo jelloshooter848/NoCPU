@@ -238,7 +238,8 @@ test('Home draws its schematic in at most once per session, skippable, keyboard-
   const fourth = await page.context().newPage();
   await fourth.goto('?debug');
   await expect(intro(fourth)).toHaveAttribute('data-intro', 'drawing');
-  await expect(intro(fourth)).not.toHaveAttribute('data-intro', /./, { timeout: 5_000 });
+  // The draw-in ends on its own 2200 ms page timer; the limit only bounds waiting.
+  await expect(intro(fourth)).not.toHaveAttribute('data-intro', /./, { timeout: 15_000 });
   await expect.poll(() => menuOpacity(fourth)).toBe('1');
   await fourth.close();
 
@@ -420,7 +421,11 @@ test('keyboard assignment consumes capture, rejects conflicts, updates help and 
   expect((await snapshot(page)).axes[0], 'Old assignment must no longer move the circuit').toBe(before.axes[0]);
   await page.keyboard.up('s');
   await page.keyboard.down('j');
-  await expect.poll(async () => (await snapshot(page)).axes[0] - before.axes[0]).toBeGreaterThan(5000);
+  // Pong's rendered paddle moves about 1.4e-5 of the raster height per native
+  // axis unit, so the 0.07 visible move below needs about 5,100 units. Hold
+  // the new key well past that; a hold of only 5000 left the check to keyup
+  // latency (CI WebKit released at 5014 and rendered a 0.0694 move).
+  await expect.poll(async () => (await snapshot(page)).axes[0] - before.axes[0]).toBeGreaterThan(7500);
   await page.keyboard.up('j');
   await expect.poll(async () => (await paddles(page))[0] - pixelsBefore[0]).toBeGreaterThan(.07);
   await openSettings(page);

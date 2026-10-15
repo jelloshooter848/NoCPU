@@ -93,3 +93,10 @@ decimal string, circuit scoring and hit state, input ownership, worker timings
 and PCM scheduling metrics. `wasmMemoryCapacityBytes` is the allocated Wasm
 memory, not total browser memory. Rendered gameplay always comes from the
 circuit's output.
+
+`?debug` also offers a test clock: `holdClock(true)` suspends the worker's
+wall-clock pacing, `stepClock(microseconds)` then advances the circuit by
+exactly that much simulated time through the same stepping path as play, and
+`holdClock(false)` resumes normal pacing. Snapshots report `presentedFrame`,
+the circuit frame now on the canvas. Pages opened without `?debug` have none
+of this.

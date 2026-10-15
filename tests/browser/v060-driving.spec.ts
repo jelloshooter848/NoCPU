@@ -170,10 +170,19 @@ for (const id of ['stuntcycle', 'indy4']) {
       await page.getByTestId('game-canvas').focus();
       await page.keyboard.down('KeyW');
       await expect.poll(async () => (await state(page)).stuntcycle.throttle).toBeGreaterThan(90000);
+      // Observe the release ramp at exact 10 ms circuit steps on the held debug
+      // clock, so a slow or stalled page cannot skip past the decaying values.
+      await page.evaluate(() => (window as any).__nocpuDebug.holdClock(true));
       const heldThrottle = (await state(page)).stuntcycle.throttle;
       await page.keyboard.up('KeyW');
-      await expect.poll(async () => { const throttle = (await state(page)).stuntcycle.throttle; return throttle > 0 && throttle < heldThrottle; }).toBe(true);
-      await expect.poll(async () => (await state(page)).stuntcycle.throttle).toBe(0);
+      const ramp: number[] = [];
+      for (let step = 0; step < 500 && (ramp.at(-1) ?? heldThrottle) > 0; step += 1) {
+        await page.evaluate(() => (window as any).__nocpuDebug.stepClock(10_000));
+        ramp.push((await state(page)).stuntcycle.throttle);
+      }
+      await page.evaluate(() => (window as any).__nocpuDebug.holdClock(false));
+      expect(ramp.some((throttle) => throttle > 0 && throttle < heldThrottle), `Released throttle ramps down from ${heldThrottle}: ${ramp.join(',')}`).toBe(true);
+      expect(ramp.at(-1), 'Released throttle returns to zero within five simulated seconds').toBe(0);
       await padState(page, 0, { axis: [1, 0] }); await padState(page, 0, { axis: [1, 1] });
       await expect.poll(async () => (await state(page)).stuntcycle.throttle).toBeGreaterThan(90000);
       await page.keyboard.down('KeyS');
@@ -357,7 +366,7 @@ test('Stunt source-derived Coin/Start1 and two-credit Start2 switches run the sa
 
 test('Stunt measured20% throttle produces original raw8-to9 score progression in browser software', { tag: '@game-stuntcycle' }, async ({ page }, testInfo) => {
   test.skip(!privateDir, 'Private original ROM fixtures unavailable; representative Stunt gameplay not exercised.');
-  test.setTimeout(90_000);
+  test.setTimeout(240_000);
   await installGamepads(page); await launch(page, 'stuntcycle');
   await padState(page, 0, { axis: [1, 0] });
   const cold = await state(page);
@@ -376,11 +385,9 @@ test('Stunt measured20% throttle produces original raw8-to9 score progression in
   const rawAxis = 0.15 + 0.85 * (6554 / 32767);
   await padState(page, 0, { axis: [1, rawAxis] });
   await expect.poll(async () => (await state(page)).driving.axes[0]).toBe(6554);
-  let outcome: any;
-  await expect.poll(async () => {
-    outcome = await state(page);
-    return outcome.scores[0] === 9 || BigInt(outcome.timePs) >= 20_000_000_000_000n;
-  }, { timeout: 60_000 }).toBe(true);
+  // Twenty simulated seconds from the start of the circuit, however long the
+  // host takes to simulate them.
+  const outcome = await untilCircuit(page, (snapshot) => snapshot.scores[0] === 9 || BigInt(snapshot.timePs) >= 20_000_000_000_000n, 20);
   expect(outcome.scores[0], 'Original score must progress from its real loaded8 to9 within20 simulated seconds').toBe(9);
   expect(outcome.nativeRunning).toBe(true);
   expect(outcome.stuntcycle.signals[5], 'Source BAD_JUMP is inactive at the scored observation').toBe(0);

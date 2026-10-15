@@ -420,6 +420,35 @@ Automated browser projects show that the build loads and runs in those engines.
 They are Playwright's builds of Chromium, Firefox and WebKit, not Google
 Chrome, a Mozilla release Firefox or Safari, and evidence names them that way.
 
+### Simulated time, not host speed
+
+Browser tests assert in simulated time; wall-clock time only bounds waiting;
+real-time performance is reported, not gated. A correct build must pass on a
+slow or unevenly loaded runner, so:
+
+- Accuracy and behavior checks are expressed in circuit time (the snapshot's
+  integer picoseconds and frame numbers) and keep their calibrated limits in
+  those terms. "Hold until X, then check Y" must make X imply Y without
+  relying on how late the release lands; waits use `waitSimulation`,
+  `untilCircuit` or an equivalent bound in simulated time.
+- Where a check needs inputs or observations at exact circuit times, it holds
+  the worker's clock with the `?debug` test clock
+  ([web/README.md](../web/README.md#building-and-testing)) and advances it in explicit
+  simulated steps. The Space Race movement envelope and the Stunt Cycle
+  throttle release ramp work this way.
+- App timers that are wall-clock by design (the 3000 ms audio activation
+  expiry, the 2500 ms storage watchdogs) are tested on Playwright's page clock,
+  held or advanced explicitly, so the test controls which timer fires first.
+- Wall-clock limits are generous and only end a wait for something that should
+  happen (a page load, an acknowledgment, a stalled simulation). Short fixed
+  waits are used only to check that nothing happens, which a slow host can
+  never fail.
+- Real-time speed is measured and reported: the sustained Pong session attaches
+  `browser-performance.json` and a `performance` annotation
+  (`simulationSpeedRatio=…`), which `tools/desktop-acceptance.py collect`
+  carries into the acceptance record beside that test's outcome. It never
+  decides a game's status.
+
 ### Desktop acceptance record
 
 Every CI and release run generates the desktop acceptance record of the

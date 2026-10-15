@@ -21,6 +21,9 @@ releases below.
   changes that touch only the interface, documentation or version number once the same game
   core has been compared, including release updates. Releases still run it in full. No gameplay
   changes.
+- More reliable verification: the browser checks now judge games in simulated circuit time
+  rather than by how fast the test machine runs, and report real-time speed instead of failing
+  on it. No gameplay changes.
 
 ## [0.1.6] - 2026-10-15
 
