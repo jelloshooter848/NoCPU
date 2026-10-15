@@ -11,6 +11,22 @@
   --panel: #1b1b19;
   --accent: #f0f0ea;
   --hud-height: 56px;
+  /* Installed fonts only: nothing is downloaded. The IBM Plex and Silkscreen
+     names match the design when a player has them installed; otherwise the
+     system monospace and condensed faces stand in. */
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --font-condensed: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+  --font-pixel: "Silkscreen", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --paper: #f3f0e6;
+  --paper-ink: #1b1f2a;
+  --paper-muted: #5a5e68;
+  --paper-accent: #c0401e;
+  --court: #060708;
+  --phosphor: #f4f6f8;
+  --phosphor-dim: #8c9096;
+  --phosphor-muted: #80858d;
+  --phosphor-soft: #b5bac2;
+  --court-line: #2a2d31;
 }
 
 * { box-sizing: border-box; }
@@ -124,18 +140,10 @@ canvas {
 .back-button { position: sticky; top: -24px; z-index: 1; margin: -8px 0 12px; background: var(--panel); box-shadow: 0 -16px 0 12px var(--panel); }
 .menu-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
 
-.title-panel { text-align: center; }
-.title-panel .game-logo { margin: 0; font-size: 48px; font-weight: 800; letter-spacing: -.02em; }
-.title-panel .game-subtitle { margin: 4px 0 24px; color: var(--muted); }
-.title-panel .menu-actions { width: min(100%, 280px); margin: 0 auto; }
-.title-panel .title-version { margin: 20px 0 0; color: var(--muted); font-size: 13px; font-family: ui-monospace, monospace; }
 .loading-panel { text-align: center; }
 .loading-panel p { color: var(--muted); }
 
-.library-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 16px 0 0; }
-.library-game { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; padding: 10px 12px; text-align: left; }
-.game-name { font-weight: 600; overflow-wrap: anywhere; }
-.status-tag, .game-summary { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.game-name { overflow-wrap: anywhere; }
 
 .game-info-facts { display: grid; gap: 6px; margin: 16px 0; }
 .game-info-facts div, .about-facts div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
@@ -176,6 +184,171 @@ kbd { display: inline-block; min-width: 24px; padding: 1px 6px; border: 1px soli
 .error-panel p { overflow-wrap: anywhere; }
 .error-panel button { margin: 8px 8px 0 0; }
 
+/* Home: a schematic drafting sheet. */
+.game-shell[data-screen="title"] .shell-overlay,
+.game-shell[data-screen="library"] .shell-overlay { padding: 0; }
+.game-shell[data-screen="title"] .overlay-card,
+.game-shell[data-screen="library"] .overlay-card {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.game-shell[data-screen="title"] .shell-overlay { background: var(--paper); }
+.game-shell[data-screen="title"] .overlay-card {
+  color-scheme: light;
+  padding: clamp(12px, 2.2vw, 28px);
+  background-color: var(--paper);
+  background-image: linear-gradient(rgba(27, 31, 42, .07) 1px, transparent 1px), linear-gradient(90deg, rgba(27, 31, 42, .07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: local;
+}
+.title-panel { min-height: 100%; display: flex; color: var(--paper-ink); font-family: var(--font-mono); }
+.sheet-frame { flex: 1; display: flex; min-width: 0; border: 3px solid var(--paper-ink); }
+.sheet-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: clamp(14px, 3.2vh, 26px); padding: clamp(24px, 6vh, 56px) clamp(20px, 5vw, 64px); }
+.title-panel .sheet-label { margin: 0; font-size: 13px; letter-spacing: .18em; color: var(--paper-muted); }
+.title-panel .game-logo { margin: 0; font-family: var(--font-condensed); font-stretch: condensed; font-weight: 700; font-size: clamp(64px, min(10.3vw, 16.5vh), 132px); line-height: .9; letter-spacing: -.02em; }
+.logo-accent { color: var(--paper-accent); }
+.title-panel .game-subtitle { margin: 0; max-width: 520px; font-size: clamp(15px, 1.4vw, 18px); line-height: 1.5; }
+.title-schematic { display: block; width: 100%; max-width: 560px; height: auto; font-family: var(--font-mono); }
+.title-panel .sheet-footer { margin: auto 0 0; font-size: 13px; color: var(--paper-muted); }
+.sheet-side { width: clamp(280px, 34vw, 440px); flex: none; display: flex; flex-direction: column; border-left: 3px solid var(--paper-ink); }
+.sheet-side > .sheet-label { padding: 28px 28px 12px; }
+.title-menu { display: flex; flex-direction: column; gap: 0; padding: 0 10px; }
+.pin {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 60px;
+  padding: 0 18px;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--paper-ink);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  text-align: left;
+}
+.pin:hover:not(:disabled), .pin:focus-visible { border-color: var(--paper-ink); background: #fffdf6; }
+.pin:active:not(:disabled) { background: #fffdf6; }
+.pin:focus-visible { outline: 3px solid var(--paper-accent); outline-offset: 2px; }
+.pin-no { flex: none; font-size: 13px; color: var(--paper-muted); }
+.pin-text { display: flex; flex-direction: column; }
+.pin-name { font-weight: 400; }
+.pin-note { font-size: 12px; opacity: .8; }
+.pin-arrow { margin-left: auto; }
+.pin.primary-button, .pin.primary-button:hover:not(:disabled), .pin.primary-button:active:not(:disabled) { border-color: var(--paper-ink); background: var(--paper-ink); color: var(--paper); }
+.pin.primary-button .pin-name { font-weight: 600; }
+.pin.primary-button .pin-no { color: inherit; opacity: .8; }
+.title-block { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: auto 0 0; border-top: 3px solid var(--paper-ink); background: var(--paper); font-size: 12px; }
+.title-block div { padding: 12px 16px; min-width: 0; }
+.title-block div:nth-child(odd) { border-right: 2px solid var(--paper-ink); }
+.title-block div:nth-child(-n + 2) { border-bottom: 2px solid var(--paper-ink); }
+.title-block dt { color: var(--paper-muted); }
+.title-block dd { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.title-block .processor-none { color: var(--paper-accent); }
+
+/* The draw-in: ink first, then labels and menu. Only appearance changes. */
+.title-panel[data-intro="drawing"] .schematic-ink > * { stroke-dasharray: 600; stroke-dashoffset: 600; animation: ink 1.6s ease-out forwards; }
+.title-panel[data-intro="drawing"] .schematic-ink line:nth-of-type(2) { animation-delay: .2s; }
+.title-panel[data-intro="drawing"] .schematic-ink path { animation-delay: .4s; }
+.title-panel[data-intro="drawing"] .schematic-ink circle { animation-delay: .9s; }
+.title-panel[data-intro="drawing"] .sheet-fade { opacity: 0; animation: show .5s ease-out 1.5s forwards; }
+@keyframes ink { to { stroke-dashoffset: 0; } }
+@keyframes show { to { opacity: 1; } }
+
+/* Play: a black phosphor court with walls, a centre net and a paddle cursor. */
+.game-shell[data-screen="library"] .shell-overlay { background: var(--court); }
+.game-shell[data-screen="library"] .overlay-card {
+  position: relative;
+  border-top: 12px solid var(--phosphor);
+  border-bottom: 12px solid var(--phosphor);
+  background: var(--court);
+  color: var(--phosphor);
+  font-family: var(--font-mono);
+}
+.game-shell[data-screen="library"] .back-button {
+  position: absolute;
+  top: 26px;
+  left: clamp(16px, 5.6vw, 72px);
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--phosphor-soft);
+  font-family: var(--font-mono);
+}
+.game-shell[data-screen="library"] .back-button:hover { color: var(--phosphor); }
+.library-panel { min-height: 100%; display: flex; flex-direction: column; padding: 26px clamp(16px, 5.6vw, 72px) 28px; }
+.library-panel button:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 3px; }
+.play-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; min-height: 36px; margin: 0 0 clamp(20px, 5vh, 44px) 100px; }
+.panel-section.library-panel h1 { margin: 0; font-family: var(--font-pixel); font-size: 20px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.library-panel .play-hint { margin: 0 0 0 auto; font-size: 13px; color: var(--phosphor-muted); }
+.play-court { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1.15fr); column-gap: clamp(20px, 5vw, 72px); }
+.court-net { background: repeating-linear-gradient(to bottom, var(--court-line) 0 22px, transparent 22px 44px); }
+.play-games { display: flex; flex-direction: column; min-width: 0; }
+.play-list { display: flex; flex-direction: column; gap: 4px; }
+.library-game {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 50px;
+  padding: 0 8px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--phosphor-dim);
+  font-family: var(--font-pixel);
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.library-game:hover:not(:disabled), .library-game:focus-visible, .library-game[aria-current="true"] { color: var(--phosphor); background: transparent; }
+.library-game:active:not(:disabled) { background: transparent; }
+.library-game[aria-current="true"] { text-shadow: 0 0 10px rgba(244, 246, 248, .45); }
+.paddle { flex: none; width: 12px; height: 44px; }
+.library-game[aria-current="true"] .paddle, .library-game:focus-visible .paddle { background: var(--phosphor); box-shadow: 0 0 12px rgba(244, 246, 248, .8); }
+.library-panel .library-game:focus-visible { outline: 0; }
+.library-panel .library-game:focus-visible .game-name { text-decoration: underline 2px; text-underline-offset: 6px; }
+.panel-section .coming-soon-heading { margin: 22px 0 4px; font-family: var(--font-mono); font-size: 13px; font-weight: 400; letter-spacing: .14em; text-transform: uppercase; color: var(--phosphor-muted); }
+.coming-soon-list { display: flex; flex-wrap: wrap; gap: 0 18px; max-width: 460px; }
+.library-game.pending-game { min-height: 32px; font-size: 15px; letter-spacing: .02em; color: var(--phosphor-muted); }
+.library-game.pending-game:hover, .library-game.pending-game[aria-current="true"], .library-game.pending-game:focus-visible { color: var(--phosphor); }
+.play-details { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; min-width: 0; max-width: 560px; }
+.panel-section .play-details h2 { margin: 0; font-family: var(--font-pixel); font-size: clamp(28px, 3.5vw, 44px); font-weight: 700; letter-spacing: .03em; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }
+.panel-section .play-detail-meta { margin: 0; font-size: 16px; color: var(--phosphor-soft); }
+.play-badges { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.play-badges li { padding: 6px 10px; border: 1px solid #3f4349; color: var(--phosphor-soft); }
+.play-badges .verified-badge { border-color: #7cf29a; color: #7cf29a; }
+.play-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 6px; }
+.play-cta {
+  min-height: 56px;
+  padding: 0 32px;
+  border: 0;
+  border-radius: 0;
+  background: var(--phosphor);
+  color: var(--court);
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.play-cta:hover:not(:disabled), .play-cta:active:not(:disabled) { background: #fff; color: var(--court); }
+.play-info, .play-more button { border-color: #3f4349; background: transparent; color: var(--phosphor-soft); font-family: var(--font-mono); }
+.play-info:hover:not(:disabled), .play-more button:hover:not(:disabled) { border-color: var(--phosphor-soft); background: transparent; color: var(--phosphor); }
+.play-more { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+@media (max-width: 860px) {
+  .play-header { margin-left: 90px; }
+  .library-panel .play-hint { flex-basis: 100%; margin-left: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
+  .title-panel[data-intro] .schematic-ink > *, .title-panel[data-intro] .sheet-fade { animation: none; stroke-dashoffset: 0; opacity: 1; }
 }

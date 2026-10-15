@@ -8,10 +8,16 @@ fifteen DICE games are listed but not ported yet.
 
 ## What it offers
 
-- **Game picker.** The title screen leads with the Library, which opens on
-  the last game played and lists all 21 titles with their maker, year, ROM
-  requirement, controls and audio status; unported titles are marked "Browser
-  port pending".
+- **Home and game picker.** Home is a schematic drafting sheet whose menu
+  leads with Play; its gate drawing sketches itself in at most once per browser
+  session (`sessionStorage`), any key or click skips it, reduced motion never
+  runs it, and the menu is usable throughout. Play is an arcade-court picker
+  that opens on the last game played: Up and Down choose among the six
+  playable games and then the 15 listed under Coming soon, the right side
+  shows the selected game's maker, year, players, comparison and ROM status
+  with a Play button, and Enter or Game info opens the game's info page
+  (controls, audio status and ROM requirements). Only installed fonts are
+  used; nothing is downloaded.
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
   (coin, start and Pause · Esc buttons, plus a short status line). The
@@ -32,8 +38,8 @@ fifteen DICE games are listed but not ported yet.
   the audited CRC and size requirements, locally; files are never uploaded.
   Imports last for the visit unless "Remember in this browser" is chosen.
 - **Pause and reset.** Pause · Esc stops the circuit clock; the menu offers
-  Resume, Reset game, Settings, How to play, About and returning to the library
-  or title.
+  Resume, Reset game, Settings, How to play, About and returning to Play
+  or Home.
 - **Volume and mute** in Settings → Sound.
 - **DIP and potentiometer settings** for each game in Settings → Controls; they
   apply when the game starts or after Apply & reset game.

@@ -2,7 +2,7 @@
 import './style.css';
 import { CircuitAudio } from './audio';
 import { GAMES, getGame } from './catalog';
-import { createShellMarkup, escapeText, gameInfoMarkup } from './shell-ui';
+import { createShellMarkup, escapeText, gameInfoMarkup, VERIFIED_GAMES } from './shell-ui';
 import { buildString, devBuildString } from './build-info';
 import { createSettingsUI } from './app-settings';
 import { createControls } from './controls';
@@ -95,7 +95,7 @@ const settingsUI = createSettingsUI({
   },
   onBindings: () => { releaseInputs(); controls.setBindings(settingsUI.bindingsFor(activeGameId)); renderHelp(); },
   onCaptureStarted: releaseInputs,
-  onMetadataChanged: () => { renderGameInfo(true); },
+  onMetadataChanged: () => { renderGameInfo(true); if (screen === 'library') renderPlayDetails(); },
   onApplyGameOptions: (gameId) => { if (ready && gameId === activeGameId) resetGame(); },
   onPlayRom: (gameId) => { void startGame(gameId); },
   onRomRemoved: (gameId) => { if (ready && gameId === activeGameId) disposeGame('library'); },
@@ -148,9 +148,53 @@ function lastPlayedGameButton(): HTMLElement | undefined {
   return document.querySelector<HTMLElement>(`.library-game[data-game-id="${gameId}"]`) ?? undefined;
 }
 
+// Home's schematic draws itself in once per browser session. Any key or click
+// skips it, reduced motion never runs it, and the menu is usable throughout:
+// only its appearance fades in.
+const DRAW_IN_KEY = 'nocpu.homeDrawn';
+const titlePanel = element('#intro');
+let drawInTimer: ReturnType<typeof setTimeout> | undefined;
+function stopDrawIn(): void {
+  if (drawInTimer) clearTimeout(drawInTimer);
+  drawInTimer = undefined;
+  delete titlePanel.dataset.intro;
+  window.removeEventListener('keydown', stopDrawIn, true);
+  window.removeEventListener('pointerdown', stopDrawIn, true);
+}
+function startDrawIn(): void {
+  try {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || sessionStorage.getItem(DRAW_IN_KEY)) return;
+    sessionStorage.setItem(DRAW_IN_KEY, '1');
+  } catch { return; /* Without session storage it could repeat, so it never runs. */ }
+  titlePanel.dataset.intro = 'drawing';
+  window.addEventListener('keydown', stopDrawIn, true);
+  window.addEventListener('pointerdown', stopDrawIn, true);
+  drawInTimer = setTimeout(stopDrawIn, 2200);
+}
+
+// The Play screen's right side describes the selected game.
+function renderPlayDetails(): void {
+  const game = getGame(selectedGameId);
+  element('[data-testid="play-detail-name"]').textContent = game.name;
+  element('[data-testid="play-detail-meta"]').textContent = `${game.manufacturer} · ${game.year} · ${game.players === 1 ? '1 player' : `up to ${game.players} players`}`;
+  element('[data-testid="play-detail-verified"]').hidden = !VERIFIED_GAMES.includes(game.id);
+  element('[data-testid="play-detail-rom"]').textContent = game.playable ? settingsUI.romDescription(game.id) : 'Browser port pending';
+  const play = element<HTMLButtonElement>('[data-testid="play-preview"]');
+  play.disabled = !game.playable;
+  play.textContent = !game.playable ? 'Coming soon' : game.roms.length && !settingsUI.romReady(game.id) ? 'Import ROMs to play' : 'Play';
+  play.setAttribute('aria-label', game.playable ? `${play.textContent} ${game.name}` : `${game.name} is coming soon`);
+  element('[data-testid="preview-info"]').setAttribute('aria-label', `${game.name} game info`);
+  document.querySelectorAll<HTMLElement>('.library-game').forEach((button) => {
+    if (button.dataset.gameId === game.id) button.setAttribute('aria-current', 'true');
+    else button.removeAttribute('aria-current');
+  });
+}
+
 function showScreen(next: Screen): void {
   screen = next;
   shell.dataset.screen = next;
+  if (next !== 'title') stopDrawIn();
+  backButton.textContent = next === 'library' ? '← Home' : '← Back';
   const playing = next === 'playing';
   overlay.hidden = playing;
   hud.hidden = !playing;
@@ -167,6 +211,7 @@ function showScreen(next: Screen): void {
     overlay.setAttribute('aria-labelledby', `${next}-heading`);
     const panel = element<HTMLElement>(`[data-panel="${next}"]`);
     panel.tabIndex = -1;
+    if (next === 'library') renderPlayDetails();
     const lastPlayed = next === 'library' ? lastPlayedGameButton() : undefined;
     const focusTarget = lastPlayed ?? (next === 'library' ? panel.querySelector<HTMLElement>('.library-game') : undefined)
       ?? panel.querySelector<HTMLElement>('button:not(:disabled), a, input:not(:disabled), select') ?? panel;
@@ -620,7 +665,7 @@ function disposeGame(destination: 'title' | 'library'): void {
   resetButton.disabled = true;
   updatePads();
   updateSoundButton();
-  status.textContent = 'Choose a game from the Library.';
+  status.textContent = 'Choose a game in Play.';
   hudStatus.textContent = '';
   context?.clearRect(0, 0, canvas.width, canvas.height);
   navigation.length = 0;
@@ -794,7 +839,27 @@ backButton.addEventListener('click', closePanel);
 element('#return-title').addEventListener('click', returnToTitle);
 element('#return-library').addEventListener('click', returnToLibrary);
 element('[data-testid="play-selected"]').addEventListener('click', () => { if (isPlayableGameId(selectedGameId)) void startGame(selectedGameId); });
-element('.library-list').addEventListener('click', (event) => {
+const playGames = element('.play-games');
+playGames.addEventListener('focusin', (event) => {
+  const item = (event.target as HTMLElement).closest<HTMLElement>('[data-game-id]');
+  if (!item || item.dataset.gameId === selectedGameId) return;
+  selectedGameId = item.dataset.gameId!;
+  renderPlayDetails();
+});
+// Up and Down move between the games, in the order they are shown.
+playGames.addEventListener('keydown', (event) => {
+  if (!['ArrowUp', 'ArrowDown'].includes(event.code) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const games = [...playGames.querySelectorAll<HTMLElement>('.library-game')];
+  const index = games.indexOf(document.activeElement as HTMLElement);
+  if (index === -1) return;
+  event.preventDefault();
+  const next = games[Math.min(games.length - 1, Math.max(0, index + (event.code === 'ArrowDown' ? 1 : -1)))];
+  next.focus({ preventScroll: true });
+  next.scrollIntoView({ block: 'nearest' });
+});
+element('[data-testid="play-preview"]').addEventListener('click', () => { if (isPlayableGameId(selectedGameId)) void startGame(selectedGameId); });
+element('[data-testid="preview-info"]').addEventListener('click', () => { renderGameInfo(); openPanel('game-info'); });
+playGames.addEventListener('click', (event) => {
   const item = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-game-id]');
   if (!item) return;
   item.focus({ preventScroll: true });
@@ -836,6 +901,7 @@ renderHelp();
 updateSoundButton();
 updateFullscreen();
 showScreen('title');
+startDrawIn();
 requestAnimationFrame(animationFrame);
 
 if (new URLSearchParams(location.search).has('debug')) {

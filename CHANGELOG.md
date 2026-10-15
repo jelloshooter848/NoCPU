@@ -13,6 +13,18 @@ releases below.
 
 ## [Unreleased]
 
+### Changed
+
+- New Home screen, drawn as a circuit schematic sheet: the NoCPU logo, a small logic-gate
+  drawing that sketches itself in the first time you open the app in a session (any key or click
+  skips it, and it never plays when your system asks for reduced motion), and the menu Play,
+  Settings, How to play and About.
+- New Play screen, styled as a black arcade court: the six playable games are listed with a
+  glowing paddle marking the selected one, which Up and Down change; the right side shows its
+  maker, year, players, ROM status and a Play button, and the games not ported yet are listed
+  under Coming soon. It still opens on the game you last played, Enter opens a game's info page
+  and Escape goes back Home. The Library is now called Play throughout.
+
 ## [0.1.4] - 2026-10-14
 
 ### Changed

@@ -310,9 +310,9 @@ function tick(): void {
 
 async function handle(command: CoreCommand): Promise<void> {
   if (command.type === 'init') {
-    if (core) throw new PlayerError('A game is already loaded. Return to the library and choose it again.');
+    if (core) throw new PlayerError('A game is already loaded. Return to Play and choose it again.');
     if (!isPlayableGameId(command.gameId) || !isGameOptions(command.gameId, command.options)) {
-      throw new PlayerError('The selected game or settings are unsupported. Return to the library and try again.');
+      throw new PlayerError('The selected game or settings are unsupported. Return to Play and try again.');
     }
     gameId = command.gameId;
     gameOptions = normalizeGameOptions(gameId, command.options);

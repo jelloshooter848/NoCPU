@@ -29,7 +29,11 @@ test('all audited games have truthful library, ROM, sound and control informatio
   await page.goto('?debug');
   await expect.poll(() => page.evaluate(() => typeof (window as any).__releaseRomReadiness)).toBe('function');
   await page.getByTestId('open-library').click();
-  await expect(page.getByTestId('game-library').locator('.game-name')).toHaveText(auditedGames.map((game) => game.display_name));
+  // Play lists the six ported games, then every other audited game under Coming soon, each in audited order.
+  const ported = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
+  await expect(page.locator('.play-list .game-name')).toHaveText(auditedGames.filter((game) => ported.includes(game.id)).map((game) => game.display_name));
+  await expect(page.locator('.coming-soon-list .game-name')).toHaveText(auditedGames.filter((game) => !ported.includes(game.id)).map((game) => game.display_name));
+  await expect(page.getByTestId('game-library').locator('.game-name')).toHaveCount(auditedGames.length);
   await page.getByTestId('game-antiaircraft').click();
   const disclosure = page.locator('.rom-requirements summary');
   await disclosure.click();
@@ -123,16 +127,18 @@ test('return to library disposes the running circuit and audio before a fresh RO
   await expect.poll(async () => (await snapshot(page)).run).toBe(true);
 });
 
-test('the title leads with Library, and the Library opens on the last game played', { tag: '@game-pongdoubles' }, async ({ page }) => {
+test('Home leads with Play, and Play opens on the last game played', { tag: '@game-pongdoubles' }, async ({ page }) => {
   const library = page.getByTestId('open-library');
   const titleButtons = page.locator('[data-panel="title"] .menu-actions button');
+  const titleNames = ['Play', 'Settings', 'How to play', 'About'];
   await page.goto('?debug');
   await screen(page, 'title');
-  await expect(titleButtons).toHaveText(['Library', 'Settings', 'How to play', 'About']);
+  await expect(titleButtons.locator('.pin-name')).toHaveText(titleNames);
+  for (const [index, name] of titleNames.entries()) await expect(titleButtons.nth(index)).toHaveAccessibleName(name);
   await expect(page.getByTestId('continue-game')).toHaveCount(0);
   await expect(library).toBeFocused();
   await expect(library).toHaveClass(/primary-button/);
-  // With nothing played yet the Library opens on its first game.
+  // With nothing played yet Play opens on its first game.
   await library.click();
   await screen(page, 'library');
   await expect(page.locator('.library-game').first()).toBeFocused();
@@ -143,12 +149,16 @@ test('the title leads with Library, and the Library opens on the last game playe
   await pauseMenu(page);
   await page.getByTestId('return-title').click();
   await screen(page, 'title');
-  await expect(titleButtons).toHaveText(['Library', 'Settings', 'How to play', 'About']);
+  await expect(titleButtons.locator('.pin-name')).toHaveText(titleNames);
+  for (const [index, name] of titleNames.entries()) await expect(titleButtons.nth(index)).toHaveAccessibleName(name);
   await expect(library).toBeFocused();
   await expect(library).toHaveClass(/primary-button/);
   await page.keyboard.press('Enter');
   await screen(page, 'library');
   await expect(page.getByTestId('game-pongdoubles')).toBeFocused();
+  await expect(page.getByTestId('play-detail-name')).toHaveText('Pong Doubles');
+  await expect(page.locator('#library-heading')).toHaveText('Play');
+  await expect(page.getByTestId('back')).toHaveText('← Home');
   // Back from a game's info page still returns focus to the game chosen.
   await page.getByTestId('game-breakout').click();
   await screen(page, 'game-info');
@@ -166,6 +176,130 @@ test('the title leads with Library, and the Library opens on the last game playe
   await library.click();
   await screen(page, 'library');
   await expect(page.getByTestId('game-pongdoubles')).toBeFocused();
+  await expect(page.getByTestId('game-pongdoubles')).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('play-detail-name')).toHaveText('Pong Doubles');
+  // The selected game's Play button starts it directly.
+  await page.getByTestId('play-preview').click();
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await expect(page.locator('.game-shell')).toHaveAttribute('data-screen', 'playing');
+  expect(await page.evaluate(async () => (await (window as any).__nocpuDebug.snapshot()).gameId)).toBe('pongdoubles');
+});
+
+test('Home draws its schematic in at most once per session, skippable, keyboard-usable and never under reduced motion', async ({ page }) => {
+  const intro = (target: typeof page) => target.locator('[data-panel="title"]');
+  const menuOpacity = (target: typeof page) => target.locator('.sheet-side').evaluate((element) => getComputedStyle(element).opacity);
+  await page.goto('?debug');
+  await expect(intro(page)).toHaveAttribute('data-intro', 'drawing');
+  // The menu is focused and usable from the start; only its appearance fades in.
+  await expect(page.getByTestId('open-library')).toBeFocused();
+  await page.keyboard.press('Shift');
+  await expect(intro(page)).not.toHaveAttribute('data-intro');
+  await expect.poll(() => menuOpacity(page)).toBe('1');
+  // Later visits to Home in the same session show the finished sheet at once.
+  await page.reload();
+  await screen(page, 'title');
+  await expect(intro(page)).not.toHaveAttribute('data-intro');
+  expect(await menuOpacity(page)).toBe('1');
+
+  // A new tab is a new session: Enter during the draw-in skips it and opens Play.
+  const second = await page.context().newPage();
+  await second.goto('?debug');
+  await expect(intro(second)).toHaveAttribute('data-intro', 'drawing');
+  await second.keyboard.press('Enter');
+  await screen(second, 'library');
+  await second.getByTestId('back').click();
+  await screen(second, 'title');
+  await expect(intro(second)).not.toHaveAttribute('data-intro');
+  await second.close();
+
+  // A click skips it, and left alone it finishes by itself.
+  const third = await page.context().newPage();
+  await third.goto('?debug');
+  await expect(intro(third)).toHaveAttribute('data-intro', 'drawing');
+  await third.mouse.click(4, 4);
+  await expect(intro(third)).not.toHaveAttribute('data-intro');
+  await third.close();
+  const fourth = await page.context().newPage();
+  await fourth.goto('?debug');
+  await expect(intro(fourth)).toHaveAttribute('data-intro', 'drawing');
+  await expect(intro(fourth)).not.toHaveAttribute('data-intro', /./, { timeout: 5_000 });
+  await expect.poll(() => menuOpacity(fourth)).toBe('1');
+  await fourth.close();
+
+  // Reduced motion never runs it.
+  const reduced = await page.context().newPage();
+  await reduced.emulateMedia({ reducedMotion: 'reduce' });
+  await reduced.goto('?debug');
+  await screen(reduced, 'title');
+  await expect(intro(reduced)).not.toHaveAttribute('data-intro');
+  expect(await menuOpacity(reduced)).toBe('1');
+  await expect(reduced.getByTestId('open-library')).toBeFocused();
+  await reduced.close();
+});
+
+test('Play moves between games with Up and Down and describes the selected game', async ({ page }) => {
+  const games = Object.fromEntries(auditedGames.map((game) => [game.id, game]));
+  const details = async (id: string, players: number, rom: string, play: string) => {
+    await expect(page.getByTestId(`game-${id}`)).toBeFocused();
+    await expect(page.getByTestId(`game-${id}`)).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('.library-game[aria-current="true"]')).toHaveCount(1);
+    await expect(page.getByTestId('play-detail-name')).toHaveText(games[id].display_name);
+    await expect(page.getByTestId('play-detail-meta')).toHaveText(`${games[id].manufacturer} · ${games[id].year} · up to ${players} players`);
+    await expect(page.getByTestId('play-detail-rom')).toHaveText(rom);
+    await expect(page.getByTestId('play-preview')).toHaveText(play);
+  };
+  await page.goto('?debug');
+  await page.getByTestId('open-library').click();
+  await screen(page, 'library');
+  await details('pong', 2, 'No ROM needed', 'Play');
+  await expect(page.getByTestId('play-detail-verified')).toHaveText('✓ Verified against original DICE');
+  await page.keyboard.press('ArrowUp');
+  await details('pong', 2, 'No ROM needed', 'Play');
+  await page.keyboard.press('ArrowDown');
+  await details('pongdoubles', 4, 'No ROM needed', 'Play');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await details('stuntcycle', 2, 'ROM required · not imported', 'Import ROMs to play');
+  await expect(page.getByTestId('play-detail-verified')).toBeVisible();
+  // Without its ROM, Play explains on the game's info page and creates no circuit.
+  await page.getByTestId('play-preview').click();
+  await screen(page, 'game-info');
+  await expect(page.getByTestId('rom-launch-message')).toBeVisible();
+  await expect(page.locator('#game-info-heading')).toHaveText('Stunt Cycle');
+  await page.getByTestId('back').click();
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await details('indy4', 4, 'ROM required · not imported', 'Import ROMs to play');
+  // Down continues into the games that are not ported yet; they cannot be played.
+  await page.keyboard.press('ArrowDown');
+  await details('rebound', 2, 'Browser port pending', 'Coming soon');
+  await expect(page.getByTestId('play-preview')).toBeDisabled();
+  await expect(page.getByTestId('play-detail-verified')).toBeHidden();
+  await page.keyboard.press('ArrowUp');
+  await details('indy4', 4, 'ROM required · not imported', 'Import ROMs to play');
+  for (let step = 0; step < 20; step += 1) await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.library-game').last()).toBeFocused();
+  // Enter opens the focused game's info page, as Game info does for the selection.
+  await page.getByTestId('game-pong').focus();
+  await page.keyboard.press('Enter');
+  await screen(page, 'game-info');
+  await expect(page.getByTestId('play-selected')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-pong')).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.getByTestId('preview-info').click();
+  await screen(page, 'game-info');
+  await expect(page.locator('#game-info-heading')).toHaveText('Pong Doubles');
+  await page.keyboard.press('Escape');
+  await screen(page, 'library');
+  await expect(page.getByTestId('preview-info')).toBeFocused();
+  // Escape goes Home.
+  await page.keyboard.press('Escape');
+  await screen(page, 'title');
+  await expect(page.getByTestId('open-library')).toBeFocused();
 });
 
 test('a remembered game is kept only while playable; stale ids open the Library on its first game without a warning', async ({ page }) => {
