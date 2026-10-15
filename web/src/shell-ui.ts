@@ -5,8 +5,18 @@ export function escapeText(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
 }
 
+// The games whose original/native/Wasm comparisons pass (docs/ACCEPTANCE.md).
+// A game is added here only with its comparison evidence, never because it runs.
+export const VERIFIED_GAMES: readonly string[] = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
+
+function gameButton(game: GameInfo): string {
+  return `<button class="library-game${game.playable ? '' : ' pending-game'}" data-game-id="${game.id}" data-testid="game-${game.id}"${game.playable ? '' : ' aria-describedby="coming-soon-heading"'}>${game.playable ? '<span class="paddle" aria-hidden="true"></span>' : ''}<span class="game-name">${escapeText(game.name)}</span></button>`;
+}
+
 export function libraryMarkup(): string {
-  return GAMES.map((game) => `<button class="library-game" data-game-id="${game.id}" data-testid="game-${game.id}"><span class="game-name">${escapeText(game.name)}</span><span class="status-tag">${game.playable ? game.roms.length ? 'Player ROM required' : 'Ready to play' : 'Browser port pending'}</span><span class="game-summary">${game.manufacturer} · ${game.year} · ${game.roms.length ? 'ROM required' : 'No ROM needed'}</span></button>`).join('');
+  return `<div class="library-list play-list">${GAMES.filter((game) => game.playable).map(gameButton).join('')}</div>`
+    + `<h2 class="coming-soon-heading" id="coming-soon-heading">Coming soon</h2>`
+    + `<div class="coming-soon-list">${GAMES.filter((game) => !game.playable).map(gameButton).join('')}</div>`;
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
@@ -14,6 +24,7 @@ export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
 }
 
 export function createShellMarkup(base: string, source: string, build: string): string {
+  const playableCount = GAMES.filter((game) => game.playable).length;
   return `
   <main class="game-shell" data-screen="title" aria-label="NoCPU circuit arcade">
     <div class="game-stage" id="arcade">
@@ -29,21 +40,45 @@ export function createShellMarkup(base: string, source: string, build: string): 
       <p class="hud-status" id="hud-status" aria-hidden="true"></p>
       <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Pause · Esc</button>
     </nav>
-    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose a game from the Library.</p>
+    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose a game in Play.</p>
     <div class="sr-only" aria-label="Score"><span data-testid="score-p1">0</span><span data-testid="score-p2">0</span></div>
     <div class="shell-overlay" id="screen-overlay" role="dialog" aria-modal="true" aria-labelledby="title-heading">
       <div class="overlay-card">
         <button class="back-button" id="back" data-testid="back" hidden>← Back</button>
         <section class="panel-section title-panel" id="intro" data-panel="title">
-          <h1 id="title-heading" class="game-logo">NoCPU</h1>
-          <p class="game-subtitle">DICE circuit games in your desktop browser</p>
-          <div class="menu-actions">
-            <button class="primary-button" data-action="library" data-testid="open-library">Library</button>
-            <button data-action="settings">Settings</button>
-            <button data-action="help">How to play</button>
-            <button data-action="about">About</button>
+          <div class="sheet-frame">
+            <div class="sheet-main">
+              <p class="sheet-label">FIG. 1 — A GAME WITH NO CPU</p>
+              <h1 id="title-heading" class="game-logo">No<span class="logo-accent">CPU</span></h1>
+              <p class="game-subtitle">Arcade games built from logic chips, not software — simulated gate by gate in your browser.</p>
+              <svg class="title-schematic" viewBox="0 0 560 150" role="img" aria-label="Schematic: COIN and START signals feed a NAND gate whose output drives VIDEO">
+                <g class="schematic-ink" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="70" y1="50" x2="200" y2="50"></line><line x1="70" y1="100" x2="200" y2="100"></line>
+                  <path d="M200 30 H250 A45 45 0 0 1 250 120 H200 Z M310 75 H400 M400 55 L440 75 L400 95 Z M440 75 H490"></path>
+                  <circle cx="303" cy="75" r="7"></circle>
+                </g>
+                <g class="schematic-labels sheet-fade" font-size="14" fill="currentColor">
+                  <text x="0" y="55">COIN</text><text x="0" y="105">START</text><text x="212" y="80">7400</text><text x="350" y="68">U4</text><text x="496" y="80" font-weight="600">VIDEO</text>
+                </g>
+              </svg>
+              <p class="sheet-footer sheet-fade" data-testid="title-footer">ENGINE DICE 0.9 · ${playableCount} OF ${GAMES.length} GAMES PLAYABLE</p>
+            </div>
+            <div class="sheet-side sheet-fade">
+              <p class="sheet-label" id="title-menu-label">CONNECTOR J1 — MENU</p>
+              <nav class="menu-actions title-menu" aria-labelledby="title-menu-label">
+                <button class="pin primary-button" data-action="library" data-testid="open-library" aria-describedby="pin-play-note"><span class="pin-no" aria-hidden="true">J1.1</span><span class="pin-text"><span class="pin-name">Play</span><span class="pin-note" id="pin-play-note" aria-hidden="true">Pick a game and play</span></span><span class="pin-arrow" aria-hidden="true">▸</span></button>
+                <button class="pin" data-action="settings"><span class="pin-no" aria-hidden="true">J1.2</span><span class="pin-name">Settings</span></button>
+                <button class="pin" data-action="help"><span class="pin-no" aria-hidden="true">J1.3</span><span class="pin-name">How to play</span></button>
+                <button class="pin" data-action="about"><span class="pin-no" aria-hidden="true">J1.4</span><span class="pin-name">About</span></button>
+              </nav>
+              <dl class="title-block">
+                <div><dt>TITLE</dt><dd>NoCPU arcade</dd></div>
+                <div><dt>DWG NO.</dt><dd data-testid="title-version">${escapeText(build)}</dd></div>
+                <div><dt>PROCESSOR</dt><dd class="processor-none">NONE</dd></div>
+                <div><dt>SHEET</dt><dd data-testid="title-sheet">1 OF ${playableCount}</dd></div>
+              </dl>
+            </div>
           </div>
-          <p class="title-version" data-testid="title-version">${escapeText(build)}</p>
         </section>
         <section class="panel-section loading-panel" data-panel="loading" hidden>
           <h1 id="loading-heading">Loading Pong</h1>
@@ -57,15 +92,29 @@ export function createShellMarkup(base: string, source: string, build: string): 
             <button data-action="settings">Settings</button>
             <button data-action="help">How to play</button>
             <button data-action="about">About</button>
-            <button id="return-library" data-testid="return-library">Return to library</button>
-            <button id="return-title" data-testid="return-title">Return to title</button>
+            <button id="return-library" data-testid="return-library">Return to Play</button>
+            <button id="return-title" data-testid="return-title">Return to Home</button>
           </div>
         </section>
         <section class="panel-section library-panel" data-panel="library" hidden>
-          <h1 id="library-heading">Library</h1>
-          <p class="panel-note">All 21 DICE 0.9 games are listed. Pong, Pong Doubles, Space Race and Breakout need no ROM. Stunt Cycle and Indy 4 use your own compatible ROM ZIPs. The other games are not ported yet.</p>
-          <div class="menu-inline-actions"><button data-action="settings">Settings</button><button data-action="help">How to play</button><button data-action="about">About</button></div>
-          <div class="library-list" data-testid="game-library">${libraryMarkup()}</div>
+          <header class="play-header">
+            <h1 id="library-heading">Play</h1>
+            <p class="play-hint" id="play-hint">Opens on your last game · ↑↓ choose · Enter play · Esc home</p>
+          </header>
+          <div class="play-court">
+            <nav class="play-games" aria-label="Games" aria-describedby="play-hint" data-testid="game-library">${libraryMarkup()}</nav>
+            <div class="court-net" aria-hidden="true"></div>
+            <section class="play-details" aria-labelledby="play-detail-name" data-testid="play-details">
+              <h2 id="play-detail-name" data-testid="play-detail-name">Pong</h2>
+              <p class="play-detail-meta" data-testid="play-detail-meta"></p>
+              <ul class="play-badges" aria-label="Status"><li class="verified-badge" data-testid="play-detail-verified">✓ Verified against original DICE</li><li data-testid="play-detail-rom"></li></ul>
+              <div class="play-actions">
+                <button class="play-cta" data-testid="play-preview">Play</button>
+                <button class="play-info" data-testid="preview-info">Game info</button>
+              </div>
+              <div class="play-more"><button data-action="settings">Settings</button><button data-action="help">How to play</button><button data-action="about">About</button></div>
+            </section>
+          </div>
         </section>
         <section class="panel-section game-info-panel" data-panel="game-info" hidden>
           <h1 id="game-info-heading">Pong</h1>
@@ -130,7 +179,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
           <h1 id="error-heading">Unable to load Pong</h1>
           <p id="error-message"></p>
           <button class="primary-button" id="retry">Reload game</button>
-          <button data-action="title">Return to title</button>
+          <button data-action="title">Return to Home</button>
         </section>
       </div>
     </div>

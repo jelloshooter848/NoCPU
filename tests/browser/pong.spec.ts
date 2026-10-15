@@ -588,8 +588,7 @@ test('title and game menus support keyboard navigation without leaking gameplay 
   await captureShellPanel(page, testInfo, 'title');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('game-pong')).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page.getByTestId('play-selected')).toBeFocused();
+  // Enter on a playable game in Play starts it, as its Play button does.
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
   await waitSimulation(page, 800_000_000_000n);

@@ -8,7 +8,7 @@ The C++/Wasm core compiles six original DICE 0.9 circuits: **Pong, Pong Doubles,
 
 ## Playing
 
-The app opens on a title screen and a library of all 21 titles; the six ported games are playable, and the others are marked as pending ports. The original game picture fills the window above a single action bar with coin, start and **Pause · Esc**. How to play shows each game's current controls.
+The app opens on a Home screen drawn as a circuit schematic; Play lists the six ported games and, under Coming soon, the other fifteen. The original game picture fills the window above a single action bar with coin, start and **Pause · Esc**. How to play shows each game's current controls.
 
 - **Keyboard (defaults):** W/S and Up/Down move the two Pong paddles (and the Space Race rockets), Enter inserts a coin, 1 starts a game where the circuit has a Start switch (2 starts two players in Breakout and Stunt Cycle), Space opens the menu, Escape pauses or goes back, R resets and M mutes. Pong Doubles adds T/G and I/K for players three and four; Breakout moves its paddle with Left/Right and serves with S; Stunt Cycle opens and closes the throttle with W/S; Indy 4 steers and uses gas/brake with W/A/S/D, the arrow keys, I/J/K/L and Numpad 8/4/5/6, and takes coins on 1-4 and the dollar bill on 5.
 - **Mouse:** in Pong, Pong Doubles and Breakout, moving the mouse over the game sets a paddle across its full original range. In Breakout the held left button is Serve; in Stunt Cycle the held left button opens the throttle from idle (left edge) to full (right edge). Space Race and Indy 4 use the keyboard or a gamepad. Settings → Controls chooses which player the mouse controls, or turns it off, for each game.

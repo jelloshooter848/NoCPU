@@ -13,6 +13,23 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-15
+
+### Changed
+
+- New Home screen, drawn as a circuit schematic sheet: the NoCPU logo, a small logic-gate
+  drawing that sketches itself in the first time you open the app in a session (any key or click
+  skips it, and it never plays when your system asks for reduced motion), and the menu Play,
+  Settings, How to play and About.
+- New Play screen, styled as a black arcade court: the six playable games are listed with a
+  glowing paddle marking the selected one, which Up and Down change; the right side shows its
+  maker, year, players, ROM status and a Play button, and the games not ported yet are listed
+  under Coming soon. It still opens on the game you last played; Enter plays the chosen game,
+  Game info opens its info page and Escape goes back Home. The Library is now called Play
+  throughout.
+- Home and Play also fit phone-sized screens (layout only; touch controls for playing games are
+  still to come).
+
 ## [0.1.4] - 2026-10-14
 
 ### Changed
@@ -95,7 +112,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.1...v0.1.2
