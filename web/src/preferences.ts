@@ -1,5 +1,5 @@
 import { cloneBindings, defaultBindings, validateBindings, type Bindings } from './control-schema';
-import { defaultGameOptions, gameSpec, normalizeGameOptions, type GameOptionsById, type PlayableGameId } from './game-contract';
+import { defaultGameOptions, gameSpec, isPlayableGameId, normalizeGameOptions, type GameOptionsById, type PlayableGameId } from './game-contract';
 
 /** Games whose original absolute analog control (paddle or throttle) the mouse can drive. */
 export type MouseGameId = 'pong' | 'pongdoubles' | 'breakout' | 'stuntcycle';
@@ -15,17 +15,21 @@ export interface Preferences {
   bindingsByGame: Record<Exclude<PlayableGameId, 'pong'>, Bindings>;
   optionsByGame: GameOptionsById;
   mouseByGame: MouseSlots;
+  /** The last game the player started; the Library opens focused on it. */
+  lastGameId: PlayableGameId | null;
 }
 export interface PreferencesResult { preferences: Preferences; status: 'available' | 'unavailable' | 'recovered'; message?: string }
 export const PREFERENCES_KEY = 'nocpu.preferences';
-// Version 5 adds the desktop mouse assignment. Versions 0-4 migrate on load;
-// the legacy touch interface never stored preferences of its own.
-export const PREFERENCES_VERSION = 5;
+// Version 5 adds the desktop mouse assignment; version 6 remembers the last
+// started game. Versions 0-5 migrate on load; the legacy touch interface never
+// stored preferences of its own.
+export const PREFERENCES_VERSION = 6;
 export const DEFAULT_PREFERENCES: Preferences = {
   volume: 0.6, muted: false, bindings: cloneBindings(),
   bindingsByGame: { pongdoubles: defaultBindings('pongdoubles'), spacerace: defaultBindings('spacerace'), breakout: defaultBindings('breakout'), stuntcycle: defaultBindings('stuntcycle'), indy4: defaultBindings('indy4') },
   optionsByGame: { pong: defaultGameOptions('pong'), pongdoubles: defaultGameOptions('pongdoubles'), spacerace: defaultGameOptions('spacerace'), breakout: defaultGameOptions('breakout'), stuntcycle: defaultGameOptions('stuntcycle'), indy4: defaultGameOptions('indy4') },
   mouseByGame: { pong: 0, pongdoubles: 0, breakout: 0, stuntcycle: 0 },
+  lastGameId: null,
 };
 export function clonePreferences(value: Preferences = DEFAULT_PREFERENCES): Preferences { return structuredClone(value); }
 export function gameBindings(preferences: Preferences, gameId: PlayableGameId): Bindings { return gameId === 'pong' ? preferences.bindings : preferences.bindingsByGame[gameId]; }
@@ -64,6 +68,9 @@ function recover(value: unknown, version = PREFERENCES_VERSION): { preferences: 
       if (validMouseSlot(gameId, mouse[gameId])) preferences.mouseByGame[gameId] = mouse[gameId] as number | null; else changed = true;
     }
   }
+  // A remembered game that is no longer playable is dropped silently: the
+  // Library opens on its first game and no setting the player chose is lost.
+  if (version >= 6 && isPlayableGameId(value.lastGameId)) preferences.lastGameId = value.lastGameId;
   return { preferences, changed };
 }
 /** Each prior version keeps every shipped map/option and defaults newly added games and settings. */
@@ -97,10 +104,10 @@ export function loadPreferences(storage: Storage | null = browserStorage()): Pre
       const { preferences } = recover(envelope.preferences, 3);
       return { preferences, status: 'recovered', message: 'Your valid controls, sound and game settings were kept. Stunt Cycle and Indy 4 have their own controls and settings.' };
     }
-    if (envelope.version === 4) {
-      // Version 4 holds every current field except the mouse assignment, which
-      // takes its default. Nothing the player chose is lost, so this is silent.
-      const { preferences, changed } = recover(envelope.preferences, 4);
+    if (envelope.version === 4 || envelope.version === 5) {
+      // Version 4 lacks the mouse assignment and version 5 the remembered game;
+      // both take their defaults. Nothing the player chose is lost, so this is silent.
+      const { preferences, changed } = recover(envelope.preferences, envelope.version);
       return { preferences, status: changed ? 'recovered' : 'available', ...(changed ? { message: 'Invalid saved settings were replaced with usable defaults.' } : {}) };
     }
     if (envelope.version !== PREFERENCES_VERSION) return { preferences: clonePreferences(), status: 'recovered', message: 'This settings version is unsupported. Defaults are active.' };

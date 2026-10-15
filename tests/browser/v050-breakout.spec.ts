@@ -146,7 +146,7 @@ test('Breakout authentic two-credit Start2 and all four DIPs survive reset/relau
   const reset = await breakoutSnapshot(page); expect(reset.resetId).toBe(prior.resetId + 1); expect(reset.generation).toBe(prior.generation);
   expect(reset.axes).toEqual([0]); expect(reset.serve).toBe(false); expect(reset.start).toBe(false); expect(reset.startsQueued).toBe(0);
   expect(reset.paused).toBe(true); expect(reset.run).toBe(false);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!)); expect(saved.version).toBe(5);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!)); expect(saved.version).toBe(6);
   expect(saved.preferences.optionsByGame.breakout).toEqual(expected); expect(saved.preferences.optionsByGame.pong).toEqual({ winningScore: 11 });
   await resumeSettings(page); await expect(page.getByTestId('status')).toContainText('coin for two credits');
   const nextCoinCount = (await commands(page, 'coin')).length;
@@ -182,7 +182,7 @@ test('version-2 settings preserve literal custom three-game mappings and private
   await page.getByTestId('settings-game').selectOption('pongdoubles'); await expect(page.getByTestId('binding-p3Up')).toHaveText('Y');
   await page.getByTestId('settings-game').selectOption('spacerace'); await expect(page.getByTestId('binding-p1Up')).toHaveText('E');
   await expect(page.getByTestId('coinage')).toHaveValue('2'); await expect(page.getByTestId('playtime')).toHaveValue('66');
-  await page.locator('#volume').focus(); await page.keyboard.press('ArrowRight'); const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!)); expect(saved.version).toBe(5);
+  await page.locator('#volume').focus(); await page.keyboard.press('ArrowRight'); const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences')!)); expect(saved.version).toBe(6);
   for (const gameId of ['pong', 'pongdoubles', 'spacerace'] as const) {
     const original = gameId === 'pong' ? legacy.bindings : legacy.bindingsByGame[gameId], restored = gameId === 'pong' ? saved.preferences.bindings : saved.preferences.bindingsByGame[gameId];
     for (const action of Object.keys(original.keyboard)) expect(restored.keyboard[action]).toEqual((original.keyboard as any)[action]);

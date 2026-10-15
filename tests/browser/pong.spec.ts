@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { packagedDirectory } from '../package-directory';
 
-import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledReleasedPaddles, installAudioProbe, start, pauseMenu, resumePlay, togglePause, openSettings, openAbout, expectViewportShell, expectUsableTarget, settleInputPresentation, expectDesktopLayout, captureShellPanel } from './helpers';
+import { snapshot, waitSimulation, paddles, initialRenderedPaddles, settledReleasedPaddles, installAudioProbe, start, pauseMenu, resumePlay, togglePause, openSettings, openAbout, expectViewportShell, expectUsableTarget, settleInputPresentation, expectDesktopLayout, captureShellPanel, playFromLibrary } from './helpers';
 
 const version = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim();
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -289,7 +289,7 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
   const fixture = await missingWasmServer();
   try {
     await page.goto(`${fixture.url}?debug`);
-    await page.getByTestId('play-pong').click();
+    await playFromLibrary(page);
     await expect(page.getByTestId('error')).toBeVisible({ timeout: 30_000 });
     const missingRequestTarget = fixture.log().match(/"GET (\/NoCPU\/core\/nocpu\.wasm(?:\?[^ ]*)?) HTTP\/1\.1" 404/)?.[1];
     expect(missingRequestTarget).toBeDefined();
@@ -301,10 +301,14 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
     await expect(page.getByTestId('reset')).toBeDisabled();
+    // Only a game that actually loaded is remembered for the Library.
+    const rememberedGame = () => page.evaluate(() => JSON.parse(localStorage.getItem('nocpu.preferences') ?? '{}').preferences?.lastGameId ?? null);
+    expect(await rememberedGame()).toBeNull();
     await captureShellPanel(page, testInfo, 'error');
     fixture.restore();
     await page.locator('#retry').click();
     await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+    await expect.poll(rememberedGame).toBe('pong');
     await waitSimulation(page, 800_000_000_000n);
     await expect(page.getByTestId('error')).toBeHidden();
     await expect(page.getByTestId('insert-coin')).toBeEnabled();
@@ -579,9 +583,13 @@ test('desktop window sizes keep the whole original raster and the action bar in 
 test('title and game menus support keyboard navigation without leaking gameplay input', { tag: '@game-pong' }, async ({ page }, testInfo) => {
   await installAudioProbe(page);
   await page.goto('./?debug');
-  await expect(page.getByTestId('play-pong')).toBeVisible();
+  await expect(page.getByTestId('continue-game')).toHaveCount(0);
+  await expect(page.getByTestId('open-library')).toBeFocused();
   await captureShellPanel(page, testInfo, 'title');
-  await page.getByTestId('play-pong').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('game-pong')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('play-selected')).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
   await waitSimulation(page, 800_000_000_000n);
@@ -666,7 +674,7 @@ test('returning to the title stops playback and starting again creates a fresh c
   await pauseMenu(page);
   await page.getByTestId('return-title').click();
   await page.keyboard.up('s');
-  await expect(page.getByTestId('play-pong')).toBeVisible();
+  await expect(page.getByTestId('open-library')).toBeFocused();
   await expect(page.getByTestId('insert-coin')).toBeHidden();
   await expectViewportShell(page);
   const played = await page.evaluate(() => (window as any).__audioProbe.started);
@@ -677,7 +685,10 @@ test('returning to the title stops playback and starting again creates a fresh c
     catch { return true; }
   }), 'Returning to title disposes the old circuit observation').toBe(true);
   await page.screenshot({ path: testInfo.outputPath('shell-returned-title.png') });
-  await page.getByTestId('play-pong').click();
+  await page.getByTestId('open-library').click();
+  await expect(page.getByTestId('game-pong')).toBeFocused();
+  await page.getByTestId('game-pong').click();
+  await page.getByTestId('play-selected').click();
   await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
   await waitSimulation(page, 800_000_000_000n);
   const fresh = await snapshot(page);

@@ -27,7 +27,6 @@ void fetch(`${base}BUILD-MANIFEST.json`, { cache: 'no-store' }).then(async (resp
   element('#build-string').textContent = build;
   element('[data-testid="title-version"]').textContent = build;
 }).catch(() => { /* No manifest: keep the development build string. */ });
-const playButton = element<HTMLButtonElement>('[data-testid="play-pong"]');
 const startButton = element<HTMLButtonElement>('[data-testid="start-game"]');
 const start2Button = element<HTMLButtonElement>('[data-testid="start-game-2"]');
 const coinButton = element<HTMLButtonElement>('[data-testid="insert-coin"]');
@@ -141,6 +140,14 @@ settingsUI.syncGamepads([]);
 
 function focusGame(): void { canvas.focus({ preventScroll: true }); }
 
+// The Library opens on the last game that loaded while it is still playable;
+// otherwise on its first game.
+function lastPlayedGameButton(): HTMLElement | undefined {
+  const gameId = settingsUI.preferences.lastGameId;
+  if (!gameId || !GAMES.some((game) => game.id === gameId && game.playable)) return undefined;
+  return document.querySelector<HTMLElement>(`.library-game[data-game-id="${gameId}"]`) ?? undefined;
+}
+
 function showScreen(next: Screen): void {
   screen = next;
   shell.dataset.screen = next;
@@ -160,9 +167,11 @@ function showScreen(next: Screen): void {
     overlay.setAttribute('aria-labelledby', `${next}-heading`);
     const panel = element<HTMLElement>(`[data-panel="${next}"]`);
     panel.tabIndex = -1;
-    const focusTarget = (next === 'library' ? panel.querySelector<HTMLElement>('.library-game') : undefined)
+    const lastPlayed = next === 'library' ? lastPlayedGameButton() : undefined;
+    const focusTarget = lastPlayed ?? (next === 'library' ? panel.querySelector<HTMLElement>('.library-game') : undefined)
       ?? panel.querySelector<HTMLElement>('button:not(:disabled), a, input:not(:disabled), select') ?? panel;
     focusTarget.focus({ preventScroll: true });
+    lastPlayed?.scrollIntoView({ block: 'nearest' });
   }
 }
 
@@ -506,6 +515,9 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
         acceptSnapshot(message.snapshot);
         if (document.hidden || !document.hasFocus()) pauseGame();
         else { setClock(true); showScreen('playing'); }
+        // The Library opens on the last game that actually loaded. The write
+        // happens after the game is running and can never stop or delay a launch.
+        try { settingsUI.setLastGame(activeGameId); } catch { /* A convenience only. */ }
         break;
       case 'output':
         if (message.epoch !== clockEpoch || paused || resetting) break;
@@ -608,7 +620,7 @@ function disposeGame(destination: 'title' | 'library'): void {
   resetButton.disabled = true;
   updatePads();
   updateSoundButton();
-  status.textContent = 'Choose Play Pong to start.';
+  status.textContent = 'Choose a game from the Library.';
   hudStatus.textContent = '';
   context?.clearRect(0, 0, canvas.width, canvas.height);
   navigation.length = 0;
@@ -769,7 +781,6 @@ window.addEventListener('pageshow', (event) => {
     audio.pause();
   }
 });
-playButton.addEventListener('click', () => { void startGame(); });
 element('#retry').addEventListener('click', () => { void startGame(activeGameId); });
 coinButton.addEventListener('click', () => insertCoin());
 document.querySelectorAll<HTMLButtonElement>('.indy-coin').forEach((button) => {

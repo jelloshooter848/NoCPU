@@ -138,9 +138,16 @@ export async function installAudioProbe(page: Page): Promise<void> {
   });
 }
 
+/** Start a game from the title screen through the Library, as a player would. */
+export async function playFromLibrary(page: Page, gameId = 'pong'): Promise<void> {
+  await page.getByTestId('open-library').click();
+  await page.getByTestId(`game-${gameId}`).click();
+  await page.getByTestId('play-selected').click();
+}
+
 export async function start(page: Page): Promise<void> {
   await page.goto('./?debug');
-  await page.getByTestId('play-pong').click();
+  await playFromLibrary(page);
   await expect(page.getByTestId('game-canvas')).toBeVisible();
   await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
   await waitSimulation(page, 800_000_000_000n);

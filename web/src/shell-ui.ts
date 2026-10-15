@@ -29,7 +29,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
       <p class="hud-status" id="hud-status" aria-hidden="true"></p>
       <button class="hud-button menu-button" id="menu" data-testid="pause" aria-haspopup="dialog" aria-pressed="false" disabled>Pause · Esc</button>
     </nav>
-    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose Play Pong to start.</p>
+    <p class="sr-only" data-testid="status" role="status" aria-live="polite">Choose a game from the Library.</p>
     <div class="sr-only" aria-label="Score"><span data-testid="score-p1">0</span><span data-testid="score-p2">0</span></div>
     <div class="shell-overlay" id="screen-overlay" role="dialog" aria-modal="true" aria-labelledby="title-heading">
       <div class="overlay-card">
@@ -38,8 +38,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
           <h1 id="title-heading" class="game-logo">NoCPU</h1>
           <p class="game-subtitle">DICE circuit games in your desktop browser</p>
           <div class="menu-actions">
-            <button class="primary-button play-button" data-testid="play-pong">Play Pong</button>
-            <button data-action="library" data-testid="open-library">Library</button>
+            <button class="primary-button" data-action="library" data-testid="open-library">Library</button>
             <button data-action="settings">Settings</button>
             <button data-action="help">How to play</button>
             <button data-action="about">About</button>

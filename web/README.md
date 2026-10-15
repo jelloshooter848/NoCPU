@@ -8,9 +8,10 @@ fifteen DICE games are listed but not ported yet.
 
 ## What it offers
 
-- **Game picker.** The title screen has Play Pong and the Library, which lists
-  all 21 titles with their maker, year, ROM requirement, controls and audio
-  status; unported titles are marked "Browser port pending".
+- **Game picker.** The title screen leads with the Library, which opens on
+  the last game played and lists all 21 titles with their maker, year, ROM
+  requirement, controls and audio status; unported titles are marked "Browser
+  port pending".
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
   (coin, start and Pause · Esc buttons, plus a short status line). The
