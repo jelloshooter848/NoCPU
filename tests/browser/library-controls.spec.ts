@@ -26,6 +26,14 @@ test('all audited games have truthful library, ROM, sound and control informatio
       });
     };
   });
+  // The app abandons an IndexedDB open that has not answered within 2.5 s and
+  // reports storage unavailable. The test holds the open's success until the
+  // ROM requirements are opened, so pause the page clock for that hold: on a
+  // slow engine (WebKit on CI once stalled 1.2 s drawing Play) the app's
+  // timeout must not preempt the delayed success this test is checking.
+  const clockStart = Date.now();
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(clockStart + 1_000);
   await page.goto('?debug');
   await expect.poll(() => page.evaluate(() => typeof (window as any).__releaseRomReadiness)).toBe('function');
   await page.getByTestId('open-library').click();
@@ -41,9 +49,12 @@ test('all audited games have truthful library, ROM, sound and control informatio
   await expect(page.getByTestId('storage-status')).toContainText('Checking local');
   await page.evaluate(() => (window as any).__releaseRomReadiness());
   await expect(page.getByTestId('storage-status')).not.toContainText('Checking local');
+  // The delayed open succeeded; it did not fall back to the unavailable path.
+  await expect(page.getByTestId('storage-status')).not.toContainText('unavailable');
   expect(await page.locator('.rom-requirements').evaluate((element) => (element as HTMLDetailsElement).open),
     'Delayed local storage refresh must preserve the opened requirements').toBe(true);
   await expect(disclosure).toBeFocused();
+  await page.clock.resume();
   await page.getByTestId('back').click();
   for (const game of auditedGames) {
     await page.getByTestId(`game-${game.id}`).click();
