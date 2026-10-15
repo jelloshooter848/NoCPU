@@ -3,7 +3,7 @@
   "version": "0.1.6",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.1.6 UI patch: phone-sized windows (portrait and landscape) get a simpler arcade-style Home and Play; desktop is unchanged. Each release still generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core is unchanged from 0.1.5; there are no gameplay changes. The physical-device gate stays deferred.",
+  "release_scope": "0.1.7 CI patch: the original/native/Wasm comparison is skipped for content whose game core was already compared on any branch (release version edits no longer count), and the WebKit Space Race movement test schedules inputs on circuit time only. Releases still compare in full. Each release still generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core is unchanged from 0.1.6; there are no gameplay changes. The physical-device gate stays deferred.",
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,
