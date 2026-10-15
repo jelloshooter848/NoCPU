@@ -349,29 +349,86 @@ kbd { display: inline-block; min-width: 24px; padding: 1px 6px; border: 1px soli
   .library-panel .play-hint { flex-basis: 100%; margin-left: 0; }
 }
 
-/* Phone-sized windows: layout only (touch play stays deferred). Home stacks
-   the logo above the menu; Play is one column with the selected game's
-   details held in a strip at the bottom, so Play is always in reach. */
+/* Phone-only pieces of Home and Play; desktop never shows them. */
+.pixel-logo, .phone-tagline, .phone-build, .more-coming { display: none; }
+
+/* Phones, portrait and landscape: Home and Play use the plain phosphor court
+   (concept C) instead of the schematic sheet: a black screen, the blocky
+   NO CPU logo, one tagline and a menu marked by a glowing paddle and ball.
+   Layout and appearance only; touch play stays deferred. */
+@media (max-width: 640px), (max-width: 940px) and (max-height: 500px) {
+  .game-shell[data-screen="title"] .shell-overlay { background: var(--court); }
+  .game-shell[data-screen="title"] .overlay-card {
+    color-scheme: dark;
+    padding: 24px 16px;
+    background: var(--court);
+  }
+  .title-panel { color: var(--phosphor); }
+  .sheet-frame { flex-direction: column; align-items: center; justify-content: center; gap: clamp(28px, 6vh, 56px); border: 0; }
+  .sheet-main, .sheet-side { flex: none; width: min(100%, 320px); }
+  .sheet-main { gap: 0; padding: 0; }
+  .sheet-side { border: 0; }
+  .title-panel .sheet-label, .title-panel .game-subtitle, .title-schematic, .title-panel .sheet-footer, .title-block, .pin-no, .pin-note, .pin-arrow { display: none; }
+  .title-panel .game-logo { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .pixel-logo { display: block; width: clamp(168px, 58vw, 240px); height: auto; color: var(--phosphor); filter: drop-shadow(0 0 6px rgba(244, 246, 248, .55)); }
+  .title-panel .phone-tagline { display: block; margin: 22px 0 0; font-size: 14px; line-height: 1.4; color: var(--phosphor-soft); }
+  .title-panel .phone-build { display: block; margin: 6px 0 0; font-size: 12px; letter-spacing: .08em; color: var(--phosphor-muted); overflow-wrap: anywhere; }
+  /* The draw-in belongs to the schematic, which phones do not show. */
+  .title-panel[data-intro] .sheet-fade { animation: none; opacity: 1; }
+  .title-menu { gap: 2px; padding: 0; }
+  /* #intro outranks the desktop sheet's pin states. */
+  #intro .pin {
+    gap: 0;
+    min-height: 52px;
+    padding: 0 8px 0 0;
+    border: 0;
+    background: transparent;
+    color: var(--phosphor-soft);
+    font-family: var(--font-pixel);
+    font-size: 18px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+  }
+  #intro .pin-name { font-weight: 400; }
+  /* The ball, then the paddle, in front of the selected item: the focused one,
+     or Play while nothing in the menu has focus. */
+  #intro .pin::before { content: ""; order: -2; flex: none; width: 8px; height: 8px; margin-right: 12px; }
+  #intro .pin::after { content: ""; order: -1; flex: none; width: 7px; height: 32px; margin-right: 20px; }
+  #intro .pin:focus, #intro .title-menu:not(:focus-within) .pin:first-child { color: var(--phosphor); text-shadow: 0 0 10px rgba(244, 246, 248, .45); }
+  #intro .pin:focus::before, #intro .pin:focus::after,
+  #intro .title-menu:not(:focus-within) .pin:first-child::before, #intro .title-menu:not(:focus-within) .pin:first-child::after { background: var(--phosphor); box-shadow: 0 0 10px rgba(244, 246, 248, .8); }
+  #intro .pin:focus-visible { outline: 0; }
+  #intro .pin:focus-visible .pin-name { text-decoration: underline 2px; text-underline-offset: 6px; }
+
+  /* Play: the playable games, the paddle and the selected game's Play button. */
+  .court-net, .library-panel .play-hint, .play-badges, .play-info, .panel-section .play-detail-meta, .play-more { display: none; }
+  .play-court { column-gap: 32px; }
+  .more-coming {
+    display: block;
+    min-height: 44px;
+    margin: 12px 0 0 26px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--phosphor-muted);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    letter-spacing: .08em;
+    text-align: left;
+  }
+  .more-coming:hover:not(:disabled), .more-coming:active:not(:disabled) { background: transparent; color: var(--phosphor-soft); }
+  .play-games:not([data-more-open]) .coming-soon-heading, .play-games:not([data-more-open]) .coming-soon-list { display: none; }
+}
+
+/* Phone portrait: Home stacks the logo above the menu; Play is one column with
+   the selected game's Play button held in a strip at the bottom. */
 @media (max-width: 640px) {
   .shell-overlay { padding: 8px; }
   .overlay-card { padding: 16px; }
-  .game-shell[data-screen="title"] .overlay-card { padding: 8px; }
-  .sheet-frame { flex-direction: column; }
-  .sheet-main { flex: none; gap: 14px; padding: 20px 16px; }
-  .title-panel .sheet-footer { margin: 4px 0 0; }
-  .title-panel .game-logo { font-size: clamp(56px, 18vw, 96px); }
-  .title-schematic { max-width: 360px; }
-  .sheet-side { flex: 1; width: auto; border-left: 0; border-top: 3px solid var(--paper-ink); }
-  .sheet-side > .sheet-label { padding: 16px 16px 8px; }
-  .title-menu { padding: 0 6px 8px; }
-  .pin { min-height: 52px; padding: 0 12px; }
-  .title-block dd { font-size: 14px; }
   .library-panel { padding: 22px 16px 0; }
   .game-shell[data-screen="library"] .back-button { top: 22px; left: 8px; }
   .play-header { margin: 0 0 16px 84px; }
-  .library-panel .play-hint { display: none; }
-  .play-court { grid-template-columns: minmax(0, 1fr); }
-  .court-net { display: none; }
+  .play-court { display: flex; flex-direction: column; }
   .library-game { min-height: 46px; gap: 14px; }
   .paddle { height: 38px; }
   .coming-soon-list { gap: 0 14px; }
@@ -383,26 +440,34 @@ kbd { display: inline-block; min-width: 24px; padding: 1px 6px; border: 1px soli
     z-index: 1;
     max-width: none;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: auto;
     padding: 12px 0 14px;
     border-top: 2px solid var(--court-line);
     background: var(--court);
   }
-  .panel-section .play-details h2 { font-size: 24px; }
-  .panel-section .play-detail-meta { display: none; }
-  .play-badges { gap: 8px; font-size: 12px; }
-  .play-badges li { padding: 4px 8px; }
-  .play-actions { gap: 12px; margin: 0; }
-  .play-cta { min-height: 48px; padding: 0 24px; font-size: 20px; }
-  .play-info { min-height: 44px; }
-  .play-more { display: none; }
+  .panel-section .play-details h2 { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .play-actions { width: 100%; margin: 0; }
+  .play-cta { width: 100%; min-height: 52px; padding: 0 24px; font-size: 20px; letter-spacing: .12em; }
+}
+
+/* Phone landscape: logo beside the menu, and Play's list beside its button. */
+@media (min-width: 641px) and (max-width: 940px) and (max-height: 500px) {
+  .sheet-frame { flex-direction: row; gap: 56px; }
+  .sheet-main, .sheet-side { width: auto; max-width: 340px; }
+  .pixel-logo { width: min(200px, 44vh); }
+  .library-panel { padding: 22px 32px 16px; }
+  .game-shell[data-screen="library"] .back-button { top: 22px; left: 16px; }
+  .play-header { margin: 0 0 12px 84px; }
+  .library-game { min-height: 44px; }
+  .paddle { height: 36px; }
+  .play-court { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .play-details { top: 0; gap: 14px; }
+  .panel-section .play-details h2 { font-size: 26px; }
+  .play-cta { min-height: 52px; letter-spacing: .12em; }
 }
 /* Comfortable tap targets for the Coming soon games on phones, landscape too. */
 @media (max-width: 640px), (max-height: 500px), (pointer: coarse) {
   .library-game.pending-game { min-height: 44px; }
-}
-@media (max-width: 420px) {
-  .title-schematic { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

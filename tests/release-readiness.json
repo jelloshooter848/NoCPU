@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.1.5 UI patch: a new Home screen drawn as a schematic sheet and a new Play screen styled as an arcade court (Enter plays; opens on the last game played), with simple phone-sized layouts (layout only). Each release still generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core is unchanged from 0.1.4; there are no gameplay changes. The physical-device gate stays deferred.",
+  "release_scope": "0.1.6 UI patch: phone-sized windows (portrait and landscape) get a simpler arcade-style Home and Play; desktop is unchanged. Each release still generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core is unchanged from 0.1.5; there are no gameplay changes. The physical-device gate stays deferred.",
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,

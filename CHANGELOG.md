@@ -13,6 +13,15 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-15
+
+### Changed
+
+- On phones, Home and Play are simpler, in the black arcade style: a big blocky NO CPU logo, one
+  line of text and the menu marked by a glowing paddle on Home; the six playable games and a Play
+  button on Play, with the games still to come folded into one line you can tap to expand.
+  Desktop keeps the schematic-sheet Home.
+
 ## [0.1.5] - 2026-10-15
 
 ### Changed
@@ -112,7 +121,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...v0.1.3
