@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "release_ready": true,
   "blockers": [],
   "release_scope": "0.1.6 UI patch: phone-sized windows (portrait and landscape) get a simpler arcade-style Home and Play; desktop is unchanged. Each release still generates its desktop acceptance record from its own verification run (the six ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The game core is unchanged from 0.1.5; there are no gameplay changes. The physical-device gate stays deferred.",

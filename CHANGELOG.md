@@ -13,6 +13,8 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-15
+
 ### Changed
 
 - On phones, Home and Play are simpler, in the black arcade style: a big blocky NO CPU logo, one
@@ -119,7 +121,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.2...v0.1.3
