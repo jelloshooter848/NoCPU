@@ -19,9 +19,14 @@ fifteen DICE games are listed but not ported yet.
   ROM game without its ROM explains on its info page); a click, Space or Game
   info opens the game's info page
   (controls, audio status and ROM requirements). Only installed fonts are
-  used; nothing is downloaded. On phone-sized windows Home stacks the logo
-  above the menu and Play becomes one column with the selected game's Play
-  button kept in view; this is layout only, with no touch controls for play.
+  used; nothing is downloaded. Phone-sized windows (up to 640px wide, or
+  phone landscape up to 940 by 500px) use the plain arcade-court style
+  instead of the schematic sheet: Home shows a blocky pixel NO CPU logo (an
+  inline SVG, so no font is needed), one tagline, the build string and the
+  same menu marked by a glowing paddle; Play lists the six playable games
+  with the selected game's Play button kept in view and folds the games not
+  ported yet into one "+15 more coming" line that expands the list. This is
+  layout only, with no touch controls for play.
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
   (coin, start and Pause · Esc buttons, plus a short status line). The

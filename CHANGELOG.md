@@ -13,6 +13,13 @@ releases below.
 
 ## [Unreleased]
 
+### Changed
+
+- On phones, Home and Play are simpler, in the black arcade style: a big blocky NO CPU logo, one
+  line of text and the menu marked by a glowing paddle on Home; the six playable games and a Play
+  button on Play, with the games still to come folded into one line you can tap to expand.
+  Desktop keeps the schematic-sheet Home.
+
 ## [0.1.5] - 2026-10-15
 
 ### Changed

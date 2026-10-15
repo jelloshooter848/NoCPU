@@ -26,6 +26,7 @@ void fetch(`${base}BUILD-MANIFEST.json`, { cache: 'no-store' }).then(async (resp
   const build = buildString(__NOCPU_VERSION__, await response.json());
   element('#build-string').textContent = build;
   element('[data-testid="title-version"]').textContent = build;
+  element('[data-testid="phone-build"]').textContent = build;
 }).catch(() => { /* No manifest: keep the development build string. */ });
 const startButton = element<HTMLButtonElement>('[data-testid="start-game"]');
 const start2Button = element<HTMLButtonElement>('[data-testid="start-game-2"]');
@@ -852,7 +853,8 @@ playGames.addEventListener('focusin', (event) => {
 // as a click or Space does on any game.
 playGames.addEventListener('keydown', (event) => {
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-  const games = [...playGames.querySelectorAll<HTMLElement>('.library-game')];
+  // Only the games on screen: phones fold the ones not ported yet into one line.
+  const games = [...playGames.querySelectorAll<HTMLElement>('.library-game')].filter((game) => game.getClientRects().length > 0);
   const index = games.indexOf(document.activeElement as HTMLElement);
   if (index === -1) return;
   if (event.key === 'Enter') {
@@ -868,6 +870,12 @@ playGames.addEventListener('keydown', (event) => {
   const next = games[Math.min(games.length - 1, Math.max(0, index + (event.code === 'ArrowDown' ? 1 : -1)))];
   next.focus({ preventScroll: true });
   next.scrollIntoView({ block: 'nearest' });
+});
+const moreComing = element<HTMLButtonElement>('[data-testid="more-coming"]');
+moreComing.addEventListener('click', () => {
+  const open = moreComing.getAttribute('aria-expanded') !== 'true';
+  moreComing.setAttribute('aria-expanded', String(open));
+  playGames.toggleAttribute('data-more-open', open);
 });
 element('[data-testid="play-preview"]').addEventListener('click', () => { if (isPlayableGameId(selectedGameId)) void startGame(selectedGameId); });
 element('[data-testid="preview-info"]').addEventListener('click', () => { renderGameInfo(); openPanel('game-info'); });

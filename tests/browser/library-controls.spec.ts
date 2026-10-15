@@ -593,7 +593,8 @@ test('library, info and settings stay reachable inside small desktop windows', a
 });
 
 test('Home and Play stay simple and usable on phone-sized windows (layout only)', async ({ page }) => {
-  // Phone portrait and landscape layouts; touch play itself remains deferred.
+  // Phone portrait and landscape layouts use the plain phosphor court instead of
+  // the schematic sheet; touch play itself remains deferred.
   const noOverflow = async (label: string) => {
     await expectViewportShell(page);
     const card = await page.locator('.overlay-card').evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
@@ -615,21 +616,66 @@ test('Home and Play stay simple and usable on phone-sized windows (layout only)'
     await page.goto('?debug');
     await screen(page, 'title');
     await noOverflow(`Home ${viewport.width}x${viewport.height}`);
+    // No drafting sheet on phones: the grid, FIG. label, drawing, footer, title block and pin numbers are gone.
+    const title = page.locator('[data-panel="title"]');
+    for (const hidden of [title.locator('.sheet-label').first(), title.locator('.sheet-label').last(), title.locator('.title-schematic'),
+      page.getByTestId('title-footer'), title.locator('.title-block'), title.locator('.game-subtitle'), title.locator('.pin-no').first()]) await expect(hidden).toBeHidden();
+    expect(await page.locator('.overlay-card').evaluate((card) => getComputedStyle(card).backgroundImage), 'No drafting grid').toBe('none');
+    // The blocky pixel logo is drawn, and the heading still names NoCPU for screen readers.
+    await inside('pixel-logo', 100);
+    await expect(page.getByTestId('pixel-logo')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByRole('heading', { level: 1, name: 'NoCPU' })).toHaveCount(1);
+    await expect(page.locator('.phone-tagline')).toBeVisible();
+    await expect(page.getByTestId('phone-build')).toBeVisible();
+    await expect(page.getByTestId('phone-build')).toHaveText((await page.getByTestId('title-version').textContent())!);
     const pins = page.locator('[data-panel="title"] .pin');
     await expect(pins).toHaveCount(4);
+    for (const [index, name] of ['Play', 'Settings', 'How to play', 'About'].entries()) await expect(pins.nth(index)).toHaveAccessibleName(name);
     for (let index = 0; index < 4; index += 1) {
       const pin = pins.nth(index);
       await pin.scrollIntoViewIfNeeded();
+      await expect(pin).toBeInViewport({ ratio: 1 });
       const bounds = (await pin.boundingBox())!;
       expect(bounds.height + 0.001, 'Menu pins are at least 44px tall').toBeGreaterThanOrEqual(44);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1);
     }
+    // The glowing paddle marks the selected menu item and follows focus.
+    const paddle = (index: number) => pins.nth(index).evaluate((pin) => getComputedStyle(pin, '::after').backgroundColor);
+    await expect(page.getByTestId('open-library')).toBeFocused();
+    expect(await paddle(0)).toBe('rgb(244, 246, 248)');
+    expect(await paddle(2)).toBe('rgba(0, 0, 0, 0)');
+    await pins.nth(2).focus();
+    expect(await paddle(2)).toBe('rgb(244, 246, 248)');
+    expect(await paddle(0)).toBe('rgba(0, 0, 0, 0)');
     await page.getByTestId('open-library').click();
     await screen(page, 'library');
     await noOverflow(`Play ${viewport.width}x${viewport.height}`);
     // The selected game's Play button is on screen and tappable without scrolling.
     await inside('play-preview', 44);
     await page.getByTestId('play-preview').click({ trial: true });
+    // Badges, Game info and the Coming soon list are folded away; the pending games are one dim line.
+    for (const id of ['play-detail-verified', 'play-detail-rom', 'preview-info', 'game-steeplechase']) await expect(page.getByTestId(id), id).toBeHidden();
+    await expect(page.locator('#coming-soon-heading')).toBeHidden();
+    const pending = auditedGames.length - await page.locator('.play-list .library-game').count();
+    expect(pending).toBe(await page.locator('.coming-soon-list .library-game').count());
+    const more = page.getByTestId('more-coming');
+    await expect(more).toHaveText(`+${pending} more coming`);
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await more.scrollIntoViewIfNeeded();
+    expect((await more.boundingBox())!.height + 0.001, 'The more-coming line is at least 44px tall').toBeGreaterThanOrEqual(44);
+    // A ROM game without its ROM still explains on its info page when played.
+    await page.getByTestId('game-indy4').focus();
+    await expect(page.getByTestId('play-preview')).toHaveText('Import ROMs to play');
+    await inside('play-preview', 44);
+    await page.getByTestId('play-preview').click();
+    await screen(page, 'game-info');
+    await expect(page.locator('#game-info-heading')).toHaveText('Indy 4');
+    await expect(page.getByTestId('rom-launch-message')).toBeVisible();
+    await page.getByTestId('back').click();
+    await screen(page, 'library');
+    await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#coming-soon-heading')).toBeVisible();
     for (const id of ['game-pong', 'game-indy4', 'game-steeplechase']) {
       await page.getByTestId(id).scrollIntoViewIfNeeded();
       const bounds = (await page.getByTestId(id).boundingBox())!;
@@ -645,4 +691,15 @@ test('Home and Play stay simple and usable on phone-sized windows (layout only)'
       await screen(page, 'title');
     }
   }
+  // Desktop keeps the schematic sheet and the full Play screen.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('?debug');
+  await screen(page, 'title');
+  for (const id of ['title-footer', 'title-version', 'title-sheet']) await expect(page.getByTestId(id)).toBeVisible();
+  await expect(page.locator('.title-schematic')).toBeVisible();
+  for (const id of ['pixel-logo', 'phone-build']) await expect(page.getByTestId(id)).toBeHidden();
+  await page.getByTestId('open-library').click();
+  await screen(page, 'library');
+  for (const id of ['preview-info', 'play-detail-rom', 'game-steeplechase']) await expect(page.getByTestId(id)).toBeVisible();
+  await expect(page.getByTestId('more-coming')).toBeHidden();
 });

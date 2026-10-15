@@ -14,13 +14,34 @@ function gameButton(game: GameInfo): string {
 }
 
 export function libraryMarkup(): string {
+  const pending = GAMES.filter((game) => !game.playable).length;
   return `<div class="library-list play-list">${GAMES.filter((game) => game.playable).map(gameButton).join('')}</div>`
+    // Phones show the games not ported yet as one dim line that expands the list.
+    + `<button class="more-coming" data-testid="more-coming" aria-expanded="false" aria-controls="coming-soon-list">+${pending} more coming</button>`
     + `<h2 class="coming-soon-heading" id="coming-soon-heading">Coming soon</h2>`
-    + `<div class="coming-soon-list">${GAMES.filter((game) => !game.playable).map(gameButton).join('')}</div>`;
+    + `<div class="coming-soon-list" id="coming-soon-list">${GAMES.filter((game) => !game.playable).map(gameButton).join('')}</div>`;
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
   return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : game.id === 'stuntcycle' ? '<p>Import your own compatible ROM ZIP. Start 1P uses one credit; Start 2P needs two credits for alternating turns. Coinage is in Settings. Both players use the same throttle to control motorcycle speed.</p>' : game.id === 'indy4' ? '<p>Import your own compatible ROM ZIP. Each color has its own coin, steering wheel, gas pedal and hand brake. The original game has no Start button.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
+}
+
+// The phone Home's "NO / CPU" logo, drawn as square pixel blocks so it looks
+// the same without any pixel font installed. Each letter is 4 blocks wide.
+const PIXEL_LETTERS: Record<string, readonly string[]> = {
+  N: ['X..X', 'XX.X', 'X.XX', 'X..X', 'X..X'],
+  O: ['XXXX', 'X..X', 'X..X', 'X..X', 'XXXX'],
+  C: ['XXXX', 'X...', 'X...', 'X...', 'XXXX'],
+  P: ['XXXX', 'X..X', 'XXXX', 'X...', 'X...'],
+  U: ['X..X', 'X..X', 'X..X', 'X..X', 'XXXX'],
+};
+
+export function pixelLogoPath(lines: readonly string[]): string {
+  const blocks: string[] = [];
+  lines.forEach((word, line) => [...word].forEach((letter, index) => PIXEL_LETTERS[letter].forEach((row, y) => [...row].forEach((cell, x) => {
+    if (cell === 'X') blocks.push(`M${index * 5 + x} ${line * 6 + y}h1v1h-1z`);
+  }))));
+  return blocks.join('');
 }
 
 export function createShellMarkup(base: string, source: string, build: string): string {
@@ -50,6 +71,9 @@ export function createShellMarkup(base: string, source: string, build: string): 
             <div class="sheet-main">
               <p class="sheet-label">FIG. 1 — A GAME WITH NO CPU</p>
               <h1 id="title-heading" class="game-logo">No<span class="logo-accent">CPU</span></h1>
+              <svg class="pixel-logo" data-testid="pixel-logo" viewBox="0 0 14 11" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path fill="currentColor" d="${pixelLogoPath(['NO', 'CPU'])}"></path></svg>
+              <p class="phone-tagline">Arcade games built from logic chips.</p>
+              <p class="phone-build">DICE 0.9 · <span data-testid="phone-build">${escapeText(build)}</span></p>
               <p class="game-subtitle">Arcade games built from logic chips, not software — simulated gate by gate in your browser.</p>
               <svg class="title-schematic" viewBox="0 0 560 150" role="img" aria-label="Schematic: COIN and START signals feed a NAND gate whose output drives VIDEO">
                 <g class="schematic-ink" fill="none" stroke="currentColor" stroke-width="2.5">
