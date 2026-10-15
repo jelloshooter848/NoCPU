@@ -22,8 +22,11 @@ releases below.
 - New Play screen, styled as a black arcade court: the six playable games are listed with a
   glowing paddle marking the selected one, which Up and Down change; the right side shows its
   maker, year, players, ROM status and a Play button, and the games not ported yet are listed
-  under Coming soon. It still opens on the game you last played, Enter opens a game's info page
-  and Escape goes back Home. The Library is now called Play throughout.
+  under Coming soon. It still opens on the game you last played; Enter plays the chosen game,
+  Game info opens its info page and Escape goes back Home. The Library is now called Play
+  throughout.
+- Home and Play also fit phone-sized screens (layout only; touch controls for playing games are
+  still to come).
 
 ## [0.1.4] - 2026-10-14
 

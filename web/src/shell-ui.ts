@@ -24,6 +24,7 @@ export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
 }
 
 export function createShellMarkup(base: string, source: string, build: string): string {
+  const playableCount = GAMES.filter((game) => game.playable).length;
   return `
   <main class="game-shell" data-screen="title" aria-label="NoCPU circuit arcade">
     <div class="game-stage" id="arcade">
@@ -60,7 +61,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
                   <text x="0" y="55">COIN</text><text x="0" y="105">START</text><text x="212" y="80">7400</text><text x="350" y="68">U4</text><text x="496" y="80" font-weight="600">VIDEO</text>
                 </g>
               </svg>
-              <p class="sheet-footer sheet-fade">ENGINE DICE 0.9 · ${GAMES.filter((game) => game.playable).length} OF ${GAMES.length} GAMES PLAYABLE</p>
+              <p class="sheet-footer sheet-fade" data-testid="title-footer">ENGINE DICE 0.9 · ${playableCount} OF ${GAMES.length} GAMES PLAYABLE</p>
             </div>
             <div class="sheet-side sheet-fade">
               <p class="sheet-label" id="title-menu-label">CONNECTOR J1 — MENU</p>
@@ -74,7 +75,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
                 <div><dt>TITLE</dt><dd>NoCPU arcade</dd></div>
                 <div><dt>DWG NO.</dt><dd data-testid="title-version">${escapeText(build)}</dd></div>
                 <div><dt>PROCESSOR</dt><dd class="processor-none">NONE</dd></div>
-                <div><dt>SHEET</dt><dd>1 OF 1</dd></div>
+                <div><dt>SHEET</dt><dd data-testid="title-sheet">1 OF ${playableCount}</dd></div>
               </dl>
             </div>
           </div>
@@ -98,7 +99,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
         <section class="panel-section library-panel" data-panel="library" hidden>
           <header class="play-header">
             <h1 id="library-heading">Play</h1>
-            <p class="play-hint" id="play-hint">Opens on your last game · ↑↓ choose · Enter game info · Esc home</p>
+            <p class="play-hint" id="play-hint">Opens on your last game · ↑↓ choose · Enter play · Esc home</p>
           </header>
           <div class="play-court">
             <nav class="play-games" aria-label="Games" aria-describedby="play-hint" data-testid="game-library">${libraryMarkup()}</nav>

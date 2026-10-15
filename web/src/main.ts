@@ -846,12 +846,24 @@ playGames.addEventListener('focusin', (event) => {
   selectedGameId = item.dataset.gameId!;
   renderPlayDetails();
 });
-// Up and Down move between the games, in the order they are shown.
+// Up and Down move between the games, in the order they are shown. Enter on a
+// playable game does what the Play button does (a ROM game without its ROM
+// explains on its info page); on a game not ported yet it opens the info page,
+// as a click or Space does on any game.
 playGames.addEventListener('keydown', (event) => {
-  if (!['ArrowUp', 'ArrowDown'].includes(event.code) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const games = [...playGames.querySelectorAll<HTMLElement>('.library-game')];
   const index = games.indexOf(document.activeElement as HTMLElement);
   if (index === -1) return;
+  if (event.key === 'Enter') {
+    const gameId = games[index].dataset.gameId!;
+    if (event.repeat || !isPlayableGameId(gameId)) return;
+    event.preventDefault();
+    selectedGameId = gameId;
+    void startGame(gameId);
+    return;
+  }
+  if (!['ArrowUp', 'ArrowDown'].includes(event.code)) return;
   event.preventDefault();
   const next = games[Math.min(games.length - 1, Math.max(0, index + (event.code === 'ArrowDown' ? 1 : -1)))];
   next.focus({ preventScroll: true });

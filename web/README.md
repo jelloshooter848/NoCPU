@@ -15,9 +15,13 @@ fifteen DICE games are listed but not ported yet.
   that opens on the last game played: Up and Down choose among the six
   playable games and then the 15 listed under Coming soon, the right side
   shows the selected game's maker, year, players, comparison and ROM status
-  with a Play button, and Enter or Game info opens the game's info page
+  with a Play button. Enter plays the focused game as the Play button does (a
+  ROM game without its ROM explains on its info page); a click, Space or Game
+  info opens the game's info page
   (controls, audio status and ROM requirements). Only installed fonts are
-  used; nothing is downloaded.
+  used; nothing is downloaded. On phone-sized windows Home stacks the logo
+  above the menu and Play becomes one column with the selected game's Play
+  button kept in view; this is layout only, with no touch controls for play.
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
   (coin, start and Pause · Esc buttons, plus a short status line). The

@@ -136,6 +136,11 @@ test('Home leads with Play, and Play opens on the last game played', { tag: '@ga
   await expect(titleButtons.locator('.pin-name')).toHaveText(titleNames);
   for (const [index, name] of titleNames.entries()) await expect(titleButtons.nth(index)).toHaveAccessibleName(name);
   await expect(page.getByTestId('continue-game')).toHaveCount(0);
+  // The title block's sheet count and the footer both count the playable games in this build.
+  const playable = await page.locator('.play-list .library-game').count();
+  expect(playable).toBe(6);
+  await expect(page.getByTestId('title-sheet')).toHaveText(`1 OF ${playable}`);
+  await expect(page.getByTestId('title-footer')).toHaveText(`ENGINE DICE 0.9 · ${playable} OF ${auditedGames.length} GAMES PLAYABLE`);
   await expect(library).toBeFocused();
   await expect(library).toHaveClass(/primary-button/);
   // With nothing played yet Play opens on its first game.
@@ -237,7 +242,7 @@ test('Home draws its schematic in at most once per session, skippable, keyboard-
   await reduced.close();
 });
 
-test('Play moves between games with Up and Down and describes the selected game', async ({ page }) => {
+test('Play moves between games with Up and Down, describes the selected game and plays it with Enter', async ({ page }) => {
   const games = Object.fromEntries(auditedGames.map((game) => [game.id, game]));
   const details = async (id: string, players: number, rom: string, play: string) => {
     await expect(page.getByTestId(`game-${id}`)).toBeFocused();
@@ -281,11 +286,30 @@ test('Play moves between games with Up and Down and describes the selected game'
   await details('indy4', 4, 'ROM required · not imported', 'Import ROMs to play');
   for (let step = 0; step < 20; step += 1) await page.keyboard.press('ArrowDown');
   await expect(page.locator('.library-game').last()).toBeFocused();
-  // Enter opens the focused game's info page, as Game info does for the selection.
-  await page.getByTestId('game-pong').focus();
+  // Enter on a game not ported yet opens its info page; nothing can start.
+  const last = page.locator('.library-game').last();
+  const lastId = (await last.getAttribute('data-game-id'))!;
   await page.keyboard.press('Enter');
   await screen(page, 'game-info');
-  await expect(page.getByTestId('play-selected')).toBeFocused();
+  await expect(page.locator('#game-info-heading')).toHaveText(games[lastId].display_name);
+  await expect(page.getByTestId('play-selected')).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await screen(page, 'library');
+  await expect(last).toBeFocused();
+  // Enter on a ROM game without its ROM explains on the info page, exactly as Play does.
+  await page.getByTestId('game-stuntcycle').focus();
+  await page.keyboard.press('Enter');
+  await screen(page, 'game-info');
+  await expect(page.locator('#game-info-heading')).toHaveText('Stunt Cycle');
+  await expect(page.getByTestId('rom-launch-message')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await screen(page, 'library');
+  await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
+  // Space, like a click, opens the focused game's info page.
+  await page.getByTestId('game-pong').focus();
+  await page.keyboard.press('Space');
+  await screen(page, 'game-info');
+  await expect(page.locator('#game-info-heading')).toHaveText('Pong');
   await page.keyboard.press('Escape');
   await screen(page, 'library');
   await expect(page.getByTestId('game-pong')).toBeFocused();
@@ -300,6 +324,15 @@ test('Play moves between games with Up and Down and describes the selected game'
   await page.keyboard.press('Escape');
   await screen(page, 'title');
   await expect(page.getByTestId('open-library')).toBeFocused();
+  // Enter on a playable game starts it directly.
+  await page.keyboard.press('Enter');
+  await screen(page, 'library');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByTestId('game-pongdoubles')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('insert-coin')).toBeEnabled({ timeout: 30_000 });
+  await screen(page, 'playing');
+  expect(await page.evaluate(async () => (await (window as any).__nocpuDebug.snapshot()).gameId)).toBe('pongdoubles');
 });
 
 test('a remembered game is kept only while playable; stale ids open the Library on its first game without a warning', async ({ page }) => {
@@ -545,5 +578,60 @@ test('library, info and settings stay reachable inside small desktop windows', a
     await playFromLibrary(page);
     await expect(page.getByTestId('insert-coin')).toBeEnabled();
     await expectDesktopLayout(page);
+  }
+});
+
+test('Home and Play stay simple and usable on phone-sized windows (layout only)', async ({ page }) => {
+  // Phone portrait and landscape layouts; touch play itself remains deferred.
+  const noOverflow = async (label: string) => {
+    await expectViewportShell(page);
+    const card = await page.locator('.overlay-card').evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
+    expect(card.scroll, `${label} must not scroll sideways`).toBeLessThanOrEqual(card.client + 1);
+  };
+  const inside = async (testId: string, minHeight: number) => {
+    const target = page.getByTestId(testId);
+    await expect(target, testId).toBeVisible();
+    const bounds = (await target.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(bounds.height + 0.001, testId).toBeGreaterThanOrEqual(minHeight);
+    expect(bounds.x, testId).toBeGreaterThanOrEqual(-1);
+    expect(bounds.y, testId).toBeGreaterThanOrEqual(-1);
+    expect(bounds.x + bounds.width, testId).toBeLessThanOrEqual(viewport.width + 1);
+    expect(bounds.y + bounds.height, testId).toBeLessThanOrEqual(viewport.height + 1);
+  };
+  for (const viewport of [{ width: 390, height: 844 }, { width: 360, height: 740 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('?debug');
+    await screen(page, 'title');
+    await noOverflow(`Home ${viewport.width}x${viewport.height}`);
+    const pins = page.locator('[data-panel="title"] .pin');
+    await expect(pins).toHaveCount(4);
+    for (let index = 0; index < 4; index += 1) {
+      const pin = pins.nth(index);
+      await pin.scrollIntoViewIfNeeded();
+      const bounds = (await pin.boundingBox())!;
+      expect(bounds.height + 0.001, 'Menu pins are at least 44px tall').toBeGreaterThanOrEqual(44);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1);
+    }
+    await page.getByTestId('open-library').click();
+    await screen(page, 'library');
+    await noOverflow(`Play ${viewport.width}x${viewport.height}`);
+    // The selected game's Play button is on screen and tappable without scrolling.
+    await inside('play-preview', 44);
+    await page.getByTestId('play-preview').click({ trial: true });
+    for (const id of ['game-pong', 'game-indy4', 'game-steeplechase']) {
+      await page.getByTestId(id).scrollIntoViewIfNeeded();
+      const bounds = (await page.getByTestId(id).boundingBox())!;
+      expect(bounds.height + 0.001, `${id} is at least 44px tall`).toBeGreaterThanOrEqual(44);
+      await page.getByTestId(id).click({ trial: true });
+    }
+    await inside('play-preview', 44);
+    await page.getByTestId('back').click();
+    for (const name of ['Settings', 'How to play', 'About']) {
+      await page.getByRole('button', { name, exact: true }).click();
+      await noOverflow(`${name} ${viewport.width}x${viewport.height}`);
+      await page.getByTestId('back').click();
+      await screen(page, 'title');
+    }
   }
 });
