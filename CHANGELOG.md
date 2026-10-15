@@ -13,6 +13,8 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-15
+
 ### Changed
 
 - Faster verification: the long original/native/Wasm comparison is no longer repeated for
@@ -128,7 +130,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...v0.1.4
