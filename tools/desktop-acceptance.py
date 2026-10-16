@@ -137,6 +137,18 @@ def outcome(test: dict) -> str:
     return 'failed'
 
 
+def performance_notes(test: dict) -> list[str]:
+    """Measured real-time performance a test reported as `performance` annotations. It is evidence
+    about the host and engine, recorded beside the outcome; it never decides a game's status."""
+    notes: list[str] = []
+    for source in [test, *test.get('results', [])]:
+        for annotation in source.get('annotations', []) or []:
+            description = annotation.get('description')
+            if annotation.get('type') == 'performance' and isinstance(description, str) and description not in notes:
+                notes.append(description)
+    return notes
+
+
 def missing_marker(engine: str, source: str, reason: str, run: dict | None) -> dict:
     """Written in place of results when a job produced none, so an earlier attempt's results never stand in."""
     return {'schema_version': RESULT_SCHEMA, 'kind': MISSING_KIND, 'engine': engine, 'source': source,
@@ -165,7 +177,10 @@ def collect(report: dict, identity: dict, engine: str, source: str, site: dict, 
                 tags = {'@' + tag.lstrip('@') for tag in spec.get('tags', []) if isinstance(tag, str)}
                 games = sorted(tag[len(TAG_PREFIX):] for tag in tags if tag.startswith(TAG_PREFIX))
                 if games:
-                    tests.append({'file': file, 'title': spec.get('title'), 'games': games, 'outcome': result})
+                    entry = {'file': file, 'title': spec.get('title'), 'games': games, 'outcome': result}
+                    if notes := performance_notes(test):
+                        entry['performance'] = notes
+                    tests.append(entry)
     if not any(stats.values()):
         raise ValueError(f'The report holds no {engine} results')
     if not identity_passed:
@@ -244,6 +259,8 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
                 item = merged.setdefault(key, {'file': test['file'], 'title': test['title'], 'games': test['games'],
                                                'outcomes': {}})
                 item['outcomes'][run_['source']] = test['outcome']
+                if test.get('performance'):
+                    item.setdefault('performance', {})[run_['source']] = test['performance']
         for game in games:
             tagged = [item for item in merged.values() if game in item['games']]
             listed = []
@@ -252,6 +269,8 @@ def combine(results: list[dict], site: dict, policy: dict, run: dict | None = No
                 final = 'failed' if 'failed' in outcomes else 'passed' if 'passed' in outcomes else 'skipped'
                 listed.append({'file': item['file'], 'title': item['title'], 'outcome': final,
                                'runs': dict(sorted(item['outcomes'].items()))})
+                if item.get('performance'):
+                    listed[-1]['performance'] = dict(sorted(item['performance'].items()))
             if any(test['outcome'] == 'failed' for test in listed):
                 status = 'failed'
             elif listed and all(test['outcome'] == 'passed' for test in listed) and not failed_runs:

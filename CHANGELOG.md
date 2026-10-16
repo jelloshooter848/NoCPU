@@ -13,6 +13,18 @@ releases below.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-15
+
+### Changed
+
+- Faster verification: the long original/native/Wasm comparison is no longer repeated for
+  changes that touch only the interface, documentation or version number once the same game
+  core has been compared, including release updates. Releases still run it in full. No gameplay
+  changes.
+- More reliable verification: the browser checks now judge games in simulated circuit time
+  rather than by how fast the test machine runs, and report real-time speed instead of failing
+  on it. No gameplay changes.
+
 ## [0.1.6] - 2026-10-15
 
 ### Changed
@@ -121,7 +133,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.3...v0.1.4

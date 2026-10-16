@@ -56,8 +56,12 @@ export async function paddles(page: Page): Promise<[number, number]> {
         w: (maxX - minX + 1) / width, h: (maxY - minY + 1) / height, area: count });
     }
     const choose = (left: boolean): number => {
+      // An original paddle is 0.058 of the raster tall (less when clipped at an
+      // edge). Score digits are 0.129 tall, and the right score's "1" stroke
+      // shares the right paddle's column, so a scored point must not be
+      // mistaken for a paddle however long a slow run has played.
       const candidates = components.filter((part) => part.x > (left ? 0.07 : 0.70)
-        && part.x < (left ? 0.25 : 0.92) && part.w < 0.03 && part.h > 0.035 && part.h < 0.25);
+        && part.x < (left ? 0.25 : 0.92) && part.w < 0.03 && part.h > 0.035 && part.h < 0.09);
       candidates.sort((a, b) => b.area - a.area);
       if (!candidates.length) throw new Error(`No rendered ${left ? 'left' : 'right'} paddle`);
       return candidates[0].y;
@@ -93,6 +97,17 @@ export async function settledReleasedPaddles(page: Page, slot: number): Promise<
   }));
   expect((await snapshot(page)).axes[slot]).toBe(released.axes[slot]);
   return paddles(page);
+}
+
+/** Pause an installed page clock at (just after) its current time. The clock
+ * keeps running until the call lands, so retry if a slow host let it pass. */
+export async function holdPageClock(page: Page): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    const current = await page.evaluate(() => Date.now());
+    try { await page.clock.pauseAt(current + 50); return; } catch (error) {
+      if (attempt >= 20 || !/past/.test(String(error))) throw error;
+    }
+  }
 }
 
 export async function installAudioProbe(page: Page): Promise<void> {

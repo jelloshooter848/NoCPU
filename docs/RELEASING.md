@@ -26,10 +26,13 @@ govern current releases.
 
 CI (`.github/workflows/ci.yml`) verifies pushes to `main` and to the working
 branch, and every pull request. A run skips the original/native/Wasm
-comparisons, and says so, only when an earlier run already passed them for the
-same content outside documentation and browser UI files; the build, tests and
-all three browser engines always run. See
-[TESTING.md](TESTING.md#continuous-integration).
+comparisons, and says so, only when an earlier run of this repository (any
+branch or pull request) already passed them for the same content outside
+documentation, browser UI files and release metadata (`VERSION`, the release
+records and the `package.json`/`package-lock.json` version field), so a release
+pull request whose core is unchanged skips them; the build, tests and all three
+browser engines always run, and the release workflow itself always runs the
+full comparison fresh. See [TESTING.md](TESTING.md#continuous-integration).
 
 Branch protection on `main` and the working branch should require the single
 status check **`verify / verify`**. It requires every other verification job

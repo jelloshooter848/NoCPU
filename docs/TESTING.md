@@ -230,9 +230,9 @@ requests and by `release.yml` for releases) runs these jobs:
 
 | Job | Runs | What it does |
 | --- | --- | --- |
-| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs and web UI files and looks up a marker that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
+| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs, web UI files and release metadata, and looks up a marker artifact that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
 | `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
-| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, the `nocpu-compared-<hash>` marker. |
+| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, uploads the `nocpu-compared-<hash>` marker artifact. |
 | `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
 | `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. Collects the engine's `browser.version()` and its `@game-` test outcomes for the acceptance record. |
 | `rom-access` | always | Reports whether the `NOCPU_ROMS_TOKEN` secret is available (never for fork pull requests). |
@@ -242,16 +242,44 @@ requests and by `release.yml` for releases) runs these jobs:
 
 The scope rule is decided by content, not by a diff, and is deliberately
 small. The core hash is a SHA-256 over the path, mode and blob of every tracked
-file except documentation (`docs/**`, `bug-reports/**`, top-level `*.md`) and
-browser UI (`web/**`, `tests/browser/**`); renames and deletions change it.
-After `core-compare` passes, it saves an Actions cache marker
-`nocpu-compared-<hash>`. A later run skips the comparisons only when a
-lookup-only restore finds the marker for its own hash, that is when an earlier
-run already passed them for identical content outside docs and UI. A docs-only
-push that follows a cancelled or failed core push therefore still runs them:
-its core content never passed. A missing marker, any error, and every release
-run everything. A skip is printed in the `scope` log, as a notice and in the
-`scope` and `verify` summaries as "skipped, not passed".
+file except the files no capture, replay or comparison reads; renames and
+deletions change it. Left out are:
+
+- documentation: `docs/**`, `bug-reports/**`, top-level `*.md` (including
+  `CHANGELOG.md`);
+- browser UI: `web/**`, `tests/browser/**`, `tests/test-web-foundations.cjs`;
+- release metadata a release commit rewrites: `VERSION`,
+  `tests/release-readiness.json`, `tests/browser-license-audit.json`, and the
+  project `version` field of `package.json` and `package-lock.json` (the rest
+  of both files is hashed). `VERSION` is not compiled into the native or Wasm
+  core: `tools/build-core.sh` only records its digest in the build provenance,
+  and the comparison reports copy it as a label. The provenance and version
+  drift checks (`core-handoff.py --verify`) still run on every run in
+  `package`.
+
+Everything else is hashed: `core/`, `upstream/`, every script under `tools/`
+(capture, replay, compare, build, toolchain installers, the native Dockerfile,
+this rule itself), `tests/replays/`, the manifests, the unit tests, the
+Makefile and the workflows. The hash also includes the first line of the
+runner's `g++ --version`, the one compare input (it builds the native runner)
+not pinned in the repository. `python3 tools/ci-scope.py hash` prints the tree
+hash, the compiler line and the resulting core hash.
+
+After `core-compare` passes, it uploads a small artifact named
+`nocpu-compared-<hash>` (kept 30 days). Artifacts, unlike Actions caches, are
+visible to every run of the repository: content compared in a pull request or
+on the working branch is found again by the merge push to `main` and by the
+next release pull request. (Until 0.1.6 the marker was a cache entry; GitHub
+scopes caches to the branch that saved them, so `main` and new pull requests
+never saw it and re-ran the comparison.) A later run skips the comparisons
+only when the artifact lookup (`ci-scope.py lookup`, GitHub REST API) finds an
+unexpired marker for its own hash uploaded by a run of this repository; markers
+uploaded by fork pull request runs are ignored. A docs-only push that follows a
+cancelled or failed core push therefore still runs them: its core content never
+passed. A missing marker, a failed lookup, any error, and every release run
+everything; a release never looks the marker up. A skip is printed in the
+`scope` log, as a notice and in the `scope` and `verify` summaries as "skipped,
+not passed".
 
 Original captures are cached in archives named `nocpu-reference-v1-` plus a hash
 over every scenario's inputs plus a digest of the stored entries. A run restores
@@ -259,7 +287,7 @@ the newest archive for its inputs (or any older one) and re-checks each entry,
 so only scenarios whose inputs changed are captured again, and saves a new
 archive whenever its receipts show a newly stored entry. Caches are scoped by
 GitHub: a pull request reads the caches of its base branch and the default
-branch and writes only its own, so a fork cannot place entries or markers where
+branch and writes only its own, so a fork cannot place reference entries where
 other runs read them. Release runs never use the reference cache.
 
 Measured on the first runs of this workflow (run 38492310183, commit
@@ -274,8 +302,8 @@ Measured on the first runs of this workflow (run 38492310183, commit
 | `core-compare` | 34 min 10 s (16 captures 11 min, replays 11 min, comparison 7 min) | 15 min 28 s (restore 8 s, replays 7 min, comparison 4 min) |
 | whole run | 37 min 23 s | about 19 min |
 
-A run whose content outside docs and web UI already passed skips
-`core-compare` and takes about 9 minutes. The cached originals for all
+A run whose content outside docs, web UI and release metadata already passed
+skips `core-compare` and takes about 9 minutes. The cached originals for all
 seventeen entries archive to 56 MB.
 
 Branch protection should require the single check `verify / verify` (the job
@@ -391,6 +419,35 @@ limitation, not a gameplay result.
 Automated browser projects show that the build loads and runs in those engines.
 They are Playwright's builds of Chromium, Firefox and WebKit, not Google
 Chrome, a Mozilla release Firefox or Safari, and evidence names them that way.
+
+### Simulated time, not host speed
+
+Browser tests assert in simulated time; wall-clock time only bounds waiting;
+real-time performance is reported, not gated. A correct build must pass on a
+slow or unevenly loaded runner, so:
+
+- Accuracy and behavior checks are expressed in circuit time (the snapshot's
+  integer picoseconds and frame numbers) and keep their calibrated limits in
+  those terms. "Hold until X, then check Y" must make X imply Y without
+  relying on how late the release lands; waits use `waitSimulation`,
+  `untilCircuit` or an equivalent bound in simulated time.
+- Where a check needs inputs or observations at exact circuit times, it holds
+  the worker's clock with the `?debug` test clock
+  ([web/README.md](../web/README.md#building-and-testing)) and advances it in explicit
+  simulated steps. The Space Race movement envelope and the Stunt Cycle
+  throttle release ramp work this way.
+- App timers that are wall-clock by design (the 3000 ms audio activation
+  expiry, the 2500 ms storage watchdogs) are tested on Playwright's page clock,
+  held or advanced explicitly, so the test controls which timer fires first.
+- Wall-clock limits are generous and only end a wait for something that should
+  happen (a page load, an acknowledgment, a stalled simulation). Short fixed
+  waits are used only to check that nothing happens, which a slow host can
+  never fail.
+- Real-time speed is measured and reported: the sustained Pong session attaches
+  `browser-performance.json` and a `performance` annotation
+  (`simulationSpeedRatio=…`), which `tools/desktop-acceptance.py collect`
+  carries into the acceptance record beside that test's outcome. It never
+  decides a game's status.
 
 ### Desktop acceptance record
 

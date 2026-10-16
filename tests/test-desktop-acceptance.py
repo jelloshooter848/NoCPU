@@ -29,8 +29,8 @@ def identity(engine):
             'playwright_version': '1.58.2', 'emulated_user_agent': 'Mozilla/5.0', 'os': 'Ubuntu 24.04'}
 
 
-def spec_entry(title, tags, engine, status='expected', result='passed', file='game.spec.ts'):
-    results = [] if status == 'skipped' else [{'status': result}]
+def spec_entry(title, tags, engine, status='expected', result='passed', file='game.spec.ts', annotations=()):
+    results = [] if status == 'skipped' else [{'status': result, 'annotations': list(annotations)}]
     # Playwright's JSON reporter writes tags without the leading '@'.
     return {'title': title, 'file': file, 'tags': [tag.lstrip('@') for tag in tags],
             'tests': [{'projectName': engine, 'status': status, 'results': results}]}
@@ -92,6 +92,22 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(stunt['runs'], {'public': 'skipped', 'rom': 'passed'})
         release = acceptance.identity_from_manifest(self.manifest, self.digest)
         acceptance.check_record(record, release)
+
+    def test_reported_performance_is_recorded_without_deciding_the_outcome(self):
+        site = self.site_identity()
+        slow = report('chromium')
+        pong = next(spec for spec in slow['suites'][0]['specs'] if spec['title'] == 'pong play')
+        pong['tests'][0]['results'][0]['annotations'] = [{'type': 'performance', 'description': 'simulationSpeedRatio=0.412'},
+                                                         {'type': 'other', 'description': 'ignored'}]
+        results = [acceptance.collect(slow, identity('chromium'), 'chromium', 'public', site)] + self.results()[1:]
+        collected = next(test for test in results[0]['tests'] if test['title'] == 'pong play')
+        self.assertEqual(collected['performance'], ['simulationSpeedRatio=0.412'])
+        record = acceptance.combine(results, site, POLICY)
+        self.assertEqual(record['status'], 'passed', record['problems'])
+        listed = record['browsers'][0]['games']['pong']['tests'][0]
+        self.assertEqual(listed['performance'], {'public': ['simulationSpeedRatio=0.412']})
+        self.assertNotIn('performance', record['browsers'][1]['games']['pong']['tests'][0])
+        acceptance.check_record(record, acceptance.identity_from_manifest(self.manifest, self.digest))
 
     def test_missing_rom_results_leave_the_rom_games_incomplete_and_block_a_required_release(self):
         results = [result for result in self.results() if result['source'] == 'public']

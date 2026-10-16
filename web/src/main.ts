@@ -62,6 +62,9 @@ let paused = false;
 let failed = false;
 let framePending = false;
 let latestPixels: ArrayBuffer | undefined;
+let latestPixelsFrame = -1;
+// Circuit frame number of the image on the canvas (debug observation only).
+let presentedFrame = -1;
 let clockEpoch = 0;
 let inputRevision = 0;
 let axisRevisions: number[] = [0, 0];
@@ -487,6 +490,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
   axes = Array(gameSpec(activeGameId).axisCount).fill(0);
   releaseInputs();
   latestPixels = undefined;
+  presentedFrame = -1;
   inputRevision = 0;
   axisRevisions = Array(axes.length).fill(0);
   generatedSamples = 0;
@@ -579,13 +583,14 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
       case 'frame':
         if (message.epoch !== clockEpoch) break;
         framePending = false;
-        if (!paused && !resetting && message.pixels) latestPixels = message.pixels;
+        if (!paused && !resetting && message.pixels) { latestPixels = message.pixels; latestPixelsFrame = message.frame; }
         break;
       case 'reset':
         if (message.id !== resetId) break;
         resetting = false;
         framePending = false;
         latestPixels = undefined;
+        presentedFrame = -1;
         updatePads();
         acceptSnapshot(message.snapshot);
         renderHelp();
@@ -711,6 +716,7 @@ function animationFrame(): void {
     if (latestPixels) {
       context!.putImageData(new ImageData(new Uint8ClampedArray(latestPixels), canvas.width, canvas.height), 0, 0);
       latestPixels = undefined;
+      presentedFrame = latestPixelsFrame;
     }
     // Presentation pulls the newest completed circuit image. Its cadence never
     // drives simulation or PCM; one pending frame request bounds large copies.
@@ -925,19 +931,28 @@ startDrawIn();
 requestAnimationFrame(animationFrame);
 
 if (new URLSearchParams(location.search).has('debug')) {
-  // Read-only observation for the browser tests; it never alters circuit state.
-  const debugWindow = window as unknown as { __nocpuDebug: { snapshot: () => Promise<Record<string, unknown>> } };
+  // Observation for the browser tests. Snapshots never alter circuit state;
+  // the debug clock only replaces wall-clock pacing with explicit simulated steps.
+  const debugWindow = window as unknown as { __nocpuDebug: Record<string, (...args: never[]) => Promise<unknown>> };
   const identity = () => ({ generation, resetId, clockEpoch, resetting, ready, failed });
+  // Every request is answered by the worker's 'snapshot' event in command order.
+  const request = (command: (id: number) => CoreCommand): Promise<CoreSnapshot> => {
+    if (!ready || !worker) return Promise.reject(new Error(`${gameSpec(activeGameId).title} is not ready.`));
+    const id = ++snapshotId;
+    return new Promise<CoreSnapshot>((resolve, reject) => {
+      const timeout = setTimeout(() => { snapshotRequests.delete(id); reject(new Error(`${gameSpec(activeGameId).title} did not answer.`)); }, 5000);
+      snapshotRequests.set(id, { resolve, reject, timeout });
+      send(command(id));
+    });
+  };
   debugWindow.__nocpuDebug = {
+    // Hold suspends the worker's wall-clock pacing; step then advances exactly
+    // the requested simulated microseconds (1..1,000,000) through the play path.
+    holdClock: async (held: boolean) => { await request((id) => ({ type: 'debugHold', id, held })); },
+    stepClock: async (microseconds: number) => { await request((id) => ({ type: 'debugStep', id, microseconds })); },
     snapshot: async () => {
-      if (!ready || !worker) throw new Error(`${gameSpec(activeGameId).title} is not ready.`);
       const identityBefore = identity();
-      const id = ++snapshotId;
-      const state = await new Promise<CoreSnapshot>((resolve, reject) => {
-        const timeout = setTimeout(() => { snapshotRequests.delete(id); reject(new Error(`${gameSpec(activeGameId).title} did not answer.`)); }, 5000);
-        snapshotRequests.set(id, { resolve, reject, timeout });
-        send({ type: 'snapshot', id });
-      });
+      const state = await request((id) => ({ type: 'snapshot', id }));
       return {
         identityBefore, identity: identity(),
         gameId: state.gameId, gameOptions: state.options, nativeRunning: state.run,
@@ -950,7 +965,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         coinChannel: state.coinChannel, coinsQueued: state.coinsQueued,
         switches: { coinCompleted: state.coinCompleted, startCompleted: state.startCompleted },
         driving: { gas: state.gas, brake: state.brake, axes: state.axes, directions: state.directions },
-        crashes: state.crashes,
+        crashes: state.crashes, presentedFrame,
         heldKeys: controls.getState().heldKeys, pointerCount: Number(mouseThrottle !== undefined) + Number(mouseServe !== undefined), paused, screen, selectedGame: selectedGameId,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,

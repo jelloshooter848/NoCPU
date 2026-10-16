@@ -14,6 +14,10 @@ export type CoreCommand =
   | { type: 'ack'; epoch: number; sequence: number }
   | { type: 'reset'; id: number; seed: number; epoch: number; running: boolean; options: GameOptions }
   | { type: 'snapshot'; id: number }
+  // Debug pages only: suspend wall-clock pacing, or advance exactly this much
+  // simulated time while suspended. Both answer with a 'snapshot' event.
+  | { type: 'debugHold'; id: number; held: boolean }
+  | { type: 'debugStep'; id: number; microseconds: number }
   | { type: 'destroy' };
 
 export interface CoreSnapshot {
@@ -58,7 +62,7 @@ export interface CoreSnapshot {
 export type CoreEvent =
   | { type: 'ready'; width: number; height: number; sampleRate: number; snapshot: CoreSnapshot }
   | { type: 'output'; epoch: number; sequence: number; audio: ArrayBuffer; audioDiscontinuity: boolean; snapshot: CoreSnapshot; elapsed: number }
-  | { type: 'frame'; epoch: number; pixels: ArrayBuffer | null }
+  | { type: 'frame'; epoch: number; pixels: ArrayBuffer | null; frame: number }
   | { type: 'reset'; id: number; epoch: number; snapshot: CoreSnapshot }
   | { type: 'snapshot'; id: number; snapshot: CoreSnapshot }
   | { type: 'error'; message: string };

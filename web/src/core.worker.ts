@@ -100,6 +100,11 @@ let pendingSamples = 0;
 let audioDiscontinuity = false;
 let audioTransportDroppedSamples = 0;
 let pendingElapsed = 0;
+// Debug pages only (?debug): while held, wall-clock pacing is suspended and the
+// circuit advances solely by explicit debugStep commands, through the same
+// slice path as play. Browser tests use it to place inputs and observations at
+// exact simulated times however slowly the host runs.
+let debugHeld = false;
 
 const TICK_MS = 8;
 const MAX_DEBT_US = 50000;
@@ -197,7 +202,7 @@ function setClock(nextEpoch: number, shouldRun: boolean): void {
   if (!shouldRun) { releaseHeld(); return; }
   running = true;
   clockAt = performance.now();
-  timer = setTimeout(tick, TICK_MS);
+  if (!debugHeld) timer = setTimeout(tick, TICK_MS);
 }
 
 function flushOutput(): void {
@@ -216,9 +221,98 @@ function flushOutput(): void {
   audioDiscontinuity = false;
 }
 
+/** Advance the circuit by one bounded slice of at most availableUs (>= 1),
+ * applying the original Coin/Start pulse rules, and return the microseconds
+ * simulated. Wall-clock pacing and debug stepping share this exact path. */
+function advanceSlice(availableUs: number): number {
+  const core = loadedCore();
+  if (coinQueue.length > 0 && simulatedUs >= 500000 && coinRemainingUs === 0 && coinReleasedUs === 0) {
+    coinChannel = coinQueue.shift()!;
+    coin = true;
+    coinRemainingUs = 100000;
+    if (core._nocpu_coin_channel(coinChannel, 1) !== 1) throw new PlayerError('The selected Coin switch is unsupported. Reload the game.');
+  }
+  // Coin and Start are separate original switches. A user's explicit Start
+  // can queue behind a coin pulse, but inserting a coin never queues Start.
+  if (startsQueued.length > 0 && simulatedUs >= 500000 && coinQueue.length === 0
+    && coinRemainingUs === 0 && coinReleasedUs === 0 && startRemainingUs === 0 && startReleasedUs === 0) {
+    startPlayer = startsQueued.shift()!;
+    start = true;
+    startRemainingUs = 100000;
+    if (core._nocpu_start_player(startPlayer, 1) !== 1) throw new PlayerError('The selected Start switch is unsupported. Reload the game.');
+  }
+  let microseconds = Math.min(MAX_SLICE_US, Math.floor(availableUs));
+  if (coinQueue.length > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
+  if (coinRemainingUs > 0) microseconds = Math.min(microseconds, coinRemainingUs);
+  if (coinReleasedUs > 0) microseconds = Math.min(microseconds, coinReleasedUs);
+  if (startsQueued.length > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
+  if (startRemainingUs > 0) microseconds = Math.min(microseconds, startRemainingUs);
+  if (startReleasedUs > 0) microseconds = Math.min(microseconds, startReleasedUs);
+  for (let slot = 0; slot < gameSpec(gameId).paddleCount; slot += 1) {
+    if (directions[slot] !== 0) {
+      const sign = gameSpec(gameId).paddleAxisSign;
+      if (sign === null) throw new PlayerError('This game is awaiting original paddle calibration.');
+      axes[slot] = Math.max(-32768, Math.min(32767, axes[slot] + directions[slot] * sign * 32768 * microseconds / 1e6));
+      core._nocpu_paddle(slot, Math.round(axes[slot]));
+    }
+  }
+  if (core._nocpu_advance(microseconds) !== 1) throw new PlayerError(`${gameSpec(gameId).title} could not continue. Reload the game to try again.`);
+  simulatedUs += microseconds;
+  if (coinReleasedUs > 0) coinReleasedUs -= microseconds;
+  if (startReleasedUs > 0) startReleasedUs -= microseconds;
+  if (coinRemainingUs > 0) {
+    coinRemainingUs -= microseconds;
+    if (coinRemainingUs === 0) {
+      coin = false;
+      if (core._nocpu_coin_channel(coinChannel!, 0) !== 1) throw new PlayerError('The selected Coin switch could not release. Reload the game.');
+      coinCompleted[coinChannel! - 1] += 1;
+      coinChannel = null;
+      // Distinct physical coin actions need a release edge observed by
+      // DICE's original poll clock, including rapid taps before startup.
+      coinReleasedUs = 100000;
+    }
+  }
+  if (startRemainingUs > 0) {
+    startRemainingUs -= microseconds;
+    if (startRemainingUs === 0) {
+      if (core._nocpu_start_player(startPlayer!, 0) !== 1) throw new PlayerError('The selected Start switch could not release. Reload the game.');
+      startCompleted[startPlayer! - 1] += 1;
+      start = false;
+      startPlayer = null;
+      startReleasedUs = 100000;
+    }
+  }
+  return microseconds;
+}
+
+/** Move this slice's PCM into the bounded transport queue. */
+function collectOutput(started: number): void {
+  const core = loadedCore();
+  const offset = core._nocpu_audio() >>> 1;
+  const samples = core.HEAP16.slice(offset, offset + core._nocpu_audio_count());
+  core._nocpu_audio_clear();
+  core._nocpu_collisions_clear();
+  core._nocpu_events_clear();
+  // At most one output packet is in transit. A stalled UI keeps a bounded
+  // recent PCM queue; explicitly discard stale transport audio on overflow.
+  if (pendingSamples + samples.length > MAX_PENDING_SAMPLES) {
+    audioTransportDroppedSamples += pendingSamples;
+    pendingAudio = [];
+    pendingSamples = 0;
+    audioDiscontinuity = true;
+  }
+  if (samples.length) { pendingAudio.push(samples); pendingSamples += samples.length; }
+  pendingElapsed += performance.now() - started;
+}
+
+function loadedCore(): DiceModule {
+  if (!core) throw new PlayerError(`${gameSpec(gameId).title} is still loading.`);
+  return core;
+}
+
 function tick(): void {
   timer = undefined;
-  if (!running || !core) return;
+  if (!running || !core || debugHeld) return;
   const started = performance.now();
   const elapsedUs = Math.max(0, started - clockAt) * 1000;
   clockAt = started;
@@ -226,80 +320,8 @@ function tick(): void {
   // simulated. Observations always report the circuit's actual integer clock.
   debtUs = Math.min(MAX_DEBT_US, debtUs + elapsedUs);
   try {
-    while (debtUs >= 1000 && performance.now() - started < CPU_BUDGET_MS) {
-      if (coinQueue.length > 0 && simulatedUs >= 500000 && coinRemainingUs === 0 && coinReleasedUs === 0) {
-        coinChannel = coinQueue.shift()!;
-        coin = true;
-        coinRemainingUs = 100000;
-        if (core._nocpu_coin_channel(coinChannel, 1) !== 1) throw new PlayerError('The selected Coin switch is unsupported. Reload the game.');
-      }
-      // Coin and Start are separate original switches. A user's explicit Start
-      // can queue behind a coin pulse, but inserting a coin never queues Start.
-      if (startsQueued.length > 0 && simulatedUs >= 500000 && coinQueue.length === 0
-        && coinRemainingUs === 0 && coinReleasedUs === 0 && startRemainingUs === 0 && startReleasedUs === 0) {
-        startPlayer = startsQueued.shift()!;
-        start = true;
-        startRemainingUs = 100000;
-        if (core._nocpu_start_player(startPlayer, 1) !== 1) throw new PlayerError('The selected Start switch is unsupported. Reload the game.');
-      }
-      let microseconds = Math.min(MAX_SLICE_US, Math.floor(debtUs));
-      if (coinQueue.length > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
-      if (coinRemainingUs > 0) microseconds = Math.min(microseconds, coinRemainingUs);
-      if (coinReleasedUs > 0) microseconds = Math.min(microseconds, coinReleasedUs);
-      if (startsQueued.length > 0 && simulatedUs < 500000) microseconds = Math.min(microseconds, 500000 - simulatedUs);
-      if (startRemainingUs > 0) microseconds = Math.min(microseconds, startRemainingUs);
-      if (startReleasedUs > 0) microseconds = Math.min(microseconds, startReleasedUs);
-      for (let slot = 0; slot < gameSpec(gameId).paddleCount; slot += 1) {
-        if (directions[slot] !== 0) {
-          const sign = gameSpec(gameId).paddleAxisSign;
-          if (sign === null) throw new PlayerError('This game is awaiting original paddle calibration.');
-          axes[slot] = Math.max(-32768, Math.min(32767, axes[slot] + directions[slot] * sign * 32768 * microseconds / 1e6));
-          core._nocpu_paddle(slot, Math.round(axes[slot]));
-        }
-      }
-      if (core._nocpu_advance(microseconds) !== 1) throw new PlayerError(`${gameSpec(gameId).title} could not continue. Reload the game to try again.`);
-      simulatedUs += microseconds;
-      debtUs -= microseconds;
-      if (coinReleasedUs > 0) coinReleasedUs -= microseconds;
-      if (startReleasedUs > 0) startReleasedUs -= microseconds;
-      if (coinRemainingUs > 0) {
-        coinRemainingUs -= microseconds;
-        if (coinRemainingUs === 0) {
-          coin = false;
-          if (core._nocpu_coin_channel(coinChannel!, 0) !== 1) throw new PlayerError('The selected Coin switch could not release. Reload the game.');
-          coinCompleted[coinChannel! - 1] += 1;
-          coinChannel = null;
-          // Distinct physical coin actions need a release edge observed by
-          // DICE's original poll clock, including rapid taps before startup.
-          coinReleasedUs = 100000;
-        }
-      }
-      if (startRemainingUs > 0) {
-        startRemainingUs -= microseconds;
-        if (startRemainingUs === 0) {
-          if (core._nocpu_start_player(startPlayer!, 0) !== 1) throw new PlayerError('The selected Start switch could not release. Reload the game.');
-          startCompleted[startPlayer! - 1] += 1;
-          start = false;
-          startPlayer = null;
-          startReleasedUs = 100000;
-        }
-      }
-    }
-    const offset = core._nocpu_audio() >>> 1;
-    const samples = core.HEAP16.slice(offset, offset + core._nocpu_audio_count());
-    core._nocpu_audio_clear();
-    core._nocpu_collisions_clear();
-    core._nocpu_events_clear();
-    // At most one output packet is in transit. A stalled UI keeps a bounded
-    // recent PCM queue; explicitly discard stale transport audio on overflow.
-    if (pendingSamples + samples.length > MAX_PENDING_SAMPLES) {
-      audioTransportDroppedSamples += pendingSamples;
-      pendingAudio = [];
-      pendingSamples = 0;
-      audioDiscontinuity = true;
-    }
-    if (samples.length) { pendingAudio.push(samples); pendingSamples += samples.length; }
-    pendingElapsed += performance.now() - started;
+    while (debtUs >= 1000 && performance.now() - started < CPU_BUDGET_MS) debtUs -= advanceSlice(debtUs);
+    collectOutput(started);
     flushOutput();
     timer = setTimeout(tick, debtUs >= 1000 ? 0 : TICK_MS);
   } catch (error: unknown) {
@@ -421,6 +443,32 @@ async function handle(command: CoreCommand): Promise<void> {
     case 'clock':
       setClock(command.epoch, command.running);
       break;
+    case 'debugHold':
+      if (typeof command.held !== 'boolean') throw new PlayerError('The debug clock request is unsupported.');
+      if (command.held !== debugHeld) {
+        debugHeld = command.held;
+        if (timer !== undefined) clearTimeout(timer);
+        timer = undefined;
+        debtUs = 0;
+        // Releasing resumes pacing from now; held time is never owed as debt.
+        if (!debugHeld && running) { clockAt = performance.now(); timer = setTimeout(tick, TICK_MS); }
+      }
+      send({ type: 'snapshot', id: command.id, snapshot: snapshot() });
+      break;
+    case 'debugStep': {
+      if (!debugHeld || !running) throw new PlayerError('The debug clock must be held on a running game to step.');
+      if (!Number.isInteger(command.microseconds) || command.microseconds < 1 || command.microseconds > 1_000_000) {
+        throw new PlayerError('The debug clock step is unsupported.');
+      }
+      const started = performance.now();
+      for (let remaining = command.microseconds; remaining > 0;) remaining -= advanceSlice(remaining);
+      collectOutput(started);
+      // A step can finish within the timer resolution; its output still exists.
+      if (pendingElapsed === 0) pendingElapsed = 0.001;
+      flushOutput();
+      send({ type: 'snapshot', id: command.id, snapshot: snapshot() });
+      break;
+    }
     case 'ack':
       if (command.epoch === epoch && command.sequence === outstanding) {
         outstanding = undefined;
@@ -437,7 +485,7 @@ async function handle(command: CoreCommand): Promise<void> {
         pixels = core.HEAPU8.slice(offset, offset + length).buffer;
         lastFrame = frame;
       }
-      send({ type: 'frame', epoch, pixels }, pixels ? [pixels] : []);
+      send({ type: 'frame', epoch, pixels, frame }, pixels ? [pixels] : []);
       break;
     }
     case 'reset': {
