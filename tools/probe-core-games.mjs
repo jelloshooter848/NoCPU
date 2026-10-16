@@ -52,7 +52,9 @@ function create(game) {
 const action = (ms, kind, slot, value, other) => ({ ms, kind, slot, value, ...(other === undefined ? {} : { other }) });
 function playScript(game) {
   const script = [action(500, 'coin', 0, 1), action(600, 'coin', 0, 0)];
-  if (game.id === 1) script.push(action(800, 'coin', 0, 1), action(900, 'coin', 0, 0));
+  // A second coin: Pong Doubles, and four-paddle registered games, whose one-credit
+  // game may leave two paddles out of play (Quadrapong's top and bottom walls).
+  if (game.id === 1 || (game.registered && game.paddles === 4)) script.push(action(800, 'coin', 0, 1), action(900, 'coin', 0, 0));
   if (game.registered ? game.starts > 0 : game.id !== 0) script.push(action(1100, 'start', 0, 1), action(1200, 'start', 0, 0));
   return script;
 }

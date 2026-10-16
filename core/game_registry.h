@@ -16,7 +16,9 @@
 struct CircuitDesc;
 
 // One original pin, named "CHIP.pin" as the netlist registers it, weighted.
-struct NoCPUPinTerm { std::string pin; uint32_t weight; };
+// `inverted` reads an active-low output (1 - pin), for a counter stage whose
+// true output the original netlist prunes because only its complement is used.
+struct NoCPUPinTerm { std::string pin; uint32_t weight; bool inverted; }; // omitted: false
 
 // One original setting chip (DIPSWITCH and its variants), found by its
 // original descriptor name. Packed DIP values hold the settings in declared

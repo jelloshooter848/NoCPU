@@ -160,7 +160,7 @@ uint64_t now() {return engine&&engine->circuit?engine->circuit->global_time:0;}
 const NoCPUGameDef* registered() {return engine?engine->def:nullptr;}
 uint32_t terms(const std::vector<NoCPUPinTerm>& sum) {
     uint32_t value=0;
-    for(const auto& term:sum)value+=term.weight*uint32_t(pin(term.pin));
+    for(const auto& term:sum)value+=term.weight*uint32_t(term.inverted?1-pin(term.pin):pin(term.pin));
     return value;
 }
 bool valid_options(uint32_t game,uint32_t dip,uint32_t pot) {

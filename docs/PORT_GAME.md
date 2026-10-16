@@ -142,6 +142,10 @@ and a host CPU with FMA (`grep -m1 -o fma /proc/cpuinfo`).
 - Joystick switches and buttons are held: the browser releases them on pause,
   reset and focus loss. A stick channel is one axis of a four-way stick; two
   channels with the same `slot` form one joystick.
+- A score term is `{"CHIP.pin", weight}`; `{"CHIP.pin", weight, true}` reads
+  the pin inverted, for a counter stage whose true output the original netlist
+  prunes because only its complement is wired (Quadrapong's J10 `_3D_n`/`_4D_n`).
+  The reference `.inc` uses the same form.
 - Observations never feed the circuit. Telemetry columns are `score1..N`
   (at least two), `run_n` (`1 - active`), `attract_n` (`4294967295` when
   absent), `hits` (rising edges of `hit`) and `active`; events are `0` for HIT

@@ -21,7 +21,7 @@
 // (docs/PORT_GAME.md). apply_adapter.py copies them next to this file and lists
 // them in reference_games.inc. This is the reference's own, independently
 // written description; it is never shared with the portable core.
-struct ReferenceTerm { std::string pin; unsigned weight; };
+struct ReferenceTerm { std::string pin; unsigned weight; bool inverted; }; // inverted (value-initialized false when omitted): 1 - pin
 struct ReferenceDip { std::string name; unsigned bits, values, default_index; };
 struct ReferenceGame {
     std::string name;
@@ -580,7 +580,10 @@ static int indy_score(unsigned slot) {
 static int indy_displayed_score(unsigned slot) { const int code = indy_score(slot); return 2 * (code & 7) + 10 * (code >> 3); }
 static int reference_sum(const std::vector<ReferenceTerm>& terms) {
     int value = 0;
-    for(const ReferenceTerm& term : terms) value += int(term.weight) * reference_pin(term.pin.c_str());
+    for(const ReferenceTerm& term : terms) {
+        const int output = reference_pin(term.pin.c_str());
+        value += int(term.weight) * (term.inverted ? 1 - output : output);
+    }
     return value;
 }
 static void reference_state(Circuit* circuit) {
