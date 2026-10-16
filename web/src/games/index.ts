@@ -9,7 +9,7 @@ import { rebound } from './rebound';
 
 import { quadrapong } from './quadrapong';
 
-// Reserved: import { crossfire } from './crossfire';
+import { crossfire } from './crossfire';
 
 export const REGISTERED_GAMES = [
   rebound,
@@ -18,5 +18,5 @@ export const REGISTERED_GAMES = [
 
   quadrapong,
 
-  // Reserved: crossfire,
+  crossfire,
 ] as const satisfies readonly GameDefinition[];

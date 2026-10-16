@@ -514,5 +514,37 @@ class QuadrapongModuleTests(unittest.TestCase):
         self.assertIsNone(objects["paddle4_first"])
 
 
+class CrossfireModuleTests(unittest.TestCase):
+    """Crossfire takes only its play-time knob and reads each gun in its column."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("crossfire")
+
+    def test_settings_are_the_play_time_potentiometer_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("crossfire", 9))
+        for pot in (680000, 1180000, 1680000):
+            self.assertTrue(self.module.valid_options(0, pot))
+        for dip, pot in ((1, 1180000), (0, 679999), (0, 1680001), (0, 0), (0, 1180000.0), (0, True)):
+            with self.subTest(dip=dip, pot=pot):
+                self.assertFalse(self.module.valid_options(dip, pot))
+
+    def test_guns_are_read_in_their_columns_and_hidden_under_the_border(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1):
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(0, 575, 0, 108)          # score band
+        light(0, 575, 408, 431)        # bottom band: a gun below 4.8 V is hidden here
+        light(27, 55, 111, 113)        # left gun at its upper clamp
+        light(56, 60, 112, 112)        # its bullet leaving the gun
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["gun1_first"], objects["gun1_last"]), (111, 113))
+        self.assertIsNone(objects["gun2_first"])
+        light(521, 548, 236, 239)
+        self.assertEqual(self.module.snapshot_objects(bytes(rgb), width, height)["gun2_first"], 236)
+
+
 if __name__ == "__main__":
     unittest.main()

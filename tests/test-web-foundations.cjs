@@ -530,6 +530,21 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(contract.isGameOptions('quadrapong', { coinage: 3 }), false);
   assert.equal(contract.gameSpec('quadrapong').paddleCount, 4);
   assert.equal(schema.actionLabel('p3Left', 'quadrapong'), 'Top paddle left');
+  // Crossfire: two Up/Down sticks and two held Fire buttons, Coin starts (no
+  // Start action), the play-time potentiometer, and no mouse control.
+  assert.deepEqual(schema.actionsForGame('crossfire'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p1Fire', 'p2Fire', 'coin', 'menu', 'reset', 'mute']);
+  const crossfire = schema.defaultBindings('crossfire');
+  assert.equal(schema.validateBindings(crossfire, 'crossfire').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([crossfire.keyboard.p1Fire, crossfire.keyboard.p2Fire, crossfire.keyboard.start], [['KeyD'], ['ArrowLeft'], []]);
+  assert.deepEqual(crossfire.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1]]);
+  assert.deepEqual([crossfire.gamepad.buttons.p1Fire, crossfire.gamepad.buttons.p2Down, crossfire.gamepad.buttons.start], [[{ pad: 0, button: 1 }], [{ pad: 1, button: 13 }], []]);
+  assert.deepEqual(contract.coreGameOptions('crossfire', { playtimeOhms: 680000 }), { game: 9, dip: 0, potOhms: 680000 });
+  assert.deepEqual(contract.defaultGameOptions('crossfire'), { playtimeOhms: 1180000 });
+  assert.equal(contract.isGameOptions('crossfire', { playtimeOhms: 1690000 }), false);
+  assert.equal(contract.gameSpec('crossfire').paddleCount, 0);
+  assert.equal(contract.gameSpec('crossfire').hasStart, false);
+  assert.equal(prefs.isMouseGame('crossfire'), false);
+  assert.equal(schema.actionLabel('p2Fire', 'crossfire'), 'Right gun fire');
 });
 
 test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {
