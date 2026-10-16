@@ -230,6 +230,53 @@
       "winning_score": 15,
       "restart_ms": 44000,
       "kind": "second_credit_restart"
+    },
+    {
+      "id": "quadrapong-default",
+      "game": "quadrapong",
+      "core_id": 8,
+      "replay": "tests/replays/quadrapong.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "players": 4,
+      "restart_ms": 53000,
+      "restart_players": 2,
+      "kind": "coin_restart",
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "low_ms": 2100,
+          "high_ms": 2200
+        },
+        {
+          "slot": 2,
+          "low_ms": 2250,
+          "high_ms": 2300
+        },
+        {
+          "slot": 3,
+          "low_ms": 2400,
+          "high_ms": 2500
+        },
+        {
+          "slot": 4,
+          "low_ms": 2600,
+          "high_ms": 2700
+        }
+      ]
+    },
+    {
+      "id": "quadrapong-two-credits",
+      "game": "quadrapong",
+      "core_id": 8,
+      "replay": "tests/replays/quadrapong-two-credits.tsv",
+      "dip": 1,
+      "pot_ohms": 0,
+      "players": 4,
+      "no_credit_start_ms": 48000,
+      "restart_ms": 51000,
+      "restart_players": 4,
+      "kind": "coin_restart"
     }
   ]
 }

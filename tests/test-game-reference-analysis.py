@@ -474,5 +474,45 @@ class RegisteredGameModuleTests(unittest.TestCase):
             MEDIA.registered_game.cache_clear()
 
 
+class QuadrapongModuleTests(unittest.TestCase):
+    """Quadrapong attributes paddle hits by raster position and reads four lanes."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("quadrapong")
+
+    def test_settings_are_the_coinage_switch_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("quadrapong", 8))
+        self.assertTrue(self.module.valid_options(0, 0) and self.module.valid_options(1, 0))
+        self.assertFalse(self.module.valid_options(2, 0) or self.module.valid_options(0, 1))
+
+    def test_hits_belong_to_the_paddle_at_their_raster_position(self):
+        # Measured on the original: left/right hits at 35% and 80% of a line,
+        # top/bottom hits on lines 50 and 236 of the frame.
+        frame = self.module.FIRST_FRAME_PS + 37 * self.module.FRAME_PERIOD_PS
+        line = self.module.LINE_PS
+        at = lambda row, fraction: frame + row * line + int(fraction * line)
+        self.assertEqual(self.module.hit_paddle("200", at(204, .353)), 1)
+        self.assertEqual(self.module.hit_paddle("200", at(104, .802)), 2)
+        self.assertEqual(self.module.hit_paddle("201", at(50, .449)), 3)
+        self.assertEqual(self.module.hit_paddle("201", at(236, .765)), 4)
+
+    def test_lanes_read_paddles_but_not_wall_or_lane_crossings(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1):
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(117, 466, 42, 48)        # top wall
+        light(129, 134, 207, 231)      # left paddle, centered
+        light(449, 454, 386, 406)      # right paddle at its low end, merged with the wall
+        light(123, 144, 56, 62)        # top paddle at its left end, crossing the left lane
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["paddle1_first"], objects["paddle1_last"]), (207, 231))
+        self.assertEqual(objects["paddle2_first"], 386)
+        self.assertEqual((objects["paddle3_first"], objects["paddle3_last"]), (123, 144))
+        self.assertIsNone(objects["paddle4_first"])
+
+
 if __name__ == "__main__":
     unittest.main()

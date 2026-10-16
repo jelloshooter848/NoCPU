@@ -518,6 +518,18 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(prefs.isMouseGame('rebound'), true);
   assert.equal(schema.actionLabel('p2Left', 'rebound'), 'Right paddle left');
   assert.equal(schema.actionLabel('p2Left', 'indy4'), 'Cyan turn left');
+  // Quadrapong: vertical left/right and horizontal top/bottom paddles, four
+  // conflict-free keyboard pairs, four gamepads, DSW1 coinage bit0.
+  assert.deepEqual(schema.actionsForGame('quadrapong'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Left', 'p3Right', 'p4Left', 'p4Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const quadrapong = schema.defaultBindings('quadrapong');
+  assert.equal(schema.validateBindings(quadrapong, 'quadrapong').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual(quadrapong.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1], [2, 0], [3, 0]]);
+  assert.deepEqual([quadrapong.gamepad.buttons.p1Up, quadrapong.gamepad.buttons.p4Right], [[{ pad: 0, button: 12 }], [{ pad: 3, button: 15 }]]);
+  assert.deepEqual(['vertical', 'vertical', 'horizontal', 'horizontal'], [0, 1, 2, 3].map((slot) => contract.paddleOrientation('quadrapong', slot)));
+  assert.deepEqual(contract.coreGameOptions('quadrapong', { coinage: 2 }), { game: 8, dip: 1, potOhms: 0 });
+  assert.equal(contract.isGameOptions('quadrapong', { coinage: 3 }), false);
+  assert.equal(contract.gameSpec('quadrapong').paddleCount, 4);
+  assert.equal(schema.actionLabel('p3Left', 'quadrapong'), 'Top paddle left');
 });
 
 test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {

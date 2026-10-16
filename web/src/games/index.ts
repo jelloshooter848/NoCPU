@@ -7,7 +7,7 @@ import { rebound } from './rebound';
 
 // Reserved: import { gotcha } from './gotcha';
 
-// Reserved: import { quadrapong } from './quadrapong';
+import { quadrapong } from './quadrapong';
 
 // Reserved: import { crossfire } from './crossfire';
 
@@ -16,7 +16,7 @@ export const REGISTERED_GAMES = [
 
   // Reserved: gotcha,
 
-  // Reserved: quadrapong,
+  quadrapong,
 
   // Reserved: crossfire,
 ] as const satisfies readonly GameDefinition[];
