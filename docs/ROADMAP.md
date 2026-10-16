@@ -89,7 +89,7 @@ the release steps.
 | UI: Home (schematic sheet) and Play (arcade picker) screens | 0.1.5 | Released (2026-10-15) |
 | Simpler phone Home and Play (arcade style) | 0.1.6 | Released (2026-10-15) |
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | In review |
-| ROM-free batch A | 0.2.0 | Planned |
+| ROM-free batch A | 0.2.0 | In progress |
 | ROM-free batch B | 0.3.0 | Planned |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |

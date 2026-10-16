@@ -5,9 +5,10 @@ chip definitions and the original scheduler. It does not reproduce game
 behavior in JavaScript. The browser hosts display, controls, pacing and PCM
 delivery around the same C++ core used by the headless native runner. Pong was
 the first circuit ported, and this page describes the platform adaptations in
-its terms; the same boundaries serve the other five compiled games, whose
+its terms; the same boundaries serve the other compiled games, whose
 per-game input, settings and observation contracts are in
-[core/README.md](../core/README.md).
+[core/README.md](../core/README.md). Games from 0.2.0 on follow
+[PORT_GAME.md](PORT_GAME.md).
 
 [`tools/prepare-core.py`](../tools/prepare-core.py) starts from the audited
 historical directory and writes a separate build copy. The generated

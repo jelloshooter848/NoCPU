@@ -10,7 +10,7 @@ that keep the browser build comparable with original DICE.
 | --- | --- | --- |
 | Original source | `upstream/dice-0.9/` | Byte-identical DICE 0.9 import, checked against [`tests/source-manifest.json`](../tests/source-manifest.json); never built in place |
 | Native reference | `tools/build-native.sh`, `tools/reference/`, generated `build/native/` and `build/reference/` | Original Qt4/SDL 1.2 application built from a disposable copy; an instrumented copy captures controlled replays |
-| Portable core | `tools/prepare-core.py`, `core/`, generated `build/core/` | The same original circuits with host access replaced by owned display/input/audio/ROM boundaries; one source builds a native runner and a Wasm module |
+| Portable core | `tools/prepare-core.py`, `core/`, generated `build/core/` | The same original circuits with host access replaced by owned display/input/audio/ROM boundaries; one source builds a native runner and a Wasm module. Games ported from 0.2.0 on are described as data in `core/games/<id>.cpp` ([PORT_GAME.md](PORT_GAME.md)) |
 | Worker | `web/src/core.worker.ts` | Owns the Wasm module and the simulation clock; steps the circuit in bounded slices and transfers copied frames and PCM |
 | Frontend | `web/` | Game picker, Canvas presentation, Web Audio playback, keyboard/mouse input, ROM import, settings and About panel |
 | Packaging | `tools/package-web.py`, `tools/package-release.py` | Exact runtime identity, license notices and the matching corresponding-source archive |
@@ -19,7 +19,7 @@ The newer [DirtBagXon/DICE](https://github.com/DirtBagXon/DICE) fork is a
 reference for dependency modernization, not the authority for fidelity. See
 [PROVENANCE.md](PROVENANCE.md) and [UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md).
 
-## Portable core (ABI 4)
+## Portable core (ABI 5)
 
 [`tools/prepare-core.py`](../tools/prepare-core.py) writes a disposable copy of
 the original source under `build/core/source/` and records its complete
@@ -28,8 +28,9 @@ chip models, event scheduler and game netlists stay original-derived C++; no
 game rules are reimplemented in TypeScript. [PORT_PONG.md](PORT_PONG.md) lists
 the platform adaptations.
 
-[`core/nocpu.h`](../core/nocpu.h) defines ABI 4. `core/api.cpp` registers six
-circuits, with stable game IDs:
+[`core/nocpu.h`](../core/nocpu.h) defines ABI 5. `core/api.cpp` serves the six
+earlier circuits through their own code and every game registered in
+`core/games/<id>.cpp` through generic paths, with stable game IDs:
 
 | ID | Game | ROM |
 | --- | --- | --- |
@@ -39,6 +40,16 @@ circuits, with stable game IDs:
 | 3 | Breakout | none |
 | 4 | Stunt Cycle | `stuntcycle.zip`, player-supplied |
 | 5 | Indy 4 | `indy4.zip`, player-supplied |
+| 6 | Rebound | none (registered, 0.2.0) |
+| 7–9 | Gotcha, Quadrapong, Crossfire | reserved for the 0.2.0 batch |
+
+A registered game declares its original DIP switches (by descriptor name,
+packed from bit 0), potentiometer range, paddle, joystick, button and Start
+counts and the original pins it observes; `nocpu_game_name` and
+`nocpu_game_info` expose that contract to tools, and `nocpu_joystick_switches`
+and `nocpu_button` reach its digital switches. The original reference has its
+own independent per-game description (`tools/reference/games/<id>.inc`), and
+the comparison its per-game analysis module (`tools/reference/games/<id>.py`).
 
 The main rules of the boundary, detailed in [core/README.md](../core/README.md):
 
@@ -109,7 +120,8 @@ modules.
 
 The legacy line (versions up to 0.6.0, tag `legacy-0.6.0`) built this core
 incrementally: ABI 1 for Pong, ABI 2 for Pong Doubles and Space Race, ABI 3
-for Breakout, and ABI 4 for the staged-ROM Stunt Cycle and Indy 4. Its frontend
+for Breakout, and ABI 4 for the staged-ROM Stunt Cycle and Indy 4. The restarted
+line's ABI 5 (0.2.0) adds the registered-game contract. The legacy frontend
 also carried touch controls, phone qualification and Home Screen support,
 which the restarted line removes. The per-version contracts and validation
 ledgers are in [docs/legacy/](legacy/README.md).

@@ -79,9 +79,13 @@ frames, PCM, inputs, telemetry and collision traces for two epochs in two fresh
 processes. A pass proves the observations it checks: it taps generated PCM, not
 speaker output, and an attract-mode screenshot is not a pass.
 
-The ROM-free batch reference uses the sixteen scenarios in
+The ROM-free batch reference uses the eighteen scenarios in
 [`tests/replays/game-scenarios.json`](../tests/replays/game-scenarios.json)
-(Pong Doubles, Space Race and Breakout):
+(Pong Doubles, Space Race, Breakout and Rebound). Games ported from 0.2.0 on
+add their original-behavior checks, measured frame cadence and settings
+validity as `tools/reference/games/<id>.py`, and their original observation as
+`tools/reference/games/<id>.inc` ([PORT_GAME.md](PORT_GAME.md)); their
+snapshots compare as exact full RGB, like Breakout's.
 
 ```sh
 ./tools/capture-games.sh           # or: make reference-games
@@ -202,7 +206,7 @@ equality, settled geometry tolerances and PCM separately.
 [PORT_PONG.md](PORT_PONG.md) lists the platform adaptations being compared.
 
 `make reference-full` captures (or restores from `build/reference-cache`) Pong
-and all sixteen scenarios and runs `make core-compare`; it is the local
+and every ROM-free scenario and runs `make core-compare`; it is the local
 equivalent of CI's comparison job. Pass `NOCPU_REFERENCE_CACHE=` to capture
 every original fresh.
 
@@ -213,8 +217,9 @@ make quick
 ```
 
 For agents iterating locally: `make test`, the native reference and core
-builds, Pong, and one scenario per ROM-free game (`pongdoubles-default`,
-`spacerace-default`, `breakout-default`; `NOCPU_QUICK_SCENARIOS` overrides)
+builds, Pong, and one scenario per ROM-free game (every `<game>-default`
+scenario of the manifest, today `pongdoubles-default`, `spacerace-default`,
+`breakout-default` and `rebound-default`; `NOCPU_QUICK_SCENARIOS` overrides)
 compared original/native/Wasm against cached originals. The first run fills
 `build/reference-cache` (about 1 GB); later runs skip the Docker captures. A
 quick pass is not the whole-batch qualification. Run the full comparison
@@ -232,7 +237,7 @@ requests and by `release.yml` for releases) runs these jobs:
 | --- | --- | --- |
 | `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs, web UI files and release metadata, and looks up a marker artifact that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
 | `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
-| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and all sixteen scenarios, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, uploads the `nocpu-compared-<hash>` marker artifact. |
+| `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and every ROM-free scenario, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, uploads the `nocpu-compared-<hash>` marker artifact. |
 | `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
 | `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. Collects the engine's `browser.version()` and its `@game-` test outcomes for the acceptance record. |
 | `rom-access` | always | Reports whether the `NOCPU_ROMS_TOKEN` secret is available (never for fork pull requests). |
@@ -464,8 +469,8 @@ engines, whether a release requires it) is `desktop_acceptance` in
   same browser (one worker).
 - Game coverage comes from Playwright tags: a test that exercises a game's
   play carries `@game-<id>` (`pong`, `pongdoubles`, `spacerace`, `breakout`,
-  `stuntcycle`, `indy4`). Tag a new game's tests the same way and add the game
-  to the policy.
+  `stuntcycle`, `indy4`, `rebound`). Tag a new game's tests the same way and
+  add the game to the policy.
 - `tools/desktop-acceptance.py collect` reduces one run's Playwright JSON
   report to the tagged outcomes, after recomputing the runtime digest from the
   tested site's files. `combine` merges every engine and run (a ROM test
@@ -480,7 +485,10 @@ engines, whether a release requires it) is `desktop_acceptance` in
 - `tools/check.py` requires a `@game-<id>` tag on every test of the per-game
   specs (`pong`, `v040-game-ui`, `v050-breakout`, `v060-driving`) except the
   few it exempts by title with a reason; a new spec must be listed there as
-  per-game or generic.
+  per-game or generic. A game ported from 0.2.0 on keeps its tests in
+  `tests/browser/game-<id>.spec.ts`, which is per-game by its name and whose
+  every test must carry `@game-<id>`; generic tests read the list of playable
+  games from `tests/browser/ported-games.ts`.
 
 To reproduce it locally after packaging (`make web-preview`) and running the
 suites:

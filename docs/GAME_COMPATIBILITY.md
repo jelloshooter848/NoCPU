@@ -9,9 +9,9 @@ capabilities, not verified gameplay.
 
 | Status | Games |
 | --- | --- |
-| Compiled by the core, ROM-free | Pong, Pong Doubles, Space Race, Breakout |
+| Compiled by the core, ROM-free | Pong, Pong Doubles, Rebound, Space Race, Breakout |
 | Compiled by the core, player-supplied ROM | Stunt Cycle, Indy 4 |
-| Unported, ROM-free | Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way |
+| Unported, ROM-free | Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way |
 | Unported, ROM-backed | Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase |
 
 The six compiled games had original/native/Wasm comparison evidence in the
@@ -21,6 +21,27 @@ bounded original/native/Wasm comparisons in 0.1.1 ([ACCEPTANCE.md](ACCEPTANCE.md
 with the coverage gaps listed there), and from 0.1.3 each release publishes a
 desktop acceptance record of automated browser checks in Playwright's Chromium
 and Firefox builds ([RELEASING.md](RELEASING.md#the-desktop-acceptance-record)).
+
+## 0.2.0 batch survey (ROM-free batch A)
+
+Rebound, Gotcha, Quadrapong and Crossfire, surveyed from the DICE 0.9 source
+on 2026-10-16. Games from 0.2.0 on are ported through the registered-game
+contract in [PORT_GAME.md](PORT_GAME.md). "Feasibility" is a short probe with
+temporary definitions (native runner, two reset epochs of a 10 s replay, and
+raw Wasm stepping in Node 22.22.0 on an Intel Xeon @ 2.10 GHz, 10 simulated
+seconds after coin and Start): it shows the circuit constructs and runs, not
+that it is accurate. Speeds compare with Pong at 7.8x and Breakout at 1.25x
+real time in the same Wasm measurement.
+
+| Game | Circuit | Inputs | Settings | Video / audio | Unusual | Feasibility | Effort and risks |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Rebound | `games/rebound.cpp` (1025 lines), 14.318 MHz | Two horizontal paddles (`PADDLE1/2_HORIZONTAL_INPUT`, 42–132 kΩ and 150–250 kΩ), Coin, one Start | DIP winning score 11/15, DIP coinage 1/2 credits; no potentiometer | Default monochrome 576 × 432; 454 × 262 pixel clocks per frame (measured); audio wired (E1.6, default gain 10) | Volleyball: paddles on the floor, net in the middle | Native 5.1x, Wasm 6.7x real time | **Ported in 0.2.0** (template). Its original scheduler delays an input up to 10.8 µs, above the default 10 µs sanity bound; the bound is declared per game and the skews are compared exactly |
+| Gotcha | `games/gotcha.cpp` (1130 lines), 14.318 MHz | Two four-way digital joysticks (`JOYSTICK1/2_INPUT`, all four switches: cross and square), Coin, one Start | No DIP; play-time potentiometer `POT_555_ASTABLE` 47–297 kΩ, original default 297 kΩ (the maximum) | Default monochrome; audio wired through two `MIXER`s and a custom `PROXIMITY` tone chip (gain 10) | `PROXIMITY` keeps a function-local `static double v_cap` and writes `e8_555_desc.ctrl`; `CLK_GATE` "speed hack"; `BUFFER` | Constructs, reset epochs identical in the probe; native 2.0x, **Wasm 2.0x** real time, the heaviest of the batch | Medium–high. A function-local static survives in-process re-creation, so cold reset needs a documented derived-source edit (prepare-core) unless proven irrelevant in scenarios where the tone plays; the probe did not exercise it. Smallest performance margin: Playwright's Firefox build runs the core about five times slower, so its tests run below real time and must wait in simulated time. Uses the new four-way stick channels |
+| Quadrapong | `games/quadrapong.cpp` (1396 lines), 14.318 MHz | Four paddles: left/right vertical (`PADDLE1/2_VERTICAL_INPUT`, 17–145 kΩ), top/bottom horizontal (`PADDLE3/4_HORIZONTAL_INPUT`, 30–200 kΩ); Coin, one Start | DIP coinage; no potentiometer | `VIDEO_DESC` with 1 kΩ resistances and contrast 3.0; audio wired (B2.11) | Four players with mixed paddle orientations; `MISS_BUF` buffer against 12 ns glitches (inherited TODO) | Constructs, reset identical; native 3.6x, Wasm 5.3x | Low–medium. Data-only contract; four score observations (telemetry `score1..4`); per-channel orientation and axis sign for keyboard, mouse and gamepad (shared code ready); a four-player keyboard layout |
+| Crossfire | `games/crossfire.cpp` (1405 lines) + `games/crossfire.h`, 12.096 MHz | Two joysticks, Up/Down only (`JOYSTICK1/2_INPUT`), two Fire buttons (`BUTTONS1/2_INPUT` button 1); Coin starts the game (no Start switch) | No DIP; play-time potentiometer `POT_555_MONO` 680–1680 kΩ, default 1180 kΩ (also drives the custom `GNE` timer) | Default monochrome; HBLANK from a custom `HSYNC_MOD`; measured frame period 16253583360 ps in the probe; audio wired (K9.8) | Custom analog chips from "guesswork + simulation" (`JOYSTICK_VOLTAGE`, `SCAN_COMPARATOR`, `BULLET1/2_VOLTAGE`, `FIRE_SOUND_CV`, `GNE`); `FireSoundDesc.cap_v` relies on static zero-initialization; needs chips 7492 and 9321 (now compiled) | Constructs, reset identical; native 4.3x, Wasm 5.3x | Medium. Restore `FireSoundDesc` and the astable `ctrl` values on cold reset; floating-point `exp`/`log` and double-to-integer time conversions must agree between glibc (original, native) and Emscripten's libm (not yet shown for these functions); coin-start and held Fire buttons use the shared paths |
+
+All four have active audio hookups. None uses a ROM. DICE's inaccuracies and
+TODOs in these circuits are inherited and recorded, not fixed.
 
 ## Source inventory
 

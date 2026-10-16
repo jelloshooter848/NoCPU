@@ -1,7 +1,8 @@
 # Original-derived DICE core
 
 The core compiles the original DICE 0.9 Pong, Pong Doubles, Space Race,
-Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5) and the chip scheduler
+Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5), Rebound (ID 6, the
+first registered game) and the chip scheduler
 without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
 [`upstream/dice-0.9/`](../upstream/dice-0.9) remain byte-identical; the preparation
@@ -13,8 +14,25 @@ capture media; native provenance records that link flag. The Wasm/browser core
 does not link zlib. Native binaries and historical toolchain containers are
 outside the browser distribution assessment.
 
-[`nocpu.h`](nocpu.h) defines ABI version 4, retaining earlier game IDs and entry
+[`nocpu.h`](nocpu.h) defines ABI version 5, retaining earlier game IDs and entry
 points. Each module owns one live circuit.
+
+Games ported from 0.2.0 on are *registered*: `core/games/<id>.cpp` fills a
+`NoCPUGameDef` ([`game_registry.h`](game_registry.h)) and `core/games/<id>.inc`,
+appended to the prepared original source, restores that game's mutable static
+descriptors before each construction. Registered games share one set of entry
+points: settings are packed original DIP indices in declared order (by the
+original descriptor name, as `GameConfig` finds them) and a potentiometer
+resistance in its declared range; `nocpu_paddle` drives their paddle slots
+whatever the orientation, `nocpu_joystick_switches` their digital joysticks,
+`nocpu_button` their `BUTTONSn_INPUT` switches, `nocpu_start_player` their
+Start switches and channel 1 of `nocpu_coin_channel` their coin;
+`nocpu_score`, `nocpu_active`, `nocpu_attract_n` and `nocpu_hits` read their
+declared pins, and their other declared pins report events
+`NOCPU_GAME_EVENT_BASE + index`. `nocpu_game_name` and `nocpu_game_info`
+describe the contract; undeclared inputs return 0 without mutation. The six
+earlier games keep their own paths below. See
+[PORT_GAME.md](../docs/PORT_GAME.md).
 Create and reset take a seed; duplicate create fails, destroy is repeatable, and
 reset releases held inputs and restores cold original descriptors, then applies
 the selected title's chosen DIP/potentiometer settings. Invalid game/settings
@@ -140,7 +158,7 @@ evidence files; with `--game`, `--dip` and `--pot-ohms` it replays the other
 compiled games. Read the [adaptation inventory](../docs/PORT_PONG.md) and
 [testing instructions](../docs/TESTING.md) for build and comparison commands,
 and [GAME_COMPATIBILITY.md](../docs/GAME_COMPATIBILITY.md#verification-status)
-for recorded results. The remaining 15 games are not compiled yet.
+for recorded results. The remaining 14 games are not compiled yet.
 Pong Doubles uses DICE's default audio gain of 10; Space Race keeps its explicit
 gain of 50 and its original 566/filter/mixer audio graph. Fresh circuit creation
 also replaces audio objects, preventing selected-title gain from leaking into

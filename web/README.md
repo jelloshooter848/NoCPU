@@ -2,9 +2,9 @@
 
 The frontend is the minimal desktop interface defined in the
 [roadmap](../docs/ROADMAP.md) "Goal". It runs the DICE 0.9 circuits that the
-core compiles (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4)
-in desktop browsers with keyboard, mouse and optional gamepads. The other
-fifteen DICE games are listed but not ported yet.
+core compiles (Pong, Pong Doubles, Rebound, Space Race, Breakout, Stunt Cycle
+and Indy 4) in desktop browsers with keyboard, mouse and optional gamepads. The
+other fourteen DICE games are listed but not ported yet.
 
 ## What it offers
 
@@ -12,8 +12,8 @@ fifteen DICE games are listed but not ported yet.
   leads with Play; its gate drawing sketches itself in at most once per browser
   session (`sessionStorage`), any key or click skips it, reduced motion never
   runs it, and the menu is usable throughout. Play is an arcade-court picker
-  that opens on the last game played: Up and Down choose among the six
-  playable games and then the 15 listed under Coming soon, the right side
+  that opens on the last game played: Up and Down choose among the
+  playable games and then those listed under Coming soon, the right side
   shows the selected game's maker, year, players, comparison and ROM status
   with a Play button. Enter plays the focused game as the Play button does (a
   ROM game without its ROM explains on its info page); a click, Space or Game
@@ -23,9 +23,9 @@ fifteen DICE games are listed but not ported yet.
   phone landscape up to 940 by 500px) use the plain arcade-court style
   instead of the schematic sheet: Home shows a blocky pixel NO CPU logo (an
   inline SVG, so no font is needed), one tagline, the build string and the
-  same menu marked by a glowing paddle; Play lists the six playable games
+  same menu marked by a glowing paddle; Play lists the playable games
   with the selected game's Play button kept in view and folds the games not
-  ported yet into one "+15 more coming" line that expands the list. This is
+  ported yet into one "+N more coming" line that expands the list. This is
   layout only, with no touch controls for play.
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
@@ -34,9 +34,11 @@ fifteen DICE games are listed but not ported yet.
 - **Controls help.** How to play shows the rules and the current keyboard,
   mouse and gamepad assignments for each game.
 - **Keyboard and mouse.** Default keys: W/S and Up/Down move the Pong paddles,
-  Enter inserts a coin, Space opens the menu and Escape pauses or goes back.
-  For the paddle games (Pong, Pong Doubles, Breakout) moving the mouse over the
-  display sets the chosen player's paddle across the full original range; each
+  A/D and Left/Right the Rebound paddles, Enter inserts a coin, Space opens the
+  menu and Escape pauses or goes back. For the paddle games (Pong, Pong
+  Doubles, Rebound, Breakout) moving the mouse over the display sets the chosen
+  player's paddle across the full original range, horizontally or vertically
+  as the paddle moves; each
   edge of the display keeps a 5% margin so both endpoints are reachable. In
   Breakout the left mouse button over the display holds Serve. In Stunt Cycle
   the left button held over the display sets the shared throttle from idle
@@ -69,10 +71,18 @@ or hidden time is discarded rather than replayed. Audio plays the engine's
 signed mono PCM with a short bounded lead and is cleared on pause, reset and
 interruption.
 
+Games ported from 0.2.0 on are described in `games/<id>.ts` and listed in
+`games/index.ts` ([PORT_GAME.md](../docs/PORT_GAME.md)): their control
+channels (absolute paddles or digital joystick axes, each with an orientation),
+held buttons, Start switches, DIP/potentiometer settings, labels, default keys
+and help text. `game-contract.ts`, `control-schema.ts`, `controls.ts`, the
+worker, settings and help read that definition instead of per-game branches.
+
 `controls.ts` turns keyboard and gamepad input into the circuit's switches and
 absolute axes; `app-settings.ts` and `preferences.ts` keep sound, control
 assignments, the mouse assignment and game settings in a versioned
-`localStorage` record (version 5; versions 0-4 migrate on load, and malformed
+`localStorage` record (version 6; versions 0-5 migrate on load, a record saved
+before a game was added takes that game's defaults silently, and malformed
 or unavailable storage falls back to defaults for the visit). `roms.ts` and
 `zip.ts` implement the bounded local ROM reader and store. `build-info.ts`
 computes the About build string.
