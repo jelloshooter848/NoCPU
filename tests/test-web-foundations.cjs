@@ -504,6 +504,32 @@ test('registered games derive actions, bindings, options and DIP packing from th
     assert.equal(contract.coreGameOptions(game.id, contract.defaultGameOptions(game.id)).game, game.coreId);
     assert.deepEqual(contract.normalizeGameOptions(game.id, { stale: 1 }), contract.defaultGameOptions(game.id));
   }
+  // Rebound: two horizontal paddles, one Start, DSW1 winning score bit0 and DSW2 coinage bit1.
+  assert.deepEqual(schema.actionsForGame('rebound'), ['p1Left', 'p1Right', 'p2Left', 'p2Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const rebound = schema.defaultBindings('rebound');
+  assert.deepEqual([rebound.keyboard.p1Left, rebound.keyboard.p1Right, rebound.keyboard.p2Left, rebound.keyboard.p2Right, rebound.keyboard.start], [['KeyA'], ['KeyD'], ['ArrowLeft'], ['ArrowRight'], ['Digit1']]);
+  assert.deepEqual(rebound.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 0], [1, 0]]);
+  assert.deepEqual(rebound.gamepad.buttons.p2Left, [{ pad: 1, button: 14 }]);
+  assert.deepEqual(contract.coreGameOptions('rebound', { winningScore: 15, coinage: 2 }), { game: 6, dip: 3, potOhms: 0 });
+  assert.deepEqual(contract.coreGameOptions('rebound', { winningScore: 11, coinage: 2 }), { game: 6, dip: 2, potOhms: 0 });
+  assert.equal(contract.isGameOptions('rebound', { winningScore: 13, coinage: 1 }), false);
+  assert.equal(contract.gameSpec('rebound').paddleCount, 2);
+  assert.equal(contract.paddleOrientation('rebound', 1), 'horizontal');
+  assert.equal(prefs.isMouseGame('rebound'), true);
+  assert.equal(schema.actionLabel('p2Left', 'rebound'), 'Right paddle left');
+  assert.equal(schema.actionLabel('p2Left', 'indy4'), 'Cyan turn left');
+});
+
+test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {
+  const value = prefs.clonePreferences(); value.volume = .41;
+  const older = structuredClone(value);
+  for (const game of registry.REGISTERED_GAMES) { delete older.bindingsByGame[game.id]; delete older.optionsByGame[game.id]; delete older.mouseByGame[game.id]; }
+  const loaded = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: older })));
+  assert.equal(loaded.status, 'available'); assert.equal(loaded.message, undefined); assert.equal(loaded.preferences.volume, .41);
+  assert.deepEqual(loaded.preferences.optionsByGame.rebound, { winningScore: 11, coinage: 1 });
+  value.optionsByGame.rebound = { winningScore: 15, coinage: 7 };
+  const recovered = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: value })));
+  assert.equal(recovered.status, 'recovered'); assert.deepEqual(recovered.preferences.optionsByGame.rebound, { winningScore: 15, coinage: 1 });
 });
 
 test('registered stick channels report digital directions and held buttons follow keys and pads', () => {

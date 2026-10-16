@@ -1,0 +1,47 @@
+# Original DICE Rebound, DIP 0 (11 points, 1 coin / 1 credit). Start without a credit
+# (200 ms), coin without Start (500 ms), then Start; each horizontal paddle sweeps its
+# full range alone (2000-4500 ms); a recorded closed-loop rally (5000-14800 ms) gives
+# paddle contacts; then both paddles park at their outer ends until the game ends
+# (right side reaches 11); coin and Start restart a cleared game. Original SDL int16 axes.
+200 start 1
+300 start 0
+500 coin 1
+600 coin 0
+1000 start 1
+1100 start 0
+2000 paddle1 -32768
+2500 paddle1 32767
+3000 paddle1 0
+3500 paddle2 -32768
+4000 paddle2 32767
+4500 paddle2 0
+5541 paddle1 23400
+5561 paddle1 32767
+5701 paddle2 -24750
+5881 paddle2 -31950
+6101 paddle2 -30690
+6301 paddle2 -27000
+6521 paddle2 -20340
+7321 paddle2 -7740
+8261 paddle1 28087
+8501 paddle1 21607
+8701 paddle1 17197
+9241 paddle1 29437
+9321 paddle1 32767
+9561 paddle2 -27630
+9801 paddle2 -28980
+10001 paddle2 -26010
+11961 paddle1 31687
+12401 paddle1 23047
+12601 paddle1 18097
+13141 paddle1 29437
+13161 paddle1 32767
+13501 paddle2 -31950
+14581 paddle1 31147
+15000 paddle1 -32768
+15000 paddle2 32767
+31000 coin 1
+31100 coin 0
+32000 start 1
+32100 start 0
+35000 recreate 1

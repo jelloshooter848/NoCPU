@@ -403,5 +403,76 @@ class MediaGateTests(unittest.TestCase):
         self.assertFalse(all(self.coverage(timing_records(), "unsupported")["checks"].values()))
 
 
+class RegisteredGameModuleTests(unittest.TestCase):
+    """Games ported from 0.2.0 on declare settings and cadence in tools/reference/games/<id>.py."""
+    # Reuse the selection fixture without re-running its tests.
+    setUp = SelectionGateTests.setUp
+    write_requests = SelectionGateTests.write_requests
+    write_replay_metadata = SelectionGateTests.write_replay_metadata
+    write_rows = SelectionGateTests.write_rows
+    validate = SelectionGateTests.validate
+
+    def add_rebound(self, dip=0, pot=0):
+        item = {"id": "rebound", "game": "rebound", "replay": "tests/replays/rebound.tsv", "dip": dip, "pot_ohms": pot}
+        self.scenarios.append(item)
+        replay = self.repo_root / item["replay"]
+        replay.parent.mkdir(parents=True, exist_ok=True)
+        replay.write_text("Identity-only Rebound replay bytes; no captured gameplay fixture.\n")
+        for attempt in ("baseline", "repeat"):
+            (self.path / item["id"] / attempt / "epoch0").mkdir(parents=True)
+        return item
+
+    def test_only_games_with_a_module_are_registered(self):
+        module = MEDIA.registered_game("rebound")
+        self.assertEqual((module.GAME, module.CORE_ID), ("rebound", 6))
+        for game in ("pong", "pongdoubles", "breakout", "../rebound", "Rebound", "", None, "gotcha-x"):
+            with self.subTest(game=game):
+                self.assertIsNone(MEDIA.registered_game(game))
+
+    def test_registered_settings_are_validated_by_the_game_module(self):
+        item = self.add_rebound()
+        for dip in (0, 1, 2, 3):
+            with self.subTest(dip=dip):
+                item["dip"] = dip
+                self.write_requests(self.scenarios)
+                self.assertEqual(self.validate()["errors"], [])
+        for dip, pot in ((4, 0), (-1, 0), (0, 1), (True, 0), (1.0, 0)):
+            with self.subTest(dip=dip, pot=pot):
+                item.update(dip=dip, pot_ohms=pot)
+                self.write_requests(self.scenarios)
+                self.assertTrue(self.validate()["errors"])
+
+    def test_registered_cadence_comes_from_the_module_and_stays_exact(self):
+        module = MEDIA.registered_game("rebound")
+        duration = 10 * 10**12
+        rows, time = [], module.FIRST_FRAME_PS
+        while time <= duration:
+            rows.append({"frame": str(len(rows)), "time_ps": str(time)})
+            time += module.FRAME_PERIOD_PS
+        samples = duration * 48000 // 10**12
+        self.assertTrue(all(MEDIA.media_coverage(rows, samples, duration, "rebound")["checks"].values()))
+        shifted = [{"frame": row["frame"], "time_ps": str(int(row["time_ps"]) + 34920)} for row in rows]
+        self.assertFalse(MEDIA.media_coverage(shifted, samples, duration, "rebound")["checks"]["native_video_duration_complete"])
+        self.assertFalse(MEDIA.media_coverage(rows[:-2] + rows[-1:], samples, duration, "rebound")["checks"]["native_video_cadence_complete"])
+
+    def test_incomplete_game_module_fails_closed(self):
+        directory = self.path / "games"
+        directory.mkdir()
+        (directory / "partial.py").write_text('GAME = "partial"\nCORE_ID = 31\n')
+        (directory / "other.py").write_text("\n".join(f"{name} = None" for name in (
+            "CORE_ID", "FIRST_FRAME_PS", "FRAME_PERIOD_PS", "valid_options", "snapshot_objects", "analyze")) + '\nGAME = "rebound"\n')
+        original = MEDIA.GAMES_DIRECTORY
+        MEDIA.GAMES_DIRECTORY = directory
+        MEDIA.registered_game.cache_clear()
+        try:
+            with self.assertRaises(ValueError):
+                MEDIA.registered_game("partial")
+            with self.assertRaises(ValueError):
+                MEDIA.registered_game("other")
+        finally:
+            MEDIA.GAMES_DIRECTORY = original
+            MEDIA.registered_game.cache_clear()
+
+
 if __name__ == "__main__":
     unittest.main()

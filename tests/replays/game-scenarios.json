@@ -196,6 +196,40 @@
       "kind": "controls",
       "expected_active": true,
       "bonus_award_exercised": false
+    },
+    {
+      "id": "rebound-default",
+      "game": "rebound",
+      "core_id": 6,
+      "replay": "tests/replays/rebound.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "winning_score": 11,
+      "restart_ms": 32000,
+      "kind": "coin_restart",
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "left_ms": 2400,
+          "right_ms": 2750
+        },
+        {
+          "slot": 2,
+          "left_ms": 3900,
+          "right_ms": 4250
+        }
+      ]
+    },
+    {
+      "id": "rebound-15-two-credits",
+      "game": "rebound",
+      "core_id": 6,
+      "replay": "tests/replays/rebound-15-two-credits.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "winning_score": 15,
+      "restart_ms": 44000,
+      "kind": "second_credit_restart"
     }
   ]
 }

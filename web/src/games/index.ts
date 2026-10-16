@@ -3,7 +3,7 @@
 // Each game owns its own reserved import line and list entry below, so ports
 // developed in parallel do not edit the same lines.
 import type { GameDefinition } from './types';
-// Reserved: import { rebound } from './rebound';
+import { rebound } from './rebound';
 
 // Reserved: import { gotcha } from './gotcha';
 
@@ -12,7 +12,7 @@ import type { GameDefinition } from './types';
 // Reserved: import { crossfire } from './crossfire';
 
 export const REGISTERED_GAMES = [
-  // Reserved: rebound,
+  rebound,
 
   // Reserved: gotcha,
 
