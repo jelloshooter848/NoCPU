@@ -6,8 +6,8 @@ export const rebound = {
   id: 'rebound',
   coreId: 6,
   title: 'Rebound',
-  // Set only once its original/native/Wasm comparison passes (docs/ACCEPTANCE.md).
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-16 (docs/ACCEPTANCE.md, 0.2.0 run).
+  verified: true,
   playerCount: 2,
   // PADDLE1/2_HORIZONTAL_INPUT. A larger canonical axis moves either paddle right.
   channels: [

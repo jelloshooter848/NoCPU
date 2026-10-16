@@ -13,6 +13,12 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- Rebound (Atari, 1974) is playable: the original circuit, verified against original DICE, with
+  its winning-score and coinage settings, two horizontal paddles on A/D and the Left/Right arrow
+  keys, the mouse or a gamepad, and the circuit's own sound.
+
 ## [0.1.7] - 2026-10-15
 
 ### Changed

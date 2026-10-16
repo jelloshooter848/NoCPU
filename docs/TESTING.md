@@ -533,7 +533,7 @@ source/notice hashes; they do not replace the full local matrix.
 
 ## What is still untested
 
-Fifteen of the 21 DICE 0.9 games are unported. The six ported games pass their
+Fourteen of the 21 DICE 0.9 games are unported. The seven ported games pass their
 bounded original/native/Wasm comparisons ([ACCEPTANCE.md](ACCEPTANCE.md)), with
 the coverage gaps listed there, and automated browser checks in Playwright's
 engine builds; nobody has yet recorded a manual check in a release Chrome or
