@@ -1,9 +1,12 @@
 import { cloneBindings, defaultBindings, validateBindings, type Bindings } from './control-schema';
-import { defaultGameOptions, gameSpec, isPlayableGameId, normalizeGameOptions, type GameOptionsById, type PlayableGameId } from './game-contract';
+import { defaultGameOptions, gameSpec, isPlayableGameId, normalizeGameOptions, PLAYABLE_GAME_IDS, REGISTERED_GAME_IDS,
+  type GameOptionsById, type PlayableGameId, type RegisteredGameId } from './game-contract';
 
-/** Games whose original absolute analog control (paddle or throttle) the mouse can drive. */
-export type MouseGameId = 'pong' | 'pongdoubles' | 'breakout' | 'stuntcycle';
-export const MOUSE_GAMES: readonly MouseGameId[] = ['pong', 'pongdoubles', 'breakout', 'stuntcycle'];
+/** Games whose original absolute analog control (paddle or throttle) the mouse can drive:
+ * four earlier games, and every registered game with a paddle. */
+export type MouseGameId = 'pong' | 'pongdoubles' | 'breakout' | 'stuntcycle' | RegisteredGameId;
+export const MOUSE_GAMES: readonly MouseGameId[] = ['pong', 'pongdoubles', 'breakout', 'stuntcycle',
+  ...REGISTERED_GAME_IDS.filter((gameId) => gameSpec(gameId).paddleCount > 0)];
 export function isMouseGame(gameId: PlayableGameId): gameId is MouseGameId { return (MOUSE_GAMES as readonly string[]).includes(gameId); }
 /** The player slot the mouse drives for each mouse game, or null when the mouse is off. */
 export type MouseSlots = Record<MouseGameId, number | null>;
@@ -26,9 +29,9 @@ export const PREFERENCES_KEY = 'nocpu.preferences';
 export const PREFERENCES_VERSION = 6;
 export const DEFAULT_PREFERENCES: Preferences = {
   volume: 0.6, muted: false, bindings: cloneBindings(),
-  bindingsByGame: { pongdoubles: defaultBindings('pongdoubles'), spacerace: defaultBindings('spacerace'), breakout: defaultBindings('breakout'), stuntcycle: defaultBindings('stuntcycle'), indy4: defaultBindings('indy4') },
-  optionsByGame: { pong: defaultGameOptions('pong'), pongdoubles: defaultGameOptions('pongdoubles'), spacerace: defaultGameOptions('spacerace'), breakout: defaultGameOptions('breakout'), stuntcycle: defaultGameOptions('stuntcycle'), indy4: defaultGameOptions('indy4') },
-  mouseByGame: { pong: 0, pongdoubles: 0, breakout: 0, stuntcycle: 0 },
+  bindingsByGame: Object.fromEntries(PLAYABLE_GAME_IDS.filter((gameId) => gameId !== 'pong').map((gameId) => [gameId, defaultBindings(gameId)])) as Preferences['bindingsByGame'],
+  optionsByGame: Object.fromEntries(PLAYABLE_GAME_IDS.map((gameId) => [gameId, defaultGameOptions(gameId)])) as GameOptionsById,
+  mouseByGame: Object.fromEntries(MOUSE_GAMES.map((gameId) => [gameId, 0])) as MouseSlots,
   lastGameId: null,
 };
 export function clonePreferences(value: Preferences = DEFAULT_PREFERENCES): Preferences { return structuredClone(value); }
@@ -61,10 +64,24 @@ function recover(value: unknown, version = PREFERENCES_VERSION): { preferences: 
       Object.assign(preferences.optionsByGame, { [gameId]: normalized });
       if (JSON.stringify(normalized) !== JSON.stringify(options[gameId])) changed = true;
     }
+    // Games added from 0.2.0 on: a record saved before a game existed simply
+    // lacks it and takes its defaults silently; an entry that is present must be valid.
+    for (const gameId of REGISTERED_GAME_IDS) {
+      if (gameId in maps) {
+        const mapping = validateBindings(maps[gameId], gameId);
+        if (mapping.ok) (preferences.bindingsByGame as Record<string, Bindings>)[gameId] = mapping.bindings; else changed = true;
+      }
+      if (gameId in options) {
+        const normalized = normalizeGameOptions(gameId, options[gameId]);
+        Object.assign(preferences.optionsByGame, { [gameId]: normalized });
+        if (JSON.stringify(normalized) !== JSON.stringify(options[gameId])) changed = true;
+      }
+    }
   }
   if (version >= 5) {
     const mouse = record(value.mouseByGame) ? value.mouseByGame : {};
     for (const gameId of MOUSE_GAMES) {
+      if (!(gameId in mouse) && (REGISTERED_GAME_IDS as readonly string[]).includes(gameId)) continue;
       if (validMouseSlot(gameId, mouse[gameId])) preferences.mouseByGame[gameId] = mouse[gameId] as number | null; else changed = true;
     }
   }

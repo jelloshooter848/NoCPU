@@ -11,7 +11,7 @@ export type RomRequirement = {
   dump_variants: { crc32: string; size_bytes: number }[];
 };
 export type AuditedGame = {
-  id: string; display_name: string; manufacturer: string; year: number;
+  id: string; display_name: string; manufacturer: string; year: number; max_players_indicated: number;
   input_slots: number[];
   controls: { label: string; kind: string; slot: number | null }[];
   roms: RomRequirement[];

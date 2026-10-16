@@ -1,9 +1,9 @@
 import { actionsForGame, cloneBindings, controlPlayerCount, directionAction, type ActionId, type Bindings, type GameAction } from './control-schema';
-import type { PlayableGameId } from './game-contract';
+import { registeredGame, type PlayableGameId } from './game-contract';
 export type { ActionId, Bindings, KeyboardBindings, GamepadBindings, GamepadPlayerBinding, GamepadButtonBinding } from './control-schema';
 export { ACTION_IDS, ACTION_LABELS, DEFAULT_BINDINGS, cloneBindings, keyLabel, validateBindings } from './control-schema';
 export interface ConnectedGamepad { index: number; id: string; mapping: string; axes: number; buttons: number }
-export interface ControlState { heldKeys: string[]; directions: number[]; serve: boolean; gas: boolean[]; brake: boolean[]; gamepads: ConnectedGamepad[] }
+export interface ControlState { heldKeys: string[]; directions: number[]; serve: boolean; gas: boolean[]; brake: boolean[]; held: boolean[]; gamepads: ConnectedGamepad[] }
 export interface ControlOptions {
   bindings: Bindings; gameId?: PlayableGameId;
   onDirections: (directions: number[]) => void;
@@ -11,6 +11,8 @@ export interface ControlOptions {
   onAction: (action: GameAction) => void;
   onServe?: (held: boolean) => void;
   onButtons?: (gas: boolean[], brake: boolean[]) => void;
+  /** Registered games: their held BUTTONSn switches, in definition order. */
+  onHeldButtons?: (held: boolean[]) => void;
   onGamepads?: (gamepads: ConnectedGamepad[]) => void;
   onDisconnect?: () => void;
 }
@@ -23,7 +25,7 @@ export interface Controls {
   pollGamepads(gamepads?: readonly (Gamepad | null)[]): void; getState(): ControlState;
 }
 const directional = (action: ActionId): boolean => /^p[1-4](Up|Down|Left|Right)$/.test(action);
-const pedal = (action: ActionId): boolean => /^p[1-4](Gas|Brake)$/.test(action);
+const pedal = (action: ActionId): boolean => /^p[1-4](Gas|Brake|Fire)$/.test(action);
 const pressed = (button: GamepadButton | undefined): boolean => !!button && (button.pressed || (Number.isFinite(button.value) && button.value >= 0.5));
 const editable = (target: EventTarget | null): boolean => typeof Element !== 'undefined' && target instanceof Element && !!target.closest('input,select,textarea,[contenteditable]:not([contenteditable="false"])');
 /** Input-only adapter; joystick games combine held switches, paddle games retain absolute positions. */
@@ -40,6 +42,7 @@ export function createControls(options: ControlOptions): Controls {
   let axisDirections: number[] = [];
   let gas: boolean[] = [];
   let brake: boolean[] = [];
+  let held: boolean[] = [];
   let directions: number[] = [];
   let pointerServe = false;
   let serve = false;
@@ -51,6 +54,7 @@ export function createControls(options: ControlOptions): Controls {
     axisDirections = Array(count).fill(0);
     directions = Array(count).fill(0);
     gas = Array(count).fill(false); brake = Array(count).fill(false);
+    held = Array(registeredGame(gameId)?.buttons.length ?? 0).fill(false);
   }
   resetPlayers();
   function updateDirections(): void {
@@ -73,6 +77,8 @@ export function createControls(options: ControlOptions): Controls {
     if (nextGas.some((held, slot) => held !== gas[slot]) || nextBrake.some((held, slot) => held !== brake[slot])) {
       gas = nextGas; brake = nextBrake; options.onButtons?.([...gas], [...brake]);
     }
+    const nextHeld = (registeredGame(gameId)?.buttons ?? []).map((button) => enabled && active(button.action));
+    if (nextHeld.some((down, index) => down !== held[index])) { held = nextHeld; options.onHeldButtons?.([...held]); }
   }
   function release(): void {
     revision += 1; heldKeys.clear(); heldButtons.clear(); armedButtons.clear(); lastButtons.clear();
@@ -123,7 +129,8 @@ export function createControls(options: ControlOptions): Controls {
           return;
         }
         if (!armedAxes[slot]) { axisDirections[slot] = 0; return; }
-        if (gameId === 'spacerace') { axisDirections[slot] = Math.sign(value); return; }
+        // Digital joysticks: a moved stick holds that direction's switch.
+        if (gameId === 'spacerace' || registeredGame(gameId)?.channels[slot]?.kind === 'stick') { axisDirections[slot] = Math.sign(value); return; }
         const scaled = Math.sign(value) * (Math.abs(value) - binding.deadzone) / (1 - binding.deadzone);
         const axis = gameId === 'stuntcycle' ? Math.round(Math.max(0, scaled) * 32767)
           : Math.round(scaled * (scaled < 0 ? 32768 : 32767));
@@ -145,6 +152,6 @@ export function createControls(options: ControlOptions): Controls {
       }
       updateDirections(); updateServe(); updatePedals();
     },
-    getState() { return { heldKeys: [...heldKeys], directions: [...directions], serve, gas: [...gas], brake: [...brake], gamepads: structuredClone(connected) }; },
+    getState() { return { heldKeys: [...heldKeys], directions: [...directions], serve, gas: [...gas], brake: [...brake], held: [...held], gamepads: structuredClone(connected) }; },
   };
 }

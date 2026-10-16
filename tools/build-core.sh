@@ -11,6 +11,9 @@ mkdir -p build/core
 python3 tools/prepare-core.py --output build/core/source
 mapfile -t SOURCES < build/core/sources.txt
 SOURCES+=("$ROOT/core/api.cpp" "$ROOT/core/platform/portable_input.cpp")
+# Each game ported from 0.2.0 on registers its access contract in core/games/<id>.cpp.
+mapfile -t GAME_DEFINITIONS < <(find "$ROOT/core/games" -maxdepth 1 -name '*.cpp' | LC_ALL=C sort)
+SOURCES+=("${GAME_DEFINITIONS[@]}")
 COMMON=(-std=c++14 -O3 -fexceptions -I "$ROOT/build/core/source" -I "$ROOT/core")
 
 record_build() {
@@ -20,16 +23,19 @@ record_build() {
 import hashlib,json,pathlib,subprocess,sys
 root=pathlib.Path.cwd();target,compiler,version=sys.argv[1:4]
 out=root/'build/core'/target
-inputs=[root/p for p in ('core/nocpu.h','core/api.cpp','core/port_hooks.h','core/platform/portable_input.cpp','tools/prepare-core.py','tools/build-core.sh','VERSION','tests/source-manifest.json')]
+inputs=[root/p for p in ('core/nocpu.h','core/api.cpp','core/port_hooks.h','core/game_registry.h','core/platform/portable_input.cpp','tools/prepare-core.py','tools/build-core.sh','VERSION','tests/source-manifest.json')]
 inputs+=sorted(p for p in (root/'core/platform').rglob('*') if p.is_file())
+inputs+=sorted(p for p in (root/'core/games').glob('*') if p.is_file())
 if target=='native':inputs.append(root/'core/native_runner.cpp')
 inputs+=sorted(p for p in (root/'build/core/source').rglob('*') if p.is_file())
 def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 files={str(p.relative_to(root)):digest(p) for p in inputs}
 outputs={p.name:digest(p) for p in sorted(out.iterdir()) if p.is_file() and p.name!='build-provenance.json'}
 compiled=(root/'build/core/sources.txt').read_text().splitlines()+[str(root/'core/api.cpp'),str(root/'core/platform/portable_input.cpp')]
+compiled+=[str(p) for p in sorted((root/'core/games').glob('*.cpp'))]
 if target=='native':compiled.append(str(root/'core/native_runner.cpp'))
-data={'target':target,'abi':4,'games':['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4'],'compiler':compiler,'compiler_version':version,'flags':sys.argv[4:], 'compiled_sources':compiled,'source_manifest_sha256':digest(root/'tests/source-manifest.json'),'inputs':files,'outputs':outputs,'threads':False,'fast_math':False,'lto':False}
+games=json.loads((root/'build/core/adapter-files.json').read_text())['games']
+data={'target':target,'abi':5,'games':games,'compiler':compiler,'compiler_version':version,'flags':sys.argv[4:], 'compiled_sources':compiled,'source_manifest_sha256':digest(root/'tests/source-manifest.json'),'inputs':files,'outputs':outputs,'threads':False,'fast_math':False,'lto':False}
 (out/'build-provenance.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
 PY
 }

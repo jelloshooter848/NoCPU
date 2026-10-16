@@ -22,6 +22,9 @@ const prefs = require(path.join(output, 'web/src/preferences.js'));
 const roms = require(path.join(output, 'web/src/roms.js'));
 const zip = require(path.join(output, 'web/src/zip.js'));
 const buildInfo = require(path.join(output, 'web/src/build-info.js'));
+const contract = require(path.join(output, 'web/src/game-contract.js'));
+const registry = require(path.join(output, 'web/src/games/index.js'));
+const LEGACY = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
 
 function keyboard(code, options = {}) { return { code, repeat: false, target: null, prevented: false, preventDefault() { this.prevented = true; }, ...options }; }
 function gamepad(index, axis = 0, down = [], id = `Synthetic controller ${index}`) {
@@ -58,14 +61,17 @@ function forged(size, target) {
 function central(bytes) { const offset = bytes.length - 22; return new DataView(bytes.buffer, bytes.byteOffset).getUint32(offset + 16, true); }
 function patchSize(bytes, size) { const copy = bytes.slice(); const view = new DataView(copy.buffer); view.setUint32(22, size, true); view.setUint32(central(copy) + 24, size, true); return copy; }
 
-test('audited controls describe all 21 circuits while six implemented games have runtime mappings', () => {
+test('audited controls describe all 21 circuits while the implemented games have runtime mappings', () => {
   const inventory = require('../tests/fixtures/game-manifest.json');
   assert.equal(inventory.games.length, 21);
   for (const game of inventory.games) {
     const help = schema.getControlSchema(game.id); assert.equal(help.players, game.max_players_indicated);
     assert.deepEqual(help.controls.map((control) => control.label), game.controls.map((control) => control.label));
-    assert.equal(help.keyboardActions.length > 0, ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id));
+    assert.equal(help.keyboardActions.length > 0, contract.PLAYABLE_GAME_IDS.includes(game.id));
   }
+  // The six earlier games stay playable; each registered game is an audited DICE title.
+  assert.deepEqual(contract.PLAYABLE_GAME_IDS.slice(0, 6), LEGACY);
+  for (const game of registry.REGISTERED_GAMES) assert.ok(inventory.games.some((entry) => entry.id === game.id), game.id);
   assert.equal(schema.getControlSchema('missing'), undefined);
   assert.deepEqual(schema.getControlSchema('pong').keyboardActions, ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute']);
   assert.ok(schema.getControlSchema('pong').controls.some((control) => control.sourceChip === 'COIN_INPUT' && control.label === 'Insert Coin and Start Game'));
@@ -446,7 +452,8 @@ test('Version 4 preferences load without loss and default the desktop mouse assi
 test('mouse assignments persist per game and invalid slots recover to the default', () => {
   const value = prefs.clonePreferences(); value.mouseByGame.pong = 1; value.mouseByGame.pongdoubles = 3; value.mouseByGame.breakout = null;
   const storage = memoryStorage(); assert.equal(prefs.savePreferences(value, storage).status, 'available');
-  assert.deepEqual(prefs.loadPreferences(storage).preferences.mouseByGame, { pong: 1, pongdoubles: 3, breakout: null, stuntcycle: 0 });
+  const registeredMouse = Object.fromEntries(prefs.MOUSE_GAMES.filter((gameId) => !LEGACY.includes(gameId)).map((gameId) => [gameId, 0]));
+  assert.deepEqual(prefs.loadPreferences(storage).preferences.mouseByGame, { pong: 1, pongdoubles: 3, breakout: null, stuntcycle: 0, ...registeredMouse });
   for (const slot of [2, -1, 0.5, '1', undefined]) {
     const bad = structuredClone(value); bad.mouseByGame.pong = slot;
     const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: bad })));
@@ -485,4 +492,47 @@ test('About build string: tag build, untagged dev build with short commit, and n
     assert.equal(buildInfo.buildString('0.1.1', other), 'v0.1.1-dev');
   }
   assert.equal(buildInfo.devBuildString('0.1.1'), 'v0.1.1-dev');
+});
+
+// Games ported from 0.2.0 on (web/src/games/<id>.ts, docs/PORT_GAME.md).
+test('registered games derive actions, bindings, options and DIP packing from their definition', () => {
+  for (const game of registry.REGISTERED_GAMES) {
+    const actions = schema.actionsForGame(game.id);
+    assert.deepEqual(actions.slice(0, game.channels.length * 2), game.channels.flatMap((channel) => [channel.negative, channel.positive]));
+    assert.equal(schema.validateBindings(schema.defaultBindings(game.id), game.id).ok, true, game.id);
+    assert.equal(contract.isGameOptions(game.id, contract.defaultGameOptions(game.id)), true);
+    assert.equal(contract.coreGameOptions(game.id, contract.defaultGameOptions(game.id)).game, game.coreId);
+    assert.deepEqual(contract.normalizeGameOptions(game.id, { stale: 1 }), contract.defaultGameOptions(game.id));
+  }
+});
+
+test('registered stick channels report digital directions and held buttons follow keys and pads', () => {
+  // A synthetic definition exercises the shared joystick/button paths before a
+  // real four-way joystick game is registered; it is removed afterwards.
+  const synthetic = { id: 'synthetic-stick', coreId: 31, title: 'Synthetic', verified: false, playerCount: 2,
+    channels: [
+      { label: 'P1 vertical', kind: 'stick', orientation: 'vertical', slot: 0, negative: 'p1Up', positive: 'p1Down', pad: 0, axis: 1 },
+      { label: 'P1 horizontal', kind: 'stick', orientation: 'horizontal', slot: 0, negative: 'p1Left', positive: 'p1Right', pad: 0, axis: 0 }],
+    buttons: [{ action: 'p1Fire', slot: 0, button: 1 }], starts: 0, hasHit: false, hasAttract: false, scoreSlots: 2, settings: [],
+    labels: {}, keys: { p1Up: ['KeyW'], p1Down: ['KeyS'], p1Left: ['KeyA'], p1Right: ['KeyD'], p1Fire: ['KeyF'] },
+    gamepadButtons: { p1Fire: [{ pad: 0, button: 3 }] }, text: { info: '', rules: () => '', gamepad: '', status: '' } };
+  registry.REGISTERED_GAMES.push(synthetic);
+  try {
+    assert.deepEqual(schema.actionsForGame('synthetic-stick'), ['p1Up', 'p1Down', 'p1Left', 'p1Right', 'p1Fire', 'coin', 'menu', 'reset', 'mute']);
+    const bindings = schema.defaultBindings('synthetic-stick');
+    const events = { directions: [], axes: [], held: [] };
+    const controls = createControls({ bindings, gameId: 'synthetic-stick', onDirections: (value) => events.directions.push(value), onAxes: (value) => events.axes.push(value),
+      onAction: () => {}, onHeldButtons: (value) => events.held.push(value) });
+    controls.setGame('synthetic-stick', bindings); controls.setEnabled(true);
+    controls.handleKeyDown(keyboard('KeyW')); controls.handleKeyDown(keyboard('KeyD'));
+    assert.deepEqual(events.directions.at(-1), [-1, 1]);
+    controls.handleKeyDown(keyboard('KeyF')); assert.deepEqual(events.held.at(-1), [true]);
+    controls.handleKeyUp(keyboard('KeyF')); assert.deepEqual(events.held.at(-1), [false]);
+    controls.release(); assert.deepEqual(controls.getState().directions, [0, 0]);
+    // A joystick moves the digital switches; it never reports an analog paddle axis.
+    const pad = gamepad(0, 0); controls.pollGamepads([pad]);
+    pad.axes = [0.9, -0.9]; pad.buttons[3] = { pressed: true, value: 1 }; controls.pollGamepads([pad]);
+    assert.deepEqual(controls.getState().directions, [-1, 1]); assert.deepEqual(controls.getState().held, [true]);
+    assert.equal(events.axes.length, 0);
+  } finally { registry.REGISTERED_GAMES.pop(); }
 });

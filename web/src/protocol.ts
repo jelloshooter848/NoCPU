@@ -7,6 +7,8 @@ export type CoreCommand =
   | { type: 'keys'; directions: number[] }
   | { type: 'coin'; channel?: 1 | 2 | 3 | 4 | 5 }
   | { type: 'buttons'; gas: boolean[]; brake: boolean[] }
+  // Registered games: held BUTTONSn switches in web/src/games/<id>.ts order.
+  | { type: 'held'; buttons: boolean[] }
   | { type: 'start'; player?: 1 | 2 }
   | { type: 'serve'; held: boolean }
   | { type: 'release' }
@@ -33,6 +35,10 @@ export interface CoreSnapshot {
   indy4: { globals: number[]; cars: number[][]; scores: number[] } | null;
   gas: boolean[];
   brake: boolean[];
+  /** Registered games: held BUTTONSn switches; empty otherwise. */
+  held: boolean[];
+  /** Every observed score display (two, or four for four-player games). */
+  playerScores: number[];
   coinChannel: number | null;
   // Completed original switch pulses in this circuit lifetime, not credits or
   // proof that a game accepted a player. Canceled held pulses do not count.

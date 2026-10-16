@@ -11,7 +11,9 @@ export NOCPU_REFERENCE_CACHE=${NOCPU_REFERENCE_CACHE:-build/reference-cache}
 CPUS=$(nproc 2>/dev/null || echo 2)
 export NOCPU_ANALYZE_JOBS=${NOCPU_ANALYZE_JOBS:-$CPUS}
 export NOCPU_REPLAY_JOBS=${NOCPU_REPLAY_JOBS:-$CPUS}
-SCENARIOS=${NOCPU_QUICK_SCENARIOS:-pongdoubles-default,spacerace-default,breakout-default}
+# Default: every "<game>-default" scenario of the ROM-free manifest, one per game.
+DEFAULT_SCENARIOS=$(python3 -c 'import json; print(",".join(item["id"] for item in json.load(open("tests/replays/game-scenarios.json"))["scenarios"] if item["id"] == item["game"] + "-default"))')
+SCENARIOS=${NOCPU_QUICK_SCENARIOS:-$DEFAULT_SCENARIOS}
 # Quick runs keep only their latest evidence (about 2.5 GB), under build/quick/.
 QUICK="$ROOT/build/quick"
 [[ ! -L "$ROOT/build" && ! -L "$QUICK" ]] || { echo 'Build paths must not be symbolic links.' >&2; exit 1; }

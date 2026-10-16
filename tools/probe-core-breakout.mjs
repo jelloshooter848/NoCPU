@@ -255,7 +255,7 @@ try {
     === '91e6e2bdea6705569f481352ad605035367dc5ae1d6350878e6a35013fe1a1a9');
   const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
   core = await factory({ print: () => {}, printErr: (line) => process.stderr.write(`${line}\n`) });
-  check('ABI4 and48000Hz native PCM', core._nocpu_abi_version() === 4 && core._nocpu_sample_rate() === 48000);
+  check('ABI5 and48000Hz native PCM', core._nocpu_abi_version() === 5 && core._nocpu_sample_rate() === 48000);
   const cold = state();
   for (const [game, dip, pot] of [[4, 3, 0], [3, 9, 0], [3, 128, 0], [3, 0x80000003, 0], [3, 3, 1]]) {
     check(`invalid uncreated config ${game}/${dip}/${pot}`, core._nocpu_create_game(game, 848, dip, pot) === 0 && equal(cold, state()));

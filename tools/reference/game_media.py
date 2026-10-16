@@ -9,7 +9,9 @@ Breakout retains its measured original VBLANK period and cold phase. The
 period's integer source-clock relation is not an analytic divider proof.
 """
 import csv
+import functools
 import hashlib
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -39,6 +41,42 @@ _ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _DECIMAL = re.compile(r"(?:0|[1-9][0-9]*)\Z")
 _FIELDS = ("id", "game", "replay", "dip", "pot_ohms")
 ROOT = Path(__file__).resolve().parents[2]
+GAMES_DIRECTORY = Path(__file__).resolve().parent / "games"
+
+
+@functools.lru_cache(maxsize=None)
+def registered_game(game):
+    """The per-game analysis module of a game ported from 0.2.0 on, or None.
+
+    tools/reference/games/<game>.py declares its core ID, settings validity,
+    measured original frame cadence and its original-behavior checks
+    (docs/PORT_GAME.md). The six earlier games keep their analysis here and in
+    analyze-games.py.
+    """
+    if not isinstance(game, str) or not _ID.fullmatch(game):
+        return None
+    path = GAMES_DIRECTORY / f"{game}.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(f"nocpu_reference_game_{game}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for name in ("GAME", "CORE_ID", "FIRST_FRAME_PS", "FRAME_PERIOD_PS", "valid_options", "snapshot_objects", "analyze"):
+        if not hasattr(module, name):
+            raise ValueError(f"tools/reference/games/{game}.py lacks {name}")
+    if module.GAME != game:
+        raise ValueError(f"tools/reference/games/{game}.py declares another game")
+    return module
+
+
+def first_frame_ps(game):
+    module = registered_game(game)
+    return module.FIRST_FRAME_PS if module else FIRST_FRAME_PS.get(game)
+
+
+def frame_period_ps(game):
+    module = registered_game(game)
+    return module.FRAME_PERIOD_PS if module else FRAME_PERIOD_PS_BY_GAME.get(game)
 
 
 def validate_selection(directory, manifest, *, repo_root=ROOT, capture_layout="original"):
@@ -73,7 +111,9 @@ def validate_selection(directory, manifest, *, repo_root=ROOT, capture_layout="o
         # Breakout packs the original bonus-credit index in bits 0..3 and
         # cabinet/coinage/ball-count switches in bits 4..6. Reserved bits and
         # unused bonus indices must fail before any capture is qualified.
+        module = registered_game(game)
         valid_options = type(dip) is int and type(pot) is int and (
+            (module is not None and module.valid_options(dip, pot)) or
             (game == "pongdoubles" and dip in (0, 1) and pot == 0) or
             (game == "spacerace" and dip in (0, 1) and 470000 <= pot <= 1470000) or
             (game == "breakout" and 0 <= dip < 128 and (dip & 15) <= 8 and pot == 0))
@@ -200,7 +240,7 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     """
     errors = []
     times, indices = [], []
-    valid_parameters = game in FIRST_FRAME_PS and type(duration_ps) is int and duration_ps > 0 \
+    valid_parameters = first_frame_ps(game) is not None and type(duration_ps) is int and duration_ps > 0 \
         and type(sample_count) is int and sample_count >= 0
     if not valid_parameters:
         errors.append("Invalid game, duration or PCM count")
@@ -217,7 +257,7 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
         errors.append(f"Malformed frame record: {error}")
     periods = [b - a for a, b in zip(times, times[1:])]
     reset_pairs, unexpected_pairs = [], []
-    frame_period = FRAME_PERIOD_PS_BY_GAME.get(game)
+    frame_period = frame_period_ps(game)
     reset_sequence = _space_reset_sequence(scenario, replay) if game == "spacerace" else ()
     expected_reset_pairs = list(zip(reset_sequence, reset_sequence[1:]))
     for a, b in zip(times, times[1:]):
@@ -228,7 +268,7 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
         else:
             unexpected_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
     delay = sum(item["gap_ps"] - frame_period for item in reset_pairs)
-    first = FIRST_FRAME_PS.get(game)
+    first = first_frame_ps(game)
     expected_frames = max(0, 1 + (duration_ps - first - delay) // frame_period) if valid_parameters else None
     indices_complete = indices == list(range(len(times))) and bool(times)
     # Both pieces of the split are required in order. A dropped reset frame
@@ -246,11 +286,14 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
         and pcm_byte_count >= 0 and pcm_byte_count % 2 == 0 and pcm_byte_count == sample_count * 2)
     return {"expected_duration_ps": duration_ps, "game": game, "errors": errors,
             "source_clock_half_period_ps": CLOCK_HALF_PERIOD_PS,
-            "source_horizontal_clock_counts": None if game == "breakout" else HORIZONTAL_CLOCK_COUNTS,
-            "source_vertical_lines": None if game == "breakout" else VERTICAL_LINES,
+            "source_horizontal_clock_counts": getattr(registered_game(game), "HORIZONTAL_CLOCK_COUNTS", None)
+                if registered_game(game) or game == "breakout" else HORIZONTAL_CLOCK_COUNTS,
+            "source_vertical_lines": getattr(registered_game(game), "VERTICAL_LINES", None)
+                if registered_game(game) or game == "breakout" else VERTICAL_LINES,
             "source_frame_period_ps": frame_period,
             "source_frame_period_basis": "measured original VBLANK cadence, 451556 source-clock halfcycles; not a complete analytic divider proof"
-                if game == "breakout" else "integer source-clock horizontal/vertical counts",
+                if game == "breakout" else registered_game(game).FRAME_PERIOD_BASIS if registered_game(game)
+                else "integer source-clock horizontal/vertical counts",
             "source_paths": ["upstream/dice-0.9/chips/clock.cpp", f"upstream/dice-0.9/games/{game}.cpp"]
                 + (["upstream/dice-0.9/chips/video.cpp", "upstream/dice-0.9/chip.cpp"] if game == "breakout" else []),
             "frame_first_time_ps": times[0] if times else None,

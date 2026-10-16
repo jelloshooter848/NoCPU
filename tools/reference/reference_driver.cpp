@@ -16,6 +16,38 @@
 #include "chips/dipswitch.h"
 #include <zlib.h>
 
+// Games observed from NoCPU 0.2.0 on describe their original inputs, settings
+// and observed pins as data, one file per game in tools/reference/games/<id>.inc
+// (docs/PORT_GAME.md). apply_adapter.py copies them next to this file and lists
+// them in reference_games.inc. This is the reference's own, independently
+// written description; it is never shared with the portable core.
+struct ReferenceTerm { std::string pin; unsigned weight; };
+struct ReferenceDip { std::string name; unsigned bits, values, default_index; };
+struct ReferenceGame {
+    std::string name;
+    std::vector<ReferenceDip> dips;
+    std::string pot;
+    unsigned pot_min = 0, pot_max = 0, pot_default = 0;
+    unsigned paddles = 0, joysticks = 0, joystick_directions = 0, button_slots = 0, buttons = 0, starts = 0;
+    std::vector<std::vector<ReferenceTerm>> scores;
+    std::string active, attract_n, hit;
+    std::vector<std::string> events;
+};
+static std::vector<ReferenceGame>& reference_games() { static std::vector<ReferenceGame> games; return games; }
+static bool reference_add_game(const ReferenceGame& game) { reference_games().push_back(game); return true; }
+#define REFERENCE_GAME(ident) \
+    static void reference_define_##ident(ReferenceGame& g); \
+    static const bool reference_registered_##ident = [] { ReferenceGame g; reference_define_##ident(g); return reference_add_game(g); }(); \
+    static void reference_define_##ident(ReferenceGame& g)
+#include "reference_games.inc"
+static const ReferenceGame* ref_registered = nullptr;
+static bool ref_left_right[2][2] = {}, ref_buttons[4][3] = {};
+static unsigned reference_dip_mask(const ReferenceGame& game) {
+    unsigned mask = 0, shift = 0;
+    for(const auto& dip : game.dips) { mask |= ((1u << dip.bits) - 1) << shift; shift += dip.bits; }
+    return mask;
+}
+
 struct ReferenceEvent { uint64_t time; std::string action; int value; };
 static std::vector<ReferenceEvent> ref_events;
 static std::map<std::string, Chip*> ref_chips;
@@ -81,7 +113,11 @@ static void reference_open_epoch() {
     if(!ref_pcm || !ref_frames || !ref_video || !ref_telemetry || !ref_inputs || !ref_collisions || !ref_gl_errors || !ref_transition_events || !ref_hardware || !ref_geometry)
         throw std::runtime_error("Cannot open reference artifacts");
     ref_frames << "frame,time_ps,fnv1a64\n";
-    ref_telemetry << "time_ps,score1,score2,run_n,attract_n,hits" << (ref_game == "pong" ? "\n" : ",active\n");
+    if(ref_registered) {
+        ref_telemetry << "time_ps";
+        for(unsigned slot = 1; slot <= std::max<size_t>(2, ref_registered->scores.size()); ++slot) ref_telemetry << ",score" << slot;
+        ref_telemetry << ",run_n,attract_n,hits,active\n";
+    } else ref_telemetry << "time_ps,score1,score2,run_n,attract_n,hits" << (ref_game == "pong" ? "\n" : ",active\n");
     ref_inputs << "requested_ps,applied_ps,action,value\n";
     ref_collisions << "time_ps,hit_output\n";
     ref_gl_errors << "time_ps,preexisting_gl_error\n";
@@ -132,6 +168,8 @@ static void reference_open_epoch() {
     for(unsigned p = 0; p < 4; ++p) { ref_gas[p] = ref_brake[p] = false; ref_wheel_keys[p][0] = ref_wheel_keys[p][1] = false; }
     for(unsigned p = 0; p < 4; ++p) ref_axes[p] = 0;
     for(unsigned p = 0; p < 2; ++p) ref_directions[p][0] = ref_directions[p][1] = false;
+    for(auto& stick : ref_left_right) stick[0] = stick[1] = false;
+    for(auto& slot : ref_buttons) slot[0] = slot[1] = slot[2] = false;
 }
 
 static void reference_close_epoch() {
@@ -169,13 +207,26 @@ unsigned reference_initialize(Settings& settings) {
     if(!out || !replay || !seed) throw std::runtime_error("Reference environment missing");
     ref_output = out;
     if(const char* game = getenv("NOCPU_REFERENCE_GAME")) ref_game = game;
-    if(ref_game != "pong" && ref_game != "pongdoubles" && ref_game != "spacerace" && ref_game != "breakout" && ref_game != "stuntcycle" && ref_game != "indy4")
+    for(const ReferenceGame& game : reference_games()) if(game.name == ref_game) ref_registered = &game;
+    if(!ref_registered && ref_game != "pong" && ref_game != "pongdoubles" && ref_game != "spacerace" && ref_game != "breakout" && ref_game != "stuntcycle" && ref_game != "indy4")
         throw std::runtime_error("Unsupported reference game");
     if(const char* epochs = getenv("NOCPU_REFERENCE_EPOCHS")) ref_epochs = std::stoul(epochs);
     if(!ref_epochs || ref_epochs > 2) throw std::runtime_error("Unsupported reference epoch count");
     if(const char* dip = getenv("NOCPU_REFERENCE_DIP")) ref_dip = std::stoi(dip);
     if(const char* pot = getenv("NOCPU_REFERENCE_POT_OHMS")) ref_pot = std::stoul(pot);
-    if(ref_game == "breakout") {
+    if(ref_registered) {
+        if(ref_dip == -1) { ref_dip = 0; unsigned shift = 0; for(const auto& dip : ref_registered->dips) { ref_dip |= dip.default_index << shift; shift += dip.bits; } }
+        if(!ref_pot) ref_pot = ref_registered->pot_default;
+        if(ref_dip < 0 || (unsigned(ref_dip) & ~reference_dip_mask(*ref_registered)))
+            throw std::runtime_error("Invalid original game setting");
+        unsigned shift = 0;
+        for(const auto& dip : ref_registered->dips) {
+            if(((unsigned(ref_dip) >> shift) & ((1u << dip.bits) - 1)) >= dip.values) throw std::runtime_error("Invalid original game setting");
+            shift += dip.bits;
+        }
+        if(ref_registered->pot.empty() ? ref_pot != 0 : (ref_pot < ref_registered->pot_min || ref_pot > ref_registered->pot_max))
+            throw std::runtime_error("Invalid original game setting");
+    } else if(ref_game == "breakout") {
         if(ref_epochs != 1) throw std::runtime_error("Original Breakout reference requires a fresh process for each epoch");
         if(ref_dip == -1) ref_dip = 3;
         if(ref_dip < 0 || ref_dip >= 128 || (ref_dip & 15) > 8 || ref_pot)
@@ -206,6 +257,27 @@ unsigned reference_initialize(Settings& settings) {
         uint64_t ms; ReferenceEvent event; std::string extra;
         if(!(row >> ms >> event.action >> event.value) || row >> extra || ms > 1000000)
             throw std::runtime_error("Invalid replay row");
+        if(ref_registered) {
+            // Generic vocabulary: coin, start/start2, paddleN, upN/downN/leftN/rightN
+            // for the declared joystick directions, buttonSB, and the final recreate.
+            const ReferenceGame& g = *ref_registered;
+            const std::string& a = event.action;
+            auto numbered = [&](const std::string& prefix, unsigned limit) {
+                return a.size() == prefix.size() + 1 && a.compare(0, prefix.size(), prefix) == 0 && a.back() >= '1' && unsigned(a.back() - '0') <= limit;
+            };
+            const bool analog = numbered("paddle", g.paddles);
+            const bool known = a == "coin" || a == "recreate" || (a == "start" && g.starts >= 1) || (a == "start2" && g.starts >= 2) || analog
+                || (numbered("up", g.joysticks) && (g.joystick_directions & 1)) || (numbered("down", g.joysticks) && (g.joystick_directions & 2))
+                || (numbered("left", g.joysticks) && (g.joystick_directions & 4)) || (numbered("right", g.joysticks) && (g.joystick_directions & 8))
+                || (a.size() == 8 && a.compare(0, 6, "button") == 0 && a[6] >= '1' && unsigned(a[6] - '0') <= g.button_slots && a[7] >= '1' && unsigned(a[7] - '0') <= g.buttons);
+            if(!known) throw std::runtime_error("Replay action is not a physical input of the selected game");
+            if(analog ? (event.value < -32768 || event.value > 32767) : (event.value != 0 && event.value != 1))
+                throw std::runtime_error("Replay input outside physical range");
+            event.time = ms * 1000000000ull;
+            if(!ref_events.empty() && event.time < ref_events.back().time) throw std::runtime_error("Replay times are not sorted");
+            ref_events.push_back(event);
+            continue;
+        }
         const bool paddle = event.action.size() == 7 && event.action.substr(0, 6) == "paddle"
             && event.action[6] >= '1' && event.action[6] <= (ref_game == "pongdoubles" ? '4' : ref_game == "breakout" ? '1' : '2') && (ref_game == "pong" || ref_game == "pongdoubles" || ref_game == "breakout");
         const bool digital = ref_game == "spacerace" && (event.action == "up1" || event.action == "down1" || event.action == "up2" || event.action == "down2");
@@ -254,6 +326,15 @@ unsigned reference_initialize(Settings& settings) {
         settings.input.joystick[p].up = KeyAssignment(KeyAssignment::KEYBOARD, 202 + p * 2, 0);
         settings.input.joystick[p].down = KeyAssignment(KeyAssignment::KEYBOARD, 203 + p * 2, 0);
         settings.input.joystick[p].left = settings.input.joystick[p].right = KeyAssignment(KeyAssignment::KEYBOARD, 206, 0);
+        if(ref_registered && (ref_registered->joystick_directions & 12)) {
+            settings.input.joystick[p].left = KeyAssignment(KeyAssignment::KEYBOARD, 280 + p * 2, 0);
+            settings.input.joystick[p].right = KeyAssignment(KeyAssignment::KEYBOARD, 281 + p * 2, 0);
+        }
+    }
+    if(ref_registered) for(unsigned p = 0; p < ref_registered->button_slots; ++p) {
+        settings.input.buttons[p].button1 = KeyAssignment(KeyAssignment::KEYBOARD, 290 + p * 3, 0);
+        settings.input.buttons[p].button2 = KeyAssignment(KeyAssignment::KEYBOARD, 291 + p * 3, 0);
+        settings.input.buttons[p].button3 = KeyAssignment(KeyAssignment::KEYBOARD, 292 + p * 3, 0);
     }
     settings.input.coin_start.coin2 = KeyAssignment(KeyAssignment::KEYBOARD, 221, 0);
     settings.input.coin_start.coin3 = KeyAssignment(KeyAssignment::KEYBOARD, 222, 0);
@@ -288,6 +369,32 @@ unsigned reference_initialize(Settings& settings) {
 void reference_configure(const CircuitDesc* desc, const char* name) {
     // The original UI may inspect configuration for other library entries.
     if(ref_game != name) return;
+    if(ref_registered) {
+        // Decode the packed configuration into the independently named original
+        // descriptors, exactly as GameConfig finds them; record the readback.
+        std::vector<unsigned> found(ref_registered->dips.size(), 0);
+        unsigned pots = 0, packed = 0, pot_readback = 0;
+        for(const ChipInstance& instance : desc->get_chips()) {
+            if(GameConfig::isDipswitch(instance.chip)) {
+                auto* d = reinterpret_cast<DipswitchBase*>(instance.custom_data);
+                unsigned shift = 0;
+                for(size_t i = 0; i < ref_registered->dips.size(); ++i) {
+                    const ReferenceDip& dip = ref_registered->dips[i];
+                    if(dip.name == d->name) { d->state = (unsigned(ref_dip) >> shift) & ((1u << dip.bits) - 1); packed |= d->state << shift; ++found[i]; }
+                    shift += dip.bits;
+                }
+            } else if(GameConfig::isPotentiometer(instance.chip)) {
+                auto* d = reinterpret_cast<PotentiometerBase*>(instance.custom_data);
+                if(!ref_registered->pot.empty() && ref_registered->pot == d->name) { d->current_val = ref_pot; pot_readback = unsigned(d->current_val); ++pots; }
+            }
+        }
+        for(unsigned n : found) if(n != 1) throw std::runtime_error("Missing/duplicate original setting");
+        if(pots != (ref_registered->pot.empty() ? 0u : 1u)) throw std::runtime_error("Missing/duplicate original potentiometer");
+        std::ofstream config(reference_proof_path("configuration.json"));
+        config << "{\"game\":\"" << ref_game << "\",\"dip\":" << packed << ",\"pot_ohms\":" << pot_readback << "}\n";
+        if(!config) throw std::runtime_error("Cannot record original configuration");
+        return;
+    }
     if(ref_game == "stuntcycle") {
         const char* keys[] = {"misses", "free_game_control", "coinage", "free_game_en"};
         const unsigned values[] = {unsigned(ref_dip & 7), unsigned((ref_dip >> 3) & 15), unsigned((ref_dip >> 7) & 1), unsigned((ref_dip >> 8) & 1)};
@@ -356,7 +463,11 @@ void reference_register_chip(const char* name, unsigned pin, Chip* chip, const C
     for(const char* observed:ref_scope_keys)if(key==observed)ref_scope_chips[chip]=observed;
 
     if(ref_diagnostics)for(const char* observed:ref_diagnostic_keys)if(key==observed)ref_diagnostic_chips[chip]=observed;
-    if((ref_game == "pong" && key == "B2.8") || (ref_game == "pongdoubles" && key == "B3.8")) {
+    if(ref_registered) {
+        if(!ref_registered->hit.empty() && key == ref_registered->hit) { ref_hit = chip; ref_event_chips[chip] = 0; }
+        for(unsigned index = 0; index < ref_registered->events.size(); ++index)
+            if(key == ref_registered->events[index]) ref_event_chips[chip] = 200 + index;
+    } else if((ref_game == "pong" && key == "B2.8") || (ref_game == "pongdoubles" && key == "B3.8")) {
         ref_hit = chip; ref_event_chips[chip] = 0;
     } else if(ref_game == "breakout") {
         static const char* keys[] = {"E6.5", "A5.8", "A5.6", "A3.9", "B4.14", "E6.9"};
@@ -402,9 +513,14 @@ bool reference_key(unsigned scancode) {
     if(scancode == 207) return ref_start2;
     if(scancode == 208) return ref_serve;
     if(scancode >= 202 && scancode <= 205) return ref_directions[(scancode - 202) / 2][(scancode - 202) % 2];
+    if(scancode >= 280 && scancode < 284) return ref_left_right[(scancode - 280) / 2][scancode & 1];
+    if(scancode >= 290 && scancode < 302) return ref_buttons[(scancode - 290) / 3][(scancode - 290) % 3];
     return false;
 }
 int16_t reference_axis(unsigned joystick, unsigned axis) {
+    // A registered game's paddle N reads joystick N, through its X axis when
+    // horizontal and its Y axis when vertical; each stick drives one paddle.
+    if(ref_registered) return joystick < 4 && axis < 2 ? ref_axes[joystick] : 0;
     return joystick < 4 && axis == (ref_game == "breakout" || ref_game == "stuntcycle" || ref_game == "indy4" ? 0u : 1u) ? ref_axes[joystick] : 0;
 }
 
@@ -462,8 +578,21 @@ static int indy_score(unsigned slot) {
     int result = 0; for(unsigned b = 0; b < 6; ++b) result |= reference_pin(bits[slot][b]) << b; return result;
 }
 static int indy_displayed_score(unsigned slot) { const int code = indy_score(slot); return 2 * (code & 7) + 10 * (code >> 3); }
+static int reference_sum(const std::vector<ReferenceTerm>& terms) {
+    int value = 0;
+    for(const ReferenceTerm& term : terms) value += int(term.weight) * reference_pin(term.pin.c_str());
+    return value;
+}
 static void reference_state(Circuit* circuit) {
-    if(ref_game == "pong") {
+    if(ref_registered) {
+        const ReferenceGame& g = *ref_registered;
+        ref_telemetry << circuit->global_time;
+        for(size_t slot = 0; slot < std::max<size_t>(2, g.scores.size()); ++slot) ref_telemetry << ',' << (slot < g.scores.size() ? reference_sum(g.scores[slot]) : 0);
+        const int active = reference_pin(g.active.c_str()) != 0;
+        ref_telemetry << ',' << !active << ',';
+        if(g.attract_n.empty()) ref_telemetry << "4294967295"; else ref_telemetry << reference_pin(g.attract_n.c_str());
+        ref_telemetry << ',' << ref_hits << ',' << active << '\n';
+    } else if(ref_game == "pong") {
         ref_telemetry << circuit->global_time << ',' << reference_score("C7", "C8.3") << ','
                       << reference_score("D7", "C8.5") << ',' << reference_pin("LATCH.3") << ','
                       << reference_pin("D2.1") << ',' << ref_hits << '\n';
@@ -721,6 +850,20 @@ static bool reference_step(Circuit*& circuit, Settings& settings, Input& input, 
     while(ref_next_event < ref_events.size() && ref_events[ref_next_event].time <= circuit->global_time) {
         ReferenceEvent event = ref_events[ref_next_event++];
         ref_inputs << event.time << ',' << circuit->global_time << ',' << event.action << ',' << event.value << '\n';
+        if(ref_registered && event.action != "recreate") {
+            const std::string& a = event.action;
+            if(a == "coin") ref_coin = event.value;
+            else if(a == "start") ref_start = event.value;
+            else if(a == "start2") ref_start2 = event.value;
+            else if(a.compare(0, 6, "paddle") == 0) ref_axes[a.back() - '1'] = event.value;
+            else if(a.compare(0, 6, "button") == 0) ref_buttons[a[6] - '1'][a[7] - '1'] = event.value;
+            else if(a.compare(0, 2, "up") == 0) ref_directions[a.back() - '1'][0] = event.value;
+            else if(a.compare(0, 4, "down") == 0) ref_directions[a.back() - '1'][1] = event.value;
+            else if(a.compare(0, 4, "left") == 0) ref_left_right[a.back() - '1'][0] = event.value;
+            else if(a.compare(0, 5, "right") == 0) ref_left_right[a.back() - '1'][1] = event.value;
+            else throw std::runtime_error("Unknown replay action");
+            continue;
+        }
         if(event.action == "coin") ref_coin = event.value;
         else if(event.action == "start") ref_start = event.value;
         else if(event.action == "start2") ref_start2 = event.value;
@@ -758,7 +901,9 @@ static bool reference_step(Circuit*& circuit, Settings& settings, Input& input, 
             ++ref_epoch;
             reference_open_epoch();
             // Same circuit construction operation used by the original New Game action.
-            const CircuitDesc* desc = ref_game == "pong" ? circuit_pong()
+            const CircuitDesc* desc = nullptr;
+            if(ref_registered) for(const GameDesc& g : game_list) if(ref_game == g.command_line) desc = g.desc;
+            if(!desc) desc = ref_game == "pong" ? circuit_pong()
                 : ref_game == "pongdoubles" ? circuit_pongdoubles()
                 : ref_game == "breakout" ? circuit_breakout()
                 : ref_game == "stuntcycle" ? circuit_stuntcycle()

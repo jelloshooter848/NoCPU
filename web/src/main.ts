@@ -8,7 +8,7 @@ import { createSettingsUI } from './app-settings';
 import { createControls } from './controls';
 import { actionLabel, directionAction, keyLabel } from './control-schema';
 import { createCoreAssetUrls } from './asset-identity';
-import { canonicalPaddleAxis, gameSpec, isPlayableGameId, type PlayableGameId } from './game-contract';
+import { canonicalPaddleAxis, gameSpec, isPlayableGameId, paddleOrientation, registeredGame, type PlayableGameId } from './game-contract';
 import { isMouseGame } from './preferences';
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
 
@@ -112,7 +112,7 @@ const controls = createControls({
     if (!ready || paused || resetting || failed) return;
     changes.forEach((axis, slot) => {
       if (axis === null || (mouseThrottle !== undefined && slot === settingsUI.mouseSlotFor(activeGameId))) return;
-      axes[slot] = gameSpec(activeGameId).inputKind === 'paddle' ? canonicalPaddleAxis(activeGameId, axis) : axis;
+      axes[slot] = gameSpec(activeGameId).inputKind === 'paddle' ? canonicalPaddleAxis(activeGameId, axis, slot) : axis;
       sendInputs(slot);
     });
   },
@@ -133,6 +133,9 @@ const controls = createControls({
   onGamepads: settingsUI.syncGamepads,
   onButtons: (gas, brake) => {
     if (ready && !failed && activeGameId === 'indy4') send({ type: 'buttons', gas, brake });
+  },
+  onHeldButtons: (buttons) => {
+    if (ready && !failed && registeredGame(activeGameId)) send({ type: 'held', buttons });
   },
   onDisconnect: releaseInputs,
 });
@@ -278,13 +281,14 @@ function renderHelp(): void {
   const bindings = settingsUI.bindingsFor(game.id);
   const spec = gameSpec(game.id);
   const options = ready && game.id === activeGameId && lastSnapshot ? lastSnapshot.options : settingsUI.preferences.optionsByGame[game.id];
-  const rules = game.id === 'pong' ? `Insert a coin to start a two-player game. Return the ball with your paddle. First to ${'winningScore' in options ? options.winningScore : 11} wins.`
+  const registered = registeredGame(game.id);
+  const rules = registered ? escapeText(registered.text.rules(options as unknown as Record<string, number>)) : game.id === 'pong' ? `Insert a coin to start a two-player game. Return the ball with your paddle. First to ${'winningScore' in options ? options.winningScore : 11} wins.`
     : game.id === 'pongdoubles' ? `Insert one coin for two players or two coins for four players, then press Start. In four-player mode, left and right teams each have an outer and inner paddle. P1 is outer left, P2 outer right, P3 inner left and P4 inner right. First team to ${'winningScore' in options ? options.winningScore : 11} wins.`
       : game.id === 'breakout' ? `Start 1P needs one credit; Start 2P needs two credits. ${'coinage' in options && options.coinage === 2 ? 'One coin supplies two credits with the current setting.' : 'Insert one coin for Start 1P or two coins for Start 2P with the current setting.'} Then hold Serve to launch the ball. Move the shared paddle left or right to break the bricks. Both player starts use the same paddle control.`
         : game.id === 'stuntcycle' ? `Start 1P uses one credit. Start 2P needs at least two credits to select alternating turns. ${'coinage' in options && options.coinage === 2 ? 'One coin supplies two credits with the current setting.' : 'The current setting supplies one credit per coin.'} With only one credit, Start 2P may still start a one-player game. Both modes use one shared throttle to control motorcycle speed. This original circuit has no connected audio.`
         : game.id === 'indy4' ? 'Insert a coin for your color to join. Each of the four cars has independent relative steering, Gas and Hand Brake. Dollar is a separate original bill input. There is no Start button. This original circuit has no connected audio.'
         : 'Insert a coin, then press Start. Move your rocket up or down through the moving obstacles. Reach the top to score before time runs out.';
-  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${bindings.gamepad.players.map((player, slot) => `<li>${game.id === 'breakout' ? 'Shared paddle' : `Player ${slot + 1} (${escapeText(spec.controlLabels[slot].toLowerCase())})`}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${game.id === 'stuntcycle' ? 'The positive joystick range sets the shared throttle; centering returns it to idle. Assigned increase/release buttons hold the original throttle switches.' : game.id === 'indy4' ? 'A moved joystick turns the relative wheel; centering stops turning. The selected browser deadzone scales the joystick before the original circuit input’s 20% deadzone. Direction buttons hold left/right steering. Gas and Hand Brake remain held until their buttons are released.' : game.id === 'spacerace' ? 'A moved joystick holds Up or Down. Center it to release. Opposing directions cancel each other.' : game.id === 'breakout' ? 'A moved joystick sets the shared paddle position. A centered joystick leaves the last position alone. Direction buttons move it left or right. Serve is held while its assigned button is down.' : 'A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.'} Return joysticks and buttons to neutral after a menu, reset or reconnect.</p>`;
+  const gamepadHelp = `<h2>Current gamepad controls</h2><ul>${bindings.gamepad.players.map((player, slot) => `<li>${game.id === 'breakout' ? 'Shared paddle' : registered ? escapeText(spec.controlLabels[slot]) : `Player ${slot + 1} (${escapeText(spec.controlLabels[slot].toLowerCase())})`}: controller ${player.pad + 1}, axis ${player.axis + 1}${player.invert ? ' reversed' : ''}; ${Math.round(player.deadzone * 100)}% deadzone.</li>`).join('')}</ul><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</dd></div>`).join('')}</dl><p>${registered ? escapeText(registered.text.gamepad) : game.id === 'stuntcycle' ? 'The positive joystick range sets the shared throttle; centering returns it to idle. Assigned increase/release buttons hold the original throttle switches.' : game.id === 'indy4' ? 'A moved joystick turns the relative wheel; centering stops turning. The selected browser deadzone scales the joystick before the original circuit input’s 20% deadzone. Direction buttons hold left/right steering. Gas and Hand Brake remain held until their buttons are released.' : game.id === 'spacerace' ? 'A moved joystick holds Up or Down. Center it to release. Opposing directions cancel each other.' : game.id === 'breakout' ? 'A moved joystick sets the shared paddle position. A centered joystick leaves the last position alone. Direction buttons move it left or right. Serve is held while its assigned button is down.' : 'A moved joystick sets paddle height. A centered joystick leaves the last position alone. Direction buttons move the paddle up or down.'} Return joysticks and buttons to neutral after a menu, reset or reconnect.</p>`;
   element('#game-help-content').innerHTML = `<p>${rules}</p><dl class="controls-help">${actions.map((action) => `<div><dt>${escapeText(actionLabel(action, playableId))}</dt><dd>${bindings.keyboard[action].map((code) => `<kbd>${escapeText(keyLabel(code))}</kbd>`).join(' ') || 'Unassigned'}</dd></div>`).join('')}</dl><h2>Mouse</h2><p data-testid="mouse-help">${escapeText(mouseHelp(playableId))}</p>${gamepadHelp}<p>Keyboard, mouse and gamepad assignments can be changed for each game in Settings. Game settings take effect when starting or explicitly resetting that game. Escape opens the menu or goes back.</p>`;
 }
 function mouseHelp(gameId: PlayableGameId): string {
@@ -293,6 +297,7 @@ function mouseHelp(gameId: PlayableGameId): string {
   if (slot === null) return 'The mouse is off for this game. Choose a player under Mouse in Settings to use it.';
   if (gameId === 'stuntcycle') return 'Hold the left mouse button over the display and move right to open the shared throttle; release the button to idle.';
   if (gameId === 'breakout') return 'Move the mouse left or right over the display to move the shared paddle across its full range. Hold the left mouse button over the display to hold Serve.';
+  if (registeredGame(gameId)) return `Move the mouse ${paddleOrientation(gameId, slot) === 'horizontal' ? 'left or right' : 'up or down'} over the display to move the ${gameSpec(gameId).controlLabels[slot].toLowerCase()} across its full range. Settings chooses which player the mouse controls.`;
   return `Move the mouse up or down over the display to move the Player ${slot + 1} paddle (${gameSpec(gameId).controlLabels[slot].toLowerCase()}) across its full range. Settings chooses which player the mouse controls.`;
 }
 
@@ -306,7 +311,7 @@ function configureGameControls(): void {
   startButton.textContent = spec.startButtons === 2 ? 'Start 1P' : 'Start';
   startButton.setAttribute('aria-label', spec.startButtons === 2 ? 'Start 1-player game' : 'Start game');
   start2Button.hidden = spec.startButtons < 2;
-  coinButton.textContent = activeGameId === 'indy4' ? 'Green' : activeGameId === 'breakout' || activeGameId === 'stuntcycle' ? 'Coin' : 'Insert coin';
+  coinButton.textContent = activeGameId === 'indy4' ? 'Green' : activeGameId === 'breakout' || activeGameId === 'stuntcycle' ? 'Coin' : registeredGame(activeGameId)?.text.coin ?? 'Insert coin';
   coinButton.setAttribute('aria-label', activeGameId === 'indy4' ? 'Insert coin for Green' : 'Insert coin');
   element('#loading-heading').textContent = `Loading ${spec.title}`;
   element('#error-heading').textContent = `Unable to load ${spec.title}`;
@@ -405,7 +410,7 @@ function showStatus(message?: string): void {
   const breakoutStatus = 'coinage' in breakoutOptions && breakoutOptions.coinage === 2
     ? 'Insert a coin for two credits, choose Start 1P or Start 2P, then Serve'
     : 'Insert one coin for Start 1P or two coins for Start 2P, then Serve';
-  status.textContent = paused ? 'Paused — choose Resume.' : !ready ? `Loading ${gameSpec(activeGameId).title}…` : lastSnapshot?.run ? 'Game on' : activeGameId === 'indy4' ? 'Use a color coin to join; steer and hold Gas. Dollar bill uses the original shared input.' : activeGameId === 'stuntcycle' ? 'Insert credits, choose Start 1P or Start 2P, then adjust the shared throttle' : activeGameId === 'pongdoubles' ? 'Insert one coin for two players or two coins for four players, then Start' : activeGameId === 'breakout' ? breakoutStatus : gameSpec(activeGameId).hasStart ? 'Insert a coin, then Start to play' : 'Insert a coin to play';
+  status.textContent = paused ? 'Paused — choose Resume.' : !ready ? `Loading ${gameSpec(activeGameId).title}…` : lastSnapshot?.run ? 'Game on' : registeredGame(activeGameId) ? registeredGame(activeGameId)!.text.status : activeGameId === 'indy4' ? 'Use a color coin to join; steer and hold Gas. Dollar bill uses the original shared input.' : activeGameId === 'stuntcycle' ? 'Insert credits, choose Start 1P or Start 2P, then adjust the shared throttle' : activeGameId === 'pongdoubles' ? 'Insert one coin for two players or two coins for four players, then Start' : activeGameId === 'breakout' ? breakoutStatus : gameSpec(activeGameId).hasStart ? 'Insert a coin, then Start to play' : 'Insert a coin to play';
   hudStatus.textContent = status.textContent;
 }
 
@@ -750,9 +755,9 @@ function applyMouse(event: PointerEvent): void {
     if (fraction === undefined) return;
     axis = Math.round(fraction * AXIS_MAX);
   } else if (spec.inputKind === 'paddle') {
-    const fraction = mouseFraction(event, spec.paddleOrientation === 'horizontal');
+    const fraction = mouseFraction(event, paddleOrientation(activeGameId, slot) === 'horizontal');
     if (fraction === undefined) return;
-    axis = canonicalPaddleAxis(activeGameId, Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN)));
+    axis = canonicalPaddleAxis(activeGameId, Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN)), slot);
   } else return;
   if (axes[slot] === axis) return;
   axes[slot] = axis;
@@ -965,6 +970,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         coinChannel: state.coinChannel, coinsQueued: state.coinsQueued,
         switches: { coinCompleted: state.coinCompleted, startCompleted: state.startCompleted },
         driving: { gas: state.gas, brake: state.brake, axes: state.axes, directions: state.directions },
+        playerScores: state.playerScores, held: state.held,
         crashes: state.crashes, presentedFrame,
         heldKeys: controls.getState().heldKeys, pointerCount: Number(mouseThrottle !== undefined) + Number(mouseServe !== undefined), paused, screen, selectedGame: selectedGameId,
         audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },

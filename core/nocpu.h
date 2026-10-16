@@ -5,9 +5,15 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// ABI 4: one live original DICE circuit per module. Earlier IDs/exports remain.
+// ABI 5: one live original DICE circuit per module. Earlier IDs/exports remain.
+// IDs 6..9 are the 0.2.0 batch, reserved in advance; an ID is usable only once
+// its game registers a definition (core/games/<id>.cpp, docs/PORT_GAME.md).
 enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_BREAKOUT=3,
-                 NOCPU_STUNT_CYCLE=4, NOCPU_INDY_4=5 };
+                 NOCPU_STUNT_CYCLE=4, NOCPU_INDY_4=5, NOCPU_REBOUND=6, NOCPU_GOTCHA=7,
+                 NOCPU_QUADRAPONG=8, NOCPU_CROSSFIRE=9, NOCPU_GAME_LIMIT=32 };
+// Event IDs of registered games: HIT stays NOCPU_HIT (0); a game's other
+// declared source pins are NOCPU_GAME_EVENT_BASE + their declared index.
+enum { NOCPU_GAME_EVENT_BASE=200, NOCPU_GAME_EVENT_LIMIT=8 };
 enum NoCPUEvent { NOCPU_HIT=0, NOCPU_CRASH1_N=1, NOCPU_CRASH2_N=2,
                   NOCPU_SCORE1_PULSE=3, NOCPU_SCORE2_PULSE=4,
                   NOCPU_BRICK_HIT=5, NOCPU_BP_HIT_N=6, NOCPU_VB_HIT_N=7,
@@ -39,6 +45,19 @@ enum NoCPUBreakoutSignal { NOCPU_BREAKOUT_ATTRACT=0, NOCPU_BREAKOUT_ATTRACT_N=1,
     NOCPU_BREAKOUT_Q_N=2, NOCPU_BREAKOUT_SERVE_WAIT=3, NOCPU_BREAKOUT_PLAYER_2=4,
     NOCPU_BREAKOUT_BALL_COUNTER=5 };
 uint32_t nocpu_abi_version(void);
+// Registered games (IDs 6 and above) describe their original access contract
+// as data. Name is the DICE command-line ID, or null for an unknown game.
+const char* nocpu_game_name(uint32_t game);
+// Info fields, UINT32_MAX for an unknown game or field: 0 registered (1),
+// 1 paddle slots, 2 joystick slots, 3 joystick direction mask (1 up, 2 down,
+// 4 left, 8 right), 4 button slots, 5 buttons per slot, 6 Start switches,
+// 7 default packed DIP, 8 valid DIP bit mask, 9 potentiometer minimum ohms,
+// 10 maximum, 11 default (all 0 without one), 12 score slots, 13 coin channels.
+enum NoCPUGameInfo { NOCPU_INFO_REGISTERED=0, NOCPU_INFO_PADDLES=1, NOCPU_INFO_JOYSTICKS=2,
+    NOCPU_INFO_JOYSTICK_DIRECTIONS=3, NOCPU_INFO_BUTTON_SLOTS=4, NOCPU_INFO_BUTTONS=5,
+    NOCPU_INFO_STARTS=6, NOCPU_INFO_DEFAULT_DIP=7, NOCPU_INFO_DIP_MASK=8, NOCPU_INFO_POT_MIN=9,
+    NOCPU_INFO_POT_MAX=10, NOCPU_INFO_POT_DEFAULT=11, NOCPU_INFO_SCORES=12, NOCPU_INFO_COINS=13 };
+uint32_t nocpu_game_info(uint32_t game, uint32_t field);
 // dip is the original 0/1 index. pot_ohms is zero for paddle games;
 // Space Race accepts an integer 470000..1470000 (original default 970000).
 // Breakout uses packed original DIP indices: bonus_credit0..8 in bits0..3,
@@ -47,6 +66,8 @@ uint32_t nocpu_abi_version(void);
 // Stunt Cycle: misses0..7 bits0..2, free-game-score index0..15 (12..27)
 // bits3..6, coinage index bit7, free-game disabled bit8; pot0, default DIP76.
 // Indy4: dip0, playtime pot220000..1220000 (original default720000).
+// Registered games pack their declared DIP switches from bit 0 in declared
+// order (nocpu_game_info field 8) and take their declared potentiometer range.
 // Invalid IDs/settings fail before changing a live circuit.
 uint32_t nocpu_create_game(uint32_t game, uint32_t seed, uint32_t dip, uint32_t pot_ohms);
 // Retained convenience entry point: original-default Pong.
@@ -63,18 +84,25 @@ void nocpu_coin(uint32_t held);
 uint32_t nocpu_coin_channel(uint32_t channel,uint32_t held);
 void nocpu_start(uint32_t held);
 // Separate original Start switches. player=1 supports all Start games;
-// player=2 is Breakout/StuntCycle. Invalid calls return0 without mutation.
+// player=2 is Breakout/StuntCycle and registered games declaring two Starts.
+// Invalid calls return0 without mutation.
 // nocpu_start(held) remains the retained Start1 alias.
 uint32_t nocpu_start_player(uint32_t player, uint32_t held);
 // Breakout's original held Serve switch, never an implicit Start or coin.
 // Returns0 without mutation on unsupported games.
 uint32_t nocpu_serve(uint32_t held);
-// Pong slots0..1; Doubles0..3; Breakout shared horizontal slot0; Space has none.
+// Pong slots0..1; Doubles0..3; Breakout shared horizontal slot0; Space has none;
+// registered games their declared paddle slots, vertical or horizontal alike.
 // Axes are canonical original joystick values, not display coordinates.
 void nocpu_paddle(uint32_t slot, int32_t axis);
 // Space Race only: two independent digital switches per slot 0..1.
 // Both may be held; original circuitry decides the outcome.
 void nocpu_joystick(uint32_t slot, uint32_t up_held, uint32_t down_held);
+// Registered games: a digital joystick's four held switches. Directions the
+// cabinet lacks must be released (0). Returns 0 without mutation otherwise.
+uint32_t nocpu_joystick_switches(uint32_t slot, uint32_t up, uint32_t down, uint32_t left, uint32_t right);
+// Registered games: one held BUTTONSn_INPUT switch, button 1..buttons per slot.
+uint32_t nocpu_button(uint32_t slot, uint32_t button, uint32_t held);
 // Original Stunt throttle input conversion/poll: analog0..32767 clips to
 // 0..100%; keyboard held ramps up250%/s, unheld ramps down. Calls select mode.
 uint32_t nocpu_throttle(int32_t axis);

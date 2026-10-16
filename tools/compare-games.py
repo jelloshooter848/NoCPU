@@ -28,6 +28,18 @@ def snapshot_geometry(original, native, game):
     b = analysis.snapshot_positions(native, game)
     observations = []
     passed = [row['requested_ms'] for row in a] == [row['requested_ms'] for row in b]
+    if analysis.game_media.registered_game(game):
+        # Games ported from 0.2.0 on: every snapshot is full-RGB exact, and the
+        # objects their module reads from it must agree. No tolerance.
+        for left, right in zip(a, b):
+            fields = [key for key in left if key not in ('image', 'requested_ms')]
+            check = all(left[key] == right.get(key) for key in fields) and set(left) == set(right)
+            passed &= check
+            observations.append({'requested_ms': left['requested_ms'], 'original_sha256': left['sha256'],
+                                 'portable_sha256': right['sha256'], 'full_RGB_bytes_and_objects_exact': check,
+                                 'passed': check})
+        return {'passed': bool(observations) and passed, 'snapshots': observations,
+                'tolerance': None, 'scope': 'Exact full RGB snapshots and the objects read from them.'}
     if game == 'breakout':
         for left, right in zip(a, b):
             check = left['sha256'] == right['sha256'] and all(left[key] == right[key]
@@ -63,7 +75,7 @@ def compare_scenario(original, evidence, scenario):
     reset = {label: compare_pair(path / 'epoch0', path / 'epoch1') for label, path in [('native', native), ('wasm', wasm)]}
     geometry = snapshot_geometry(fresh, native / 'epoch0', game)
     snapshot_exact = {}
-    if game == 'breakout':
+    if game == 'breakout' or analysis.game_media.registered_game(game):
         original_images = {image.name: digest(image) for image in fresh.glob('*ms.ppm')}
         for label, path in [('native', native), ('wasm', wasm)]:
             for epoch in range(2):
