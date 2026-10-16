@@ -6,8 +6,8 @@ export const quadrapong = {
   id: 'quadrapong',
   coreId: 8,
   title: 'Quadrapong',
-  // Set only once its original/native/Wasm comparison passes (docs/ACCEPTANCE.md).
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-16 (docs/ACCEPTANCE.md, 0.2.0 Quadrapong run).
+  verified: true,
   playerCount: 4,
   // PADDLE1/2_VERTICAL_INPUT (left, right) and PADDLE3/4_HORIZONTAL_INPUT (top,
   // bottom). Measured on the original raster: a larger canonical axis moves the

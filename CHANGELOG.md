@@ -18,6 +18,10 @@ releases below.
 - Rebound (Atari, 1974) is playable: the original circuit, verified against original DICE, with
   its winning-score and coinage settings, two horizontal paddles on A/D and the Left/Right arrow
   keys, the mouse or a gamepad, and the circuit's own sound.
+- Quadrapong (Atari, 1974) is playable: the original four-player circuit, verified against original
+  DICE, with its coinage setting (one credit buys a two-player game, two a four-player game), the
+  left and right paddles on W/S and the Up/Down arrow keys, the top and bottom paddles on J/L and
+  V/B, the mouse for one player or four gamepads, and the circuit's own sound.
 
 ## [0.1.7] - 2026-10-15
 
