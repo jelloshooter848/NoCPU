@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.2.0 milestone: ROM-free batch A — Rebound, Quadrapong, Crossfire and Gotcha ported and verified against original DICE (ten playable games), with their controls, settings, help and Play-screen entries. Each release generates its desktop acceptance record from its own verification run (all ten ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
+  "release_scope": "0.2.1 patch: docs brought up to date (README with the site link, ten-game controls and accuracy status; port, testing, ROM, compatibility and distribution docs), the browser license record re-assessed for the ten-circuit build, and the packaging check requiring the game registry sources. The shipped game runtime is unchanged from 0.2.0 (ten playable games). Each release generates its desktop acceptance record from its own verification run (all ten ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,

@@ -9,6 +9,31 @@ for the current `VERSION` and every notice it lists is present and unchanged.
 The legacy line's assessments (0.2.0 through 0.6.0) are history in
 [legacy/BROWSER_DISTRIBUTION_0.6.md](legacy/BROWSER_DISTRIBUTION_0.6.md).
 
+## 0.2.1 assessment (2026-10-17)
+
+**Result: ready** (the integrating agent's review, not an independent one).
+Releases 0.1.2 to 0.2.0 carried the 0.1.1 assessment below forward with only
+the version fields bumped; this assessment re-checks the actual local build of
+the v0.2.0 release commit (`1a8a55f`), which 0.2.1 ships unchanged apart from
+docs, the audit record and a packaging check.
+
+- **Runtime:** the same seven files as 0.1.1. The application bundle is the one
+  served by the Pages site and shipped in `nocpu-0.2.0-web.tar.gz`.
+- **Compiled code:** ten circuits — Pong, Pong Doubles, Space Race, Breakout,
+  Rebound, Gotcha, Quadrapong, Crossfire, Stunt Cycle and Indy 4. The 0.2.0
+  games add ten compiled units (four circuits, their `core/games/` registrations
+  and the DICE chips 7492 and 9321), all DICE GPL-3.0-or-later or NoCPU code.
+- **SDK members:** the identical set of 147 linked Emscripten SDK members as the
+  0.1.x build, including the same 27 musl math members, so no new notice.
+- **Dependencies:** still one npm runtime dependency, fflate 0.8.2.
+- **Notices:** all 27 unchanged except `THIRD_PARTY_NOTICES.md`, whose text now
+  names the ten circuits.
+- **Source archive and ROMs:** the source archive holds every tracked file and
+  no ROMs or build output; the ROM-exclusion test passes with the ten private
+  fixture archives present.
+
+The record's `review.findings` hold the hashes and counts.
+
 ## 0.1.1 assessment (2026-10-13)
 
 **Result: ready; final independent review accepted (at `bd5aaa0`).**
@@ -98,7 +123,7 @@ below applies to 0.1.0 only.
 
 ### What ships
 
-The packaged site (`nocpu-0.1.1-web.zip` once released, served from `/NoCPU/`)
+The packaged site (`nocpu-X.Y.Z-web.zip`, served from `/NoCPU/`)
 holds:
 
 | Part | Files | Origin |

@@ -55,7 +55,7 @@ readability; the original archival ManyMouse file remains unchanged.
 
 ## fflate source and browser helper
 
-The 0.3.0 ROM-file importer uses **fflate 0.8.2**, copyright (c) 2023 Arjun
+The browser's ROM-file importer uses **fflate 0.8.2**, copyright (c) 2023 Arjun
 Barrett, under the MIT license. Its exact [license](docs/licenses/fflate-0.8.2-LICENSE.txt)
 and [preferred library source](upstream/fflate-0.8.2/NOCPU_SOURCE.md) accompany
 the distribution. The unmodified source snapshot comes from
@@ -78,7 +78,7 @@ UZIP.js is not separately imported as a NoCPU runtime dependency.
 The original native reference links Qt 4, SDL 1.2, OpenGL, and X11 and uses a
 C/C++ compiler, platform headers, and operating-system libraries. Linux
 ManyMouse uses XInput dynamically. These are installed toolchain dependencies,
-not vendored payloads in the 0.1.0 source package. Qt 4 and SDL 1.2 offer LGPL
+not vendored payloads in the source package. Qt 4 and SDL 1.2 offer LGPL
 licensing; OpenGL and X11 implementations have their own notices. Windows and
 macOS builds additionally require platform libraries listed by the original
 Makefile. Any future binary distribution must inventory the exact linked or
@@ -91,9 +91,9 @@ test ROMs are excluded from this repository and its release archives.
 ## Browser runtime
 
 The browser build compiles DICE's Pong, Pong Doubles, Space Race, Breakout,
-Stunt Cycle and Indy 4 circuits to WebAssembly, retaining DICE's simulation and
-replacing native input, presentation and device-audio access with maintained
-adapters. The separately reviewed
+Rebound, Gotcha, Quadrapong, Crossfire, Stunt Cycle and Indy 4 circuits to
+WebAssembly, retaining DICE's simulation and replacing native input,
+presentation and device-audio access with maintained adapters. The separately reviewed
 [browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) and
 [`tests/browser-license-audit.json`](tests/browser-license-audit.json) cover the
 exact compiled browser artifact; the original source inventory above does not

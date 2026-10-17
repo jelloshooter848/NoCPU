@@ -58,4 +58,4 @@ versions come from the signed Bionic repositories and are not frozen in a
 snapshot; this is a repeatable reference setup, not a promise of bit-for-bit
 image or binary reproducibility. Ubuntu 18.04 and these libraries are historical
 dependencies, used here to retain the original source behavior in an isolated
-native reference. The future browser runtime will have its own toolchain.
+native reference. The browser build has its own toolchain ([TESTING.md](../../docs/TESTING.md)).

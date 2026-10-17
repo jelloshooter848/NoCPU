@@ -236,7 +236,7 @@ requests and by `release.yml` for releases) runs these jobs:
 
 | Job | Runs | What it does |
 | --- | --- | --- |
-| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs, web UI files and release metadata, and looks up a marker artifact that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
+| `scope` | always | `tools/ci-scope.py` hashes the commit's content outside docs, web UI files, packaging and release metadata, and looks up a marker artifact that a passing `core-compare` left for that hash; it decides whether the core comparisons run. |
 | `core-build` | always | `make test`, the web foundation tests, the native and Wasm core builds, and the core transfer upload bound to the clean checkout. |
 | `core-compare` | unless `scope` skips it | Verifies the transferred Wasm (`core-handoff.py --verify`), builds the native runner and the original reference, restores the reference cache (not on a release), captures or restores Pong and every ROM-free scenario, and runs every original/native/Wasm comparison with four parallel workers. Saves new qualified originals to the cache and, after passing, uploads the `nocpu-compared-<hash>` marker artifact. |
 | `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
@@ -244,16 +244,22 @@ requests and by `release.yml` for releases) runs these jobs:
 | `rom-access` | always | Reports whether the `NOCPU_ROMS_TOKEN` secret is available (never for fork pull requests). |
 | `rom-browser` | when the secret is available | Fetches the private ROM fixtures and plays Stunt Cycle and Indy 4 in Chromium and Firefox against the same packaged site, ROM-safe; uploads only the stripped results and the acceptance inputs. |
 | `acceptance` | after the browser jobs | Combines every engine's results into the desktop acceptance record of this package (`tools/desktop-acceptance.py`). Must pass on a release, and on any run whose `rom-browser` job ran. |
-| `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it, and a skipped `rom-browser` only when the secret is absent; neither on a release. |
+| `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it (on a release too), and a skipped `rom-browser` only when the secret is absent, never on a release. |
 
 The scope rule is decided by content, not by a diff, and is deliberately
 small. The core hash is a SHA-256 over the path, mode and blob of every tracked
 file except the files no capture, replay or comparison reads; renames and
 deletions change it. Left out are:
 
-- documentation: `docs/**`, `bug-reports/**`, top-level `*.md` (including
-  `CHANGELOG.md`);
+- documentation: `docs/**`, `bug-reports/**` and every `*.md` file anywhere
+  (including `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md` and READMEs such as
+  `core/README.md`);
 - browser UI: `web/**`, `tests/browser/**`, `tests/test-web-foundations.cjs`;
+- distribution packaging and license records: `tools/package-web.py`,
+  `tools/package-release.py`, their tests `tests/test-web-release.py` and
+  `tests/test-release-tools.py`, `tests/license-audit.json` and `LICENSE`. No
+  capture, replay or comparison reads them; `package`, the browser jobs and
+  the release workflow, which do, run on every run;
 - release metadata a release commit rewrites: `VERSION`,
   `tests/release-readiness.json`, `tests/browser-license-audit.json`, and the
   project `version` field of `package.json` and `package-lock.json` (the rest
@@ -282,8 +288,11 @@ only when the artifact lookup (`ci-scope.py lookup`, GitHub REST API) finds an
 unexpired marker for its own hash uploaded by a run of this repository; markers
 uploaded by fork pull request runs are ignored. A docs-only push that follows a
 cancelled or failed core push therefore still runs them: its core content never
-passed. A missing marker, a failed lookup, any error, and every release run
-everything; a release never looks the marker up. A skip is printed in the
+passed. A missing marker, a failed lookup or any error runs everything. A
+release looks the marker up like any other run (owner decision 2026-10-17,
+from 0.2.1): when the tagged commit's core content already passed on the same
+host compiler it reuses that comparison, otherwise it runs it with every
+original captured fresh. A skip is printed in the
 `scope` log, as a notice and in the `scope` and `verify` summaries as "skipped,
 not passed".
 
@@ -294,7 +303,8 @@ so only scenarios whose inputs changed are captured again, and saves a new
 archive whenever its receipts show a newly stored entry. Caches are scoped by
 GitHub: a pull request reads the caches of its base branch and the default
 branch and writes only its own, so a fork cannot place reference entries where
-other runs read them. Release runs never use the reference cache.
+other runs read them. A release run that compares never uses the reference
+cache.
 
 Measured on the first runs of this workflow (run 38492310183, commit
 `500ee1a`, 4-vCPU `ubuntu-24.04` runners):
@@ -308,8 +318,11 @@ Measured on the first runs of this workflow (run 38492310183, commit
 | `core-compare` | 34 min 10 s (16 captures 11 min, replays 11 min, comparison 7 min) | 15 min 28 s (restore 8 s, replays 7 min, comparison 4 min) |
 | whole run | 37 min 23 s | about 19 min |
 
-A run whose content outside docs, web UI and release metadata already passed
-skips `core-compare` and takes about 9 minutes. The cached originals for all
+A run whose content outside docs, web UI, packaging and release metadata
+already passed skips `core-compare` and takes about 9 minutes. With the ten
+games of 0.2.0 a full comparison took about 65 minutes on a pull request and
+about 40 minutes with every original fresh on a release (runs 39048461746
+and 39043961048). The cached originals for all
 seventeen entries archive to 56 MB.
 
 Branch protection should require the single check `verify / verify` (the job
@@ -391,9 +404,10 @@ ending in `/`.
 `npm run test:foundations` runs the Node unit tests for controls, settings and
 the bounded ROM/ZIP reader, using synthetic archives with no ROM payloads. It
 also covers the About build string (tag build, untagged build with its short
-commit, no manifest) and the mouse preferences: the version-5 preferences
-record with its per-game `mouseByGame` assignment, version-4 records loading
-without loss, and invalid mouse slots recovering to the default.
+commit, no manifest) and the preferences record: version 6 with its per-game
+`mouseByGame` assignment and the remembered last game, records from versions
+0 to 5 migrating without loss, and invalid mouse slots recovering to the
+default.
 
 The Playwright suite drives the production build in three desktop projects,
 **chromium**, **firefox** and **webkit**, using Playwright's desktop device
@@ -440,8 +454,9 @@ slow or unevenly loaded runner, so:
 - Where a check needs inputs or observations at exact circuit times, it holds
   the worker's clock with the `?debug` test clock
   ([web/README.md](../web/README.md#building-and-testing)) and advances it in explicit
-  simulated steps. The Space Race movement envelope and the Stunt Cycle
-  throttle release ramp work this way.
+  simulated steps. The Space Race movement envelope, the Stunt Cycle
+  throttle release ramp and the tests of the games ported from 0.2.0 on
+  (`tests/browser/game-<id>.spec.ts`) work this way.
 - App timers that are wall-clock by design (the 3000 ms audio activation
   expiry, the 2500 ms storage watchdogs) are tested on Playwright's page clock,
   held or advanced explicitly, so the test controls which timer fires first.

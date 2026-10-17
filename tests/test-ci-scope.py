@@ -41,8 +41,11 @@ class Repo:
 class ClassifyTests(unittest.TestCase):
     def test_docs_ui_and_release_metadata_paths(self):
         for path in ('docs/TESTING.md', 'README.md', 'CHANGELOG.md', 'bug-reports/x.md', 'web/src/main.ts',
+                     'core/README.md', 'tools/native/README.md', 'THIRD_PARTY_NOTICES.md',
                      'tests/browser/pong.spec.ts', 'tests/test-web-foundations.cjs', 'VERSION',
-                     'tests/release-readiness.json', 'tests/browser-license-audit.json'):
+                     'tests/release-readiness.json', 'tests/browser-license-audit.json',
+                     'tools/package-web.py', 'tools/package-release.py', 'tests/test-web-release.py',
+                     'tests/test-release-tools.py', 'tests/license-audit.json', 'LICENSE'):
             self.assertIsNotNone(scope.kind(path), path)
 
     def test_everything_else_is_core_relevant(self):
@@ -53,20 +56,26 @@ class ClassifyTests(unittest.TestCase):
                      'tools/build-native.sh', 'tools/native/Dockerfile', 'tools/install-web-toolchain.sh',
                      'tools/reference-cache.py', 'tools/core-handoff.py', 'tools/ci-scope.py',
                      'tests/replays/pong.tsv', 'tests/replays/game-scenarios.json', 'tests/source-manifest.json',
-                     'tests/license-audit.json', 'tests/test-reference-analysis.py', 'tests/test-ci-scope.py',
-                     '.github/workflows/verify-browser.yml', '.github/workflows/ci.yml', 'tools/native/README.md',
-                     'core/README.md', 'Makefile', 'package.json', 'package-lock.json', 'vite.config.ts', 'LICENSE',
+                     'tests/test-reference-analysis.py', 'tests/test-ci-scope.py',
+                     '.github/workflows/verify-browser.yml', '.github/workflows/ci.yml', 'core/README.txt',
+                     'Makefile', 'package.json', 'package-lock.json', 'vite.config.ts', 'LICENSE.txt',
                      'tests/web-foundations.cjs', 'web', 'VERSION.txt', 'tests/release-readiness.json.bak',
-                     'core/VERSION'):
+                     'core/VERSION', 'tools/package-web.py.orig', 'core/games/LICENSE', 'core/notes.md.cpp'):
             self.assertIsNone(scope.kind(path), path)
 
 
 class DecisionTests(unittest.TestCase):
-    def test_release_and_missing_marker_run_everything(self):
-        self.assertTrue(scope.decide(True, True, 'a' * 64)[0])
+    def test_missing_marker_runs_everything_on_releases_too(self):
+        self.assertTrue(scope.decide(True, False, 'a' * 64)[0])
         self.assertTrue(scope.decide(False, False, 'a' * 64)[0])
+        self.assertTrue(scope.decide(True, True, '')[0])
         self.assertTrue(scope.decide(False, True, '')[0])
+
+    def test_marker_for_identical_content_skips_on_releases_too(self):
         self.assertFalse(scope.decide(False, True, 'a' * 64)[0])
+        run, reason = scope.decide(True, True, 'a' * 64)
+        self.assertFalse(run)
+        self.assertIn('release run', reason)
 
 
 class CoreHashTests(unittest.TestCase):
@@ -129,7 +138,7 @@ class CoreHashTests(unittest.TestCase):
         self.repo.write('docs/A.md', 'docs again')
         later = self.repo.commit()
         self.assertFalse(scope.decide(False, later in markers, later)[0])
-        self.assertTrue(scope.decide(True, later in markers, later)[0], 'a release always runs')
+        self.assertFalse(scope.decide(True, later in markers, later)[0], 'a release reuses the passing comparison')
 
     def test_reverting_to_compared_content_may_skip(self):
         self.repo.write('core/api.cpp', '2')
@@ -251,6 +260,15 @@ class HistoryTests(unittest.TestCase):
             if not present:
                 self.skipTest('release history not in this checkout')
             self.assertEqual(scope.tree_hash(before, cwd=str(ROOT)), scope.tree_hash(after, cwd=str(ROOT)))
+
+    def test_docs_and_packaging_patch_keeps_the_hash_of_its_compared_release(self):
+        # v0.2.0 (merge 1a8a55f) to the 0.2.1 docs, license and packaging-check commits (fdc1169).
+        before, after = '1a8a55f964dc4345858c632f3b66585420c5d1b8', 'fdc116915a81a24821182143e11757607f385edf'
+        present = all(subprocess.run(['git', 'cat-file', '-e', f'{c}^{{commit}}'], cwd=ROOT,
+                                     capture_output=True).returncode == 0 for c in (before, after))
+        if not present:
+            self.skipTest('release history not in this checkout')
+        self.assertEqual(scope.tree_hash(before, cwd=str(ROOT)), scope.tree_hash(after, cwd=str(ROOT)))
 
 
 if __name__ == '__main__':

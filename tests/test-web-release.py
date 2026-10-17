@@ -199,9 +199,10 @@ class BrowserReleaseTests(unittest.TestCase):
         (self.root / 'web/src/main.ts').write_text('let input = 1;')
         prepared = self.root / 'build/core/source'
         subprocess.run(['python3', str(self.root / 'tools/prepare-core.py'), '--output', str(prepared)], check=True, stdout=subprocess.DEVNULL)
-        core_inputs = ['core/nocpu.h', 'core/api.cpp', 'core/port_hooks.h', 'tools/prepare-core.py', 'tools/build-core.sh',
-                       'VERSION', 'tests/source-manifest.json']
+        core_inputs = ['core/nocpu.h', 'core/api.cpp', 'core/port_hooks.h', 'core/game_registry.h', 'tools/prepare-core.py',
+                       'tools/build-core.sh', 'VERSION', 'tests/source-manifest.json']
         core_inputs += [p.relative_to(self.root).as_posix() for p in (self.root / 'core/platform').rglob('*') if p.is_file()]
+        core_inputs += [p.relative_to(self.root).as_posix() for p in (self.root / 'core/games').glob('*') if p.is_file()]
         core_inputs += [p.relative_to(self.root).as_posix() for p in prepared.rglob('*') if p.is_file()]
         core = {'target': 'wasm', 'inputs': {name: web.sha256(self.root / name) for name in core_inputs},
                 'outputs': {name: web.sha256(self.dist / 'core' / name) for name in ('nocpu.js', 'nocpu.wasm')}}
@@ -338,11 +339,12 @@ class BrowserReleaseTests(unittest.TestCase):
     def test_missing_source_provenance_or_false_derived_source_hash_rejected(self):
         core, _ = self.prepare_provenance_fixture()
         path = self.root / 'build/core/wasm/build-provenance.json'
-        omitted = copy.deepcopy(core)
-        omitted['inputs'].pop('core/api.cpp')
-        path.write_text(json.dumps(omitted))
-        with self.assertRaisesRegex(ValueError, 'omits required source'):
-            web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist))
+        for name in ('core/api.cpp', 'core/game_registry.h', 'core/games/rebound.cpp'):
+            omitted = copy.deepcopy(core)
+            omitted['inputs'].pop(name)
+            path.write_text(json.dumps(omitted))
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'omits required source'):
+                web.verify_build_provenance(self.root, self.dist, web.runtime_files(self.dist))
         core['inputs']['build/core/source/chip.cpp'] = '0' * 64
         path.write_text(json.dumps(core))
         with self.assertRaisesRegex(ValueError, 'freshly prepared corresponding source'):
