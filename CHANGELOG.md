@@ -13,6 +13,16 @@ releases below.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-17
+
+### Changed
+
+- The README links the playable site at the top and lists the controls of all ten games; the
+  guides for porting, testing, ROMs, compatibility and the browser distribution describe the
+  current ten-game build.
+- The browser license record is re-assessed for the ten-game build. The games and the app are
+  unchanged from 0.2.0.
+
 ## [0.2.0] - 2026-10-17
 
 ### Added
@@ -155,7 +165,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
