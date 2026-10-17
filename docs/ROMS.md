@@ -28,7 +28,7 @@ Exit status: `0` fetched and audited, `1` failure (unsafe destination, different
 python3 tools/compare-rom-games.py   # or: make rom-compare
 ```
 
-For each scenario in [rom-scenarios.json](../tests/replays/rom-scenarios.json) (Stunt Cycle throttle pilot, Indy 4 controls pilot) this audits the fixture, runs one fresh original DICE process in the pinned Docker toolchain with the private ZIP bind-mounted read-only under its original runtime basename (`stuntcycle.zip`, `indy4.zip`), and replays the same inputs through the portable native runner and the Wasm module for two reset epochs. It requires byte equality of the decoded full-RGB frames and snapshots, raw PCM including the constructor sample, inputs, events, telemetry and hardware observations between original and native, between native and Wasm in both epochs, and across each runtime's reset. Frame geometry and the audio boundary are compared on the fields both formats record. The descriptor bytes the portable runners read are staged in a private `0700` directory under the run and deleted afterwards. Evidence and `report.json` go to `build/rom-comparison/<timestamp>/`; frames and PCM there are ROM-derived and must not be published or uploaded.
+For each scenario in [rom-scenarios.json](../tests/replays/rom-scenarios.json) (three Stunt Cycle and three Indy 4 scenarios) this audits the fixture, runs one fresh original DICE process in the pinned Docker toolchain with the private ZIP bind-mounted read-only under its original runtime basename (`stuntcycle.zip`, `indy4.zip`), and replays the same inputs through the portable native runner and the Wasm module for two reset epochs. It requires byte equality of the decoded full-RGB frames and snapshots, raw PCM including the constructor sample, inputs, events, telemetry and hardware observations between original and native, between native and Wasm in both epochs, and across each runtime's reset. Frame geometry and the audio boundary are compared on the fields both formats record. The descriptor bytes the portable runners read are staged in a private `0700` directory under the run and deleted afterwards. Evidence and `report.json` go to `build/rom-comparison/<timestamp>/`; frames and PCM there are ROM-derived and must not be published or uploaded.
 
 The fixture directory is `--rom-dir`, else `NOCPU_ROM_DIR`, else `build/roms` when it exists. Without one the tool prints `SKIPPED (blocked: no ROM access)` and exits `77`; it never reports the comparison as passed. A pass covers these bounded replays only, not complete gameplay, and equal generated PCM is not audible sound: both games inherit absent DICE audio hookups.
 
@@ -139,7 +139,7 @@ Of the ROM-dependent games, the core currently compiles Stunt Cycle and Indy 4.
 In the browser the player selects their own ZIP; the frontend reads it locally,
 checks every required descriptor's CRC and size against the manifest, and hands
 the exact bytes to the core, which checks them again (see
-[ARCHITECTURE.md](ARCHITECTURE.md#portable-core-abi-4)). Reset keeps the loaded
+[ARCHITECTURE.md](ARCHITECTURE.md#portable-core-abi-5)). Reset keeps the loaded
 ROM bytes in the core; destroying the circuit clears them. The other eight ROM-backed games are
 unported.
 

@@ -1,6 +1,6 @@
 # Contributing to NoCPU
 
-Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). NoCPU has restarted desktop-first at 0.1.0: the target is accurate play of every DICE 0.9 game in desktop browsers with keyboard and mouse through a minimal interface. Mobile/touch UI, phone qualification and Home Screen support are deferred until after desktop accuracy; do not add them to desktop work. Preserve the measured original/native/Wasm behavior of the six ported circuits. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
+Start with the [roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), and [testing guide](docs/TESTING.md). NoCPU has restarted desktop-first at 0.1.0: the target is accurate play of every DICE 0.9 game in desktop browsers with keyboard and mouse through a minimal interface. Mobile/touch UI, phone qualification and Home Screen support are deferred until after desktop accuracy; do not add them to desktop work. Preserve the measured original/native/Wasm behavior of the ten ported circuits. All 21 original DICE games remain the 1.0 goal. Post-1.0 candidates are research priorities, not accepted implementation commitments.
 
 ## Make a reviewable change
 

@@ -14,11 +14,13 @@ capabilities, not verified gameplay.
 | Unported, ROM-free | TV Basketball, Pin Pong, Hi-Way |
 | Unported, ROM-backed | Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase |
 
-The six compiled games had original/native/Wasm comparison evidence in the
-legacy line (see [Verification status](#verification-status)); legacy evidence
-is not a restarted-line pass. On the restarted line all six passed their
-bounded original/native/Wasm comparisons in 0.1.1 ([ACCEPTANCE.md](ACCEPTANCE.md),
-with the coverage gaps listed there), and from 0.1.3 each release publishes a
+Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4 had
+original/native/Wasm comparison evidence in the legacy line (see [Verification
+status](#verification-status)); legacy evidence is not a restarted-line pass.
+On the restarted line those six passed their bounded original/native/Wasm
+comparisons in 0.1.1 and Rebound, Gotcha, Quadrapong and Crossfire passed
+theirs in 0.2.0 ([ACCEPTANCE.md](ACCEPTANCE.md), with the coverage gaps listed
+there), and from 0.1.3 each release publishes a
 desktop acceptance record of automated browser checks in Playwright's Chromium
 and Firefox builds ([RELEASING.md](RELEASING.md#the-desktop-acceptance-record)).
 

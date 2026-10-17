@@ -1,9 +1,9 @@
 # Original-derived DICE core
 
 The core compiles the original DICE 0.9 Pong, Pong Doubles, Space Race,
-Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5), Rebound (ID 6, the
-first registered game) and the chip scheduler
-without Qt, SDL devices, or an OpenGL window. The same generated source builds
+Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5), the registered
+games Rebound, Gotcha, Quadrapong and Crossfire (IDs 6 to 9) and the chip
+scheduler without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
 [`upstream/dice-0.9/`](../upstream/dice-0.9) remain byte-identical; the preparation
 script writes a disposable copy under ignored `build/` and records its complete
@@ -112,7 +112,7 @@ a requested boundary. Host pause means no advance calls; it does not change
 the circuit clock or perform catch-up after a hidden tab resumes.
 
 Frames are top-down RGBA with opaque alpha. The original measured 632 × 432
-reference client crops to 576 × 432 for the five landscape titles and
+reference client crops to 576 × 432 for the landscape titles and
 324 × 432 for Breakout's clockwise portrait projection. Read the actual frame
 dimensions through the ABI. Breakout preserves the original GLfloat rotation,
 including its small trigonometric terms, before raster coverage; it applies the
@@ -158,7 +158,7 @@ evidence files; with `--game`, `--dip` and `--pot-ohms` it replays the other
 compiled games. Read the [adaptation inventory](../docs/PORT_PONG.md) and
 [testing instructions](../docs/TESTING.md) for build and comparison commands,
 and [GAME_COMPATIBILITY.md](../docs/GAME_COMPATIBILITY.md#verification-status)
-for recorded results. The remaining 14 games are not compiled yet.
+for recorded results. The remaining 11 games are not compiled yet.
 Pong Doubles uses DICE's default audio gain of 10; Space Race keeps its explicit
 gain of 50 and its original 566/filter/mixer audio graph. Fresh circuit creation
 also replaces audio objects, preventing selected-title gain from leaking into

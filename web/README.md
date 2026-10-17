@@ -2,9 +2,10 @@
 
 The frontend is the minimal desktop interface defined in the
 [roadmap](../docs/ROADMAP.md) "Goal". It runs the DICE 0.9 circuits that the
-core compiles (Pong, Pong Doubles, Rebound, Space Race, Breakout, Stunt Cycle
-and Indy 4) in desktop browsers with keyboard, mouse and optional gamepads. The
-other fourteen DICE games are listed but not ported yet.
+core compiles (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4,
+Rebound, Gotcha, Quadrapong and Crossfire) in desktop browsers with keyboard,
+mouse and optional gamepads. The other eleven DICE games are listed but not
+ported yet.
 
 ## What it offers
 
@@ -34,16 +35,18 @@ other fourteen DICE games are listed but not ported yet.
 - **Controls help.** How to play shows the rules and the current keyboard,
   mouse and gamepad assignments for each game.
 - **Keyboard and mouse.** Default keys: W/S and Up/Down move the Pong paddles,
-  A/D and Left/Right the Rebound paddles, Enter inserts a coin, Space opens the
-  menu and Escape pauses or goes back. For the paddle games (Pong, Pong
-  Doubles, Rebound, Breakout) moving the mouse over the display sets the chosen
+  A/D and Left/Right the Rebound paddles, WASD and the arrow keys the Gotcha
+  cross and square, Enter inserts a coin, Space opens the menu and Escape
+  pauses or goes back; each game's help lists the rest. For the paddle games
+  (Pong, Pong Doubles, Breakout, Rebound, Quadrapong) moving the mouse over the
+  display sets the chosen
   player's paddle across the full original range, horizontally or vertically
   as the paddle moves; each
   edge of the display keeps a 5% margin so both endpoints are reachable. In
   Breakout the left mouse button over the display holds Serve. In Stunt Cycle
   the left button held over the display sets the shared throttle from idle
-  (left) to full (right) and releasing it idles. Space Race and Indy 4 use the
-  keyboard or a gamepad. Settings → Controls chooses which player the mouse
+  (left) to full (right) and releasing it idles. Space Race, Indy 4, Gotcha and
+  Crossfire use the keyboard or a gamepad. Settings → Controls chooses which player the mouse
   drives, or turns it off, for each game.
 - **ROM loading.** Settings → Local ROMs validates player-supplied ZIPs against
   the audited CRC and size requirements, locally; files are never uploaded.

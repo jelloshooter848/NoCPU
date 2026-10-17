@@ -31,11 +31,12 @@ command-line ID (`gotcha`, `quadrapong`, `crossfire`, …).
 These lists have a reserved line per batch game, separated by blank lines so
 parallel ports do not touch the same lines:
 
-- `core/nocpu.h`: the ID is already reserved (`NOCPU_REBOUND=6`,
-  `NOCPU_GOTCHA=7`, `NOCPU_QUADRAPONG=8`, `NOCPU_CROSSFIRE=9`). Later batches
-  add theirs.
-- `web/src/games/index.ts`: uncomment the game's `import` line and its list
-  entry.
+- `core/nocpu.h`: the game's ID in `NoCPUGame`, reserved before the batch
+  starts (0.2.0 reserved `NOCPU_REBOUND=6`, `NOCPU_GOTCHA=7`,
+  `NOCPU_QUADRAPONG=8`, `NOCPU_CROSSFIRE=9`). Later batches add theirs.
+- `web/src/games/index.ts`: the game's `import` line and its list entry,
+  reserved as `// Reserved:` comments before the batch starts; the port
+  uncomments them.
 
 These have one entry per game and may need a trivial merge (keep both sides):
 

@@ -185,7 +185,9 @@ def verify_build_provenance(root: Path, directory: Path, files: list[dict], *, v
         raise ValueError('Browser build base must match the project Pages path /NoCPU/')
     required_core = {'core/nocpu.h', 'core/api.cpp', 'core/port_hooks.h', 'tools/prepare-core.py',
                      'tools/build-core.sh', 'VERSION', 'tests/source-manifest.json'}
+    required_core.add('core/game_registry.h')
     required_core |= {path.relative_to(root).as_posix() for path in (root / 'core/platform').rglob('*') if path.is_file()}
+    required_core |= {path.relative_to(root).as_posix() for path in (root / 'core/games').glob('*') if path.is_file()}
     required_frontend = {'VERSION', 'package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts', 'web/index.html'}
     required_frontend |= verify_frontend_dependency(root)
     required_frontend |= {path.relative_to(root).as_posix() for path in (root / 'web/src').rglob('*') if path.is_file()}

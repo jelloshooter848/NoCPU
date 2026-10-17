@@ -391,9 +391,10 @@ ending in `/`.
 `npm run test:foundations` runs the Node unit tests for controls, settings and
 the bounded ROM/ZIP reader, using synthetic archives with no ROM payloads. It
 also covers the About build string (tag build, untagged build with its short
-commit, no manifest) and the mouse preferences: the version-5 preferences
-record with its per-game `mouseByGame` assignment, version-4 records loading
-without loss, and invalid mouse slots recovering to the default.
+commit, no manifest) and the preferences record: version 6 with its per-game
+`mouseByGame` assignment and the remembered last game, records from versions
+0 to 5 migrating without loss, and invalid mouse slots recovering to the
+default.
 
 The Playwright suite drives the production build in three desktop projects,
 **chromium**, **firefox** and **webkit**, using Playwright's desktop device
@@ -440,8 +441,9 @@ slow or unevenly loaded runner, so:
 - Where a check needs inputs or observations at exact circuit times, it holds
   the worker's clock with the `?debug` test clock
   ([web/README.md](../web/README.md#building-and-testing)) and advances it in explicit
-  simulated steps. The Space Race movement envelope and the Stunt Cycle
-  throttle release ramp work this way.
+  simulated steps. The Space Race movement envelope, the Stunt Cycle
+  throttle release ramp and the tests of the games ported from 0.2.0 on
+  (`tests/browser/game-<id>.spec.ts`) work this way.
 - App timers that are wall-clock by design (the 3000 ms audio activation
   expiry, the 2500 ms storage watchdogs) are tested on Playwright's page clock,
   held or advanced explicitly, so the test controls which timer fires first.
