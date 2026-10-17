@@ -24,14 +24,15 @@ permissions:
   contents: read
 # Job graph (docs/TESTING.md, "Continuous integration"):
 #   scope ──────────────┐
-#   core-build ─┬─ core-compare (original/native/Wasm; skipped only for docs/UI/release-metadata-only changes)
+#   core-build ─┬─ core-compare (original/native/Wasm; skipped only for docs/UI/packaging/release-metadata-only changes)
 #               └─ package ─┬─ browser (chromium | firefox | webkit in parallel)
 #   rom-access ─────────────┴─ rom-browser (Stunt Cycle/Indy 4 from private ROMs, chromium + firefox)
 #   browser + rom-browser ──── acceptance (the desktop acceptance record of this exact package)
 #   verify requires every job, and accepts a skipped core-compare only when
-#   scope decided so and this is not a release. scope skips it only when a
-#   passing core-compare already recorded (nocpu-compared-<hash> artifact) the
-#   same content outside docs, web UI and release metadata.
+#   scope decided so. scope skips it, on a release too, only when a passing
+#   core-compare already recorded (nocpu-compared-<hash> artifact) the same
+#   content outside docs, web UI, packaging and release metadata on the same
+#   host compiler.
 #   rom-browser may be skipped only when the ROM secret is absent and this is
 #   not a release; a release also requires a passed acceptance record.
 jobs:
@@ -50,7 +51,7 @@ jobs:
       with:
         persist-credentials: false
         ref: ${{ inputs.ref || github.sha }}
-    - name: Hash this commit's content outside docs, web UI and release metadata
+    - name: Hash this commit's content outside docs, web UI, packaging and release metadata
       id: hash
       run: python3 tools/ci-scope.py hash
     # Content, not a diff: a docs-only push after a cancelled or failed core
@@ -60,12 +61,11 @@ jobs:
     # a pull request. Markers uploaded by fork runs are ignored.
     - name: Look up a passing comparison of exactly this content
       id: marker
-      if: ${{ !inputs.release }}
       env:
         GITHUB_TOKEN: ${{ github.token }}
         HASH: ${{ steps.hash.outputs.core_hash }}
       run: python3 tools/ci-scope.py lookup --hash "$HASH"
-    - name: Decide whether the core comparisons must run (releases and unrecorded content always do)
+    - name: Decide whether the core comparisons must run (unrecorded content always does)
       id: scope
       env:
         RELEASE: ${{ inputs.release }}
@@ -129,8 +129,9 @@ jobs:
       contents: read
       actions: read
     env:
-      # Releases never read or write the reference cache: every original is
-      # captured fresh, so no earlier run's entries can stand in for a release.
+      # A release that does compare (its core content was never compared)
+      # never reads or writes the reference cache: every original is captured
+      # fresh. Byte-identical content already compared is skipped by scope.
       NOCPU_REFERENCE_CACHE: ${{ !inputs.release && 'build/reference-cache' || '' }}
       NOCPU_ANALYZE_JOBS: '4'
       NOCPU_REPLAY_JOBS: '4'
@@ -688,7 +689,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-    - name: Require every verification job; a skipped core comparison only by docs/UI scope, never on a release
+    - name: Require every verification job; a skipped core comparison only by scope (content already compared)
       env:
         SCOPE: ${{ needs.scope.result }}
         CORE_SCOPE: ${{ needs.scope.outputs.core }}
@@ -709,9 +710,9 @@ jobs:
         done
         if [ "$COMPARE" = success ]; then
           echo "core-compare=success"
-        elif [ "$COMPARE" = skipped ] && [ "$SCOPE" = success ] && [ "$CORE_SCOPE" = false ] && [ "$RELEASE" != true ]; then
-          echo "core-compare=skipped by scope: an earlier run passed it for identical content outside docs, web UI and release metadata (see the scope job). Skipped, not passed here."
-          echo '**Core original/native/Wasm comparisons skipped by scope (content already compared; only docs, web UI or release metadata differ), not passed in this run.**' >> "$GITHUB_STEP_SUMMARY"
+        elif [ "$COMPARE" = skipped ] && [ "$SCOPE" = success ] && [ "$CORE_SCOPE" = false ]; then
+          echo "core-compare=skipped by scope: an earlier run passed it for identical content outside docs, web UI, packaging and release metadata (see the scope job). Skipped, not passed here."
+          echo '**Core original/native/Wasm comparisons skipped by scope (content already compared; only docs, web UI, packaging or release metadata differ), not passed in this run.**' >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::error::core-compare=$COMPARE (scope core=$CORE_SCOPE, release=$RELEASE)"
           status=1

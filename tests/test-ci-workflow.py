@@ -73,10 +73,12 @@ class CompareJobTests(unittest.TestCase):
 
 
 class ScopeJobTests(unittest.TestCase):
-    def test_release_runs_everything_and_skips_the_marker_lookup(self):
+    def test_release_looks_up_the_marker_like_any_other_run(self):
+        # Owner decision 2026-10-17: a release reuses a passing comparison of
+        # byte-identical core content; content never compared still runs it.
         scope_steps = steps(job('scope'))
         lookup = scope_steps[find(scope_steps, 'ci-scope.py lookup')]
-        self.assertEqual(condition(lookup), '${{ !inputs.release }}')
+        self.assertIsNone(condition(lookup))
         decide = scope_steps[find(scope_steps, 'ci-scope.py decide')]
         self.assertIn('RELEASE: ${{ inputs.release }}', decide)
         self.assertIn('--release "$RELEASE"', decide)
@@ -92,10 +94,10 @@ class ScopeJobTests(unittest.TestCase):
         self.assertIn('GITHUB_TOKEN: ${{ github.token }}', lookup)
         self.assertIn('--hash "$HASH"', lookup)
 
-    def test_verify_accepts_a_skip_only_by_scope_and_never_on_release(self):
+    def test_verify_accepts_a_skip_only_by_scope(self):
         verify = job('verify')
         self.assertIn('if: always()', verify)
-        self.assertIn('[ "$COMPARE" = skipped ] && [ "$SCOPE" = success ] && [ "$CORE_SCOPE" = false ] && [ "$RELEASE" != true ]',
+        self.assertIn('elif [ "$COMPARE" = skipped ] && [ "$SCOPE" = success ] && [ "$CORE_SCOPE" = false ]; then',
                       verify)
 
 

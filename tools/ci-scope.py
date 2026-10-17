@@ -4,8 +4,9 @@
 
 Deliberately small and decided by content, not by a push or PR diff. The
 "core hash" is a SHA-256 over every tracked path, mode and blob of a commit
-except files no capture, replay or comparison reads: documentation, browser UI
-and release metadata (VERSION and the release records), with the version field
+except files no capture, replay or comparison reads: documentation (every .md
+file), browser UI, distribution packaging and license records, and release
+metadata (VERSION and the release records), with the version field
 left out of package.json and package-lock.json. It also covers the runner's
 native C++ compiler, the one compare input not pinned in the repository.
 
@@ -16,9 +17,10 @@ working branch or in a pull request is found again by the merge push to main
 and by the next release pull request. A later run skips the comparisons only
 when a marker exists for its own core hash, uploaded by a run of this
 repository (never a fork). A docs-only commit that follows a cancelled or
-failed core change therefore still runs them. A release, a missing marker or
-any error runs everything. The build, the repository checks, the unit tests
-and the browser matrix always run.
+failed core change therefore still runs them. A release follows the same rule:
+it skips them only for core content a run already compared on the same host
+compiler. A missing marker or any error runs everything. The build, the
+repository checks, the unit tests, packaging and the browser matrix always run.
 """
 from __future__ import annotations
 
@@ -36,8 +38,12 @@ from typing import Callable
 
 # Paths that cannot change a core comparison result. Keep these lists short:
 # anything not listed is hashed, so a forgotten input runs the comparisons.
-DOCS = ('docs/*', 'bug-reports/*')
+DOCS = ('docs/*', 'bug-reports/*', '*.md')
 UI = ('web/*', 'tests/browser/*', 'tests/test-web-foundations.cjs')
+# Distribution packaging and license records. The core comparison never reads
+# them; the package, browser and release jobs that do always run.
+PACKAGING = ('tools/package-web.py', 'tools/package-release.py', 'tests/test-web-release.py',
+             'tests/test-release-tools.py', 'tests/license-audit.json', 'LICENSE')
 # Release records a release commit rewrites. VERSION is not compiled into the
 # native or Wasm core (tools/build-core.sh only records its digest in the build
 # provenance) and the comparisons only copy it into their reports as a label.
@@ -49,11 +55,13 @@ HASH_PATTERN = re.compile(r'[0-9a-f]{64}')
 
 
 def kind(path: str) -> str | None:
-    """'docs', 'web UI', 'release metadata', or None for anything that may affect the core."""
-    if any(fnmatch.fnmatchcase(path, pattern) for pattern in DOCS) or ('/' not in path and path.endswith('.md')):
+    """'docs', 'web UI', 'packaging', 'release metadata', or None for anything that may affect the core."""
+    if any(fnmatch.fnmatchcase(path, pattern) for pattern in DOCS):
         return 'docs'
     if any(fnmatch.fnmatchcase(path, pattern) for pattern in UI):
         return 'web UI'
+    if path in PACKAGING:
+        return 'packaging'
     if path in RELEASE_METADATA:
         return 'release metadata'
     return None
@@ -76,7 +84,7 @@ def without_version(path: str, blob: bytes) -> bytes:
 
 
 def tree_hash(ref: str = 'HEAD', cwd: str | None = None) -> str:
-    """Hash of the commit's tree without docs, web UI and release metadata."""
+    """Hash of the commit's tree without docs, web UI, packaging and release metadata."""
     listing = subprocess.run(['git', 'ls-tree', '-r', '-z', '--full-tree', ref], cwd=cwd,
                              check=True, capture_output=True).stdout
     digest = hashlib.sha256(b'nocpu-core-tree-v2\n')
@@ -145,13 +153,14 @@ def github_fetch(token: str) -> Callable[[str], dict]:
 
 
 def decide(release: bool, marker_hit: bool, digest: str) -> tuple[bool, str]:
-    if release:
-        return True, 'release run: the full comparison always runs'
+    # A release reuses a passing comparison of byte-identical core content on
+    # the same host compiler, like any other run (owner decision 2026-10-17).
     if not digest:
         return True, 'no core hash: running everything'
     if marker_hit:
-        return False, (f'core comparisons already passed for this exact content outside docs, web UI and '
-                       f'release metadata (marker {MARKER_PREFIX}{digest[:16]})')
+        return False, (f'{"release run: " if release else ""}core comparisons already passed for this exact '
+                       f'content outside docs, web UI, packaging and release metadata '
+                       f'(marker {MARKER_PREFIX}{digest[:16]})')
     return True, f'no passing comparison recorded for core content {digest[:16]}'
 
 
@@ -178,7 +187,7 @@ def main() -> int:
         host = host_identity() if args.host is None else args.host
         tree = tree_hash(args.ref)
         digest = core_hash(args.ref, host=host)
-        print(f'tree hash (outside docs, web UI, release metadata): {tree}', file=sys.stderr)
+        print(f'tree hash (outside docs, web UI, packaging, release metadata): {tree}', file=sys.stderr)
         print(f'host compiler: {host}', file=sys.stderr)
         print(digest)
         write('GITHUB_OUTPUT', f'core_hash={digest}\n')
@@ -199,8 +208,8 @@ def main() -> int:
     write('GITHUB_OUTPUT', f'core={"true" if run else "false"}\n')
     write('GITHUB_STEP_SUMMARY', f'**{message}.**\n\n' + ('' if run else
           'The original/native/Wasm comparisons were skipped, not passed, for this run: an earlier run passed them '
-          'for identical content outside docs, web UI files and release metadata. Build, repository checks, unit '
-          'tests and the browser matrix ran.\n'))
+          'for identical content outside docs, web UI files, packaging and release metadata. Build, repository '
+          'checks, unit tests, packaging and the browser matrix ran.\n'))
     if not run:
         print(f'::notice title=Core comparisons skipped::{reason}; skipped, not passed.')
     return 0

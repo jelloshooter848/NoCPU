@@ -90,7 +90,7 @@ the release steps.
 | Simpler phone Home and Play (arcade style) | 0.1.6 | Released (2026-10-15) |
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
-| Docs refresh, browser license re-assessment, packaging check | 0.2.1 | In review |
+| Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | In review |
 | ROM-free batch B | 0.3.0 | Planned |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
@@ -219,6 +219,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-15 — 0.1.7 CI fixes.** At the owner's request, CI no longer repeats the original/native/Wasm comparison for content whose game core was already compared on any branch, and release version edits no longer count as core changes; releases still compare in full. The intermittent WebKit Space Race test now schedules its inputs on circuit time only. No gameplay changes.
 - **2026-10-16 — 0.2.0 started.** The owner gave the go-ahead for 0.2.0 after v0.1.7. Rebound, Quadrapong, Crossfire and Gotcha are ported and verified against original DICE (ten playable games). Gotcha needs a derived-source reset patch (docs/UPSTREAM_PATCHES.md). Gotcha runs below real time in Playwright's Firefox build (about 0.35x on the 4-vCPU test machine); this is recorded for the 0.4.0 profiling milestone and noted in the changelog, not gated.
 - **2026-10-17 — 0.2.1 docs patch.** v0.2.0 was released (release run 39043961048). At the owner's request 0.2.1 brings the README (with the site link at the top) and all docs up to date, re-assesses the browser license record for the ten-circuit build, and makes the packaging check require the game registry sources.
+- **2026-10-17 — Releases reuse a passing comparison.** The 0.2.1 pull request ran the full core comparison (65 minutes) only because it touched READMEs and packaging/license files. At the owner's request CI now leaves every `.md` file and the packaging and license records out of the core hash, and a release reuses a passing original/native/Wasm comparison of byte-identical core content on the same host compiler instead of always comparing fresh. Releases with core content never compared still run it in full with every original captured fresh. This replaces the 0.1.2 rule that a release always compares fresh.
 
 ## After 1.0
 
