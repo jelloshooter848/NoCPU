@@ -127,6 +127,20 @@ edit('chips/video.h',[
     ('    static Video* createDefault(phoenix::VerticalLayout& layout, phoenix::Viewport*& viewport);',
      '    enum { WIDTH=576, HEIGHT=432 };\n    unsigned pixel_width() const { return pixels_width; }\n    unsigned pixel_height() const { return pixels_height; }\n    const uint8_t* pixels() const { return front.data(); }')])
 
+# Gotcha's PROXIMITY chip keeps its capacitor voltage in a function-local
+# `static double v_cap`, which survives in-process machine re-creation and so
+# cannot be restored by core/games/gotcha.inc. Move that one variable to file
+# scope under a NoCPU name (same type, same constant initializer, same uses) so
+# the cold reset can zero it; the chip logic and its arithmetic are unchanged.
+edit('games/gotcha.cpp',[
+    ('static CUSTOM_LOGIC( proximity )\n{',
+     '// NoCPU: was a function-local static of proximity(); file scope so that a\n'
+     '// portable reset can restore it (docs/UPSTREAM_PATCHES.md).\n'
+     'static double nocpu_gotcha_proximity_v_cap = 0.0;\n\n'
+     'static CUSTOM_LOGIC( proximity )\n{'),
+    ('    static double v_cap = 0.0;\n',
+     '    double& v_cap = nocpu_gotcha_proximity_v_cap;\n')])
+
 # DICE stores mutable hardware descriptors statically. A portable reset creates
 # a fresh machine, so each compiled game appends a function restoring its custom
 # descriptor objects before construction. The appended code is kept per game in
