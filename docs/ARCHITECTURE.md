@@ -41,7 +41,9 @@ earlier circuits through their own code and every game registered in
 | 4 | Stunt Cycle | `stuntcycle.zip`, player-supplied |
 | 5 | Indy 4 | `indy4.zip`, player-supplied |
 | 6 | Rebound | none (registered, 0.2.0) |
-| 7–9 | Gotcha, Quadrapong, Crossfire | reserved for the 0.2.0 batch |
+| 7 | Gotcha | none (registered, 0.2.0) |
+| 8 | Quadrapong | none (registered, 0.2.0) |
+| 9 | Crossfire | none (registered, 0.2.0) |
 
 A registered game declares its original DIP switches (by descriptor name,
 packed from bit 0), potentiometer range, paddle, joystick, button and Start

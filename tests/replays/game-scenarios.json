@@ -475,6 +475,180 @@
           ]
         }
       ]
+    },
+    {
+      "id": "gotcha-default",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha.tsv",
+      "dip": 0,
+      "pot_ohms": 297000,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        300
+      ],
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        108000
+      ],
+      "ignored_in_play_ms": [
+        5000,
+        5500,
+        114000,
+        115000
+      ],
+      "stick_tests": [
+        {
+          "player": "cross",
+          "direction": "right",
+          "ms": [
+            2000,
+            2100,
+            2200,
+            2250
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "left",
+          "ms": [
+            2250,
+            2300,
+            2400,
+            2500
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "up",
+          "ms": [
+            2500,
+            2600,
+            2700,
+            2750
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "down",
+          "ms": [
+            2750,
+            3000,
+            3200,
+            3250
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "right",
+          "ms": [
+            3250,
+            3300,
+            3400
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "left",
+          "ms": [
+            3600,
+            3700,
+            3750
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "up",
+          "ms": [
+            3750,
+            3800,
+            3900,
+            4000
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "down",
+          "ms": [
+            4000,
+            4250,
+            4500
+          ]
+        }
+      ],
+      "solo_windows": [
+        {
+          "mover": "square",
+          "ms": [
+            6000,
+            30000
+          ]
+        },
+        {
+          "mover": "cross",
+          "ms": [
+            30000,
+            55000
+          ]
+        }
+      ],
+      "minimum_catches": 10,
+      "complete_games": 1
+    },
+    {
+      "id": "gotcha-min-time",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha-min-time.tsv",
+      "dip": 0,
+      "pot_ohms": 47000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        21000,
+        44000,
+        64000
+      ],
+      "no_credit_start_ms": [
+        41000,
+        84000
+      ],
+      "solo_windows": [
+        {
+          "mover": "square",
+          "ms": [
+            22000,
+            38500
+          ]
+        },
+        {
+          "mover": "cross",
+          "ms": [
+            45000,
+            61000
+          ]
+        }
+      ],
+      "minimum_catches": 10,
+      "complete_games": 4
+    },
+    {
+      "id": "gotcha-mid-time",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha-mid-time.tsv",
+      "dip": 0,
+      "pot_ohms": 172000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        66000
+      ],
+      "minimum_catches": 10,
+      "complete_games": 1
     }
   ]
 }

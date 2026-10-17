@@ -5,7 +5,7 @@
 import type { GameDefinition } from './types';
 import { rebound } from './rebound';
 
-// Reserved: import { gotcha } from './gotcha';
+import { gotcha } from './gotcha';
 
 import { quadrapong } from './quadrapong';
 
@@ -14,7 +14,7 @@ import { crossfire } from './crossfire';
 export const REGISTERED_GAMES = [
   rebound,
 
-  // Reserved: gotcha,
+  gotcha,
 
   quadrapong,
 

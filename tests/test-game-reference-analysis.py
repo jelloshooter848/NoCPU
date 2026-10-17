@@ -546,5 +546,45 @@ class CrossfireModuleTests(unittest.TestCase):
         self.assertEqual(self.module.snapshot_objects(bytes(rgb), width, height)["gun2_first"], 236)
 
 
+class GotchaModuleTests(unittest.TestCase):
+    """Gotcha takes only its play-time knob and finds the cross and the square apart from the maze."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("gotcha")
+
+    def test_settings_are_the_play_time_potentiometer_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("gotcha", 7))
+        for pot in (47000, 172000, 297000):
+            self.assertTrue(self.module.valid_options(0, pot))
+        for dip, pot in ((1, 297000), (0, 46999), (0, 297001), (0, 0), (0, 297000.0), (0, True)):
+            with self.subTest(dip=dip, pot=pot):
+                self.assertFalse(self.module.valid_options(dip, pot))
+
+    def test_play_time_follows_the_d8_astable(self):
+        # Measured on the original: 104.918 s at 297 kOhm, 17.768 s at 47 kOhm.
+        self.assertAlmostEqual(self.module.play_time_ps(297000) / 10**12, 104.918, places=2)
+        self.assertAlmostEqual(self.module.play_time_ps(47000) / 10**12, 17.768, places=2)
+
+    def test_players_are_found_apart_from_the_maze(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(points):
+            for x, y in points:
+                rgb[(y * width + x) * 3] = 255
+        block = lambda x0, x1, y0, y1: [(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+        light(block(140, 200, 20, 80))     # a score digit above the playfield is ignored
+        light(block(43, 48, 95, 300))      # a maze wall
+        light(block(424, 429, 244, 250))   # the square
+        light(block(382, 389, 348, 348) + block(386, 386, 346, 352))  # the cross
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["square_x"], objects["square_y"]), (426, 247))
+        self.assertEqual((objects["cross_x"], objects["cross_y"]), (385, 349))
+        self.assertEqual(objects["playfield_lit"], 6 * 206 + 42 + 14)
+        for x, y in block(424, 429, 244, 250):
+            rgb[(y * width + x) * 3] = 0
+        light(block(49, 54, 150, 156))     # a square touching a wall is not told apart from it
+        self.assertIsNone(self.module.snapshot_objects(bytes(rgb), width, height)["square_x"])
+
+
 if __name__ == "__main__":
     unittest.main()

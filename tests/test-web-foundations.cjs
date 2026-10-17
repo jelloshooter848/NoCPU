@@ -545,6 +545,22 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(contract.gameSpec('crossfire').hasStart, false);
   assert.equal(prefs.isMouseGame('crossfire'), false);
   assert.equal(schema.actionLabel('p2Fire', 'crossfire'), 'Right gun fire');
+  // Gotcha: two four-way sticks (two channels on one slot each), W/A/S/D and
+  // the arrow keys, two gamepads with both axes and the d-pad, one Start, the
+  // play-time potentiometer (original default at its maximum), no mouse.
+  assert.deepEqual(schema.actionsForGame('gotcha'), ['p1Up', 'p1Down', 'p1Left', 'p1Right', 'p2Up', 'p2Down', 'p2Left', 'p2Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const gotcha = schema.defaultBindings('gotcha');
+  assert.equal(schema.validateBindings(gotcha, 'gotcha').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([gotcha.keyboard.p1Left, gotcha.keyboard.p1Right, gotcha.keyboard.p2Up, gotcha.keyboard.start], [['KeyA'], ['KeyD'], ['ArrowUp'], ['Digit1']]);
+  assert.deepEqual(gotcha.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [0, 0], [1, 1], [1, 0]]);
+  assert.deepEqual([gotcha.gamepad.buttons.p1Up, gotcha.gamepad.buttons.p1Left, gotcha.gamepad.buttons.p2Right], [[{ pad: 0, button: 12 }], [{ pad: 0, button: 14 }], [{ pad: 1, button: 15 }]]);
+  assert.deepEqual(contract.coreGameOptions('gotcha', { playtimeOhms: 47000 }), { game: 7, dip: 0, potOhms: 47000 });
+  assert.deepEqual(contract.defaultGameOptions('gotcha'), { playtimeOhms: 297000 });
+  assert.equal(contract.isGameOptions('gotcha', { playtimeOhms: 299500 }), false);
+  assert.equal(contract.gameSpec('gotcha').paddleCount, 0);
+  assert.equal(contract.gameSpec('gotcha').hasStart, true);
+  assert.equal(prefs.isMouseGame('gotcha'), false);
+  assert.equal(schema.actionLabel('p2Left', 'gotcha'), 'Square left');
 });
 
 test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {
