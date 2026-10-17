@@ -12,7 +12,8 @@ export const gotcha = {
   id: 'gotcha',
   coreId: 7,
   title: 'Gotcha',
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-17 (docs/ACCEPTANCE.md, 0.2.0 Gotcha run).
+  verified: true,
   playerCount: 2,
   // JOYSTICK1_INPUT ("Move Cross") and JOYSTICK2_INPUT ("Move Square"): two
   // four-way sticks, each two channels on one slot (up/down, left/right).

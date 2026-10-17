@@ -167,6 +167,44 @@ processes at most 250 MB). A local desktop acceptance record
 required engines. These are automated checks, not human play or speaker
 output.
 
+## 0.2.0 Gotcha comparison run — 2026-10-17
+
+Commit `5ef3145` (Gotcha, core ID 7, with the derived-source edit of `8677553`)
+on `restart/desktop-first`, seed 848. Every original captured fresh (no
+reference cache), in the same pinned image (`sha256:bfdadad2…`), Xvfb, Mesa
+20.0.8 llvmpipe, x86-64 host with FMA. Native: GCC 13.3.0 build of
+`build-core.sh native`. Wasm: Emscripten 3.1.74 (`nocpu.wasm` `9baeb1c4…`) run
+in Node 22.22.0. The prepared-core change touches every compiled game's build,
+so every game was re-run in full.
+
+| Game | Scenarios | Streams compared | Result | Gaps |
+| --- | --- | --- | --- | --- |
+| Gotcha | `gotcha-default` (297 kΩ, the original default and maximum): Start without a credit and a coin alone do not start, Start after the coin does; each stick direction held alone (cross right, left, up, down; square right, left, up, down) moves only its own player that way; a coin and Start in play change nothing; recorded closed-loop play (the square chasing a still cross, the cross running into a still square, both closing in, both idle) with 21 catches, each adding one to the catch counter; the maze blank during each 0.73 s catch one-shot and changing shape in play; the timer stepping once per D8 period and ending the game at 99 (104.918 s); Start begins the second game the coin bought with cleared counters; `gotcha-min-time` (47 kΩ, 17.768 s): four complete games, one coin buying two games, Start without a credit after them, two coins still buying only two games, 22 catches; `gotcha-mid-time` (172 kΩ, 61.343 s): play to the end with 25 catches and the second game | PCM, telemetry (catch and play-time counters, ATTRACT_n, hits, active), inputs, CATCHOS collisions, events (START and every edge of the E8 proximity-tone astable), frame times and full-frame RGB hashes, gray observations, every full-RGB snapshot; native↔Wasm both reset epochs (including the proximity tone, with the PROXIMITY capacitor restored cold); registered-game ABI probe | **PASS** | Play comes from recorded inputs, not players. One coin buys two games because DICE wires the games-per-coin input to VCC (inherited "should be connected to dip switch" TODO); the PROXIMITY Thevenin values and cutoff and the "right wall collision fix" gate are DICE's own (inherited TODOs) and are compared, not validated against hardware. The tone's dependence on the players' position is checked from snapshots (beeps faster when the two line up across the screen), not measured continuously. Catches past 39 would wrap and are not reached. Floating point: PROXIMITY integrates its capacitor with run-time `exp()` and E8 takes `log()` of the resulting control voltage. Replaying the recorded PROXIMITY inputs of all three scenarios (16.6 million calls, 138998 control-voltage writes) through the original arithmetic with glibc 2.27 (original), glibc 2.39 (native) and Emscripten's musl (Wasm) gives different last bits of the capacitor voltage in all three, and different control voltages for 188 writes, but every integer-picosecond 555 delay derived from them is identical (the nearest affected delay is 3.9×10⁻³ ps from a truncation boundary; a one-ULP change moves it by about 10⁻⁴ ps). The reachable control voltages are not a finite set here, so this is shown for the scenarios, not exhaustively (`build/agent-gotcha/float/`) |
+| Pong, Pong Doubles, Space Race, Breakout, Rebound, Quadrapong, Crossfire | `pong.tsv` and the twenty-three earlier ROM-free scenarios, unchanged | as in the runs above | **PASS** | Unchanged |
+| Stunt Cycle, Indy 4 | the six ROM-backed scenarios, unchanged, with the private fixtures | as in the 0.1.x run | **PASS** | Unchanged |
+
+Commands as in the 0.2.0 run above (`NOCPU_ANALYZE_JOBS=4 ./tools/capture-games.sh`
+now captures 26 scenarios). Reports: `build/core/comparison.json` (Pong),
+`build/core/game-evidence/20261017T031212738825254Z/report.json` (26 ROM-free
+scenarios, `full_batch: true`, plus the multi-game probe, 453/453 checks, and
+the Breakout probe, 502/502), originals in
+`build/reference-games/20261017T022753331216529Z/` (media pruned after the
+run), and `build/rom-comparison/20261017T033648511418Z/report.json`
+(ROM-backed). The first `make core-compare` attempt stopped when the disk
+filled (its replay tool refuses to start a scenario with less than 1 GiB
+free); after pruning old evidence it was re-run unchanged against the same
+originals and passed.
+
+Cold reset: the PROXIMITY chip's function-local `static double v_cap` is moved
+to file scope by `tools/prepare-core.py` and zeroed by the cold reset
+([UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md)). A scan of the compiled objects of
+`games/gotcha.cpp` and every chip it uses found no other mutable
+function-local or global static (the descriptors are restored by
+`core/games/gotcha.inc`). Without the edit, a stale voltage would be forgotten
+within about 5.5 ms of attract while the tone astable is held in reset, and a
+scratch build without it gave identical epochs in a 10 s replay; the edit makes
+the reset exact rather than relying on that.
+
 ## Desktop browser acceptance (generated by each release)
 
 Desktop acceptance for the ported games is produced by the release

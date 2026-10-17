@@ -79,9 +79,9 @@ frames, PCM, inputs, telemetry and collision traces for two epochs in two fresh
 processes. A pass proves the observations it checks: it taps generated PCM, not
 speaker output, and an attract-mode screenshot is not a pass.
 
-The ROM-free batch reference uses the twenty-three scenarios in
+The ROM-free batch reference uses the twenty-six scenarios in
 [`tests/replays/game-scenarios.json`](../tests/replays/game-scenarios.json)
-(Pong Doubles, Space Race, Breakout, Rebound, Quadrapong and Crossfire). Games ported from 0.2.0 on
+(Pong Doubles, Space Race, Breakout, Rebound, Quadrapong, Crossfire and Gotcha). Games ported from 0.2.0 on
 add their original-behavior checks, measured frame cadence and settings
 validity as `tools/reference/games/<id>.py`, and their original observation as
 `tools/reference/games/<id>.inc` ([PORT_GAME.md](PORT_GAME.md)); their
@@ -219,7 +219,8 @@ make quick
 For agents iterating locally: `make test`, the native reference and core
 builds, Pong, and one scenario per ROM-free game (every `<game>-default`
 scenario of the manifest, today `pongdoubles-default`, `spacerace-default`,
-`breakout-default` and `rebound-default`; `NOCPU_QUICK_SCENARIOS` overrides)
+`breakout-default`, `rebound-default`, `quadrapong-default`, `crossfire-default`
+and `gotcha-default`; `NOCPU_QUICK_SCENARIOS` overrides)
 compared original/native/Wasm against cached originals. The first run fills
 `build/reference-cache` (about 1 GB); later runs skip the Docker captures. A
 quick pass is not the whole-batch qualification. Run the full comparison
@@ -469,7 +470,7 @@ engines, whether a release requires it) is `desktop_acceptance` in
   same browser (one worker).
 - Game coverage comes from Playwright tags: a test that exercises a game's
   play carries `@game-<id>` (`pong`, `pongdoubles`, `spacerace`, `breakout`,
-  `stuntcycle`, `indy4`, `rebound`). Tag a new game's tests the same way and
+  `stuntcycle`, `indy4`, `rebound`, `gotcha`, `quadrapong`, `crossfire`). Tag a new game's tests the same way and
   add the game to the policy.
 - `tools/desktop-acceptance.py collect` reduces one run's Playwright JSON
   report to the tagged outcomes, after recomputing the runtime digest from the
@@ -533,7 +534,7 @@ source/notice hashes; they do not replace the full local matrix.
 
 ## What is still untested
 
-Twelve of the 21 DICE 0.9 games are unported. The nine ported games pass their
+Eleven of the 21 DICE 0.9 games are unported. The ten ported games pass their
 bounded original/native/Wasm comparisons ([ACCEPTANCE.md](ACCEPTANCE.md)), with
 the coverage gaps listed there, and automated browser checks in Playwright's
 engine builds; nobody has yet recorded a manual check in a release Chrome or

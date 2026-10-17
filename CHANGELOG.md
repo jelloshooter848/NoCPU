@@ -25,6 +25,9 @@ releases below.
 - Crossfire (Atari, 1975) is playable: the original circuit, verified against original DICE, with
   its play-time setting, the coin that starts the game, the left gun on W/S with D to fire and the
   right gun on the Up/Down arrow keys with Left to fire, two gamepads, and the circuit's own sound.
+- Gotcha (Atari, 1973) is playable: the original circuit, verified against original DICE, with its
+  play-time setting, the cross on W/A/S/D and the square on the arrow keys, two gamepads, and the
+  circuit's own sound, including the beeping tone that speeds up as the players close in.
 
 ## [0.1.7] - 2026-10-15
 
