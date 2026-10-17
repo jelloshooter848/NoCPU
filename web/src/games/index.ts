@@ -11,6 +11,12 @@ import { quadrapong } from './quadrapong';
 
 import { crossfire } from './crossfire';
 
+// Reserved: import { tvbasketball } from './tvbasketball';
+
+// Reserved: import { pinpong } from './pinpong';
+
+// Reserved: import { hiway } from './hiway';
+
 export const REGISTERED_GAMES = [
   rebound,
 
@@ -19,4 +25,10 @@ export const REGISTERED_GAMES = [
   quadrapong,
 
   crossfire,
+
+  // Reserved: tvbasketball,
+
+  // Reserved: pinpong,
+
+  // Reserved: hiway,
 ] as const satisfies readonly GameDefinition[];

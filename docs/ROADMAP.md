@@ -91,7 +91,7 @@ the release steps.
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | In review |
-| ROM-free batch B | 0.3.0 | Planned |
+| ROM-free batch B | 0.3.0 | In progress |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
