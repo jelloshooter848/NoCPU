@@ -23,7 +23,29 @@ std::ofstream pcm,frames,gray,telemetry,inputs,collisions,transition_events;
 uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0;
 bool gzip_snapshots=false;
 bool selected(){return game==NOCPU_STUNT_CYCLE||game==NOCPU_INDY_4;}
-const char* game_name(){return game==NOCPU_PONG?"pong":game==NOCPU_PONG_DOUBLES?"pongdoubles":game==NOCPU_BREAKOUT?"breakout":game==NOCPU_STUNT_CYCLE?"stuntcycle":game==NOCPU_INDY_4?"indy4":"spacerace";}
+const char* game_name(){return nocpu_game_name(game);}
+// Games ported from 0.2.0 on describe their inputs through the ABI.
+bool registered(){return nocpu_game_info(game,NOCPU_INFO_REGISTERED)==1;}
+uint32_t info(uint32_t field){return nocpu_game_info(game,field);}
+uint32_t score_slots(){return registered()?std::max<uint32_t>(2,info(NOCPU_INFO_SCORES)):2;}
+// Generic replay vocabulary of a registered game: coin, start/start2,
+// paddleN, upN/downN/leftN/rightN (declared directions only), buttonSB.
+bool registered_action(const std::string& action,bool& analog) {
+    analog=false;
+    auto digit=[&](size_t at,uint32_t limit){return action.size()==at+1&&action[at]>='1'&&uint32_t(action[at]-'0')<=limit;};
+    if(action=="coin")return true;
+    if(action=="start")return info(NOCPU_INFO_STARTS)>=1;
+    if(action=="start2")return info(NOCPU_INFO_STARTS)>=2;
+    if(action.compare(0,6,"paddle")==0&&digit(6,info(NOCPU_INFO_PADDLES))){analog=true;return true;}
+    const char* names[]={"up","down","left","right"};
+    for(unsigned bit=0;bit<4;++bit) {
+        const std::string name=names[bit];
+        if(action.compare(0,name.size(),name)==0&&digit(name.size(),info(NOCPU_INFO_JOYSTICKS)))
+            return (info(NOCPU_INFO_JOYSTICK_DIRECTIONS)>>bit)&1;
+    }
+    return action.size()==8&&action.compare(0,6,"button")==0&&action[6]>='1'&&uint32_t(action[6]-'0')<=info(NOCPU_INFO_BUTTON_SLOTS)
+        &&action[7]>='1'&&uint32_t(action[7]-'0')<=info(NOCPU_INFO_BUTTONS);
+}
 uint32_t frame_number=0,snapshot=0;
 const uint64_t snapshots[]={250,399,633,799,866,999,1000,1132,1166,1232,1316,1382,1500,1800,2000,2100,2200,2250,2300,2400,2500,2600,2700,2750,3000,3200,3250,3300,3400,3500,3600,3700,3750,3800,3900,4000,4250,4500,4750,5000,5250,5500,5750,6000,6500,7500,8000,8500,9000,9500,10000,10500,11000,11500,12000,13000,15000,20000,30000,45000,60000,80000,110000,130000,170000};
 
@@ -102,7 +124,9 @@ void open_epoch(unsigned epoch) {
     transition_events.open(epoch_path+"/events.csv");
     if(!pcm||!frames||!gray||!telemetry||!inputs||!collisions||!transition_events)throw std::runtime_error("Cannot open evidence files");
     frames<<"frame,time_ps,fnv1a64\n";
-    telemetry<<"time_ps,score1,score2,run_n,attract_n,hits"<<(game==NOCPU_PONG?"\n":",active\n");
+    telemetry<<"time_ps";
+    for(uint32_t slot=1;slot<=score_slots();++slot)telemetry<<",score"<<slot;
+    telemetry<<",run_n,attract_n,hits"<<(game==NOCPU_PONG?"\n":",active\n");
     inputs<<"requested_ps,applied_ps,action,value\n";
     collisions<<"time_ps,hit_output\n";
     transition_events<<"time_ps,signal,value\n";
@@ -141,6 +165,14 @@ std::vector<Event> read_replay(const std::string& path) {
         if(milliseconds>1000000ULL)throw std::runtime_error("Replay duration exceeds runner bound");
         event.time=milliseconds*1000000000ULL;
         if(!events.empty()&&event.time<events.back().time)throw std::runtime_error("Unsorted replay");
+        if(registered()) {
+            bool analog=false;
+            if(event.action!="recreate"&&!registered_action(event.action,analog))throw std::runtime_error("Unknown replay action");
+            if(event.action=="recreate"&&event.value!=1)throw std::runtime_error("Invalid recreate action");
+            if(analog?(event.value< -32768||event.value>32767):(event.value!=0&&event.value!=1))
+                throw std::runtime_error("Replay input outside physical range");
+            events.push_back(event);continue;
+        }
         const bool paddle=event.action.size()==7&&event.action.substr(0,6)=="paddle"&&event.action[6]>='1'
             &&event.action[6]<=(game==NOCPU_PONG_DOUBLES?'4':game==NOCPU_BREAKOUT?'1':'2')&&(game==NOCPU_PONG||game==NOCPU_PONG_DOUBLES||game==NOCPU_BREAKOUT);
         const bool direction=game==NOCPU_SPACE_RACE&&(event.action=="up1"||event.action=="down1"||event.action=="up2"||event.action=="down2");
@@ -180,13 +212,12 @@ int main(int argc,char** argv) {
             else if(arg=="--seed")seed=std::stoul(value);
             else if(arg=="--epochs")epochs=std::stoul(value);
             else if(arg=="--game") {
-                if(value=="pong")game=NOCPU_PONG;
-                else if(value=="pongdoubles")game=NOCPU_PONG_DOUBLES;
-                else if(value=="spacerace")game=NOCPU_SPACE_RACE;
-                else if(value=="breakout")game=NOCPU_BREAKOUT;
-                else if(value=="stuntcycle")game=NOCPU_STUNT_CYCLE;
-                else if(value=="indy4")game=NOCPU_INDY_4;
-                else throw std::runtime_error("Unsupported game");
+                game=NOCPU_GAME_LIMIT;
+                for(uint32_t id=0;id<NOCPU_GAME_LIMIT;++id) {
+                    const char* name=nocpu_game_name(id);
+                    if(name&&value==name)game=id;
+                }
+                if(game==NOCPU_GAME_LIMIT)throw std::runtime_error("Unsupported game");
             }
             else if(arg=="--dip"){dip=std::stoul(value);dip_given=true;}
             else if(arg=="--pot-ohms")pot_ohms=std::stoul(value);
@@ -198,11 +229,13 @@ int main(int argc,char** argv) {
             else throw std::runtime_error("Unknown option: "+arg);
         }
         if(output.empty()||replay.empty()||!epochs||epochs>16)
-            throw std::runtime_error("Usage: pong-native --output DIR --replay FILE [--game pong|pongdoubles|spacerace|breakout] [--dip PACKED_GAME_SETTINGS] [--pot-ohms N] [--seed 848] [--epochs 2]");
+            throw std::runtime_error("Usage: pong-native --output DIR --replay FILE [--game pong|pongdoubles|spacerace|breakout|stuntcycle|indy4|<registered game>] [--dip PACKED_GAME_SETTINGS] [--pot-ohms N] [--seed 848] [--epochs 2]");
         if(game==NOCPU_SPACE_RACE&&!pot_ohms)pot_ohms=970000;
         if(game==NOCPU_BREAKOUT&&!dip_given)dip=3;
         if(game==NOCPU_STUNT_CYCLE&&!dip_given)dip=76;
         if(game==NOCPU_INDY_4&&!pot_ohms)pot_ohms=720000;
+        if(registered()&&!dip_given)dip=info(NOCPU_INFO_DEFAULT_DIP);
+        if(registered()&&!pot_ohms)pot_ohms=info(NOCPU_INFO_POT_DEFAULT);
         if(gzip_snapshots&&!selected())throw std::runtime_error("Compressed snapshots require a selected ROM-backed game");
         const auto events=read_replay(replay);directory(output);nocpu_set_hooks(on_frame,on_hit);nocpu_set_event_hook(on_event);
         if(selected()) {
@@ -228,11 +261,13 @@ int main(int argc,char** argv) {
                 boundary<<"{\"constructor_samples\":"<<nocpu_audio_count()<<",\"constructor_time_ps\":"<<time_now()<<"}\n";
                 if(!boundary)throw std::runtime_error("Audio boundary write failed");
             }
-            bool directions[2][2]={{false,false},{false,false}},keys[4][2]={},buttons[4][2]={};
+            bool directions[2][2]={{false,false},{false,false}},keys[4][2]={},buttons[4][2]={},sticks[2][4]={};
             uint64_t deadline=0;size_t next_event=0;bool complete=false;
             while(!complete) {
                 const uint64_t now=time_now();
-                telemetry<<now<<','<<nocpu_score(0)<<','<<nocpu_score(1)<<','<<nocpu_run_n()<<','<<nocpu_attract_n()<<','<<nocpu_hits();
+                telemetry<<now;
+                for(uint32_t slot=0;slot<score_slots();++slot)telemetry<<','<<nocpu_score(slot);
+                telemetry<<','<<nocpu_run_n()<<','<<nocpu_attract_n()<<','<<nocpu_hits();
                 if(game!=NOCPU_PONG)telemetry<<','<<nocpu_active();
                 telemetry<<'\n';
                 if(selected()) {
@@ -249,6 +284,21 @@ int main(int argc,char** argv) {
                 while(next_event<events.size()&&events[next_event].time<=now) {
                     const auto& event=events[next_event++];
                     inputs<<event.time<<','<<time_now()<<','<<event.action<<','<<event.value<<'\n';
+                    if(registered()&&event.action!="recreate") {
+                        bool accepted=true;
+                        if(event.action=="coin")accepted=nocpu_coin_channel(1,event.value);
+                        else if(event.action=="start"||event.action=="start2")accepted=nocpu_start_player(event.action=="start"?1:2,event.value);
+                        else if(event.action.compare(0,6,"paddle")==0)nocpu_paddle(event.action.back()-'1',event.value);
+                        else if(event.action.compare(0,6,"button")==0)accepted=nocpu_button(event.action[6]-'1',event.action[7]-'0',event.value);
+                        else {
+                            const unsigned slot=event.action.back()-'1';
+                            const char first=event.action[0];
+                            sticks[slot][first=='u'?0:first=='d'?1:first=='l'?2:3]=event.value;
+                            accepted=nocpu_joystick_switches(slot,sticks[slot][0],sticks[slot][1],sticks[slot][2],sticks[slot][3]);
+                        }
+                        if(!accepted)throw std::runtime_error("Registered game input rejected: "+event.action);
+                        continue;
+                    }
                     if(event.action=="coin")nocpu_coin(event.value);
                     else if(event.action=="start")nocpu_start(event.value);
                     else if(event.action=="start2"){

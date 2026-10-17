@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { test, expect } from '@playwright/test';
 import { auditedGames } from './rom-fixtures';
+import { FIRST_PENDING, PLAY_ORDER, PORTED_GAME_IDS } from './ported-games';
 import { screen, titleSettings, installGamepads, padState, padPresent } from './app-helpers';
 import { snapshot, start, waitSimulation, paddles, initialRenderedPaddles, installAudioProbe,
   openSettings, resumePlay, pauseMenu, expectViewportShell, expectUsableTarget, expectDesktopLayout, playFromLibrary } from './helpers';
 
-test('all audited games have truthful library, ROM, sound and control information with six implemented circuits and player-ROM launch gates', async ({ page }) => {
+test('all audited games have truthful library, ROM, sound and control information with the implemented circuits and player-ROM launch gates', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).__libraryWorkers = 0;
     const NativeWorker = window.Worker;
@@ -37,8 +38,8 @@ test('all audited games have truthful library, ROM, sound and control informatio
   await page.goto('?debug');
   await expect.poll(() => page.evaluate(() => typeof (window as any).__releaseRomReadiness)).toBe('function');
   await page.getByTestId('open-library').click();
-  // Play lists the six ported games, then every other audited game under Coming soon, each in audited order.
-  const ported = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
+  // Play lists the ported games, then every other audited game under Coming soon, each in audited order.
+  const ported = PORTED_GAME_IDS;
   await expect(page.locator('.play-list .game-name')).toHaveText(auditedGames.filter((game) => ported.includes(game.id)).map((game) => game.display_name));
   await expect(page.locator('.coming-soon-list .game-name')).toHaveText(auditedGames.filter((game) => !ported.includes(game.id)).map((game) => game.display_name));
   await expect(page.getByTestId('game-library').locator('.game-name')).toHaveCount(auditedGames.length);
@@ -60,12 +61,12 @@ test('all audited games have truthful library, ROM, sound and control informatio
     await page.getByTestId(`game-${game.id}`).click();
     await screen(page, 'game-info');
     await expect(page.locator('#game-info-heading')).toHaveText(game.display_name);
-    await expect(page.getByTestId('game-port-status')).toHaveText(['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id) ? 'Ready to play' : 'Browser port pending');
+    await expect(page.getByTestId('game-port-status')).toHaveText(ported.includes(game.id) ? 'Ready to play' : 'Browser port pending');
     await expect(page.getByTestId('game-rom-status')).toHaveText(game.roms.length ? 'ROM required · not imported' : 'No ROM needed');
     await expect(page.getByTestId('game-audio-status')).toHaveText(game.audio.mono_output_wired
-      ? ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id) ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
+      ? ported.includes(game.id) ? 'Original circuit sound' : 'DICE circuit sound · browser port pending'
       : 'Inherited audio unavailable in DICE');
-    if (['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id)) await expect(page.getByTestId('play-selected')).toBeEnabled();
+    if (ported.includes(game.id)) await expect(page.getByTestId('play-selected')).toBeEnabled();
     else await expect(page.getByTestId('play-selected')).toBeDisabled();
     if (['stuntcycle', 'indy4'].includes(game.id)) {
       await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
@@ -91,7 +92,7 @@ test('all audited games have truthful library, ROM, sound and control informatio
       await expect(page.locator('#game-help-content')).toContainText('Gas and Hand Brake');
     }
 
-    if (!['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id)) for (const control of game.controls) {
+    if (!ported.includes(game.id)) for (const control of game.controls) {
       await expect(page.locator('#game-help-content')).toContainText(control.label);
     }
     await page.getByTestId('back').click();
@@ -149,7 +150,7 @@ test('Home leads with Play, and Play opens on the last game played', { tag: '@ga
   await expect(page.getByTestId('continue-game')).toHaveCount(0);
   // The title block's sheet count and the footer both count the playable games in this build.
   const playable = await page.locator('.play-list .library-game').count();
-  expect(playable).toBe(6);
+  expect(playable).toBe(PORTED_GAME_IDS.length);
   await expect(page.getByTestId('title-sheet')).toHaveText(`1 OF ${playable}`);
   await expect(page.getByTestId('title-footer')).toHaveText(`ENGINE DICE 0.9 · ${playable} OF ${auditedGames.length} GAMES PLAYABLE`);
   await expect(library).toBeFocused();
@@ -272,10 +273,13 @@ test('Play moves between games with Up and Down, describes the selected game and
   await expect(page.getByTestId('play-detail-verified')).toHaveText('✓ Verified against original DICE');
   await page.keyboard.press('ArrowUp');
   await details('pong', 2, 'No ROM needed', 'Play');
+  // Down steps through the Play list in its (audited) order.
+  const down = async (from: string, to: string) => {
+    for (let step = PLAY_ORDER.indexOf(from); step < PLAY_ORDER.indexOf(to); step += 1) await page.keyboard.press('ArrowDown');
+  };
   await page.keyboard.press('ArrowDown');
   await details('pongdoubles', 4, 'No ROM needed', 'Play');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  await down('pongdoubles', 'stuntcycle');
   await details('stuntcycle', 2, 'ROM required · not imported', 'Import ROMs to play');
   await expect(page.getByTestId('play-detail-verified')).toBeVisible();
   // Without its ROM, Play explains on the game's info page and creates no circuit.
@@ -286,12 +290,12 @@ test('Play moves between games with Up and Down, describes the selected game and
   await page.getByTestId('back').click();
   await screen(page, 'library');
   await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
+  await down('stuntcycle', 'indy4');
   await details('indy4', 4, 'ROM required · not imported', 'Import ROMs to play');
   // Down continues into the games that are not ported yet; they cannot be played.
+  expect(PLAY_ORDER.at(-1)).toBe('indy4');
   await page.keyboard.press('ArrowDown');
-  await details('rebound', 2, 'Browser port pending', 'Coming soon');
+  await details(FIRST_PENDING.id, FIRST_PENDING.max_players_indicated, 'Browser port pending', 'Coming soon');
   await expect(page.getByTestId('play-preview')).toBeDisabled();
   await expect(page.getByTestId('play-detail-verified')).toBeHidden();
   await page.keyboard.press('ArrowUp');

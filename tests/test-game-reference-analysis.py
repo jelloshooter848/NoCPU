@@ -403,5 +403,188 @@ class MediaGateTests(unittest.TestCase):
         self.assertFalse(all(self.coverage(timing_records(), "unsupported")["checks"].values()))
 
 
+class RegisteredGameModuleTests(unittest.TestCase):
+    """Games ported from 0.2.0 on declare settings and cadence in tools/reference/games/<id>.py."""
+    # Reuse the selection fixture without re-running its tests.
+    setUp = SelectionGateTests.setUp
+    write_requests = SelectionGateTests.write_requests
+    write_replay_metadata = SelectionGateTests.write_replay_metadata
+    write_rows = SelectionGateTests.write_rows
+    validate = SelectionGateTests.validate
+
+    def add_rebound(self, dip=0, pot=0):
+        item = {"id": "rebound", "game": "rebound", "replay": "tests/replays/rebound.tsv", "dip": dip, "pot_ohms": pot}
+        self.scenarios.append(item)
+        replay = self.repo_root / item["replay"]
+        replay.parent.mkdir(parents=True, exist_ok=True)
+        replay.write_text("Identity-only Rebound replay bytes; no captured gameplay fixture.\n")
+        for attempt in ("baseline", "repeat"):
+            (self.path / item["id"] / attempt / "epoch0").mkdir(parents=True)
+        return item
+
+    def test_only_games_with_a_module_are_registered(self):
+        module = MEDIA.registered_game("rebound")
+        self.assertEqual((module.GAME, module.CORE_ID), ("rebound", 6))
+        for game in ("pong", "pongdoubles", "breakout", "../rebound", "Rebound", "", None, "gotcha-x"):
+            with self.subTest(game=game):
+                self.assertIsNone(MEDIA.registered_game(game))
+
+    def test_registered_settings_are_validated_by_the_game_module(self):
+        item = self.add_rebound()
+        for dip in (0, 1, 2, 3):
+            with self.subTest(dip=dip):
+                item["dip"] = dip
+                self.write_requests(self.scenarios)
+                self.assertEqual(self.validate()["errors"], [])
+        for dip, pot in ((4, 0), (-1, 0), (0, 1), (True, 0), (1.0, 0)):
+            with self.subTest(dip=dip, pot=pot):
+                item.update(dip=dip, pot_ohms=pot)
+                self.write_requests(self.scenarios)
+                self.assertTrue(self.validate()["errors"])
+
+    def test_registered_cadence_comes_from_the_module_and_stays_exact(self):
+        module = MEDIA.registered_game("rebound")
+        duration = 10 * 10**12
+        rows, time = [], module.FIRST_FRAME_PS
+        while time <= duration:
+            rows.append({"frame": str(len(rows)), "time_ps": str(time)})
+            time += module.FRAME_PERIOD_PS
+        samples = duration * 48000 // 10**12
+        self.assertTrue(all(MEDIA.media_coverage(rows, samples, duration, "rebound")["checks"].values()))
+        shifted = [{"frame": row["frame"], "time_ps": str(int(row["time_ps"]) + 34920)} for row in rows]
+        self.assertFalse(MEDIA.media_coverage(shifted, samples, duration, "rebound")["checks"]["native_video_duration_complete"])
+        self.assertFalse(MEDIA.media_coverage(rows[:-2] + rows[-1:], samples, duration, "rebound")["checks"]["native_video_cadence_complete"])
+
+    def test_incomplete_game_module_fails_closed(self):
+        directory = self.path / "games"
+        directory.mkdir()
+        (directory / "partial.py").write_text('GAME = "partial"\nCORE_ID = 31\n')
+        (directory / "other.py").write_text("\n".join(f"{name} = None" for name in (
+            "CORE_ID", "FIRST_FRAME_PS", "FRAME_PERIOD_PS", "valid_options", "snapshot_objects", "analyze")) + '\nGAME = "rebound"\n')
+        original = MEDIA.GAMES_DIRECTORY
+        MEDIA.GAMES_DIRECTORY = directory
+        MEDIA.registered_game.cache_clear()
+        try:
+            with self.assertRaises(ValueError):
+                MEDIA.registered_game("partial")
+            with self.assertRaises(ValueError):
+                MEDIA.registered_game("other")
+        finally:
+            MEDIA.GAMES_DIRECTORY = original
+            MEDIA.registered_game.cache_clear()
+
+
+class QuadrapongModuleTests(unittest.TestCase):
+    """Quadrapong attributes paddle hits by raster position and reads four lanes."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("quadrapong")
+
+    def test_settings_are_the_coinage_switch_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("quadrapong", 8))
+        self.assertTrue(self.module.valid_options(0, 0) and self.module.valid_options(1, 0))
+        self.assertFalse(self.module.valid_options(2, 0) or self.module.valid_options(0, 1))
+
+    def test_hits_belong_to_the_paddle_at_their_raster_position(self):
+        # Measured on the original: left/right hits at 35% and 80% of a line,
+        # top/bottom hits on lines 50 and 236 of the frame.
+        frame = self.module.FIRST_FRAME_PS + 37 * self.module.FRAME_PERIOD_PS
+        line = self.module.LINE_PS
+        at = lambda row, fraction: frame + row * line + int(fraction * line)
+        self.assertEqual(self.module.hit_paddle("200", at(204, .353)), 1)
+        self.assertEqual(self.module.hit_paddle("200", at(104, .802)), 2)
+        self.assertEqual(self.module.hit_paddle("201", at(50, .449)), 3)
+        self.assertEqual(self.module.hit_paddle("201", at(236, .765)), 4)
+
+    def test_lanes_read_paddles_but_not_wall_or_lane_crossings(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1):
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(117, 466, 42, 48)        # top wall
+        light(129, 134, 207, 231)      # left paddle, centered
+        light(449, 454, 386, 406)      # right paddle at its low end, merged with the wall
+        light(123, 144, 56, 62)        # top paddle at its left end, crossing the left lane
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["paddle1_first"], objects["paddle1_last"]), (207, 231))
+        self.assertEqual(objects["paddle2_first"], 386)
+        self.assertEqual((objects["paddle3_first"], objects["paddle3_last"]), (123, 144))
+        self.assertIsNone(objects["paddle4_first"])
+
+
+class CrossfireModuleTests(unittest.TestCase):
+    """Crossfire takes only its play-time knob and reads each gun in its column."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("crossfire")
+
+    def test_settings_are_the_play_time_potentiometer_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("crossfire", 9))
+        for pot in (680000, 1180000, 1680000):
+            self.assertTrue(self.module.valid_options(0, pot))
+        for dip, pot in ((1, 1180000), (0, 679999), (0, 1680001), (0, 0), (0, 1180000.0), (0, True)):
+            with self.subTest(dip=dip, pot=pot):
+                self.assertFalse(self.module.valid_options(dip, pot))
+
+    def test_guns_are_read_in_their_columns_and_hidden_under_the_border(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1):
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(0, 575, 0, 108)          # score band
+        light(0, 575, 408, 431)        # bottom band: a gun below 4.8 V is hidden here
+        light(27, 55, 111, 113)        # left gun at its upper clamp
+        light(56, 60, 112, 112)        # its bullet leaving the gun
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["gun1_first"], objects["gun1_last"]), (111, 113))
+        self.assertIsNone(objects["gun2_first"])
+        light(521, 548, 236, 239)
+        self.assertEqual(self.module.snapshot_objects(bytes(rgb), width, height)["gun2_first"], 236)
+
+
+class GotchaModuleTests(unittest.TestCase):
+    """Gotcha takes only its play-time knob and finds the cross and the square apart from the maze."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("gotcha")
+
+    def test_settings_are_the_play_time_potentiometer_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("gotcha", 7))
+        for pot in (47000, 172000, 297000):
+            self.assertTrue(self.module.valid_options(0, pot))
+        for dip, pot in ((1, 297000), (0, 46999), (0, 297001), (0, 0), (0, 297000.0), (0, True)):
+            with self.subTest(dip=dip, pot=pot):
+                self.assertFalse(self.module.valid_options(dip, pot))
+
+    def test_play_time_follows_the_d8_astable(self):
+        # Measured on the original: 104.918 s at 297 kOhm, 17.768 s at 47 kOhm.
+        self.assertAlmostEqual(self.module.play_time_ps(297000) / 10**12, 104.918, places=2)
+        self.assertAlmostEqual(self.module.play_time_ps(47000) / 10**12, 17.768, places=2)
+
+    def test_players_are_found_apart_from_the_maze(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(points):
+            for x, y in points:
+                rgb[(y * width + x) * 3] = 255
+        block = lambda x0, x1, y0, y1: [(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+        light(block(140, 200, 20, 80))     # a score digit above the playfield is ignored
+        light(block(43, 48, 95, 300))      # a maze wall
+        light(block(424, 429, 244, 250))   # the square
+        light(block(382, 389, 348, 348) + block(386, 386, 346, 352))  # the cross
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual((objects["square_x"], objects["square_y"]), (426, 247))
+        self.assertEqual((objects["cross_x"], objects["cross_y"]), (385, 349))
+        self.assertEqual(objects["playfield_lit"], 6 * 206 + 42 + 14)
+        for x, y in block(424, 429, 244, 250):
+            rgb[(y * width + x) * 3] = 0
+        light(block(49, 54, 150, 156))     # a square touching a wall is not told apart from it
+        self.assertIsNone(self.module.snapshot_objects(bytes(rgb), width, height)["square_x"])
+
+
 if __name__ == "__main__":
     unittest.main()

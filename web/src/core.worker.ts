@@ -3,7 +3,7 @@
 import type { CoreCommand, CoreEvent, CoreSnapshot } from './protocol';
 import { locateCoreAsset } from './asset-identity';
 import { coreGameOptions, defaultGameOptions, gameSpec, isGameOptions, isPlayableGameId, normalizeGameOptions,
-  type GameOptions, type PlayableGameId } from './game-contract';
+  paddleAxisSign, registeredGame, type GameOptions, type PlayableGameId } from './game-contract';
 
 class PlayerError extends Error {}
 
@@ -37,6 +37,8 @@ interface DiceModule {
   _nocpu_serve(held: number): number;
   _nocpu_paddle(slot: number, axis: number): void;
   _nocpu_joystick(slot: number, up: number, down: number): void;
+  _nocpu_joystick_switches(slot: number, up: number, down: number, left: number, right: number): number;
+  _nocpu_button(slot: number, button: number, held: number): number;
   _nocpu_advance(microseconds: number): number;
   _nocpu_frame(): number;
   _nocpu_width(): number;
@@ -78,6 +80,7 @@ let coinCompleted = Array(5).fill(0) as number[];
 let startCompleted = Array(2).fill(0) as number[];
 let gas: boolean[] = [];
 let brake: boolean[] = [];
+let held: boolean[] = [];
 let coinRemainingUs = 0;
 let coinReleasedUs = 0;
 let start = false;
@@ -124,7 +127,8 @@ function snapshot(): CoreSnapshot {
     options: { ...gameOptions },
     timeps: time.toString(),
     frame: core._nocpu_frame_number(),
-    hits: gameId !== 'pong' && gameId !== 'pongdoubles' ? null : core._nocpu_hits(),
+    hits: registeredGame(gameId) ? registeredGame(gameId)!.hasHit ? core._nocpu_hits() : null
+      : gameId !== 'pong' && gameId !== 'pongdoubles' ? null : core._nocpu_hits(),
     crashes: gameId === 'spacerace' ? [core._nocpu_crashes(0), core._nocpu_crashes(1)] : null,
     breakout: gameId === 'breakout' ? {
       attractPin: core._nocpu_breakout_signal(0), attractN: core._nocpu_breakout_signal(1),
@@ -135,11 +139,13 @@ function snapshot(): CoreSnapshot {
     } : null,
     stuntcycle: gameId === 'stuntcycle' ? { signals: Array.from({ length: 8 }, (_, signal) => core!._nocpu_stuntcycle_signal(signal)), throttle: core._nocpu_stuntcycle_throttle() } : null,
     indy4: gameId === 'indy4' ? { globals: [0, 1, 2].map((signal) => core!._nocpu_indy4_signal(0, signal)), cars: [0, 1, 2, 3].map((slot) => [3, 4, 5, 6, 7, 8].map((signal) => core!._nocpu_indy4_signal(slot, signal))), scores: [0, 1, 2, 3].map((slot) => core!._nocpu_score(slot)) } : null,
-    gas: [...gas], brake: [...brake], coinChannel,
+    gas: [...gas], brake: [...brake], held: [...held], coinChannel,
+    playerScores: Array.from({ length: registeredGame(gameId)?.scoreSlots ?? (gameId === 'indy4' ? 4 : 2) }, (_, slot) => core!._nocpu_score(slot)),
     coinCompleted: [...coinCompleted], startCompleted: [...startCompleted],
     scores: [core._nocpu_score(0), core._nocpu_score(1)],
     run: core._nocpu_active() !== 0,
-    attract: gameId === 'spacerace' || gameId === 'indy4' ? null : core._nocpu_attract_n() === 0,
+    attract: registeredGame(gameId) ? registeredGame(gameId)!.hasAttract ? core._nocpu_attract_n() === 0 : null
+      : gameId === 'spacerace' || gameId === 'indy4' ? null : core._nocpu_attract_n() === 0,
     axes: axes.map(Math.round),
     directions: [...directions],
     coin,
@@ -182,6 +188,26 @@ function releaseHeld(): void {
   if (gameId === 'stuntcycle') { throttleAnalogActive = false; axes[0] = 0; core?._nocpu_throttle(0); }
   if (gameId === 'indy4') directions.forEach((_, slot) => { axes[slot] = 0; core?._nocpu_wheel(slot, 0); core?._nocpu_wheel_keys(slot, 0, 0); core?._nocpu_buttons(slot, 0, 0); });
   if (gameId === 'spacerace') directions.forEach((_, slot) => core?._nocpu_joystick(slot, 0, 0));
+  const game = registeredGame(gameId);
+  if (game) {
+    for (const slot of new Set(game.channels.filter((channel) => channel.kind === 'stick').map((channel) => channel.slot))) core?._nocpu_joystick_switches(slot, 0, 0, 0, 0);
+    game.buttons.forEach((button) => core?._nocpu_button(button.slot, button.button, 0));
+  }
+  held = Array(game?.buttons.length ?? 0).fill(false);
+}
+/** Registered digital joysticks: each stick channel drives one axis of its stick's four switches. */
+function applyStickChannels(): void {
+  const game = registeredGame(gameId);
+  if (!game || !core) return;
+  const sticks = new Map<number, [number, number, number, number]>();
+  game.channels.forEach((channel, index) => {
+    if (channel.kind !== 'stick') return;
+    const switches = sticks.get(channel.slot) ?? [0, 0, 0, 0];
+    const offset = channel.orientation === 'vertical' ? 0 : 2;
+    switches[offset] = Number(directions[index] < 0); switches[offset + 1] = Number(directions[index] > 0);
+    sticks.set(channel.slot, switches);
+  });
+  for (const [slot, switches] of sticks) if (core._nocpu_joystick_switches(slot, ...switches) !== 1) throw new PlayerError('The joystick input is unsupported. Reload the game.');
 }
 
 function stopClock(): void {
@@ -250,7 +276,7 @@ function advanceSlice(availableUs: number): number {
   if (startReleasedUs > 0) microseconds = Math.min(microseconds, startReleasedUs);
   for (let slot = 0; slot < gameSpec(gameId).paddleCount; slot += 1) {
     if (directions[slot] !== 0) {
-      const sign = gameSpec(gameId).paddleAxisSign;
+      const sign = paddleAxisSign(gameId, slot);
       if (sign === null) throw new PlayerError('This game is awaiting original paddle calibration.');
       axes[slot] = Math.max(-32768, Math.min(32767, axes[slot] + directions[slot] * sign * 32768 * microseconds / 1e6));
       core._nocpu_paddle(slot, Math.round(axes[slot]));
@@ -347,7 +373,7 @@ async function handle(command: CoreCommand): Promise<void> {
       printErr: () => {},
       onAbort: () => send({ type: 'error', message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` }),
     });
-    if (core._nocpu_abi_version() !== 4) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
+    if (core._nocpu_abi_version() !== 5) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
     const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2'] : [];
     const members = command.roms ?? [];
     if (members.length !== names.length || names.some((name) => members.filter((member) => member.expectedName === name).length !== 1)) throw new PlayerError('The required ROM members are missing or duplicated. Import the game ROMs again.');
@@ -373,6 +399,7 @@ async function handle(command: CoreCommand): Promise<void> {
     coinCompleted = Array(5).fill(0) as number[];
     startCompleted = Array(2).fill(0) as number[];
     gas = Array(gameSpec(gameId).controlSlotCount).fill(false); brake = [...gas];
+    held = Array(registeredGame(gameId)?.buttons.length ?? 0).fill(false);
     send({ type: 'ready', width: core._nocpu_width(), height: core._nocpu_height(), sampleRate: core._nocpu_sample_rate(), snapshot: snapshot() });
     return;
   }
@@ -411,7 +438,17 @@ async function handle(command: CoreCommand): Promise<void> {
       if (gameId === 'spacerace') directions.forEach((direction, slot) => {
         core!._nocpu_joystick(slot, Number(direction < 0), Number(direction > 0));
       });
+      applyStickChannels();
       break;
+    case 'held': {
+      const game = registeredGame(gameId);
+      if (!game || command.buttons.length !== game.buttons.length || command.buttons.some((down) => typeof down !== 'boolean')) throw new PlayerError('The game buttons are unsupported.');
+      held = [...command.buttons];
+      game.buttons.forEach((button, index) => {
+        if (core!._nocpu_button(button.slot, button.button, Number(held[index])) !== 1) throw new PlayerError('The game buttons are unsupported.');
+      });
+      break;
+    }
     case 'buttons':
       if (gameId !== 'indy4' || command.gas.length !== 4 || command.brake.length !== 4 || [...command.gas, ...command.brake].some((held) => typeof held !== 'boolean')) throw new PlayerError('The driving buttons are unsupported.');
       gas = [...command.gas]; brake = [...command.brake];

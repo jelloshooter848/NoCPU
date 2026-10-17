@@ -99,8 +99,14 @@ edit("chips/video.cpp", [
     ('        video->draw_overlays();\n        video->swap_buffers();',
      '        video->draw_overlays();\n        reference_frame(global_time, video->scanline_time, video->v_size, video->desc->orientation, video->desc->contrast);\n        video->swap_buffers();'),
 ])
-for name in ("reference_api.h", "reference_driver.cpp"):
-    contents = (args.adapter / name).read_bytes()
+# Per-game reference observations (docs/PORT_GAME.md) are listed in name order
+# in reference_games.inc, which reference_driver.cpp includes.
+games = sorted((args.adapter / "games").glob("*.inc"))
+added = {"reference_games/" + path.name: path.read_bytes() for path in games}
+added["reference_games.inc"] = "".join('#include "reference_games/%s"\n' % path.name for path in games).encode("utf-8")
+(args.source / "reference_games").mkdir(exist_ok=True)
+for name in ("reference_api.h", "reference_driver.cpp", *added):
+    contents = added[name] if name in added else (args.adapter / name).read_bytes()
     (args.source / name).write_bytes(contents)
     changes.extend(difflib.unified_diff([], contents.decode("utf-8").splitlines(True),
                                       fromfile="/dev/null", tofile="reference/" + name))

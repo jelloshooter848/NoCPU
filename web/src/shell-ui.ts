@@ -1,13 +1,19 @@
 // NoCPU game-shell views, GPL-3.0-or-later.
 import { GAMES, type GameInfo } from './catalog';
+import { REGISTERED_GAMES } from './games';
+import type { GameDefinition } from './games/types';
+import { registeredGame } from './game-contract';
 
 export function escapeText(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
 }
 
 // The games whose original/native/Wasm comparisons pass (docs/ACCEPTANCE.md).
-// A game is added here only with its comparison evidence, never because it runs.
-export const VERIFIED_GAMES: readonly string[] = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
+// A game is added here only with its comparison evidence, never because it runs:
+// the six earlier games below, and each registered game whose web/src/games/<id>.ts
+// says `verified: true`.
+export const VERIFIED_GAMES: readonly string[] = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4',
+  ...(REGISTERED_GAMES as readonly GameDefinition[]).filter((game) => game.verified).map((game) => game.id)];
 
 function gameButton(game: GameInfo): string {
   return `<button class="library-game${game.playable ? '' : ' pending-game'}" data-game-id="${game.id}" data-testid="game-${game.id}"${game.playable ? '' : ' aria-describedby="coming-soon-heading"'}>${game.playable ? '<span class="paddle" aria-hidden="true"></span>' : ''}<span class="game-name">${escapeText(game.name)}</span></button>`;
@@ -23,7 +29,7 @@ export function libraryMarkup(): string {
 }
 
 export function gameInfoMarkup(game: GameInfo, romStatus: string): string {
-  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : game.id === 'stuntcycle' ? '<p>Import your own compatible ROM ZIP. Start 1P uses one credit; Start 2P needs two credits for alternating turns. Coinage is in Settings. Both players use the same throttle to control motorcycle speed.</p>' : game.id === 'indy4' ? '<p>Import your own compatible ROM ZIP. Each color has its own coin, steering wheel, gas pedal and hand brake. The original game has no Start button.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
+  return `<dl class="game-info-facts"><div><dt>Original</dt><dd>${escapeText(game.manufacturer)} · ${game.year}</dd></div><div><dt>Players</dt><dd>Up to ${game.players}${game.sharedControls ? ' · shared controls' : ''}</dd></div><div><dt>Controls</dt><dd>${game.controlFamilies.map(escapeText).join(', ')}</dd></div><div><dt>Browser</dt><dd data-testid="game-port-status">${game.playable ? 'Ready to play' : 'Browser port pending'}</dd></div><div><dt>ROMs</dt><dd data-testid="game-rom-status">${escapeText(romStatus)}</dd></div><div><dt>Sound</dt><dd data-testid="game-audio-status">${game.audioWired ? game.playable ? 'Original circuit sound' : 'DICE circuit sound · browser port pending' : 'Inherited audio unavailable in DICE'}</dd></div></dl>${game.playable ? registeredGame(game.id) ? `<p>${escapeText(registeredGame(game.id)!.text.info)}</p>` : game.id === 'pong' ? '<p>Insert a coin to start. Return the ball with your paddle.</p>' : game.id === 'pongdoubles' ? '<p>Insert one coin for two players or two coins for four players, then Start.</p>' : game.id === 'breakout' ? '<p>Start 1P needs one credit; Start 2P needs two. The default coinage gives one credit per coin. Then Serve and move the shared paddle to break the bricks.</p>' : game.id === 'stuntcycle' ? '<p>Import your own compatible ROM ZIP. Start 1P uses one credit; Start 2P needs two credits for alternating turns. Coinage is in Settings. Both players use the same throttle to control motorcycle speed.</p>' : game.id === 'indy4' ? '<p>Import your own compatible ROM ZIP. Each color has its own coin, steering wheel, gas pedal and hand brake. The original game has no Start button.</p>' : '<p>Insert a coin, then Start. Guide your rocket through the moving obstacles to score.</p>' : '<p>This original DICE game is part of the NoCPU roadmap. It cannot be played in this browser version.</p>'}${game.roms.length ? `<details class="rom-requirements"><summary>Required ROM files</summary><ul>${game.roms.map((rom) => `<li>${escapeText(rom.expected_member)}</li>`).join('')}</ul></details>` : ''}`;
 }
 
 // The phone Home's "NO / CPU" logo, drawn as square pixel blocks so it looks

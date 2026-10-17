@@ -232,6 +232,10 @@ GAME_SPECS = {
     },
     "tests/browser/v060-driving.spec.ts": {},
 }
+# Games ported from 0.2.0 on keep their browser tests in tests/browser/game-<id>.spec.ts
+# (docs/PORT_GAME.md). Such a spec is per-game without being listed here, takes no
+# exemptions, and every test in it carries its own game's @game-<id> tag.
+GAME_SPEC_FILE = re.compile(r"tests/browser/game-([a-z0-9]+)\.spec\.ts\Z")
 # Generic specs whose tests are not about one game's play.
 GENERIC_SPECS = {"tests/browser/library-controls.spec.ts", "tests/browser/storage-display.spec.ts",
                  "tests/browser/browser-identity.spec.ts"}
@@ -242,8 +246,16 @@ def verify_game_tags(root: Path) -> list[str]:
     """Every per-game browser spec test is tagged @game-<id> or explicitly exempt."""
     errors = []
     specs = {path.relative_to(root).as_posix() for path in (root / "tests/browser").glob("*.spec.ts")}
-    for name in sorted(specs - set(GAME_SPECS) - GENERIC_SPECS):
+    own = {name: GAME_SPEC_FILE.fullmatch(name).group(1) for name in specs if GAME_SPEC_FILE.fullmatch(name)}
+    for name in sorted(specs - set(GAME_SPECS) - GENERIC_SPECS - set(own)):
         errors.append(f"Browser spec {name} must be listed as a per-game or generic spec in tools/check.py")
+    for name, game in sorted(own.items()):
+        text = (root / name).read_text()
+        titles = [(match.group(2), match.group(3) or "") for match in TEST_CALL.finditer(text)]
+        if not titles:
+            errors.append(f"{name}: no tests")
+        errors.extend(f"{name}: test lacks its @game-{game} tag: {title}" for title, tag in titles
+                      if not re.search(rf"['\"]@game-{game}['\"]", tag))
     for name, exempt in GAME_SPECS.items():
         text = (root / name).read_text()
         seen = set()

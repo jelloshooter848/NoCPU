@@ -22,6 +22,9 @@ const prefs = require(path.join(output, 'web/src/preferences.js'));
 const roms = require(path.join(output, 'web/src/roms.js'));
 const zip = require(path.join(output, 'web/src/zip.js'));
 const buildInfo = require(path.join(output, 'web/src/build-info.js'));
+const contract = require(path.join(output, 'web/src/game-contract.js'));
+const registry = require(path.join(output, 'web/src/games/index.js'));
+const LEGACY = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'];
 
 function keyboard(code, options = {}) { return { code, repeat: false, target: null, prevented: false, preventDefault() { this.prevented = true; }, ...options }; }
 function gamepad(index, axis = 0, down = [], id = `Synthetic controller ${index}`) {
@@ -58,14 +61,17 @@ function forged(size, target) {
 function central(bytes) { const offset = bytes.length - 22; return new DataView(bytes.buffer, bytes.byteOffset).getUint32(offset + 16, true); }
 function patchSize(bytes, size) { const copy = bytes.slice(); const view = new DataView(copy.buffer); view.setUint32(22, size, true); view.setUint32(central(copy) + 24, size, true); return copy; }
 
-test('audited controls describe all 21 circuits while six implemented games have runtime mappings', () => {
+test('audited controls describe all 21 circuits while the implemented games have runtime mappings', () => {
   const inventory = require('../tests/fixtures/game-manifest.json');
   assert.equal(inventory.games.length, 21);
   for (const game of inventory.games) {
     const help = schema.getControlSchema(game.id); assert.equal(help.players, game.max_players_indicated);
     assert.deepEqual(help.controls.map((control) => control.label), game.controls.map((control) => control.label));
-    assert.equal(help.keyboardActions.length > 0, ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4'].includes(game.id));
+    assert.equal(help.keyboardActions.length > 0, contract.PLAYABLE_GAME_IDS.includes(game.id));
   }
+  // The six earlier games stay playable; each registered game is an audited DICE title.
+  assert.deepEqual(contract.PLAYABLE_GAME_IDS.slice(0, 6), LEGACY);
+  for (const game of registry.REGISTERED_GAMES) assert.ok(inventory.games.some((entry) => entry.id === game.id), game.id);
   assert.equal(schema.getControlSchema('missing'), undefined);
   assert.deepEqual(schema.getControlSchema('pong').keyboardActions, ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute']);
   assert.ok(schema.getControlSchema('pong').controls.some((control) => control.sourceChip === 'COIN_INPUT' && control.label === 'Insert Coin and Start Game'));
@@ -446,7 +452,8 @@ test('Version 4 preferences load without loss and default the desktop mouse assi
 test('mouse assignments persist per game and invalid slots recover to the default', () => {
   const value = prefs.clonePreferences(); value.mouseByGame.pong = 1; value.mouseByGame.pongdoubles = 3; value.mouseByGame.breakout = null;
   const storage = memoryStorage(); assert.equal(prefs.savePreferences(value, storage).status, 'available');
-  assert.deepEqual(prefs.loadPreferences(storage).preferences.mouseByGame, { pong: 1, pongdoubles: 3, breakout: null, stuntcycle: 0 });
+  const registeredMouse = Object.fromEntries(prefs.MOUSE_GAMES.filter((gameId) => !LEGACY.includes(gameId)).map((gameId) => [gameId, 0]));
+  assert.deepEqual(prefs.loadPreferences(storage).preferences.mouseByGame, { pong: 1, pongdoubles: 3, breakout: null, stuntcycle: 0, ...registeredMouse });
   for (const slot of [2, -1, 0.5, '1', undefined]) {
     const bad = structuredClone(value); bad.mouseByGame.pong = slot;
     const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: bad })));
@@ -485,4 +492,116 @@ test('About build string: tag build, untagged dev build with short commit, and n
     assert.equal(buildInfo.buildString('0.1.1', other), 'v0.1.1-dev');
   }
   assert.equal(buildInfo.devBuildString('0.1.1'), 'v0.1.1-dev');
+});
+
+// Games ported from 0.2.0 on (web/src/games/<id>.ts, docs/PORT_GAME.md).
+test('registered games derive actions, bindings, options and DIP packing from their definition', () => {
+  for (const game of registry.REGISTERED_GAMES) {
+    const actions = schema.actionsForGame(game.id);
+    assert.deepEqual(actions.slice(0, game.channels.length * 2), game.channels.flatMap((channel) => [channel.negative, channel.positive]));
+    assert.equal(schema.validateBindings(schema.defaultBindings(game.id), game.id).ok, true, game.id);
+    assert.equal(contract.isGameOptions(game.id, contract.defaultGameOptions(game.id)), true);
+    assert.equal(contract.coreGameOptions(game.id, contract.defaultGameOptions(game.id)).game, game.coreId);
+    assert.deepEqual(contract.normalizeGameOptions(game.id, { stale: 1 }), contract.defaultGameOptions(game.id));
+  }
+  // Rebound: two horizontal paddles, one Start, DSW1 winning score bit0 and DSW2 coinage bit1.
+  assert.deepEqual(schema.actionsForGame('rebound'), ['p1Left', 'p1Right', 'p2Left', 'p2Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const rebound = schema.defaultBindings('rebound');
+  assert.deepEqual([rebound.keyboard.p1Left, rebound.keyboard.p1Right, rebound.keyboard.p2Left, rebound.keyboard.p2Right, rebound.keyboard.start], [['KeyA'], ['KeyD'], ['ArrowLeft'], ['ArrowRight'], ['Digit1']]);
+  assert.deepEqual(rebound.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 0], [1, 0]]);
+  assert.deepEqual(rebound.gamepad.buttons.p2Left, [{ pad: 1, button: 14 }]);
+  assert.deepEqual(contract.coreGameOptions('rebound', { winningScore: 15, coinage: 2 }), { game: 6, dip: 3, potOhms: 0 });
+  assert.deepEqual(contract.coreGameOptions('rebound', { winningScore: 11, coinage: 2 }), { game: 6, dip: 2, potOhms: 0 });
+  assert.equal(contract.isGameOptions('rebound', { winningScore: 13, coinage: 1 }), false);
+  assert.equal(contract.gameSpec('rebound').paddleCount, 2);
+  assert.equal(contract.paddleOrientation('rebound', 1), 'horizontal');
+  assert.equal(prefs.isMouseGame('rebound'), true);
+  assert.equal(schema.actionLabel('p2Left', 'rebound'), 'Right paddle left');
+  assert.equal(schema.actionLabel('p2Left', 'indy4'), 'Cyan turn left');
+  // Quadrapong: vertical left/right and horizontal top/bottom paddles, four
+  // conflict-free keyboard pairs, four gamepads, DSW1 coinage bit0.
+  assert.deepEqual(schema.actionsForGame('quadrapong'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Left', 'p3Right', 'p4Left', 'p4Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const quadrapong = schema.defaultBindings('quadrapong');
+  assert.equal(schema.validateBindings(quadrapong, 'quadrapong').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual(quadrapong.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1], [2, 0], [3, 0]]);
+  assert.deepEqual([quadrapong.gamepad.buttons.p1Up, quadrapong.gamepad.buttons.p4Right], [[{ pad: 0, button: 12 }], [{ pad: 3, button: 15 }]]);
+  assert.deepEqual(['vertical', 'vertical', 'horizontal', 'horizontal'], [0, 1, 2, 3].map((slot) => contract.paddleOrientation('quadrapong', slot)));
+  assert.deepEqual(contract.coreGameOptions('quadrapong', { coinage: 2 }), { game: 8, dip: 1, potOhms: 0 });
+  assert.equal(contract.isGameOptions('quadrapong', { coinage: 3 }), false);
+  assert.equal(contract.gameSpec('quadrapong').paddleCount, 4);
+  assert.equal(schema.actionLabel('p3Left', 'quadrapong'), 'Top paddle left');
+  // Crossfire: two Up/Down sticks and two held Fire buttons, Coin starts (no
+  // Start action), the play-time potentiometer, and no mouse control.
+  assert.deepEqual(schema.actionsForGame('crossfire'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p1Fire', 'p2Fire', 'coin', 'menu', 'reset', 'mute']);
+  const crossfire = schema.defaultBindings('crossfire');
+  assert.equal(schema.validateBindings(crossfire, 'crossfire').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([crossfire.keyboard.p1Fire, crossfire.keyboard.p2Fire, crossfire.keyboard.start], [['KeyD'], ['ArrowLeft'], []]);
+  assert.deepEqual(crossfire.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1]]);
+  assert.deepEqual([crossfire.gamepad.buttons.p1Fire, crossfire.gamepad.buttons.p2Down, crossfire.gamepad.buttons.start], [[{ pad: 0, button: 1 }], [{ pad: 1, button: 13 }], []]);
+  assert.deepEqual(contract.coreGameOptions('crossfire', { playtimeOhms: 680000 }), { game: 9, dip: 0, potOhms: 680000 });
+  assert.deepEqual(contract.defaultGameOptions('crossfire'), { playtimeOhms: 1180000 });
+  assert.equal(contract.isGameOptions('crossfire', { playtimeOhms: 1690000 }), false);
+  assert.equal(contract.gameSpec('crossfire').paddleCount, 0);
+  assert.equal(contract.gameSpec('crossfire').hasStart, false);
+  assert.equal(prefs.isMouseGame('crossfire'), false);
+  assert.equal(schema.actionLabel('p2Fire', 'crossfire'), 'Right gun fire');
+  // Gotcha: two four-way sticks (two channels on one slot each), W/A/S/D and
+  // the arrow keys, two gamepads with both axes and the d-pad, one Start, the
+  // play-time potentiometer (original default at its maximum), no mouse.
+  assert.deepEqual(schema.actionsForGame('gotcha'), ['p1Up', 'p1Down', 'p1Left', 'p1Right', 'p2Up', 'p2Down', 'p2Left', 'p2Right', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const gotcha = schema.defaultBindings('gotcha');
+  assert.equal(schema.validateBindings(gotcha, 'gotcha').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([gotcha.keyboard.p1Left, gotcha.keyboard.p1Right, gotcha.keyboard.p2Up, gotcha.keyboard.start], [['KeyA'], ['KeyD'], ['ArrowUp'], ['Digit1']]);
+  assert.deepEqual(gotcha.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [0, 0], [1, 1], [1, 0]]);
+  assert.deepEqual([gotcha.gamepad.buttons.p1Up, gotcha.gamepad.buttons.p1Left, gotcha.gamepad.buttons.p2Right], [[{ pad: 0, button: 12 }], [{ pad: 0, button: 14 }], [{ pad: 1, button: 15 }]]);
+  assert.deepEqual(contract.coreGameOptions('gotcha', { playtimeOhms: 47000 }), { game: 7, dip: 0, potOhms: 47000 });
+  assert.deepEqual(contract.defaultGameOptions('gotcha'), { playtimeOhms: 297000 });
+  assert.equal(contract.isGameOptions('gotcha', { playtimeOhms: 299500 }), false);
+  assert.equal(contract.gameSpec('gotcha').paddleCount, 0);
+  assert.equal(contract.gameSpec('gotcha').hasStart, true);
+  assert.equal(prefs.isMouseGame('gotcha'), false);
+  assert.equal(schema.actionLabel('p2Left', 'gotcha'), 'Square left');
+});
+
+test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {
+  const value = prefs.clonePreferences(); value.volume = .41;
+  const older = structuredClone(value);
+  for (const game of registry.REGISTERED_GAMES) { delete older.bindingsByGame[game.id]; delete older.optionsByGame[game.id]; delete older.mouseByGame[game.id]; }
+  const loaded = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: older })));
+  assert.equal(loaded.status, 'available'); assert.equal(loaded.message, undefined); assert.equal(loaded.preferences.volume, .41);
+  assert.deepEqual(loaded.preferences.optionsByGame.rebound, { winningScore: 11, coinage: 1 });
+  value.optionsByGame.rebound = { winningScore: 15, coinage: 7 };
+  const recovered = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: value })));
+  assert.equal(recovered.status, 'recovered'); assert.deepEqual(recovered.preferences.optionsByGame.rebound, { winningScore: 15, coinage: 1 });
+});
+
+test('registered stick channels report digital directions and held buttons follow keys and pads', () => {
+  // A synthetic definition exercises the shared joystick/button paths before a
+  // real four-way joystick game is registered; it is removed afterwards.
+  const synthetic = { id: 'synthetic-stick', coreId: 31, title: 'Synthetic', verified: false, playerCount: 2,
+    channels: [
+      { label: 'P1 vertical', kind: 'stick', orientation: 'vertical', slot: 0, negative: 'p1Up', positive: 'p1Down', pad: 0, axis: 1 },
+      { label: 'P1 horizontal', kind: 'stick', orientation: 'horizontal', slot: 0, negative: 'p1Left', positive: 'p1Right', pad: 0, axis: 0 }],
+    buttons: [{ action: 'p1Fire', slot: 0, button: 1 }], starts: 0, hasHit: false, hasAttract: false, scoreSlots: 2, settings: [],
+    labels: {}, keys: { p1Up: ['KeyW'], p1Down: ['KeyS'], p1Left: ['KeyA'], p1Right: ['KeyD'], p1Fire: ['KeyF'] },
+    gamepadButtons: { p1Fire: [{ pad: 0, button: 3 }] }, text: { info: '', rules: () => '', gamepad: '', status: '' } };
+  registry.REGISTERED_GAMES.push(synthetic);
+  try {
+    assert.deepEqual(schema.actionsForGame('synthetic-stick'), ['p1Up', 'p1Down', 'p1Left', 'p1Right', 'p1Fire', 'coin', 'menu', 'reset', 'mute']);
+    const bindings = schema.defaultBindings('synthetic-stick');
+    const events = { directions: [], axes: [], held: [] };
+    const controls = createControls({ bindings, gameId: 'synthetic-stick', onDirections: (value) => events.directions.push(value), onAxes: (value) => events.axes.push(value),
+      onAction: () => {}, onHeldButtons: (value) => events.held.push(value) });
+    controls.setGame('synthetic-stick', bindings); controls.setEnabled(true);
+    controls.handleKeyDown(keyboard('KeyW')); controls.handleKeyDown(keyboard('KeyD'));
+    assert.deepEqual(events.directions.at(-1), [-1, 1]);
+    controls.handleKeyDown(keyboard('KeyF')); assert.deepEqual(events.held.at(-1), [true]);
+    controls.handleKeyUp(keyboard('KeyF')); assert.deepEqual(events.held.at(-1), [false]);
+    controls.release(); assert.deepEqual(controls.getState().directions, [0, 0]);
+    // A joystick moves the digital switches; it never reports an analog paddle axis.
+    const pad = gamepad(0, 0); controls.pollGamepads([pad]);
+    pad.axes = [0.9, -0.9]; pad.buttons[3] = { pressed: true, value: 1 }; controls.pollGamepads([pad]);
+    assert.deepEqual(controls.getState().directions, [-1, 1]); assert.deepEqual(controls.getState().held, [true]);
+    assert.equal(events.axes.length, 0);
+  } finally { registry.REGISTERED_GAMES.pop(); }
 });

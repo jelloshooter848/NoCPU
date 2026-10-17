@@ -88,8 +88,8 @@ the release steps.
 | Title menu: Library replaces Play Pong and opens on the last game played | 0.1.4 | Released (2026-10-15) |
 | UI: Home (schematic sheet) and Play (arcade picker) screens | 0.1.5 | Released (2026-10-15) |
 | Simpler phone Home and Play (arcade style) | 0.1.6 | Released (2026-10-15) |
-| CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | In review |
-| ROM-free batch A | 0.2.0 | Planned |
+| CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
+| ROM-free batch A | 0.2.0 | In review |
 | ROM-free batch B | 0.3.0 | Planned |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
@@ -211,6 +211,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-15 — Home and Play details for 0.1.5.** v0.1.4 was released. For the new Home (schematic sheet) and Play (arcade court) screens the owner decided: (1) on Play, Enter on a playable game starts it directly, exactly as the Play button does (a ROM game without its ROM explains on its info page); Enter on a game not ported yet opens its info page, and the Game info button, a click or Space opens a game's info page; (2) the screens use installed-font stacks only (the IBM Plex and Silkscreen names first, then system faces), so no font is bundled or downloaded and the packaged asset set and license audit are unchanged; (3) the Home title block's SHEET reads "1 OF N", N being the number of playable games counted from the game catalog (6 today), the same count as the footer's "6 OF 21 GAMES PLAYABLE"; (4) at the owner's explicit request, the mobile layout of Home/Play is kept simple and presentable (phone portrait and landscape: Home stacks the logo above full-width menu pins, Play is a single column with the selected game's Play button held in view, and Settings, How to play and About do not overflow); mobile gameplay/touch controls are still deferred; (5) installing NoCPU as an app (desktop install, mobile Add to Home Screen) was considered for 0.1.5 and deferred by the owner to the post-1.0 mobile phase, as originally planned.
 - **2026-10-15 — Phones use the arcade style for Home and Play (0.1.6).** On phones the 0.1.5 schematic-sheet Home was too busy. Phones (phone-sized windows, portrait and landscape) use the phosphor-court style (concept C) for Home and Play: a black screen, a blocky NO CPU logo with a soft glow, one tagline and the menu marked by a glowing paddle, and on Play the playable games with the selected game's Play button. Desktop keeps the schematic-sheet Home. Mobile gameplay and touch controls stay deferred.
 - **2026-10-15 — 0.1.7 CI fixes.** At the owner's request, CI no longer repeats the original/native/Wasm comparison for content whose game core was already compared on any branch, and release version edits no longer count as core changes; releases still compare in full. The intermittent WebKit Space Race test now schedules its inputs on circuit time only. No gameplay changes.
+- **2026-10-16 — 0.2.0 started.** The owner gave the go-ahead for 0.2.0 after v0.1.7. Rebound, Quadrapong, Crossfire and Gotcha are ported and verified against original DICE (ten playable games). Gotcha needs a derived-source reset patch (docs/UPSTREAM_PATCHES.md). Gotcha runs below real time in Playwright's Firefox build (about 0.35x on the 4-vCPU test machine); this is recorded for the 0.4.0 profiling milestone and noted in the changelog, not gated.
 
 ## After 1.0
 

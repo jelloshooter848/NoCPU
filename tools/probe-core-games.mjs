@@ -52,8 +52,10 @@ function create(game) {
 const action = (ms, kind, slot, value, other) => ({ ms, kind, slot, value, ...(other === undefined ? {} : { other }) });
 function playScript(game) {
   const script = [action(500, 'coin', 0, 1), action(600, 'coin', 0, 0)];
-  if (game.id === 1) script.push(action(800, 'coin', 0, 1), action(900, 'coin', 0, 0));
-  if (game.id !== 0) script.push(action(1100, 'start', 0, 1), action(1200, 'start', 0, 0));
+  // A second coin: Pong Doubles, and four-paddle registered games, whose one-credit
+  // game may leave two paddles out of play (Quadrapong's top and bottom walls).
+  if (game.id === 1 || (game.registered && game.paddles === 4)) script.push(action(800, 'coin', 0, 1), action(900, 'coin', 0, 0));
+  if (game.registered ? game.starts > 0 : game.id !== 0) script.push(action(1100, 'start', 0, 1), action(1200, 'start', 0, 0));
   return script;
 }
 function apply(event) {
@@ -61,6 +63,8 @@ function apply(event) {
   else if (event.kind === 'start') core._nocpu_start(event.value);
   else if (event.kind === 'paddle') core._nocpu_paddle(event.slot, event.value);
   else if (event.kind === 'joystick') core._nocpu_joystick(event.slot, event.value, event.other);
+  else if (event.kind === 'switches') core._nocpu_joystick_switches(event.slot, ...event.value);
+  else if (event.kind === 'button') core._nocpu_button(event.slot, event.other, event.value);
   else throw new Error(`Unsupported probe action ${event.kind}`);
 }
 function capture(label, game, script = playScript(game), durationMs = 2200) {
@@ -78,7 +82,8 @@ function capture(label, game, script = playScript(game), durationMs = 2200) {
       const signal = core.HEAPU32[at + 2], value = core.HEAPU32[at + 3];
       const row = { time_ps: ps.toString(), signal, value };
       events.push(row); streams.events.update(`${ps},${signal},${value}\n`); eventCount += 1;
-      if (signal > 4 || value > 1 || ps > time()) throw new Error(`${label}: malformed native event`);
+      const registeredEvent = game.registered && signal >= 200 && signal < 208;
+      if ((signal > 4 && !registeredEvent) || value > 1 || ps > time()) throw new Error(`${label}: malformed native event`);
     }
     core._nocpu_events_clear();
     const hitOffset = core._nocpu_collisions() >>> 2;
@@ -123,7 +128,7 @@ try {
   report.original_inventory_sha256 = sha(await readFile(new URL('../tests/source-manifest.json', import.meta.url)));
   const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
   core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-  check('ABI4 required', core._nocpu_abi_version() === 4);
+  check('ABI5 required', core._nocpu_abi_version() === 5);
   check('media dimensions/sample rate preserve original contract', core._nocpu_width() === 576 && core._nocpu_height() === 432 && core._nocpu_sample_rate() === 48000);
   const uncreated = state();
   for (const args of [[4, 0, 0], [0, 2, 0], [1, 0, 1], [2, 0, 469999], [2, 0, 1470001]]) {
@@ -226,6 +231,44 @@ try {
     limitation: 'Exploration establishes these exact crash transitions, not a complete original gameplay qualification.' };
   check('Space Race exact named crash transitions match original source capture', equal(spaceEvents, originalCrashEvents));
   check('Space Race has explicit unsupported attract/HIT semantics', baselines.get(2).final.attract_n === 4294967295 && baselines.get(2).final.hits === 0);
+  // Games ported from 0.2.0 on (core/games/<id>.cpp): the generic contract.
+  const cString = (pointer) => { let end = pointer; while (core.HEAPU8[end]) end += 1; return Buffer.from(core.HEAPU8.subarray(pointer, end)).toString('latin1'); };
+  report.registered_games = [];
+  for (let id = 6; id < 32; id += 1) {
+    const info = (field) => core._nocpu_game_info(id, field) >>> 0;
+    if (info(0) !== 1) { check(`ID ${id}: unregistered ID has no name or create`, core._nocpu_game_name(id) === 0 && core._nocpu_create_game(id, 848, 0, 0) === 0); continue; }
+    const game = { id, name: cString(core._nocpu_game_name(id)), dip: info(7), pot: info(11), paddles: info(1), joysticks: info(2),
+      directions: info(3), buttonSlots: info(4), buttons: info(5), starts: info(6), mask: info(8), registered: true };
+    report.registered_games.push({ ...game, pot_min: info(9), pot_max: info(10), scores: info(12) });
+    check(`${game.name}: declared contract within the generic ABI`, game.paddles <= 4 && game.joysticks <= 2 && game.buttonSlots <= 4
+      && game.buttons <= 3 && game.starts <= 2 && (game.dip & ~game.mask) === 0 && info(13) === 1 && info(99) === 4294967295);
+    const cold = state();
+    check(`${game.name}: invalid settings rejected without mutation`, core._nocpu_create_game(id, 848, (game.mask + 1) >>> 0, game.pot) === 0
+      && core._nocpu_create_game(id, 848, game.dip, info(10) ? info(10) + 1 : 1) === 0 && equal(cold, state()));
+    const baseline = fresh(`${game.name}: fresh baseline`, game);
+    create(game); const before = state();
+    check(`${game.name}: undeclared inputs are rejected without mutation`,
+      core._nocpu_button(game.buttonSlots, 1, 1) === 0 && core._nocpu_button(0, game.buttons + 1, 1) === 0
+      && core._nocpu_joystick_switches(game.joysticks, 1, 0, 0, 0) === 0 && core._nocpu_start_player(game.starts + 1, 1) === 0
+      && core._nocpu_coin_channel(2, 1) === 0 && core._nocpu_wheel(0, 1) === 0 && core._nocpu_serve(1) === 0 && equal(before, state()));
+    core._nocpu_destroy();
+    const ignored = capture(`${game.name}: unsupported channels`, (create(game), game), [...playScript(game),
+      action(1400, 'paddle', game.paddles, -32768), action(1400, 'joystick', 0, 1, 1), action(1400, 'switches', game.joysticks, [1, 1, 1, 1])]);
+    core._nocpu_destroy();
+    check(`${game.name}: unsupported channels have no media/event/state effect`, equal(ignored, baseline));
+    create(game); core._nocpu_coin(1); core._nocpu_start_player(1, 1);
+    for (let slot = 0; slot < game.paddles; slot += 1) core._nocpu_paddle(slot, slot % 2 ? 32767 : -32768);
+    for (let slot = 0; slot < game.joysticks; slot += 1) core._nocpu_joystick_switches(slot, game.directions & 1, 0, (game.directions >> 2) & 1, 0);
+    for (let slot = 0; slot < game.buttonSlots; slot += 1) for (let button = 1; button <= game.buttons; button += 1) core._nocpu_button(slot, button, 1);
+    check(`${game.name}: held-input warmup`, core._nocpu_advance(100000) === 1);
+    check(`${game.name}: held-input reset keeps the selected settings`, core._nocpu_reset(848) === 1 && core._nocpu_dip() === game.dip && core._nocpu_pot_ohms() === game.pot);
+    const reset = capture(`${game.name}: held-input reset`, game); core._nocpu_destroy();
+    check(`${game.name}: reset media/events/time exactly match fresh machine`, equal(reset, baseline));
+    for (let slot = 0; slot < game.paddles; slot += 1) {
+      const moved = fresh(`${game.name}: paddle ${slot + 1}`, game, [...playScript(game), action(1400, 'paddle', slot, slot % 2 ? 32767 : -32768)]);
+      check(`${game.name}: paddle ${slot + 1} changes the generated court`, moved.streams.rgba !== baseline.streams.rgba);
+    }
+  }
   core._nocpu_destroy(); core._nocpu_destroy();
   check('repeatable destruction releases output/clock', core._nocpu_frame() === 0 && core._nocpu_audio_count() === 0 && core._nocpu_event_count() === 0 && time() === 0n && core._nocpu_advance(1) === 0);
   report.passed = true;

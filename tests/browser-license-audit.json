@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version": "0.1.7",
+  "version": "0.2.0",
   "release_ready": true,
-  "assessment_scope": "0.1.1 desktop browser build (assessed while VERSION is still 0.1.0; the 0.1.1 release commit bumps this record's version field): the six compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). The touch controls, Home Screen manifest and PNG icons and the qualification collector of 0.1.0 are removed. Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the fifteen unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
+  "assessment_scope": "0.1.1 desktop browser build (assessed while VERSION is still 0.1.0; the 0.1.1 release commit bumps this record's version field): the ten compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4 and, from 0.2.0, Rebound, Gotcha, Quadrapong and Crossfire, which add the DICE chips 7492 and 9321; all are DICE GPL-3.0-or-later code covered by the existing DICE notice) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). The touch controls, Home Screen manifest and PNG icons and the qualification collector of 0.1.0 are removed. Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the eleven unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -117,7 +117,7 @@
   ],
   "components": [
     {
-      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon, and the original DICE 0.9 sources compiled for the six circuits",
+      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon, and the original DICE 0.9 sources compiled for the ten circuits (from 0.2.0 including Rebound, Gotcha, Quadrapong, Crossfire and chips 7492 and 9321, DICE GPL-3.0-or-later code covered by the existing DICE notice)",
       "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
       "basis": "tests/license-audit.json and docs/PROVENANCE.md; DICE sources are prepared unchanged from upstream/dice-0.9 (tests/source-manifest.json)"
     },
@@ -165,11 +165,11 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.1.7-source.tar.gz",
-    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.1.7-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
+    "path": "source/nocpu-0.2.0-source.tar.gz",
+    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.2.0-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
   },
   "review": {
-    "date": "2026-10-13",
+    "date": "2026-10-17",
     "result": "ready",
     "by": "Agent review (the integrating agent, not independent) of the actual local 0.1.1 build output on restart/desktop-first after merging wip/0.1.1-indy4-row213 and wip/post-1.0-evidence and making the Wasm build path-independent (commits 72ef2aa..ec19823 plus this audit), built in a clean clone.",
     "commands": [
@@ -247,7 +247,7 @@
     "Phoenix library",
     "nall library",
     "game ROMs and private fixtures",
-    "other fifteen DICE game circuits",
+    "other eleven DICE game circuits",
     "SDK/compiler/container payloads",
     "Node/TypeScript/Playwright executables",
     "Development-server ROM fixture plugin and web/src/dev-roms.ts (not in production output; tests/test-dev-rom-exclusion.py)"

@@ -196,6 +196,459 @@
       "kind": "controls",
       "expected_active": true,
       "bonus_award_exercised": false
+    },
+    {
+      "id": "rebound-default",
+      "game": "rebound",
+      "core_id": 6,
+      "replay": "tests/replays/rebound.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "winning_score": 11,
+      "restart_ms": 32000,
+      "kind": "coin_restart",
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "left_ms": 2400,
+          "right_ms": 2750
+        },
+        {
+          "slot": 2,
+          "left_ms": 3900,
+          "right_ms": 4250
+        }
+      ]
+    },
+    {
+      "id": "rebound-15-two-credits",
+      "game": "rebound",
+      "core_id": 6,
+      "replay": "tests/replays/rebound-15-two-credits.tsv",
+      "dip": 3,
+      "pot_ohms": 0,
+      "winning_score": 15,
+      "restart_ms": 44000,
+      "kind": "second_credit_restart"
+    },
+    {
+      "id": "quadrapong-default",
+      "game": "quadrapong",
+      "core_id": 8,
+      "replay": "tests/replays/quadrapong.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "players": 4,
+      "restart_ms": 53000,
+      "restart_players": 2,
+      "kind": "coin_restart",
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "low_ms": 2100,
+          "high_ms": 2200
+        },
+        {
+          "slot": 2,
+          "low_ms": 2250,
+          "high_ms": 2300
+        },
+        {
+          "slot": 3,
+          "low_ms": 2400,
+          "high_ms": 2500
+        },
+        {
+          "slot": 4,
+          "low_ms": 2600,
+          "high_ms": 2700
+        }
+      ]
+    },
+    {
+      "id": "quadrapong-two-credits",
+      "game": "quadrapong",
+      "core_id": 8,
+      "replay": "tests/replays/quadrapong-two-credits.tsv",
+      "dip": 1,
+      "pot_ohms": 0,
+      "players": 4,
+      "no_credit_start_ms": 48000,
+      "restart_ms": 51000,
+      "restart_players": 4,
+      "kind": "coin_restart"
+    },
+    {
+      "id": "crossfire-default",
+      "game": "crossfire",
+      "core_id": 9,
+      "replay": "tests/replays/crossfire.tsv",
+      "dip": 0,
+      "pot_ohms": 1180000,
+      "restart_ms": 135000,
+      "fire_after_end_ms": 133000,
+      "kind": "coin_restart",
+      "stick_sweeps": [
+        {
+          "slot": 1,
+          "top_ms": [
+            2750,
+            3000
+          ],
+          "down_ms": [
+            3250,
+            3500,
+            3750,
+            4000,
+            4250,
+            4500
+          ],
+          "hidden_ms": [
+            4750,
+            5000
+          ]
+        },
+        {
+          "slot": 2,
+          "top_ms": [
+            5750,
+            6000
+          ],
+          "down_ms": [
+            6500,
+            7500
+          ],
+          "hidden_ms": [
+            8000
+          ]
+        }
+      ],
+      "fire_tests": [
+        {
+          "slot": 1,
+          "hold_ms": [
+            9000,
+            11000
+          ],
+          "tap_ms": [
+            11500,
+            11700,
+            12500
+          ]
+        },
+        {
+          "slot": 2,
+          "hold_ms": [
+            13000,
+            15000
+          ],
+          "tap_ms": [
+            15500,
+            15700,
+            16500
+          ]
+        }
+      ],
+      "solo_windows": [
+        {
+          "slot": 1,
+          "ms": [
+            17000,
+            32000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            32000,
+            47000
+          ]
+        },
+        {
+          "slot": 1,
+          "ms": [
+            62000,
+            75000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            75000,
+            90000
+          ]
+        },
+        {
+          "slot": 1,
+          "ms": [
+            100000,
+            115000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            136000,
+            146000
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crossfire-min-time",
+      "game": "crossfire",
+      "core_id": 9,
+      "replay": "tests/replays/crossfire-min-time.tsv",
+      "dip": 0,
+      "pot_ohms": 680000,
+      "restart_ms": 79000,
+      "fire_after_end_ms": 77000,
+      "kind": "coin_restart",
+      "solo_windows": [
+        {
+          "slot": 1,
+          "ms": [
+            2000,
+            15000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            20000,
+            30000
+          ]
+        },
+        {
+          "slot": 1,
+          "ms": [
+            40000,
+            55000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            57000,
+            70000
+          ]
+        },
+        {
+          "slot": 1,
+          "ms": [
+            80000,
+            88000
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crossfire-max-time",
+      "game": "crossfire",
+      "core_id": 9,
+      "replay": "tests/replays/crossfire-max-time.tsv",
+      "dip": 0,
+      "pot_ohms": 1680000,
+      "restart_ms": 188000,
+      "fire_after_end_ms": 187000,
+      "kind": "coin_restart",
+      "solo_windows": [
+        {
+          "slot": 1,
+          "ms": [
+            2000,
+            20000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            22000,
+            40000
+          ]
+        },
+        {
+          "slot": 2,
+          "ms": [
+            189000,
+            196000
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gotcha-default",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha.tsv",
+      "dip": 0,
+      "pot_ohms": 297000,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        300
+      ],
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        108000
+      ],
+      "ignored_in_play_ms": [
+        5000,
+        5500,
+        114000,
+        115000
+      ],
+      "stick_tests": [
+        {
+          "player": "cross",
+          "direction": "right",
+          "ms": [
+            2000,
+            2100,
+            2200,
+            2250
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "left",
+          "ms": [
+            2250,
+            2300,
+            2400,
+            2500
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "up",
+          "ms": [
+            2500,
+            2600,
+            2700,
+            2750
+          ]
+        },
+        {
+          "player": "cross",
+          "direction": "down",
+          "ms": [
+            2750,
+            3000,
+            3200,
+            3250
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "right",
+          "ms": [
+            3250,
+            3300,
+            3400
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "left",
+          "ms": [
+            3600,
+            3700,
+            3750
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "up",
+          "ms": [
+            3750,
+            3800,
+            3900,
+            4000
+          ]
+        },
+        {
+          "player": "square",
+          "direction": "down",
+          "ms": [
+            4000,
+            4250,
+            4500
+          ]
+        }
+      ],
+      "solo_windows": [
+        {
+          "mover": "square",
+          "ms": [
+            6000,
+            30000
+          ]
+        },
+        {
+          "mover": "cross",
+          "ms": [
+            30000,
+            55000
+          ]
+        }
+      ],
+      "minimum_catches": 10,
+      "complete_games": 1
+    },
+    {
+      "id": "gotcha-min-time",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha-min-time.tsv",
+      "dip": 0,
+      "pot_ohms": 47000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        21000,
+        44000,
+        64000
+      ],
+      "no_credit_start_ms": [
+        41000,
+        84000
+      ],
+      "solo_windows": [
+        {
+          "mover": "square",
+          "ms": [
+            22000,
+            38500
+          ]
+        },
+        {
+          "mover": "cross",
+          "ms": [
+            45000,
+            61000
+          ]
+        }
+      ],
+      "minimum_catches": 10,
+      "complete_games": 4
+    },
+    {
+      "id": "gotcha-mid-time",
+      "game": "gotcha",
+      "core_id": 7,
+      "replay": "tests/replays/gotcha-mid-time.tsv",
+      "dip": 0,
+      "pot_ohms": 172000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1000,
+      "credit_start_ms": [
+        1500,
+        66000
+      ],
+      "minimum_catches": 10,
+      "complete_games": 1
     }
   ]
 }

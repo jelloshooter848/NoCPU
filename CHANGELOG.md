@@ -13,6 +13,28 @@ releases below.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-17
+
+### Added
+
+- Rebound (Atari, 1974) is playable: the original circuit, verified against original DICE, with
+  its winning-score and coinage settings, two horizontal paddles on A/D and the Left/Right arrow
+  keys, the mouse or a gamepad, and the circuit's own sound.
+- Quadrapong (Atari, 1974) is playable: the original four-player circuit, verified against original
+  DICE, with its coinage setting (one credit buys a two-player game, two a four-player game), the
+  left and right paddles on W/S and the Up/Down arrow keys, the top and bottom paddles on J/L and
+  V/B, the mouse for one player or four gamepads, and the circuit's own sound.
+- Crossfire (Atari, 1975) is playable: the original circuit, verified against original DICE, with
+  its play-time setting, the coin that starts the game, the left gun on W/S with D to fire and the
+  right gun on the Up/Down arrow keys with Left to fire, two gamepads, and the circuit's own sound.
+- Gotcha (Atari, 1973) is playable: the original circuit, verified against original DICE, with its
+  play-time setting, the cross on W/A/S/D and the square on the arrow keys, two gamepads, and the
+  circuit's own sound, including the beeping tone that beeps faster as the cross and the square
+  come closer together from left to right. One coin buys two games; extra coins do not add more.
+  Gotcha is the heaviest game so far: on the 4-vCPU test machine, Playwright's Chromium and WebKit
+  builds ran it at full speed and Playwright's Firefox build at about a third of full speed; other
+  browsers were not measured.
+
 ## [0.1.7] - 2026-10-15
 
 ### Changed
@@ -133,7 +155,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.4...v0.1.5

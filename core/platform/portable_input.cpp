@@ -30,6 +30,12 @@ Settings::Settings():num_mice(0),pause(false),throttle(false),fullscreen(false),
     input.joystick[0].down=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player1Down);
     input.joystick[1].up=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Up);
     input.joystick[1].down=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Down);
+    // Left/right switches of the four-way joysticks (Gotcha). Released keys
+    // read inactive, exactly like the unassigned switches of up/down sticks.
+    input.joystick[0].left=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player1Left);
+    input.joystick[0].right=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player1Right);
+    input.joystick[1].left=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Left);
+    input.joystick[1].right=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Player2Right);
     input.throttle[0].key=KeyAssignment(KeyAssignment::JOYSTICK_AXIS,1,0);
     input.throttle[0].keyboard_sensitivity=250;
     for(unsigned slot=0;slot<4;++slot) {
@@ -44,6 +50,7 @@ Settings::Settings():num_mice(0),pause(false),throttle(false),fullscreen(false),
     input.buttons[0].button1=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Serve);
 }
 Input::Input():coin(false),start(false),start2(false),serve(false),axes{0,0,0,0},up{false,false},down{false,false},
+    left{false,false},right{false,false},
     coin_extra{false,false,false,false},throttle_held(false),buttons{}{}
 Input::~Input(){}
 void Input::poll_input(){}
@@ -59,6 +66,10 @@ bool Input::getKeyboardState(unsigned key){
     case phoenix::Keyboard::Player1Down:return down[0];
     case phoenix::Keyboard::Player2Up:return up[1];
     case phoenix::Keyboard::Player2Down:return down[1];
+    case phoenix::Keyboard::Player1Left:return left[0];
+    case phoenix::Keyboard::Player1Right:return right[0];
+    case phoenix::Keyboard::Player2Left:return left[1];
+    case phoenix::Keyboard::Player2Right:return right[1];
     case phoenix::Keyboard::Coin2:return coin_extra[0];
     case phoenix::Keyboard::Coin3:return coin_extra[1];
     case phoenix::Keyboard::Coin4:return coin_extra[2];

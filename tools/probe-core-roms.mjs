@@ -63,7 +63,7 @@ try {
   report.wasm_sha256 = sha(await readFile(resolve(dirname(options.module), 'nocpu.wasm')));
   const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
   core = await factory({ print: () => {}, printErr: () => {} });
-  check('ABI4 required', core._nocpu_abi_version() === 4);
+  check('ABI5 required', core._nocpu_abi_version() === 5);
   for (const game of games) {
     game.payloads = await Promise.all(game.members.map(async ([name, size]) => {
       const bytes = new Uint8Array(await readFile(resolve(options['rom-dir'], game.name, name)));

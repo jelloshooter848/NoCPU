@@ -1,0 +1,32 @@
+# Original DICE Rebound, DIP 3 (15 points, 1 coin / 2 credits). One coin, Start; a
+# recorded closed-loop rally (4000-11800 ms); paddles park at their outer ends until the
+# game ends at 15; the second credit restarts with Start alone (44000 ms).
+500 coin 1
+600 coin 0
+1000 start 1
+1100 start 0
+2000 paddle1 20000
+2000 paddle2 -20000
+4201 paddle1 30170
+4221 paddle1 32767
+4601 paddle2 -29900
+4821 paddle2 -28460
+5021 paddle2 -24860
+5241 paddle2 -18740
+6041 paddle2 -6140
+6981 paddle1 28087
+7221 paddle1 21607
+7421 paddle1 17197
+7961 paddle1 29437
+8041 paddle1 32767
+8281 paddle2 -27110
+8521 paddle2 -28730
+8721 paddle2 -25850
+10681 paddle1 31687
+11121 paddle1 23047
+11321 paddle1 18097
+12000 paddle1 -32768
+12000 paddle2 32767
+44000 start 1
+44100 start 0
+47000 recreate 1

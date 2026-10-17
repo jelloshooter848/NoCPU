@@ -5,7 +5,15 @@ import { actionsForGame, actionLabel, cloneBindings, defaultBindings, keyLabel, 
 import { gameBindings, isMouseGame, withGameBindings, loadPreferences, savePreferences, type Preferences } from './preferences';
 import { createRomLibrary, type RomEntry } from './roms';
 import type { ConnectedGamepad } from './controls';
-import { gameSpec, isPlayableGameId, normalizeGameOptions, type PlayableGameId } from './game-contract';
+import { gameSpec, isPlayableGameId, normalizeGameOptions, registeredGame, type PlayableGameId } from './game-contract';
+import type { GameDefinition, RegisteredOptions } from './games/types';
+
+/** Settings controls of a registered game, from its original DIP/potentiometer descriptors. */
+function registeredOptionsMarkup(game: GameDefinition, options: RegisteredOptions): string {
+  return game.settings.map((setting) => setting.kind === 'select'
+    ? `<label for="${setting.testId}">${escapeText(setting.label)}</label><select id="${setting.testId}" data-testid="${setting.testId}" data-option="${setting.key}">${setting.choices.map((choice) => `<option value="${choice.value}"${choice.value === options[setting.key] ? ' selected' : ''}>${escapeText(choice.label)}</option>`).join('')}</select>`
+    : `<label for="${setting.testId}">${escapeText(setting.label)} <span data-testid="playtime-value">${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%</span></label><input id="${setting.testId}" data-testid="${setting.testId}" data-option="${setting.key}" type="range" min="0" max="100" step="0.1" value="${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}" aria-label="${escapeText(setting.label)}" /><p class="panel-note">A higher setting allows more time. The original default is ${Math.round((setting.defaultOhms - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100))}%.</p>`).join('');
+}
 
 interface SettingsOptions {
   onPreferences: (preferences: Preferences) => void;
@@ -67,7 +75,7 @@ export function createSettingsUI(options: SettingsOptions) {
     find('#controls-heading').textContent = `${gameSpec(controlGameId).title} controls`;
     const focusId = document.activeElement?.getAttribute('data-testid');
     find('#keyboard-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(label(action))}</span><button data-bind-key="${action}" data-testid="binding-${action}" aria-label="Assign key for ${escapeText(label(action))}">${bindings.keyboard[action].map(keyLabel).map(escapeText).join(' / ') || 'Unassigned'}</button></div>`).join('');
-    find('#gamepad-players').innerHTML = bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>${controlGameId === 'stuntcycle' ? 'Shared throttle joystick' : controlGameId === 'indy4' ? `Player ${slot + 1} ${['Green', 'Cyan', 'Violet', 'Red'][slot]} steering` : controlGameId === 'breakout' ? 'Shared paddle joystick' : `Player ${slot + 1} joystick`}</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick ${controlGameId === 'breakout' || controlGameId === 'indy4' ? 'left' : controlGameId === 'stuntcycle' ? 'toward idle' : 'up'}</button></fieldset>`).join('');
+    find('#gamepad-players').innerHTML = bindings.gamepad.players.map((player, slot) => `<fieldset class="gamepad-player"><legend>${registeredGame(controlGameId) ? `${escapeText(gameSpec(controlGameId).controlLabels[slot])} joystick axis` : controlGameId === 'stuntcycle' ? 'Shared throttle joystick' : controlGameId === 'indy4' ? `Player ${slot + 1} ${['Green', 'Cyan', 'Violet', 'Red'][slot]} steering` : controlGameId === 'breakout' ? 'Shared paddle joystick' : `Player ${slot + 1} joystick`}</legend><label>Controller<select data-player-setting="pad" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-pad" aria-label="Player ${slot + 1} controller">${Array.from({ length: 8 }, (_, index) => `<option value="${index}"${index === player.pad ? ' selected' : ''}>Controller ${index + 1}</option>`).join('')}</select></label><label>Axis<select data-player-setting="axis" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-axis" aria-label="Player ${slot + 1} joystick axis">${Array.from({ length: 16 }, (_, index) => `<option value="${index}"${index === player.axis ? ' selected' : ''}>Axis ${index + 1}</option>`).join('')}</select></label><label class="checkbox-label"><input type="checkbox" data-player-setting="invert" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-invert"${player.invert ? ' checked' : ''} /> Reverse direction</label><label>Deadzone <span>${Math.round(player.deadzone * 100)}%</span><input type="range" min="5" max="50" step="1" value="${Math.round(player.deadzone * 100)}" data-player-setting="deadzone" data-slot="${slot}" data-testid="gamepad-p${slot + 1}-deadzone" aria-label="Player ${slot + 1} joystick deadzone" /></label><button data-bind-axis="${slot}" data-testid="bind-axis-p${slot + 1}">Assign by moving joystick ${registeredGame(controlGameId) ? registeredGame(controlGameId)!.channels[slot].orientation === 'horizontal' ? 'left' : 'up' : controlGameId === 'breakout' || controlGameId === 'indy4' ? 'left' : controlGameId === 'stuntcycle' ? 'toward idle' : 'up'}</button></fieldset>`).join('');
     find('#gamepad-bindings').innerHTML = actions.map((action) => `<div class="binding-row"><span>${escapeText(label(action))}</span><button data-bind-button="${action}" data-testid="gamepad-binding-${action}" aria-label="Assign controller button for ${escapeText(label(action))}">${bindings.gamepad.buttons[action].map((binding) => `Controller ${binding.pad + 1} · button ${binding.button + 1}`).join(' / ') || 'Unassigned'}</button></div>`).join('');
     if (focusId && /^(binding-|gamepad-binding-|gamepad-p|bind-axis-p)/.test(focusId)) {
       document.querySelector<HTMLElement>(`[data-testid="${focusId}"]`)?.focus({ preventScroll: true });
@@ -88,7 +96,8 @@ export function createSettingsUI(options: SettingsOptions) {
   }
   function renderOptions(): void {
     const options = preferences.optionsByGame[controlGameId];
-    find('#game-options').innerHTML = 'misses' in options
+    const registered = registeredGame(controlGameId);
+    find('#game-options').innerHTML = registered ? registeredOptionsMarkup(registered, options as unknown as RegisteredOptions) : 'misses' in options
       ? `<label for="misses">Misses allowed</label><select id="misses" data-testid="misses">${Array.from({ length: 8 }, (_, misses) => `<option value="${misses}"${misses === options.misses ? ' selected' : ''}>${misses}</option>`).join('')}</select><label for="free-game-score">Free game score</label><select id="free-game-score" data-testid="free-game-score">${Array.from({ length: 16 }, (_, index) => index + 12).map((score) => `<option value="${score}"${score === options.freeGameScore ? ' selected' : ''}>${score}</option>`).join('')}</select><label for="coinage">Coinage</label><select id="coinage" data-testid="coinage"><option value="1"${options.coinage === 1 ? ' selected' : ''}>1 coin / 1 credit</option><option value="2"${options.coinage === 2 ? ' selected' : ''}>1 coin / 2 credits</option></select><label for="free-game">Free game</label><select id="free-game" data-testid="free-game"><option value="enabled"${options.freeGame ? ' selected' : ''}>Enabled</option><option value="disabled"${!options.freeGame ? ' selected' : ''}>Disabled</option></select>`
       : 'bonusCredit' in options
       ? `<label for="bonus-credit">Bonus credit score</label><select id="bonus-credit" data-testid="bonus-credit">${[0, 100, 200, 300, 400, 500, 600, 700, 800].map((score) => `<option value="${score}"${score === options.bonusCredit ? ' selected' : ''}>${score || 'None'}</option>`).join('')}</select><label for="cabinet">Cabinet</label><select id="cabinet" data-testid="cabinet"><option value="normal"${options.cabinet === 'normal' ? ' selected' : ''}>Normal</option><option value="cocktail"${options.cabinet === 'cocktail' ? ' selected' : ''}>Cocktail</option></select><label for="coinage">Coinage</label><select id="coinage" data-testid="coinage"><option value="1"${options.coinage === 1 ? ' selected' : ''}>1 coin / 1 credit</option><option value="2"${options.coinage === 2 ? ' selected' : ''}>1 coin / 2 credits</option></select><label for="balls">Ball count</label><select id="balls" data-testid="balls"><option value="3"${options.balls === 3 ? ' selected' : ''}>3</option><option value="5"${options.balls === 5 ? ' selected' : ''}>5</option></select>`
@@ -135,6 +144,7 @@ export function createSettingsUI(options: SettingsOptions) {
     cancelButton.hidden = false;
     bindingMessage.textContent = next.kind === 'keyboard' ? `Press a key for ${label(next.action)}. Escape cancels.`
       : next.kind === 'button' ? `Press a controller button for ${label(next.action)}. Escape cancels.`
+        : registeredGame(controlGameId) ? `Move the joystick ${registeredGame(controlGameId)!.channels[next.slot].orientation === 'horizontal' ? 'left' : 'up'} for ${gameSpec(controlGameId).controlLabels[next.slot].toLowerCase()}. Escape cancels.`
         : controlGameId === 'stuntcycle' ? 'Move the shared throttle joystick toward idle (negative axis). Escape cancels.' : controlGameId === 'breakout' || controlGameId === 'indy4' ? 'Move the steering joystick left. Escape cancels.' : `Move the joystick up for player ${next.slot + 1}. Escape cancels.`;
   }
   function applyBindings(candidate: Preferences['bindings'], message: string): boolean {
@@ -307,6 +317,17 @@ export function createSettingsUI(options: SettingsOptions) {
   find('#game-options').addEventListener('change', (event) => {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
     const current = preferences.optionsByGame[controlGameId];
+    const registered = registeredGame(controlGameId);
+    if (registered) {
+      const setting = registered.settings.find((candidate) => candidate.key === input.dataset.option);
+      if (!setting) return;
+      const value = setting.kind === 'select' ? Number(input.value)
+        : Math.round(setting.minOhms + Number(input.value) * (setting.maxOhms - setting.minOhms) / 100);
+      const next = normalizeGameOptions(controlGameId, { ...current, [setting.key]: value }) as unknown as RegisteredOptions;
+      setPreferences({ ...preferences, optionsByGame: { ...preferences.optionsByGame, [controlGameId]: next } });
+      if (setting.kind === 'percent') find('[data-testid="playtime-value"]').textContent = `${(next[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%`;
+      return;
+    }
     const changed = input.id === 'misses' ? { ...current, misses: Number(input.value) }
       : input.id === 'free-game-score' ? { ...current, freeGameScore: Number(input.value) }
       : input.id === 'free-game' ? { ...current, freeGame: input.value === 'enabled' }

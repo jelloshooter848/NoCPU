@@ -18,18 +18,36 @@ for (let i = 2; i < process.argv.length; i += 2) {
   options[key] = ['seed', 'epochs', 'dip', 'potOhms'].includes(key) ? Number(process.argv[i + 1]) : process.argv[i + 1];
 }
 if (!Number.isInteger(options.epochs) || options.epochs < 2 || options.epochs > 10) throw new Error('Use 2–10 epochs to test reset isolation.');
-const gameId = { pong: 0, pongdoubles: 1, spacerace: 2, breakout: 3, stuntcycle: 4, indy4: 5 }[options.game];
+const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
+const core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
+if (core._nocpu_abi_version() !== 5) throw new Error('Unsupported core ABI.');
+// Games ported from 0.2.0 on are registered in the core and describe their
+// inputs and settings through nocpu_game_info (core/nocpu.h).
+const cString = (pointer) => { let end = pointer; while (core.HEAPU8[end]) end += 1; return Buffer.from(core.HEAPU8.subarray(pointer, end)).toString('latin1'); };
+let gameId;
+for (let id = 0; id < 32; id += 1) { const name = core._nocpu_game_name(id); if (name && cString(name) === options.game) gameId = id; }
 if (gameId === undefined) throw new Error('Unsupported replay game.');
-const selected = gameId >= 4;
+const info = (field) => core._nocpu_game_info(gameId, field) >>> 0;
+const registered = info(0) === 1;
+const selected = gameId === 4 || gameId === 5;
 if (!['raw', 'gzip'].includes(options.snapshotEncoding) || (options.snapshotEncoding === 'gzip' && !selected)) throw new Error('Unsupported selected snapshot encoding.');
 if (gameId === 4 && !dipProvided) options.dip = 76;
 if (gameId === 5 && options.potOhms === 0) options.potOhms = 720000;
 if (gameId === 3 && !dipProvided) options.dip = 3;
 if (gameId === 2 && options.potOhms === 0) options.potOhms = 970000;
-const validDip = gameId === 4 ? options.dip >= 0 && options.dip < 512 : gameId === 5 ? options.dip === 0 : gameId === 3 ? options.dip >= 0 && options.dip < 128 && (options.dip & 15) <= 8 : [0,1].includes(options.dip);
-const validPot = gameId === 5 ? options.potOhms >= 220000 && options.potOhms <= 1220000 : gameId === 2 ? options.potOhms >= 470000 && options.potOhms <= 1470000 : options.potOhms === 0;
+if (registered && !dipProvided) options.dip = info(7);
+if (registered && options.potOhms === 0) options.potOhms = info(11);
+const validDip = registered ? Number.isInteger(options.dip) && options.dip >= 0 && (options.dip & ~info(8)) === 0 : gameId === 4 ? options.dip >= 0 && options.dip < 512 : gameId === 5 ? options.dip === 0 : gameId === 3 ? options.dip >= 0 && options.dip < 128 && (options.dip & 15) <= 8 : [0,1].includes(options.dip);
+const validPot = registered ? (info(10) === 0 ? options.potOhms === 0 : options.potOhms >= info(9) && options.potOhms <= info(10)) : gameId === 5 ? options.potOhms >= 220000 && options.potOhms <= 1220000 : gameId === 2 ? options.potOhms >= 470000 && options.potOhms <= 1470000 : options.potOhms === 0;
 if (!Number.isInteger(options.dip) || !validDip || !Number.isInteger(options.potOhms) || !validPot) throw new Error('Invalid original game options.');
-const allowed = gameId === 5 ? ['coin','dollar','recreate', ...[1,2,3,4].flatMap((p) => ['coin','gas','brake','wheel','left','right'].map((key) => `${key}${p}`))]
+const registeredActions = () => {
+  const actions = ['coin', 'recreate', ...(info(6) >= 1 ? ['start'] : []), ...(info(6) >= 2 ? ['start2'] : [])];
+  for (let slot = 1; slot <= info(1); slot += 1) actions.push(`paddle${slot}`);
+  for (let slot = 1; slot <= info(2); slot += 1) ['up', 'down', 'left', 'right'].forEach((name, bit) => { if ((info(3) >> bit) & 1) actions.push(`${name}${slot}`); });
+  for (let slot = 1; slot <= info(4); slot += 1) for (let button = 1; button <= info(5); button += 1) actions.push(`button${slot}${button}`);
+  return actions;
+};
+const allowed = registered ? registeredActions() : gameId === 5 ? ['coin','dollar','recreate', ...[1,2,3,4].flatMap((p) => ['coin','gas','brake','wheel','left','right'].map((key) => `${key}${p}`))]
   : gameId === 4 ? ['coin','start','start2','throttle','throttlekey','recreate']
   : gameId === 3 ? ['coin','start','start2','serve','paddle1','recreate'] : gameId === 2 ? ['coin','start','up1','down1','up2','down2','recreate']
   : gameId === 1 ? ['coin','start','paddle1','paddle2','paddle3','paddle4','recreate'] : ['coin','paddle1','paddle2','recreate'];
@@ -42,9 +60,6 @@ const events = (await readFile(options.replay, 'utf8')).split(/\r?\n/).filter((l
 if (!events.length || events.at(-1).action !== 'recreate' || events.at(-1).time <= 0n || events.at(-1).value !== 1
   || events.slice(0, -1).some((event) => event.action === 'recreate')
   || events.some((event, i) => event.time < 0n || (i && event.time < events[i - 1].time))) throw new Error('Replay must be ordered and finish with recreate.');
-const factory = (await import(pathToFileURL(resolve(options.module)).href)).default;
-const core = await factory({ print: () => {}, printErr: (message) => { process.stderr.write(`${message}\n`); } });
-if (core._nocpu_abi_version() !== 4) throw new Error('Unsupported core ABI.');
 const ps = (prefix = 'time') => (BigInt(core[`_nocpu_${prefix}_hi`]() >>> 0) << 32n) | BigInt(core[`_nocpu_${prefix}_lo`]() >>> 0);
 let width = core._nocpu_width(), height = core._nocpu_height();
 if (width !== 576 || height !== 432 || core._nocpu_sample_rate() !== 48000) throw new Error('Unexpected native media dimensions or sample rate.');
@@ -84,9 +99,10 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   if (core._nocpu_create(options.seed) !== 0 || core._nocpu_advance(100001) !== 0 || core._nocpu_advance(0) !== 1 || ps() !== 0n || core._nocpu_frame_number() !== 0 || core._nocpu_audio_count() !== initialCount) throw new Error('ABI lifetime/bounded-step contract violated.');
   const directory = resolve(options.output, `epoch${epoch}`);
   await mkdir(directory, { recursive: true });
-  const frames = ['frame,time_ps,fnv1a64\n'], telemetry = [`time_ps,score1,score2,run_n,attract_n,hits${gameId === 0 ? '\n' : ',active\n'}`];
+  const scoreSlots = registered ? Math.max(2, info(12)) : 2;
+  const frames = ['frame,time_ps,fnv1a64\n'], telemetry = [`time_ps,${Array.from({ length: scoreSlots }, (_, slot) => `score${slot + 1}`).join(',')},run_n,attract_n,hits${gameId === 0 ? '\n' : ',active\n'}`];
   const inputs = ['requested_ps,applied_ps,action,value\n'], collisions = ['time_ps,hit_output\n'];
-  const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]], keys = Array.from({length:4},()=>[0,0]), buttons = Array.from({length:4},()=>[0,0]);
+  const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]], sticks = [[0, 0, 0, 0], [0, 0, 0, 0]], keys = Array.from({length:4},()=>[0,0]), buttons = Array.from({length:4},()=>[0,0]);
   const hardware = [gameId === 4 ? 'time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n' : `time_ps,play,endgame_n,credit_n${[1,2,3,4].map((p)=>`,car${p}_attract,car${p}_collision,car${p}_heading,car${p}_speed,car${p}_lap,car${p}_score_code,car${p}_displayed_score`).join('')}\n`];
   const geometry = ['frame,time_ps,width,height\n'];
   let gzip, outputStream, gzipDone;
@@ -121,7 +137,7 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   drain();
   while (true) {
     const now = ps();
-    telemetry.push(`${now},${core._nocpu_score(0)},${core._nocpu_score(1)},${core._nocpu_run_n()},${core._nocpu_attract_n() >>> 0},${core._nocpu_hits()}${gameId === 0 ? '' : `,${core._nocpu_active()}`}\n`);
+    telemetry.push(`${now},${Array.from({ length: scoreSlots }, (_, slot) => core._nocpu_score(slot)).join(',')},${core._nocpu_run_n()},${core._nocpu_attract_n() >>> 0},${core._nocpu_hits()}${gameId === 0 ? '' : `,${core._nocpu_active()}`}\n`);
     if (selected) {
       const values = gameId === 4 ? [...Array.from({length:8},(_,i)=>core._nocpu_stuntcycle_signal(i)),core._nocpu_stuntcycle_throttle(),core._nocpu_score(0),core._nocpu_score(1)]
         : [...Array.from({length:3},(_,i)=>core._nocpu_indy4_signal(0,i)),...[0,1,2,3].flatMap((p)=>[...Array.from({length:6},(_,i)=>core._nocpu_indy4_signal(p,i+3)),core._nocpu_score(p)])];
@@ -130,6 +146,20 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
     while (eventIndex < events.length && events[eventIndex].time <= now) {
       const event = events[eventIndex++];
       inputs.push(`${event.time},${now},${event.action},${event.value}\n`);
+      if (registered && event.action !== 'recreate') {
+        let accepted = 1;
+        if (event.action === 'coin') accepted = core._nocpu_coin_channel(1, event.value);
+        else if (event.action === 'start' || event.action === 'start2') accepted = core._nocpu_start_player(event.action === 'start' ? 1 : 2, event.value);
+        else if (event.action.startsWith('paddle')) core._nocpu_paddle(Number(event.action.at(-1)) - 1, event.value);
+        else if (event.action.startsWith('button')) accepted = core._nocpu_button(Number(event.action[6]) - 1, Number(event.action[7]), event.value);
+        else {
+          const slot = Number(event.action.at(-1)) - 1;
+          sticks[slot][['up', 'down', 'left', 'right'].indexOf(event.action.slice(0, -1))] = event.value;
+          accepted = core._nocpu_joystick_switches(slot, ...sticks[slot]);
+        }
+        if (accepted !== 1) throw new Error(`Registered game input rejected: ${event.action}`);
+        continue;
+      }
       if (event.action === 'coin') core._nocpu_coin(event.value);
       else if (event.action === 'start') {
         if (gameId === 3) { if (core._nocpu_start_player(1, event.value) !== 1) throw new Error('Native Start1 rejected.'); }

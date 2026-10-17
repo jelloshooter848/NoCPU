@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an auditable, disposable six-game portable copy of DICE 0.9.
+"""Prepare an auditable, disposable portable copy of DICE 0.9 for the compiled games.
 
 Original scheduler/netlist/chip logic remain unchanged. Exact replacements fail
 closed if upstream differs. Complete changed-file diffs accompany the build.
@@ -78,7 +78,7 @@ contents=contents.replace('#include "../manymouse/manymouse.h"\n#include <SDL/SD
 write("chips/input.cpp",contents)
 edit("chips/input.h",[('#include <SDL/SDL_joystick.h>',''),
     ('    std::vector<SDL_Joystick*> joysticks;',''),
-    ('    Input();','    bool coin, start, start2, serve;\n    int16_t axes[4];\n    bool up[2],down[2];\n    bool coin_extra[4],throttle_held,buttons[4][4];\n    Input();')])
+    ('    Input();','    bool coin, start, start2, serve;\n    int16_t axes[4];\n    bool up[2],down[2],left[2],right[2];\n    bool coin_extra[4],throttle_held,buttons[4][4];\n    Input();')])
 
 # Original RomDesc lookup is a host ZIP/Qt cache, not PROM logic. The portable
 # lookup reads validated session-owned descriptor bytes, retaining 0xff reads.
@@ -127,178 +127,47 @@ edit('chips/video.h',[
     ('    static Video* createDefault(phoenix::VerticalLayout& layout, phoenix::Viewport*& viewport);',
      '    enum { WIDTH=576, HEIGHT=432 };\n    unsigned pixel_width() const { return pixels_width; }\n    unsigned pixel_height() const { return pixels_height; }\n    const uint8_t* pixels() const { return front.data(); }')])
 
+# Gotcha's PROXIMITY chip keeps its capacitor voltage in a function-local
+# `static double v_cap`, which survives in-process machine re-creation and so
+# cannot be restored by core/games/gotcha.inc. Move that one variable to file
+# scope under a NoCPU name (same type, same constant initializer, same uses) so
+# the cold reset can zero it; the chip logic and its arithmetic are unchanged.
+edit('games/gotcha.cpp',[
+    ('static CUSTOM_LOGIC( proximity )\n{',
+     '// NoCPU: was a function-local static of proximity(); file scope so that a\n'
+     '// portable reset can restore it (docs/UPSTREAM_PATCHES.md).\n'
+     'static double nocpu_gotcha_proximity_v_cap = 0.0;\n\n'
+     'static CUSTOM_LOGIC( proximity )\n{'),
+    ('    static double v_cap = 0.0;\n',
+     '    double& v_cap = nocpu_gotcha_proximity_v_cap;\n')])
+
 # DICE stores mutable hardware descriptors statically. A portable reset creates
-# a fresh machine, so restore custom descriptor objects before construction.
-reset='''
-void nocpu_reset_pong_descriptors() {
-    a9_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    b9_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    f4_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
-    g4_555_desc=Mono555Desc(K_OHM(220.0),U_FARAD(1.0));
-    pad1_desc=Paddle1VerticalDesc(17000.0,145000.0,&b9_555_desc);
-    pad2_desc=Paddle2VerticalDesc(17000.0,145000.0,&a9_555_desc);
-    dipswitch1_desc=DipswitchDesc("winning_score","Winning Score",0,"11","15");
-}
-void nocpu_configure_pong(unsigned dip) {
-    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
-}
-'''
-write('games/pong.cpp',(out/'games/pong.cpp').read_text()+reset)
+# a fresh machine, so each compiled game appends a function restoring its custom
+# descriptor objects before construction. The appended code is kept per game in
+# core/games/<id>.inc (see docs/PORT_GAME.md); its first SPDX line is dropped.
+# The six legacy circuits keep their established order; later games follow in
+# name order, so adding a game never reorders the earlier sources.
+LEGACY_GAMES=['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']
+added=sorted(path.stem for path in (ROOT/'core/games').glob('*.inc') if path.stem not in LEGACY_GAMES)
+GAMES=LEGACY_GAMES+added
+for game in GAMES:
+    if not (out/'games'/(game+'.cpp')).is_file():
+        raise SystemExit('No original DICE circuit for core/games/'+game+'.inc')
+    lines=(ROOT/'core/games'/(game+'.inc')).read_text().splitlines(True)
+    if not lines or not lines[0].startswith('// SPDX-License-Identifier:'):
+        raise SystemExit('core/games/'+game+'.inc must start with its SPDX line')
+    write('games/'+game+'.cpp',(out/'games'/(game+'.cpp')).read_text()+'\n'+''.join(lines[1:]))
 
-reset_doubles='''
-void nocpu_reset_pongdoubles_descriptors() {
-    a3_555_desc=Mono555Desc(K_OHM(100.0),U_FARAD(0.1));
-    a10_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    b10_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    b9a_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    b9b_555_desc=Mono555Desc(K_OHM(70.0),U_FARAD(0.1));
-    f5_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
-    g5_555_desc=Mono555Desc(K_OHM(220.0),U_FARAD(1.0));
-    c33_desc=SeriesRCDesc(K_OHM(1.0),U_FARAD(0.1));
-    pad1_desc=Paddle1VerticalDesc(17000.0,145000.0,&b10_555_desc);
-    pad2_desc=Paddle2VerticalDesc(17000.0,145000.0,&a10_555_desc);
-    pad3_desc=Paddle3VerticalDesc(17000.0,145000.0,&b9a_555_desc);
-    pad4_desc=Paddle4VerticalDesc(17000.0,145000.0,&b9b_555_desc);
-    dipswitch1_desc=DipswitchDesc("winning_score","Winning Score",0,"11","15");
-}
-void nocpu_configure_pongdoubles(unsigned dip) {
-    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
-}
-'''
-write('games/pongdoubles.cpp',(out/'games/pongdoubles.cpp').read_text()+reset_doubles)
-
-# Static cold templates receive C++ zero-initialization before constructors.
-# In particular PWM555Desc leaves two scalar fields uninitialized in automatic
-# temporaries; copying a static cold template preserves the original cold zero
-# values without introducing indeterminate values. The templates never run.
-reset_space='''
-static const PWM555Desc nocpu_cold_d9(K_OHM(151.0),U_FARAD(0.1));
-static const RCFilterDesc nocpu_cold_c25(K_OHM(470.0),K_OHM(470.0),U_FARAD(0.1));
-static const RCFilterDesc nocpu_cold_c19(K_OHM(470.0),K_OHM(470.0),U_FARAD(0.1));
-static const RCFilterDesc nocpu_cold_c32(K_OHM(25.2),K_OHM(25.2),U_FARAD(4.7));
-static const NE566Desc nocpu_cold_a4(K_OHM(6.8),U_FARAD(0.1));
-static const NE566Desc nocpu_cold_b4(K_OHM(10.0),U_FARAD(0.1));
-static const NE566Desc nocpu_cold_c4(K_OHM(10.0),U_FARAD(0.1));
-static const MixerDesc nocpu_cold_mixer({K_OHM(10.0),K_OHM(10.0),K_OHM(4.7)},0.0,U_FARAD(0.1));
-void nocpu_reset_spacerace_descriptors() {
-    a3_555_desc=Mono555Desc(K_OHM(6.8)+K_OHM(6.8),U_FARAD(4.7));
-    a6_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
-    a9_555_desc=Mono555Desc(K_OHM(100.0),U_FARAD(0.1));
-    b6_555_desc=Mono555Desc(K_OHM(330.0),U_FARAD(4.7));
-    c9_555_desc=Mono555Desc(K_OHM(1000.0),U_FARAD(100.0));
-    d9_555_desc=nocpu_cold_d9;
-    l4_desc=Mono9602Desc(K_OHM(10.0),P_FARAD(100.0),K_OHM(10.0),P_FARAD(100.0));
-    dipswitch1_desc=DipswitchDesc("coinage","Coinage",0,"1 Coin / 1 Credit","1 Coin / 2 Credits");
-    // Preserve the original reference binding. The original potentiometer
-    // chip updates C9.r at initialization and on its subsequent 250 ms polls.
-    ((PotentiometerBase*)&pot1_desc)->current_val=K_OHM(970.0);
-    coin_cap_desc=SeriesRCDesc(K_OHM(1.0),U_FARAD(0.1));
-    c25_filter_desc=nocpu_cold_c25;c19_filter_desc=nocpu_cold_c19;c32_filter_desc=nocpu_cold_c32;
-    a4_566_desc=nocpu_cold_a4;b4_566_desc=nocpu_cold_b4;c4_566_desc=nocpu_cold_c4;
-    mixer_desc=nocpu_cold_mixer;
-}
-void nocpu_configure_spacerace(unsigned dip,unsigned pot_ohms) {
-    ((DipswitchBase*)&dipswitch1_desc)->state=dip;
-    ((PotentiometerBase*)&pot1_desc)->current_val=double(pot_ohms);
-}
-'''
-write('games/spacerace.cpp',(out/'games/spacerace.cpp').read_text()+reset_space)
-
-reset_breakout='''
-// Copy the original cold static mixer, including its private capacitor state.
-// RAM82S16 is an original static array, not a ROM or per-Chip allocation.
-static const MixerDesc nocpu_cold_breakout_mixer=mixer_desc;
-void nocpu_reset_breakout_descriptors() {
-    b2_555_desc=Astable555Desc(OHM(560.0),M_OHM(1.8),U_FARAD(0.1));
-    c9_555_desc=Mono555Desc(OHM(47.0),U_FARAD(1.0));
-    for(auto& bit:l3_desc) bit=0;
-    mixer_desc=nocpu_cold_breakout_mixer;
-    pad1_desc=Paddle1HorizontalDesc(15047.0,47.0,&c9_555_desc);
-    c32_desc=CapacitorDesc(U_FARAD(0.1));
-    c36_desc=CapacitorDesc(N_FARAD(1.0));
-    c37_desc=CapacitorDesc(P_FARAD(330.0));
-    pad_en_buf_desc=BufferDesc(DELAY_NS(15.0),DELAY_NS(15.0));
-    // Original 9602 descriptors hold fixed RC values; their callbacks update
-    // newly allocated Chip delays, rather than accumulating descriptor state.
-    n8_desc=Mono9602Desc(K_OHM(33.0),U_FARAD(100.0),K_OHM(5.6),P_FARAD(0.0));
-    f3_desc=Mono9602Desc(K_OHM(47.0),U_FARAD(1.0),K_OHM(47.0),U_FARAD(1.0));
-    a7_desc=Mono9602Desc(K_OHM(68.0),U_FARAD(1.0),K_OHM(22.0),U_FARAD(10.0));
-    a8_desc=Mono9602Desc(K_OHM(27.0),U_FARAD(1.0),K_OHM(27.0),U_FARAD(1.0));
-    ((DipswitchBase*)&dipswitch1_desc)->state=3;
-    ((DipswitchBase*)&dipswitch2_desc)->state=0;
-    ((DipswitchBase*)&dipswitch3_desc)->state=0;
-    ((DipswitchBase*)&dipswitch4_desc)->state=0;
-}
-void nocpu_configure_breakout(unsigned packed_dips) {
-    ((DipswitchBase*)&dipswitch1_desc)->state=packed_dips&15;
-    ((DipswitchBase*)&dipswitch2_desc)->state=(packed_dips>>4)&1;
-    ((DipswitchBase*)&dipswitch3_desc)->state=(packed_dips>>5)&1;
-    ((DipswitchBase*)&dipswitch4_desc)->state=(packed_dips>>6)&1;
-}
-'''
-write('games/breakout.cpp',(out/'games/breakout.cpp').read_text()+reset_breakout)
-
-reset_stunt='''
-void nocpu_reset_stuntcycle_descriptors() {
-    stunt_cycle_throttle_desc={0.0,0.0,0};
-    c57_desc=CapacitorDesc(P_FARAD(220.0),OHM(330.0));
-    c58_desc=CapacitorDesc(P_FARAD(220.0));
-    n6_desc=Mono9602Desc(K_OHM(47.0),U_FARAD(100.0),K_OHM(47.0),U_FARAD(1.0));
-    c13_desc=SeriesRCDesc(K_OHM(2.2),P_FARAD(470.0));
-    ((DipswitchBase*)&f5_desc)->state=4;
-    ((DipswitchBase*)&f7_desc)->state=9;
-    ((DipswitchBase*)&dipswitch1_desc)->state=0;
-    ((DipswitchBase*)&dipswitch2_desc)->state=0;
-}
-void nocpu_configure_stuntcycle(unsigned dip) {
-    ((DipswitchBase*)&f5_desc)->state=dip&7;
-    ((DipswitchBase*)&f7_desc)->state=(dip>>3)&15;
-    ((DipswitchBase*)&dipswitch1_desc)->state=(dip>>7)&1;
-    ((DipswitchBase*)&dipswitch2_desc)->state=(dip>>8)&1;
-}
-unsigned nocpu_stuntcycle_throttle_value() {
-    return unsigned(stunt_cycle_throttle_desc.throttle_pos*1000.0+0.5);
-}
-'''
-write('games/stuntcycle.cpp',(out/'games/stuntcycle.cpp').read_text()+reset_stunt)
-
-reset_indy='''
-void nocpu_reset_indy4_descriptors() {
-    carl1_555_desc=Mono555Desc(K_OHM(82),U_FARAD(5));
-    coinl1_555_desc=Astable555Desc(K_OHM(720.0),K_OHM(220.0),U_FARAD(1.0));
-    ((PotentiometerBase*)&pot1_desc)->current_val=K_OHM(720.0);
-    // cirque has no safe assignment operator. Clear each owned queue in place.
-    wheel1_desc.angle=wheel2_desc.angle=wheel3_desc.angle=wheel4_desc.angle=0.0;
-    for(unsigned i=0;i<2;++i) {
-        wheel1_desc.wheel_events[i].clear();wheel2_desc.wheel_events[i].clear();
-        wheel3_desc.wheel_events[i].clear();wheel4_desc.wheel_events[i].clear();
-    }
-    carcap27_desc=CapacitorDesc(P_FARAD(100));
-    carcap31_desc=CapacitorDesc(P_FARAD(100));
-    carcap32_desc=CapacitorDesc(P_FARAD(100));
-    coincap35_desc=CapacitorDesc(U_FARAD(0.1));
-    scorecap08_desc=CapacitorDesc(P_FARAD(33));
-    scorecap10_desc=CapacitorDesc(U_FARAD(0.001));
-    scorecap11_desc=CapacitorDesc(U_FARAD(0.001));
-    scorecap12_desc=CapacitorDesc(U_FARAD(0.001));
-    scorecap13_desc=CapacitorDesc(U_FARAD(0.001));
-    scorecap14_desc=CapacitorDesc(U_FARAD(0.001));
-    synccap01_desc=CapacitorDesc(P_FARAD(330));
-}
-void nocpu_configure_indy4(unsigned pot_ohms) {
-    ((PotentiometerBase*)&pot1_desc)->current_val=double(pot_ohms);
-}
-'''
-write('games/indy4.cpp',(out/'games/indy4.cpp').read_text()+reset_indy)
-
-sources=['chip.cpp','circuit.cpp','games/pong.cpp','games/pongdoubles.cpp','games/spacerace.cpp','games/breakout.cpp','games/stuntcycle.cpp','games/indy4.cpp']
+sources=['chip.cpp','circuit.cpp']+['games/'+game+'.cpp' for game in GAMES]
 chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','7474','7483','7486','7490','7493','74107','74153','9316','555mono','clock','latch','clk_gate','input','audio','video','dipswitch',
        'capacitor','555pwm','566','9602','diode_matrix','mixer','9311','9312','9322',
        '555astable','7408','7411','74175','74192','74193','74279','7432','7437','82S16','9310',
-       'rom','82S123','82S115','74S287','74194','7485','74165','74164','74174','7475','9301']
+       'rom','82S123','82S115','74S287','74194','7485','74165','74164','74174','7475','9301',
+       # Chips first needed by the 0.2.0 batch (Crossfire); 74157 is an alias of 9322.
+       '7492','9321']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))
-(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':4,
-    'games':['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']},indent=2)+'\n')
-print('Prepared portable six-game core:',out)
+(out.parent/'adapter-files.json').write_text(json.dumps({'sources':sources,'upstream':'dice-0.9','abi':5,
+    'games':GAMES},indent=2)+'\n')
+print('Prepared portable core (%d games):'%len(GAMES),out)

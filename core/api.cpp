@@ -4,6 +4,8 @@
 #include "circuit.h"
 #include "circuit_desc.h"
 #include "platform/rom_session.h"
+#include "game_registry.h"
+#include "chips/dipswitch.h"
 #include <algorithm>
 #include <cstdlib>
 #include <map>
@@ -42,6 +44,10 @@ struct Engine {
     std::map<std::string,Chip*> chips;
     Chip* hit=nullptr;
     Chip* observed[NOCPU_EVENT_TYPES]={};
+    // Registered games (core/games/<id>.cpp): their definition and the chips
+    // of their declared event pins, reported as NOCPU_GAME_EVENT_BASE+index.
+    const NoCPUGameDef* def=nullptr;
+    Chip* game_observed[NOCPU_GAME_EVENT_LIMIT]={};
     uint32_t event_counts[NOCPU_EVENT_TYPES]={};
     NoCPURomSession roms;
     uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0,crashes[2]={0,0};
@@ -55,6 +61,53 @@ struct Engine {
 std::unique_ptr<Engine> engine;
 NoCPURomSession staged_roms;
 uint32_t rom_error=NOCPU_ROM_OK;
+std::map<uint32_t,NoCPUGameDef>& registry() {
+    static std::map<uint32_t,NoCPUGameDef> games;
+    return games;
+}
+uint32_t dip_mask(const NoCPUGameDef& def) {
+    uint32_t mask=0,shift=0;
+    for(const auto& field:def.dips){mask|=((1u<<field.bits)-1)<<shift;shift+=field.bits;}
+    return mask;
+}
+uint32_t default_dip(const NoCPUGameDef& def) {
+    uint32_t packed=0,shift=0;
+    for(const auto& field:def.dips){packed|=field.default_index<<shift;shift+=field.bits;}
+    return packed;
+}
+bool valid_registered_options(const NoCPUGameDef& def,uint32_t dip,uint32_t pot) {
+    if(dip&~dip_mask(def))return false;
+    uint32_t shift=0;
+    for(const auto& field:def.dips) {
+        if(((dip>>shift)&((1u<<field.bits)-1))>=field.values)return false;
+        shift+=field.bits;
+    }
+    return def.pot.empty()?pot==0:pot>=def.pot_min&&pot<=def.pot_max;
+}
+// Apply settings the way the original GameConfig names them: every top-level
+// DIP switch and potentiometer descriptor of the circuit, found by its name.
+bool configure_registered(const NoCPUGameDef& def,const CircuitDesc* desc,uint32_t dip,uint32_t pot) {
+    std::vector<unsigned> found(def.dips.size(),0);
+    unsigned pots=0;
+    for(const ChipInstance& instance:desc->get_chips()) {
+        if(instance.chip==chip_DIPSWITCH||instance.chip==chip_DIPSWITCH_SP4T||instance.chip==chip_53137
+           ||instance.chip==chip_DIPSWITCH_4SPST) {
+            auto* setting=reinterpret_cast<DipswitchBase*>(instance.custom_data);
+            uint32_t shift=0;
+            for(size_t i=0;i<def.dips.size();++i) {
+                if(def.dips[i].name==setting->name) {
+                    setting->state=(dip>>shift)&((1u<<def.dips[i].bits)-1);++found[i];
+                }
+                shift+=def.dips[i].bits;
+            }
+        } else if(instance.chip==chip_POT_555_MONO||instance.chip==chip_POT_555_ASTABLE) {
+            auto* setting=reinterpret_cast<PotentiometerBase*>(instance.custom_data);
+            if(!def.pot.empty()&&def.pot==setting->name){setting->current_val=double(pot);++pots;}
+        }
+    }
+    for(unsigned count:found)if(count!=1)return false;
+    return pots==(def.pot.empty()?0u:1u);
+}
 struct RomRequirement { const char* file;const char* name;uint32_t crc,size; };
 const RomRequirement stunt_roms[]={
     {"stuntcycle","82s123.4d",0x31A09EFB,32},
@@ -104,7 +157,14 @@ int pin(const std::string& name) {
     return it==engine->chips.end()?0:it->second->output;
 }
 uint64_t now() {return engine&&engine->circuit?engine->circuit->global_time:0;}
+const NoCPUGameDef* registered() {return engine?engine->def:nullptr;}
+uint32_t terms(const std::vector<NoCPUPinTerm>& sum) {
+    uint32_t value=0;
+    for(const auto& term:sum)value+=term.weight*uint32_t(term.inverted?1-pin(term.pin):pin(term.pin));
+    return value;
+}
 bool valid_options(uint32_t game,uint32_t dip,uint32_t pot) {
+    if(const auto* def=nocpu_registered_game(game))return valid_registered_options(*def,dip,pot);
     if(game==NOCPU_BREAKOUT)return pot==0&&(dip&~127u)==0&&(dip&15u)<=8;
     if(game==NOCPU_STUNT_CYCLE)return pot==0&&(dip&~511u)==0;
     if(game==NOCPU_INDY_4)return dip==0&&pot>=220000&&pot<=1220000;
@@ -126,7 +186,11 @@ bool observations_ready() {
     auto add=[&](const char* prefix,const std::vector<const char*>& pins) {
         for(const char* key:pins)required.emplace_back(std::string(prefix)+key);
     };
-    if(engine->game==NOCPU_STUNT_CYCLE) {
+    if(const auto* def=engine->def) {
+        for(const auto& sum:def->scores)for(const auto& term:sum)required.push_back(term.pin);
+        for(const auto* key:{&def->active,&def->attract_n,&def->hit})if(!key->empty())required.push_back(*key);
+        for(const auto& key:def->events)required.push_back(key);
+    } else if(engine->game==NOCPU_STUNT_CYCLE) {
         add("",{"D9.9","H6.8","N9.11","N7.5","K7.6","K7.9","LATCH.3","A9.9","A9.5"});
         for(const char* counter:{"E5","B8","B9"})for(const char* suffix:{".3",".2",".6",".7"})required.emplace_back(std::string(counter)+suffix);
     } else if(engine->game==NOCPU_INDY_4) {
@@ -167,7 +231,10 @@ void nocpu_register_chip(const char* name,unsigned output_pin,Chip* chip) {
     if(!engine) return;
     auto key=std::string(name)+"."+std::to_string(output_pin);
     engine->chips[key]=chip;
-    if(engine->game==NOCPU_PONG&&key=="B2.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
+    if(const auto* def=engine->def) {
+        if(!def->hit.empty()&&key==def->hit)engine->hit=engine->observed[NOCPU_HIT]=chip;
+        for(size_t i=0;i<def->events.size();++i)if(key==def->events[i])engine->game_observed[i]=chip;
+    } else if(engine->game==NOCPU_PONG&&key=="B2.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
     else if(engine->game==NOCPU_PONG_DOUBLES&&key=="B3.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
     else if(engine->game==NOCPU_SPACE_RACE) {
         const char* keys[]={"D5.8","D5.10","H2.8","K2.8"};
@@ -196,6 +263,7 @@ void nocpu_unregister_chip(Chip* chip) {
     }
     if(engine->hit==chip)engine->hit=nullptr;
     for(auto& observed:engine->observed)if(observed==chip)observed=nullptr;
+    for(auto& observed:engine->game_observed)if(observed==chip)observed=nullptr;
 }
 NoCPUOutputObservation::NoCPUOutputObservation(Chip* value):chip(value),previous(value->output){}
 NoCPUOutputObservation::~NoCPUOutputObservation(){
@@ -234,6 +302,38 @@ NoCPUOutputObservation::~NoCPUOutputObservation(){
         if(event_hook)event_hook(time,signal,value);
         break;
     }
+    for(unsigned index=0;index<NOCPU_GAME_EVENT_LIMIT;++index)if(chip==engine->game_observed[index]) {
+        const uint32_t signal=NOCPU_GAME_EVENT_BASE+index;
+        if(engine->events.size()/4<EVENT_LIMIT) {
+            engine->events.push_back(uint32_t(time));
+            engine->events.push_back(uint32_t(time>>32));
+            engine->events.push_back(signal);
+            engine->events.push_back(uint32_t(chip->output));
+        } else ++engine->event_overruns;
+        if(event_hook)event_hook(time,signal,chip->output);
+        break;
+    }
+}
+const NoCPUGameDef* nocpu_registered_game(uint32_t id) {
+    auto found=registry().find(id);
+    return found==registry().end()?nullptr:&found->second;
+}
+bool nocpu_register_game(const NoCPUGameDef& def) {
+    // Definitions are fixed program data: reject anything the generic paths
+    // could not serve rather than failing later inside a live machine.
+    uint32_t bits=0;
+    for(const auto& field:def.dips) {
+        if(field.name.empty()||!field.bits||field.bits>8||field.values<1||field.values>(1u<<field.bits)
+           ||field.default_index>=field.values)std::abort();
+        bits+=field.bits;
+    }
+    if(def.id<=NOCPU_INDY_4||def.id>=NOCPU_GAME_LIMIT||def.name.empty()||!def.circuit||!def.reset_descriptors
+       ||bits>16||def.paddles>4||def.joysticks>2||def.joystick_directions>15||def.button_slots>4
+       ||def.buttons>3||def.starts>2||def.scores.size()>4||def.active.empty()
+       ||def.events.size()>NOCPU_GAME_EVENT_LIMIT||(def.pot.empty()?def.pot_min||def.pot_max||def.pot_default
+         :!(def.pot_min<=def.pot_default&&def.pot_default<=def.pot_max))
+       ||!registry().emplace(def.id,def).second)std::abort();
+    return true;
 }
 void nocpu_capture_frame(uint64_t time){
     if(!engine)return;
@@ -251,10 +351,37 @@ void nocpu_capture_audio(uint64_t,int16_t sample){
     engine->pcm.push_back(sample);
 }
 extern "C" {
-uint32_t nocpu_abi_version(){return 4;}
+uint32_t nocpu_abi_version(){return 5;}
+const char* nocpu_game_name(uint32_t game) {
+    static const char* legacy[]={"pong","pongdoubles","spacerace","breakout","stuntcycle","indy4"};
+    if(game<=NOCPU_INDY_4)return legacy[game];
+    const auto* def=nocpu_registered_game(game);
+    return def?def->name.c_str():nullptr;
+}
+uint32_t nocpu_game_info(uint32_t game,uint32_t field) {
+    const auto* def=nocpu_registered_game(game);
+    if(!def)return field==NOCPU_INFO_REGISTERED&&game<NOCPU_GAME_LIMIT?0:UINT32_MAX;
+    switch(field) {
+    case NOCPU_INFO_REGISTERED:return 1;
+    case NOCPU_INFO_PADDLES:return def->paddles;
+    case NOCPU_INFO_JOYSTICKS:return def->joysticks;
+    case NOCPU_INFO_JOYSTICK_DIRECTIONS:return def->joystick_directions;
+    case NOCPU_INFO_BUTTON_SLOTS:return def->button_slots;
+    case NOCPU_INFO_BUTTONS:return def->buttons;
+    case NOCPU_INFO_STARTS:return def->starts;
+    case NOCPU_INFO_DEFAULT_DIP:return default_dip(*def);
+    case NOCPU_INFO_DIP_MASK:return dip_mask(*def);
+    case NOCPU_INFO_POT_MIN:return def->pot_min;
+    case NOCPU_INFO_POT_MAX:return def->pot_max;
+    case NOCPU_INFO_POT_DEFAULT:return def->pot_default;
+    case NOCPU_INFO_SCORES:return uint32_t(def->scores.size());
+    case NOCPU_INFO_COINS:return 1;
+    default:return UINT32_MAX;
+    }
+}
 uint32_t nocpu_rom_begin(uint32_t game) {
     if(engine) {rom_error=NOCPU_ROM_BUSY;return 0;}
-    if(game>NOCPU_INDY_4) {rom_error=NOCPU_ROM_GAME;return 0;}
+    if(game>NOCPU_INDY_4&&!nocpu_registered_game(game)) {rom_error=NOCPU_ROM_GAME;return 0;}
     try {
         unsigned count=0;requirements(game,count);
         NoCPURomSession next;next.game=game;next.members.resize(count);
@@ -273,7 +400,7 @@ uint8_t* nocpu_rom_buffer(uint32_t slot,uint32_t size) {
 }
 uint32_t nocpu_rom_finish() {
     if(engine) {rom_error=NOCPU_ROM_BUSY;return 0;}
-    if(staged_roms.game>NOCPU_INDY_4) {rom_error=NOCPU_ROM_GAME;return 0;}
+    if(staged_roms.game>NOCPU_INDY_4&&!nocpu_registered_game(staged_roms.game)) {rom_error=NOCPU_ROM_GAME;return 0;}
     return valid_roms(staged_roms,staged_roms.game)?1:0;
 }
 uint32_t nocpu_rom_error(){return rom_error;}
@@ -286,7 +413,11 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
         // custom-update callback and subsequent 250 ms polls. Configuration
         // changes current_val; the original chip still performs the C9.r write.
         const CircuitDesc* desc=nullptr;const char* name=nullptr;
-        if(game==NOCPU_PONG) {
+        const NoCPUGameDef* def=nocpu_registered_game(game);
+        if(def) {
+            def->reset_descriptors();desc=def->circuit();name=def->name.c_str();
+            if(!configure_registered(*def,desc,dip,pot_ohms))return 0;
+        } else if(game==NOCPU_PONG) {
             nocpu_reset_pong_descriptors();nocpu_configure_pong(dip);
             desc=circuit_pong();name="pong";
         } else if(game==NOCPU_PONG_DOUBLES) {
@@ -306,7 +437,15 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
             desc=circuit_indy4();name="indy4";
         }
         engine.reset(new Engine);
-        engine->game=game;engine->dip=dip;engine->pot_ohms=pot_ohms;
+        engine->game=game;engine->dip=dip;engine->pot_ohms=pot_ohms;engine->def=def;
+        // Registered games read each BUTTONSn_INPUT switch from its own held
+        // joystick button, as Indy 4's Gas does below.
+        if(def)for(unsigned slot=0;slot<def->button_slots;++slot) {
+            auto& buttons=engine->settings.input.buttons[slot];
+            buttons.button1=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,0,slot);
+            buttons.button2=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,1,slot);
+            buttons.button3=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,2,slot);
+        }
         engine->roms=std::move(staged_roms);staged_roms=NoCPURomSession{};
         if(game==NOCPU_INDY_4)engine->settings.input.buttons[0].button1=
             KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,0,0);
@@ -345,6 +484,11 @@ uint32_t nocpu_coin_channel(uint32_t channel,uint32_t held) {
 }
 void nocpu_start(uint32_t held){nocpu_start_player(1,held);}
 uint32_t nocpu_start_player(uint32_t player,uint32_t held){
+    if(const auto* def=registered()) {
+        if(player<1||player>def->starts)return 0;
+        if(player==1)engine->input.start=held!=0;else engine->input.start2=held!=0;
+        return 1;
+    }
     if(!engine||engine->game==NOCPU_PONG||engine->game==NOCPU_INDY_4||player<1||player>2
        ||(player==2&&engine->game!=NOCPU_BREAKOUT&&engine->game!=NOCPU_STUNT_CYCLE))return 0;
     if(player==1)engine->input.start=held!=0;
@@ -356,6 +500,10 @@ uint32_t nocpu_serve(uint32_t held){
     engine->input.serve=held!=0;return 1;
 }
 void nocpu_paddle(uint32_t slot,int32_t axis){
+    if(const auto* def=registered()) {
+        if(slot<def->paddles)engine->input.axes[slot]=int16_t(std::max(-32768,std::min(32767,axis)));
+        return;
+    }
     if(engine&&engine->game<=NOCPU_BREAKOUT&&engine->game!=NOCPU_SPACE_RACE
        &&slot<(engine->game==NOCPU_PONG?2u:engine->game==NOCPU_BREAKOUT?1u:4u))
         engine->input.axes[slot]=int16_t(std::max(-32768,std::min(32767,axis)));
@@ -364,6 +512,20 @@ void nocpu_joystick(uint32_t slot,uint32_t up_held,uint32_t down_held){
     if(engine&&engine->game==NOCPU_SPACE_RACE&&slot<2) {
         engine->input.up[slot]=up_held!=0;engine->input.down[slot]=down_held!=0;
     }
+}
+uint32_t nocpu_joystick_switches(uint32_t slot,uint32_t up,uint32_t down,uint32_t left,uint32_t right) {
+    const auto* def=registered();
+    if(!def||slot>=def->joysticks)return 0;
+    const uint32_t held=(up?1u:0u)|(down?2u:0u)|(left?4u:0u)|(right?8u:0u);
+    if(held&~def->joystick_directions)return 0;
+    engine->input.up[slot]=up!=0;engine->input.down[slot]=down!=0;
+    engine->input.left[slot]=left!=0;engine->input.right[slot]=right!=0;
+    return 1;
+}
+uint32_t nocpu_button(uint32_t slot,uint32_t button,uint32_t held) {
+    const auto* def=registered();
+    if(!def||slot>=def->button_slots||button<1||button>def->buttons)return 0;
+    engine->input.buttons[slot][button-1]=held!=0;return 1;
 }
 uint32_t nocpu_throttle(int32_t axis) {
     if(!engine||engine->game!=NOCPU_STUNT_CYCLE)return 0;
@@ -418,6 +580,7 @@ void nocpu_audio_clear(){if(engine)engine->pcm.clear();}
 uint32_t nocpu_sample_rate(){return 48000;}
 uint32_t nocpu_audio_overruns(){return engine?engine->audio_overruns:0;}
 uint32_t nocpu_score(uint32_t slot){
+    if(const auto* def=registered())return slot<def->scores.size()?terms(def->scores[slot]):0;
     if(!engine||slot>(engine->game==NOCPU_INDY_4?3u:1u))return 0;
     if(engine->game==NOCPU_PONG)return bcd(slot==0?"C7":"D7")+10*pin(slot==0?"C8.3":"C8.5");
     if(engine->game==NOCPU_PONG_DOUBLES)return bcd(slot==0?"C8":"D8")+10*pin(slot==0?"C9.3":"C9.5");
@@ -433,12 +596,14 @@ uint32_t nocpu_score(uint32_t slot){
 }
 uint32_t nocpu_hits(){return engine?engine->hits:0;}
 uint32_t nocpu_run_n(){
+    if(const auto* def=registered())return pin(def->active)?0:1;
     if(engine&&engine->game==NOCPU_SPACE_RACE)return !pin("C9.3");
     if(engine&&engine->game==NOCPU_INDY_4)return !pin("COIN.H1.10");
     if(engine&&engine->game==NOCPU_STUNT_CYCLE)return !pin("D9.9");
     return pin("LATCH.3");
 }
 uint32_t nocpu_attract_n(){
+    if(const auto* def=registered())return def->attract_n.empty()?UINT32_MAX:uint32_t(pin(def->attract_n));
     if(engine&&engine->game==NOCPU_SPACE_RACE)return UINT32_MAX;
     if(engine&&engine->game==NOCPU_BREAKOUT)return pin("E6.9");
     if(engine&&engine->game==NOCPU_STUNT_CYCLE)return pin("D9.9");
@@ -447,6 +612,7 @@ uint32_t nocpu_attract_n(){
 }
 uint32_t nocpu_active(){
     if(!engine)return 0;
+    if(const auto* def=registered())return pin(def->active)!=0;
     if(engine->game==NOCPU_PONG_DOUBLES)return pin("D2.4")!=0;
     if(engine->game==NOCPU_SPACE_RACE)return pin("C9.3")!=0;
     if(engine->game==NOCPU_BREAKOUT)return pin("E6.9")!=0;

@@ -106,9 +106,33 @@ def positions(path, game):
     return observations
 
 
+def read_ppm(image):
+    header, dimensions, maximum, rgb = image.read_bytes().split(b'\n', 3)
+    width, height = (int(value) for value in dimensions.split())
+    if header != b'P6' or maximum != b'255' or len(rgb) != width * height * 3:
+        raise ValueError('Malformed actual full-resolution snapshot')
+    return width, height, rgb
+
+
+def registered_snapshot_positions(path, module):
+    """Full-RGB snapshots of a game ported from 0.2.0 on, with its objects."""
+    result = []
+    for image in sorted(path.glob('*ms.ppm'), key=lambda name: int(name.stem[:-2])):
+        width, height, rgb = read_ppm(image)
+        row = {'requested_ms': int(image.stem[:-2]), 'image': image.name, 'sha256': sha256(image),
+               'width': width, 'height': height}
+        row.update(module.snapshot_objects(rgb, width, height))
+        result.append(row)
+    (path / 'snapshot-positions.json').write_text(json.dumps(result, indent=2) + '\n')
+    return result
+
+
 def snapshot_positions(path, game):
     if game == 'breakout':
         return breakout.snapshot_positions(path, pong.read_rows)
+    module = game_media.registered_game(game)
+    if module:
+        return registered_snapshot_positions(path, module)
     result = []
     # Measured full original GL images resolve outlines which alias into
     # disconnected single pixels in the coarse observation raster.
@@ -129,6 +153,16 @@ def snapshot_positions(path, game):
         result.append(row)
     (path / 'snapshot-positions.json').write_text(json.dumps(result, indent=2) + '\n')
     return result
+
+
+def contact_groups(events, signal="0"):
+    """Rising edges of the observed HIT pin, grouped into physical contacts."""
+    groups = []
+    for time in [int(row["time_ps"]) for row in events if row["signal"] == signal and row["value"] == "1"]:
+        if not groups or time - groups[-1][-1] > pong.CONTACT_GAP_PS:
+            groups.append([])
+        groups[-1].append(time)
+    return groups
 
 
 def snapshot_at(rows, milliseconds):
@@ -166,6 +200,7 @@ def analyze_epoch(path, scenario, *, original=False):
     if game == 'breakout':
         return breakout.analyze_epoch(path, scenario, SimpleNamespace(
             ROOT=ROOT, pong=pong, game_media=game_media, active_pcm=active_pcm), original=original)
+    module = game_media.registered_game(game)
     captured_configuration = json.loads((path.parent / "configuration.json").read_text())
     expected_configuration = {"game": game, "dip": scenario["dip"], "pot_ohms": scenario["pot_ohms"]}
     configuration_matches = captured_configuration == expected_configuration and all(
@@ -193,8 +228,10 @@ def analyze_epoch(path, scenario, *, original=False):
                                         scenario=scenario if configuration_matches else None,
                                         replay=replay if configuration_matches else None)
     skews = [int(row["applied_ps"]) - int(row["requested_ps"]) for row in inputs]
-    maximum_scores = [max(int(row[f"score{slot}"]) for row in telemetry) for slot in [1, 2]]
-    event_counts = {str(signal): sum(int(row["signal"]) == signal for row in events) for signal in range(5)}
+    score_slots = [int(key[5:]) for key in telemetry[0] if key.startswith("score")] if module else [1, 2]
+    maximum_scores = [max(int(row[f"score{slot}"]) for row in telemetry) for slot in score_slots]
+    signals = sorted({int(row["signal"]) for row in events}) if module else range(5)
+    event_counts = {str(signal): sum(int(row["signal"]) == signal for row in events) for signal in signals}
     active_transitions, previous = [], None
     for row in telemetry:
         value = int(row["active"])
@@ -205,13 +242,24 @@ def analyze_epoch(path, scenario, *, original=False):
         "selected_game_configuration_matches_capture": configuration_matches,
         "not_active_before_inputs": state_at(telemetry, 150)["active"] == "0",
         "recorded_inputs_match_declared_replay": pong.validate_recorded_inputs(inputs, replay),
-        "input_schedule_skew_bounded": min(skews) >= 0 and max(skews) < 10**7,
+        "input_schedule_skew_bounded": min(skews) >= 0 and max(skews) < getattr(module, "INPUT_SKEW_BOUND_PS", 10**7),
         "full_scenario_completed": int(telemetry[-1]["time_ps"]) >= duration and inputs[-1]["action"] == "recreate",
     }
     checks.update(coverage["checks"])
     controls, contacts, crashes = {}, [], []
     pcm_context = active_pcm(pcm, telemetry)
-    if scenario.get("kind") == "coin_only":
+    if module:
+        # Game-specific original behavior: tools/reference/games/<game>.py.
+        result = module.analyze(SimpleNamespace(
+            scenario=scenario, replay=replay, duration_ps=duration, telemetry=telemetry, events=events,
+            snapshots=snapshots, pcm_context=pcm_context, active_transitions=active_transitions,
+            maximum_scores=maximum_scores, original=original,
+            state_at=lambda milliseconds: state_at(telemetry, milliseconds),
+            snapshot_at=lambda milliseconds: snapshot_at(snapshots, milliseconds),
+            contact_groups=lambda: contact_groups(events), PS_PER_MS=10**9))
+        checks.update(result["checks"])
+        controls, contacts = result.get("controls", {}), result.get("contacts", [])
+    elif scenario.get("kind") == "coin_only":
         checks["coin_without_start_never_enables_game_on"] = all(row["active"] == "0" for row in telemetry)
         checks["no_fabricated_start_input"] = not any(action == "start" for _, action, _ in replay)
     else:
@@ -358,7 +406,7 @@ def analyze_scenario(directory, scenario):
         except OSError:
             exact[name] = False
     snapshots = {}
-    if scenario['game'] == 'breakout':
+    if scenario['game'] == 'breakout' or game_media.registered_game(scenario['game']):
         baseline, repeat = path / 'baseline/epoch0', path / 'repeat/epoch0'
         first = {image.name: sha256(image) for image in baseline.glob('*ms.ppm')}
         second = {image.name: sha256(image) for image in repeat.glob('*ms.ppm')}
