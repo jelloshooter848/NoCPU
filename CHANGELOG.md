@@ -29,9 +29,11 @@ releases below.
   right gun on the Up/Down arrow keys with Left to fire, two gamepads, and the circuit's own sound.
 - Gotcha (Atari, 1973) is playable: the original circuit, verified against original DICE, with its
   play-time setting, the cross on W/A/S/D and the square on the arrow keys, two gamepads, and the
-  circuit's own sound, including the beeping tone that speeds up as the players close in.
-  Gotcha is the heaviest game so far: in Firefox it may run below full speed on slower computers
-  (measured about a third of full speed in a test build); Chrome, Edge and Safari run it at full speed.
+  circuit's own sound, including the beeping tone that beeps faster as the cross and the square
+  come closer together from left to right. One coin buys two games; extra coins do not add more.
+  Gotcha is the heaviest game so far: on the 4-vCPU test machine, Playwright's Chromium and WebKit
+  builds ran it at full speed and Playwright's Firefox build at about a third of full speed; other
+  browsers were not measured.
 
 ## [0.1.7] - 2026-10-15
 

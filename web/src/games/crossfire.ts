@@ -38,7 +38,7 @@ export const crossfire = {
   gamepadButtons: { p1Fire: [{ pad: 0, button: 1 }], p2Fire: [{ pad: 1, button: 1 }] },
   text: {
     info: 'Two players move guns up and down the sides of the court and shoot the ball into the other player’s goal before time runs out.',
-    rules: (options) => `Insert a coin: the game starts at once. Move your gun up or down and press Fire to shoot across the court. A bullet that hits the ball pushes it away from you; when the ball reaches the far goal you score a point. Each press fires one bullet, and a new bullet can be fired only after the last one has ended, so holding Fire does not repeat. The game runs on a timer: with the current play-time setting (${Math.round(((options.playtimeOhms ?? 1180000) - 680000) / 10000)}%) it lasts about ${Math.round(1.0986 * (options.playtimeOhms ?? 1180000) * 100e-6)} seconds, and the scores flash when it is nearly over. The higher score wins.`,
+    rules: (options) => `Insert a coin: the game starts at once. Move your gun up or down and press Fire to shoot across the court. A bullet that hits the ball pushes it away from you; when the ball reaches the far goal you score a point. Each press fires one bullet, and a new bullet can be fired only after the last one has ended, so holding Fire does not repeat. The game runs on a timer: with the current play-time setting (${Math.round(((options.playtimeOhms ?? 1180000) - 680000) / 10000)}%) it lasts about ${Math.round(1.0986 * (options.playtimeOhms ?? 1180000) * 100e-6)} seconds. The higher score wins.`,
     gamepad: 'Controller 1 moves the left gun and controller 2 the right gun: a joystick pushed up or down holds that direction, and the direction buttons do the same. Button 2 fires.',
     status: 'Insert a coin to play',
   },

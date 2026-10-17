@@ -45,7 +45,7 @@ export const gotcha = {
   },
   text: {
     info: 'Two players chase each other through a maze that keeps changing shape: one steers the cross, the other the square.',
-    rules: (options) => `Insert a coin, then press Start. Steer the cross or the square through the maze; walls stop you. When the two meet it is a catch: the screen flashes, the catch counter on the left goes up by one and the chase goes on. A beeping tone speeds up as the two players get closer. The clock on the right counts up, and the game ends when it passes 99: with the current play-time setting (${Math.round(((options.playtimeOhms ?? 297000) - 47000) / 2500)}%) after about ${seconds(options.playtimeOhms ?? 297000)} seconds.`,
+    rules: (options) => `Insert a coin, then press Start. One coin buys two games, and extra coins do not add more. Steer the cross or the square through the maze; walls stop you. When the two meet it is a catch: the screen flashes, the catch counter on the left goes up by one and the chase goes on. A beeping tone beeps faster as the cross and the square come closer together from left to right. The clock on the right counts up, and the game ends when it passes 99: with the current play-time setting (${Math.round(((options.playtimeOhms ?? 297000) - 47000) / 2500)}%) after about ${seconds(options.playtimeOhms ?? 297000)} seconds.`,
     gamepad: 'Controller 1 moves the cross and controller 2 the square: the joystick pushed in a direction holds that direction (up/down on its vertical axis, left/right on its horizontal axis), and the direction buttons do the same.',
     status: 'Insert a coin, then Start to play',
   },
