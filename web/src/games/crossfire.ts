@@ -6,8 +6,8 @@ export const crossfire = {
   id: 'crossfire',
   coreId: 9,
   title: 'Crossfire',
-  // Set true only once the original/native/Wasm comparison passes (docs/ACCEPTANCE.md).
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-17 (docs/ACCEPTANCE.md, 0.2.0 Crossfire run).
+  verified: true,
   playerCount: 2,
   // JOYSTICK1/2_INPUT, Up and Down only: the original wires joystick 1 to the
   // left gun and joystick 2 to the right gun. Held Up moves a gun up the screen.

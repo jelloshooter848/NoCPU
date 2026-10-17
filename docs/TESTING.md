@@ -79,9 +79,9 @@ frames, PCM, inputs, telemetry and collision traces for two epochs in two fresh
 processes. A pass proves the observations it checks: it taps generated PCM, not
 speaker output, and an attract-mode screenshot is not a pass.
 
-The ROM-free batch reference uses the twenty scenarios in
+The ROM-free batch reference uses the twenty-three scenarios in
 [`tests/replays/game-scenarios.json`](../tests/replays/game-scenarios.json)
-(Pong Doubles, Space Race, Breakout, Rebound and Quadrapong). Games ported from 0.2.0 on
+(Pong Doubles, Space Race, Breakout, Rebound, Quadrapong and Crossfire). Games ported from 0.2.0 on
 add their original-behavior checks, measured frame cadence and settings
 validity as `tools/reference/games/<id>.py`, and their original observation as
 `tools/reference/games/<id>.inc` ([PORT_GAME.md](PORT_GAME.md)); their
@@ -533,7 +533,7 @@ source/notice hashes; they do not replace the full local matrix.
 
 ## What is still untested
 
-Thirteen of the 21 DICE 0.9 games are unported. The eight ported games pass their
+Twelve of the 21 DICE 0.9 games are unported. The nine ported games pass their
 bounded original/native/Wasm comparisons ([ACCEPTANCE.md](ACCEPTANCE.md)), with
 the coverage gaps listed there, and automated browser checks in Playwright's
 engine builds; nobody has yet recorded a manual check in a release Chrome or

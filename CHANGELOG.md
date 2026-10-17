@@ -22,6 +22,9 @@ releases below.
   DICE, with its coinage setting (one credit buys a two-player game, two a four-player game), the
   left and right paddles on W/S and the Up/Down arrow keys, the top and bottom paddles on J/L and
   V/B, the mouse for one player or four gamepads, and the circuit's own sound.
+- Crossfire (Atari, 1975) is playable: the original circuit, verified against original DICE, with
+  its play-time setting, the coin that starts the game, the left gun on W/S with D to fire and the
+  right gun on the Up/Down arrow keys with Left to fire, two gamepads, and the circuit's own sound.
 
 ## [0.1.7] - 2026-10-15
 
