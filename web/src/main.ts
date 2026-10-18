@@ -297,6 +297,8 @@ function mouseHelp(gameId: PlayableGameId): string {
   if (slot === null) return 'The mouse is off for this game. Choose a player under Mouse in Settings to use it.';
   if (gameId === 'stuntcycle') return 'Hold the left mouse button over the display and move right to open the shared throttle; release the button to idle.';
   if (gameId === 'breakout') return 'Move the mouse left or right over the display to move the shared paddle across its full range. Hold the left mouse button over the display to hold Serve.';
+  const mouse = registeredGame(gameId)?.mouse;
+  if (mouse) return mouse.help;
   if (registeredGame(gameId)) return `Move the mouse ${paddleOrientation(gameId, slot) === 'horizontal' ? 'left or right' : 'up or down'} over the display to move the ${gameSpec(gameId).controlLabels[slot].toLowerCase()} across its full range. Settings chooses which player the mouse controls.`;
   return `Move the mouse up or down over the display to move the Player ${slot + 1} paddle (${gameSpec(gameId).controlLabels[slot].toLowerCase()}) across its full range. Settings chooses which player the mouse controls.`;
 }
@@ -398,9 +400,9 @@ function releaseInputs(): void {
   controls.release();
   pausedMenuButtons.clear();
   const held = [mouseThrottle, mouseServe];
-  mouseThrottle = undefined; mouseServe = undefined;
+  mouseThrottle = undefined; mouseServe = undefined; mouseButtons = { left: false, right: false };
   for (const id of held) if (id !== undefined && canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
-  if (activeGameId === 'stuntcycle' || activeGameId === 'indy4') axes.fill(0);
+  if (activeGameId === 'stuntcycle' || activeGameId === 'indy4' || gameSpec(activeGameId).inputKind === 'wheel') axes.fill(0);
   if (ready) send({ type: 'release' });
 }
 
@@ -754,6 +756,12 @@ function applyMouse(event: PointerEvent): void {
     const fraction = mouseFraction(event, true);
     if (fraction === undefined) return;
     axis = Math.round(fraction * AXIS_MAX);
+  } else if (spec.inputKind === 'wheel' && registeredGame(activeGameId)?.mouse?.kind === 'wheel') {
+    // The horizontal position sets the original wheel's turning rate: the
+    // centre of the display is straight ahead, either edge a full turn.
+    const fraction = mouseFraction(event, true);
+    if (fraction === undefined) return;
+    axis = Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN));
   } else if (spec.inputKind === 'paddle') {
     const fraction = mouseFraction(event, paddleOrientation(activeGameId, slot) === 'horizontal');
     if (fraction === undefined) return;
@@ -772,8 +780,30 @@ document.addEventListener('pointermove', (event) => {
   pointerMoved = position !== lastPointer;
   lastPointer = position;
 }, { capture: true });
-canvas.addEventListener('pointermove', (event) => { if (pointerMoved) applyMouse(event); });
+// Registered games with a mouse-button mapping (game.mouse): the left and right
+// buttons over the display hold two original switches. Chorded presses arrive
+// as pointer moves, so the held state follows the event's button mask.
+let mouseButtons = { left: false, right: false };
+function applyMouseButtons(event: PointerEvent | null): void {
+  const mouse = registeredGame(activeGameId)?.mouse;
+  if (!mouse) return;
+  const on = event !== null && settingsUI.mouseSlotFor(activeGameId) !== null && mouseActive();
+  const next = { left: on && (event!.buttons & 1) !== 0, right: on && (event!.buttons & 2) !== 0 };
+  if (mouse.left && next.left !== mouseButtons.left) controls.setPointerAction(mouse.left, next.left);
+  if (mouse.right && next.right !== mouseButtons.right) controls.setPointerAction(mouse.right, next.right);
+  mouseButtons = next;
+}
+canvas.addEventListener('pointermove', (event) => { if (pointerMoved) applyMouse(event); if (mouseButtons.left || mouseButtons.right || event.buttons) applyMouseButtons(event); });
 canvas.addEventListener('pointerdown', (event) => {
+  if (registeredGame(activeGameId)?.mouse && (event.button === 0 || event.button === 2)) {
+    focusGame();
+    if (!mouseActive()) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    applyMouseButtons(event);
+    applyMouse(event);
+    return;
+  }
   if (event.button !== 0) return;
   focusGame();
   if (!mouseActive()) return;
@@ -784,6 +814,7 @@ canvas.addEventListener('pointerdown', (event) => {
   applyMouse(event);
 });
 function releaseMouse(event: PointerEvent): void {
+  applyMouseButtons(event.type === 'pointerup' ? event : null);
   if (mouseThrottle === event.pointerId) {
     mouseThrottle = undefined;
     const slot = settingsUI.mouseSlotFor(activeGameId);
@@ -792,6 +823,14 @@ function releaseMouse(event: PointerEvent): void {
   if (mouseServe === event.pointerId) { mouseServe = undefined; controls.setPointerServe(false); }
 }
 canvas.addEventListener('pointerup', releaseMouse);
+// A mouse-steered wheel (game.mouse kind 'wheel') goes straight when the
+// pointer leaves the display, rather than holding its last turning rate.
+canvas.addEventListener('pointerleave', () => {
+  const slot = settingsUI.mouseSlotFor(activeGameId);
+  if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel' || slot === null || !ready || slot >= axes.length || axes[slot] === 0) return;
+  axes[slot] = 0;
+  sendInputs(slot);
+});
 canvas.addEventListener('pointercancel', releaseMouse);
 canvas.addEventListener('lostpointercapture', releaseMouse);
 canvas.addEventListener('contextmenu', (event) => { if (screen === 'playing') event.preventDefault(); });

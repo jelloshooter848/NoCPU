@@ -93,7 +93,7 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   const made = epoch ? core._nocpu_reset(options.seed) : core._nocpu_create_game(gameId, options.seed, options.dip, options.potOhms);
   if (made !== 1) throw new Error('Core creation/reset failed.');
   width = core._nocpu_width(); height = core._nocpu_height();
-  if (width !== (gameId === 3 ? 324 : 576) || height !== 432) throw new Error('Selected native viewport differs from the measured original.');
+  if (width !== (gameId === 3 || (registered && info(14) === 1) ? 324 : 576) || height !== 432) throw new Error('Selected native viewport differs from the measured original.');
   if (core._nocpu_game() !== gameId || core._nocpu_dip() !== options.dip || core._nocpu_pot_ohms() !== options.potOhms) throw new Error('Native selected game/configuration mismatch.');
   const initialCount = core._nocpu_audio_count();
   if (core._nocpu_create(options.seed) !== 0 || core._nocpu_advance(100001) !== 0 || core._nocpu_advance(0) !== 1 || ps() !== 0n || core._nocpu_frame_number() !== 0 || core._nocpu_audio_count() !== initialCount) throw new Error('ABI lifetime/bounded-step contract violated.');

@@ -54,6 +54,9 @@ const action = (ms, kind, slot, value, other) => ({ ms, kind, slot, value, ...(o
 // while it runs, so its two coins (a four-player game) are spaced by that
 // one-shot and its traces run longer to hold as many frames.
 const SYNC_STOPPING_COIN = new Set(['tvbasketball']);
+// DICE wires no circuit output to the AUDIO chip of these games (inherited
+// absent audio): their PCM is the audio chip's single constructor sample.
+const NO_AUDIO_HOOKUP = new Set(['pinpong', 'hiway']);
 const probeMs = (game) => SYNC_STOPPING_COIN.has(game.name) ? 3300 : 2200;
 function playScript(game) {
   if (SYNC_STOPPING_COIN.has(game.name)) return [action(100, 'coin', 0, 1), action(200, 'coin', 0, 0),
@@ -72,6 +75,7 @@ function apply(event) {
   else if (event.kind === 'joystick') core._nocpu_joystick(event.slot, event.value, event.other);
   else if (event.kind === 'switches') core._nocpu_joystick_switches(event.slot, ...event.value);
   else if (event.kind === 'button') core._nocpu_button(event.slot, event.other, event.value);
+  else if (event.kind === 'wheel') core._nocpu_wheel(event.slot, event.value);
   else throw new Error(`Unsupported probe action ${event.kind}`);
 }
 function capture(label, game, script = playScript(game), durationMs = probeMs(game)) {
@@ -112,7 +116,7 @@ function capture(label, game, script = playScript(game), durationMs = probeMs(ga
     const nextFrame = core._nocpu_frame_number();
     if (nextFrame !== frame) {
       if (nextFrame !== frame + 1) throw new Error(`${label}: 10 ms observation lost a generated frame`);
-      const rgba = core.HEAPU8.slice(core._nocpu_frame(), core._nocpu_frame() + 576 * 432 * 4);
+      const rgba = core.HEAPU8.slice(core._nocpu_frame(), core._nocpu_frame() + core._nocpu_width() * core._nocpu_height() * 4);
       for (let i = 3; i < rgba.length; i += 4) if (rgba[i] !== 255) throw new Error(`${label}: nonopaque generated frame`);
       streams.rgba.update(rgba); streams.frame_times.update(`${nextFrame},${time('frame_time')}\n`); frame = nextFrame;
     }
@@ -121,7 +125,7 @@ function capture(label, game, script = playScript(game), durationMs = probeMs(ga
   const fingerprint = { streams: Object.fromEntries(Object.entries(streams).map(([key, hash]) => [key, hash.digest('hex')])),
     samples, frame_count: frame, event_count: eventCount, collision_count: collisions, final };
   report.traces.push({ label, game: { ...game }, requested, events, fingerprint });
-  check(`${label}: native media and exact time present`, frame >= 120 && samples >= 100000 && time() >= BigInt(durationMs) * 1000000000n);
+  check(`${label}: native media and exact time present`, frame >= 120 && (NO_AUDIO_HOOKUP.has(game.name) ? samples === 1 : samples >= 100000) && time() >= BigInt(durationMs) * 1000000000n);
   check(`${label}: drained native queues do not overflow`, final.audio_overruns === 0 && final.event_overruns === 0 && final.audio_count === 0 && final.event_count === 0);
   return fingerprint;
 }
@@ -245,19 +249,22 @@ try {
     const info = (field) => core._nocpu_game_info(id, field) >>> 0;
     if (info(0) !== 1) { check(`ID ${id}: unregistered ID has no name or create`, core._nocpu_game_name(id) === 0 && core._nocpu_create_game(id, 848, 0, 0) === 0); continue; }
     const game = { id, name: cString(core._nocpu_game_name(id)), dip: info(7), pot: info(11), paddles: info(1), joysticks: info(2),
-      directions: info(3), buttonSlots: info(4), buttons: info(5), starts: info(6), mask: info(8), registered: true };
+      directions: info(3), buttonSlots: info(4), buttons: info(5), starts: info(6), mask: info(8), portrait: info(14), wheels: info(15), registered: true };
     report.registered_games.push({ ...game, pot_min: info(9), pot_max: info(10), scores: info(12) });
     check(`${game.name}: declared contract within the generic ABI`, game.paddles <= 4 && game.joysticks <= 2 && game.buttonSlots <= 4
-      && game.buttons <= 3 && game.starts <= 2 && (game.dip & ~game.mask) === 0 && info(13) === 1 && info(99) === 4294967295);
+      && game.buttons <= 3 && game.starts <= 2 && game.portrait <= 1 && game.wheels <= 4 && (game.dip & ~game.mask) === 0
+      && info(13) === 1 && info(99) === 4294967295);
     const cold = state();
     check(`${game.name}: invalid settings rejected without mutation`, core._nocpu_create_game(id, 848, (game.mask + 1) >>> 0, game.pot) === 0
       && core._nocpu_create_game(id, 848, game.dip, info(10) ? info(10) + 1 : 1) === 0 && equal(cold, state()));
     const baseline = fresh(`${game.name}: fresh baseline`, game);
     create(game); const before = state();
+    check(`${game.name}: declared raster is the created one`, core._nocpu_width() === (game.portrait ? 324 : 576) && core._nocpu_height() === 432);
     check(`${game.name}: undeclared inputs are rejected without mutation`,
       core._nocpu_button(game.buttonSlots, 1, 1) === 0 && core._nocpu_button(0, game.buttons + 1, 1) === 0
       && core._nocpu_joystick_switches(game.joysticks, 1, 0, 0, 0) === 0 && core._nocpu_start_player(game.starts + 1, 1) === 0
-      && core._nocpu_coin_channel(2, 1) === 0 && core._nocpu_wheel(0, 1) === 0 && core._nocpu_serve(1) === 0 && equal(before, state()));
+      && core._nocpu_coin_channel(2, 1) === 0 && core._nocpu_wheel(game.wheels, 1) === 0 && core._nocpu_wheel_keys(game.wheels, 1, 0) === 0
+      && core._nocpu_serve(1) === 0 && equal(before, state()));
     core._nocpu_destroy();
     const ignored = capture(`${game.name}: unsupported channels`, (create(game), game), [...playScript(game),
       action(1400, 'paddle', game.paddles, -32768), action(1400, 'joystick', 0, 1, 1), action(1400, 'switches', game.joysticks, [1, 1, 1, 1])]);
@@ -267,6 +274,7 @@ try {
     for (let slot = 0; slot < game.paddles; slot += 1) core._nocpu_paddle(slot, slot % 2 ? 32767 : -32768);
     for (let slot = 0; slot < game.joysticks; slot += 1) core._nocpu_joystick_switches(slot, game.directions & 1, 0, (game.directions >> 2) & 1, 0);
     for (let slot = 0; slot < game.buttonSlots; slot += 1) for (let button = 1; button <= game.buttons; button += 1) core._nocpu_button(slot, button, 1);
+    for (let slot = 0; slot < game.wheels; slot += 1) core._nocpu_wheel_keys(slot, 1, 0);
     check(`${game.name}: held-input warmup`, core._nocpu_advance(100000) === 1);
     check(`${game.name}: held-input reset keeps the selected settings`, core._nocpu_reset(848) === 1 && core._nocpu_dip() === game.dip && core._nocpu_pot_ohms() === game.pot);
     const reset = capture(`${game.name}: held-input reset`, game); core._nocpu_destroy();
@@ -274,6 +282,10 @@ try {
     for (let slot = 0; slot < game.paddles; slot += 1) {
       const moved = fresh(`${game.name}: paddle ${slot + 1}`, game, [...playScript(game), action(1400, 'paddle', slot, slot % 2 ? 32767 : -32768)]);
       check(`${game.name}: paddle ${slot + 1} changes the generated court`, moved.streams.rgba !== baseline.streams.rgba);
+    }
+    for (let slot = 0; slot < game.wheels; slot += 1) {
+      const turned = fresh(`${game.name}: wheel ${slot + 1}`, game, [...playScript(game), action(1400, 'wheel', slot, 32767)]);
+      check(`${game.name}: wheel ${slot + 1} changes the generated game`, turned.streams.rgba !== baseline.streams.rgba);
     }
   }
   core._nocpu_destroy(); core._nocpu_destroy();

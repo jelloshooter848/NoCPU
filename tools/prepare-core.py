@@ -165,8 +165,8 @@ chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','74
        'rom','82S123','82S115','74S287','74194','7485','74165','74164','74174','7475','9301',
        # Chips first needed by the 0.2.0 batch (Crossfire); 74157 is an alias of 9322.
        '7492','9321',
-       # Chips first needed by the 0.3.0 batch (TV Basketball).
-       '74151','74155','7454']
+       # Chips first needed by the 0.3.0 batch (TV Basketball, Pin Pong).
+       '74151','74155','7454','9314']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))

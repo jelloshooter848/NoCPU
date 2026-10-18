@@ -330,6 +330,8 @@ bool nocpu_register_game(const NoCPUGameDef& def) {
     if(def.id<=NOCPU_INDY_4||def.id>=NOCPU_GAME_LIMIT||def.name.empty()||!def.circuit||!def.reset_descriptors
        ||bits>16||def.paddles>4||def.joysticks>2||def.joystick_directions>15||def.button_slots>4
        ||def.buttons>3||def.starts>2||def.scores.size()>4||def.active.empty()
+       // A wheel reads axis N and held buttons 3/4 of slot N (nocpu_wheel_keys).
+       ||def.wheels>4||(def.wheels&&(def.paddles||def.buttons>2))
        ||def.events.size()>NOCPU_GAME_EVENT_LIMIT||(def.pot.empty()?def.pot_min||def.pot_max||def.pot_default
          :!(def.pot_min<=def.pot_default&&def.pot_default<=def.pot_max))
        ||!registry().emplace(def.id,def).second)std::abort();
@@ -376,6 +378,8 @@ uint32_t nocpu_game_info(uint32_t game,uint32_t field) {
     case NOCPU_INFO_POT_DEFAULT:return def->pot_default;
     case NOCPU_INFO_SCORES:return uint32_t(def->scores.size());
     case NOCPU_INFO_COINS:return 1;
+    case NOCPU_INFO_PORTRAIT:return def->portrait?1:0;
+    case NOCPU_INFO_WHEELS:return def->wheels;
     default:return UINT32_MAX;
     }
 }
@@ -455,6 +459,8 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
         // The accepted original Qt reference client is 632x432. Original
         // keep-aspect cropping gives 576x432 landscape or 324x432 portrait.
         engine->video.video_init(632,432,engine->settings.video);
+        // A registered game's declared raster must be the one its circuit makes.
+        if(def&&engine->video.pixel_width()!=(def->portrait?324u:576u)) {engine.reset();return 0;}
         if(!observations_ready()) {engine.reset();return 0;}
         return 1;
     } catch(...) {engine.reset();return 0;}
@@ -538,15 +544,21 @@ uint32_t nocpu_throttle_key(uint32_t held) {
     engine->settings.input.throttle[0].key=KeyAssignment(KeyAssignment::KEYBOARD,phoenix::Keyboard::Throttle);
     engine->input.throttle_held=held!=0;return 1;
 }
+// Indy 4, or a registered game's declared WHEELn_INPUT slots.
+static bool wheel_slot(uint32_t slot) {
+    if(!engine)return false;
+    if(const auto* def=registered())return slot<def->wheels&&slot<4;
+    return engine->game==NOCPU_INDY_4&&slot<4;
+}
 uint32_t nocpu_wheel(uint32_t slot,int32_t axis) {
-    if(!engine||engine->game!=NOCPU_INDY_4||slot>=4)return 0;
+    if(!wheel_slot(slot))return 0;
     auto& wheel=engine->settings.input.wheel[slot];
     wheel.left=KeyAssignment(KeyAssignment::JOYSTICK_AXIS,0,slot);
     wheel.right=KeyAssignment(KeyAssignment::JOYSTICK_AXIS,1,slot);
     engine->input.axes[slot]=int16_t(std::max(-32768,std::min(32767,axis)));return 1;
 }
 uint32_t nocpu_wheel_keys(uint32_t slot,uint32_t left,uint32_t right) {
-    if(!engine||engine->game!=NOCPU_INDY_4||slot>=4)return 0;
+    if(!wheel_slot(slot))return 0;
     auto& wheel=engine->settings.input.wheel[slot];
     wheel.left=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,2,slot);
     wheel.right=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,3,slot);

@@ -771,6 +771,68 @@
           "players": 2
         }
       ]
+    },
+    {
+      "id": "pinpong-default",
+      "game": "pinpong",
+      "core_id": 11,
+      "replay": "tests/replays/pinpong.tsv",
+      "dip": 0,
+      "pot_ohms": 0,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        200
+      ],
+      "coin_without_start_ms": 1400,
+      "credit_start_ms": [
+        1500,
+        79500
+      ],
+      "flipper_tests": [
+        {
+          "side": "left",
+          "held_ms": 2000,
+          "rest_ms": 2300
+        },
+        {
+          "side": "right",
+          "held_ms": 2500,
+          "rest_ms": 2750
+        }
+      ]
+    },
+    {
+      "id": "pinpong-five-balls",
+      "game": "pinpong",
+      "core_id": 11,
+      "replay": "tests/replays/pinpong-five-balls.tsv",
+      "dip": 6,
+      "pot_ohms": 0,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        70000
+      ],
+      "coin_without_start_ms": 1400,
+      "credit_start_ms": [
+        1500
+      ]
+    },
+    {
+      "id": "pinpong-two-credits",
+      "game": "pinpong",
+      "core_id": 11,
+      "replay": "tests/replays/pinpong-two-credits.tsv",
+      "dip": 1,
+      "pot_ohms": 0,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        35580
+      ],
+      "coin_without_start_ms": 1400,
+      "credit_start_ms": [
+        1500,
+        17860
+      ]
     }
   ]
 }

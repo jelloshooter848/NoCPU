@@ -13,7 +13,7 @@ import { crossfire } from './crossfire';
 
 import { tvbasketball } from './tvbasketball';
 
-// Reserved: import { pinpong } from './pinpong';
+import { pinpong } from './pinpong';
 
 // Reserved: import { hiway } from './hiway';
 
@@ -28,7 +28,7 @@ export const REGISTERED_GAMES = [
 
   tvbasketball,
 
-  // Reserved: pinpong,
+  pinpong,
 
   // Reserved: hiway,
 ] as const satisfies readonly GameDefinition[];

@@ -83,8 +83,10 @@ names=re.findall(r'\b(nocpu_\w+)\s*\(',Path('core/nocpu.h').read_text())
 print(json.dumps(['_'+name for name in dict.fromkeys(names)]))
 PY
 )
+  # Pin Pong's original optimizer tables need about 590 MB of Wasm memory
+  # (OPTIMIZATION_HINT queues); memory grows on demand up to 2 GiB.
   WASM_FLAGS=(--no-entry -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,worker,node
-    -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=268435456
+    -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=2147483648
     -sFILESYSTEM=0 -sDISABLE_EXCEPTION_CATCHING=0 "-sEXPORTED_FUNCTIONS=$EXPORTS"
     -Wl,-Map=build/core/wasm/linker.map)
   "$EMXX" "${COMMON[@]}" "${PREFIX_MAPS[@]}" "${SOURCES[@]}" "${WASM_FLAGS[@]}" -o build/core/wasm/nocpu.js

@@ -295,7 +295,11 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     duration_complete = valid_parameters and not errors and bool(times) and times[0] == first \
         and 0 <= duration_ps - times[-1] < frame_period and len(times) == expected_frames
     expected_samples = duration_ps * PCM_RATE // PS_PER_SECOND if valid_parameters else None
-    pcm_duration_complete = valid_parameters and abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE
+    # A game DICE leaves without an audio hookup (NO_AUDIO_HOOKUP in its module)
+    # generates only the audio chip's single constructor sample.
+    silent = getattr(registered_game(game), "NO_AUDIO_HOOKUP", False) if valid_parameters else False
+    pcm_duration_complete = valid_parameters and (sample_count == 1 if silent
+                                                  else abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE)
     pcm_container_complete = pcm_byte_count is None or (type(pcm_byte_count) is int \
         and pcm_byte_count >= 0 and pcm_byte_count % 2 == 0 and pcm_byte_count == sample_count * 2)
     return {"expected_duration_ps": duration_ps, "game": game, "errors": errors,
