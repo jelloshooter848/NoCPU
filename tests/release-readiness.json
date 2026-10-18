@@ -1,9 +1,9 @@
 {
   "schema_version": 3,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.2.2 patch: fixes an intermittent WebKit tab crash at game start (the game display uses a CPU-backed canvas, avoiding a WebKit/Skia bug) and makes the Breakout ball check run on the held clock. The game runtime is otherwise unchanged from 0.2.1 (ten playable games). Each release generates its desktop acceptance record from its own verification run (all ten ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
+  "release_scope": "0.3.0 milestone: ROM-free batch B — TV Basketball, Pin Pong and Hi-Way ported and verified against original DICE (thirteen playable games), with their controls, settings, help and Play-screen entries; Pin Pong and Hi-Way can run below full speed on slower computers (recorded, not gated). Each release generates its desktop acceptance record from its own verification run (all thirteen ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,

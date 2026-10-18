@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "release_ready": true,
   "assessment_scope": "0.3.0 desktop browser build (re-assessed against the actual local packaged build of restart/desktop-first after the 0.3.0 merge f60a064 and its review fixes): the thirteen compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong and Hi-Way, ROM-free, and Stunt Cycle and Indy 4 with player-supplied ROMs; all are DICE GPL-3.0-or-later code covered by the existing DICE notice) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (schematic Home screen, arcade Play screen, keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the eight unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
   "combined_distribution_license": "GPL-3.0-only",
@@ -165,8 +165,8 @@
   "corresponding_source": {
     "required": true,
     "same_revision": true,
-    "path": "source/nocpu-0.2.2-source.tar.gz",
-    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.2.2-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
+    "path": "source/nocpu-0.3.0-source.tar.gz",
+    "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.3.0-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
   },
   "review": {
     "date": "2026-10-18",
