@@ -38,6 +38,12 @@ releases below.
   full speed; TV Basketball ran at full speed in Chromium, about 0.9 in WebKit and 0.3 in Firefox.
   Other browsers were not measured.
 
+### Changed
+
+- When a game cannot load or stops unexpectedly, the error panel now adds a "Details" line naming
+  the underlying browser error, so a report can say what went wrong. A game that stops after it
+  has loaded now says "stopped unexpectedly" instead of asking you to check your connection.
+
 ## [0.2.2] - 2026-10-18
 
 ### Fixed

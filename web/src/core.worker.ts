@@ -353,8 +353,18 @@ function tick(): void {
     timer = setTimeout(tick, debtUs >= 1000 ? 0 : TICK_MS);
   } catch (error: unknown) {
     stopClock();
-    send({ type: 'error', message: error instanceof PlayerError ? error.message : `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` });
+    if (!(error instanceof PlayerError)) console.error('NoCPU core stopped:', error);
+    send({ type: 'error', ...(error instanceof PlayerError ? { message: error.message }
+      : { message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.`, detail: errorDetail(error) }) });
   }
+}
+
+/** A short, single-line description of an unexpected exception for the error panel. */
+function errorDetail(error: unknown): string {
+  let text: string;
+  try { text = error instanceof Error ? `${error.name}: ${error.message}` : String(error); } catch { text = 'unknown error'; }
+  text = text.replace(/\s+/g, ' ').trim();
+  return text.length > 300 ? `${text.slice(0, 299)}…` : text || 'unknown error';
 }
 
 async function handle(command: CoreCommand): Promise<void> {
@@ -372,7 +382,7 @@ async function handle(command: CoreCommand): Promise<void> {
       locateFile: (file: string) => locateCoreAsset(file, command.moduleUrl),
       print: () => {},
       printErr: () => {},
-      onAbort: () => send({ type: 'error', message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` }),
+      onAbort: (what: unknown) => send({ type: 'error', message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.`, detail: errorDetail(what) }),
     });
     if (core._nocpu_abi_version() !== 5) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
     const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2'] : [];
@@ -577,7 +587,14 @@ self.addEventListener('message', (event: MessageEvent<CoreCommand>) => {
   commands = commands.then(() => handle(event.data)).catch((error: unknown) => {
     stopClock();
     releaseHeld();
-    if (event.data.type === 'init') { core?._nocpu_destroy(); core = undefined; }
-    send({ type: 'error', message: error instanceof PlayerError ? error.message : `${gameSpec(gameId).title} could not load. Check your connection and reload the game.` });
+    const loading = event.data.type === 'init';
+    if (loading) { core?._nocpu_destroy(); core = undefined; }
+    if (error instanceof PlayerError) { send({ type: 'error', message: error.message }); return; }
+    // An unexpected exception (a Wasm trap, a C++ exception, a browser
+    // RangeError) is reported with its own text so a failure can be diagnosed.
+    console.error(`NoCPU core ${event.data.type} failed:`, error);
+    send({ type: 'error', detail: errorDetail(error), message: loading
+      ? `${gameSpec(gameId).title} could not load. Check your connection and reload the game.`
+      : `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` });
   });
 });

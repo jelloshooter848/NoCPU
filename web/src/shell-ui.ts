@@ -208,6 +208,7 @@ export function createShellMarkup(base: string, source: string, build: string): 
         <section class="panel-section error-panel" data-panel="error" data-testid="error" role="alert" hidden>
           <h1 id="error-heading">Unable to load Pong</h1>
           <p id="error-message"></p>
+          <p id="error-detail" class="error-detail" data-testid="error-detail" hidden></p>
           <button class="primary-button" id="retry">Reload game</button>
           <button data-action="title">Return to Home</button>
         </section>

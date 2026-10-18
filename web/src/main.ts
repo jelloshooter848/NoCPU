@@ -463,7 +463,7 @@ function resumeGame(userGesture = true): void {
   showStatus();
 }
 
-function failGame(message: string): void {
+function failGame(message: string, detail?: string): void {
   soundAttempt += 1;
   failed = true;
   ready = false;
@@ -479,6 +479,11 @@ function failGame(message: string): void {
   pauseButton.disabled = true;
   resetButton.disabled = true;
   element('#error-message').textContent = message;
+  // The underlying exception, when there is one, so a report can name it.
+  const details = element('#error-detail');
+  details.textContent = detail ? `Details: ${detail}` : '';
+  details.hidden = !detail;
+  if (detail) console.error(`${message} (${detail})`);
   showScreen('error');
   updatePads();
   showStatus(`${gameSpec(activeGameId).title} could not load`);
@@ -572,7 +577,11 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
     return;
   }
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
-  worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
+  worker.addEventListener('error', (event) => {
+    if (generation !== ownGeneration) return;
+    failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`,
+      `Worker error: ${event.message || 'the game worker failed'}${event.filename ? ` (${event.filename.split('/').pop()}:${event.lineno})` : ''}`);
+  });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
     if (generation !== ownGeneration || failed) return;
     const message = event.data;
@@ -630,7 +639,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
         if (request) { clearTimeout(request.timeout); snapshotRequests.delete(message.id); request.resolve(message.snapshot); }
         break;
       }
-      case 'error': failGame(message.message); break;
+      case 'error': failGame(message.message, message.detail); break;
     }
   });
   worker.postMessage({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED, gameId: activeGameId,

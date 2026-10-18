@@ -303,6 +303,9 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     expect(missingUrl.searchParams.get('nocpu_wasm_sha256')).toBe(fixture.wasmSha256);
     expect([...missingUrl.searchParams.keys()]).toEqual(['nocpu_wasm_sha256']);
     await expect(page.getByTestId('error')).toContainText(/load|download|Wasm|WebAssembly|retry/i);
+    // The underlying exception is named for a bug report (here the failed Wasm download).
+    await expect(page.getByTestId('error-detail')).toBeVisible();
+    await expect(page.getByTestId('error-detail')).toContainText(/^Details: \S/);
     await expect(page.getByTestId('insert-coin')).toBeDisabled();
     await expect(page.getByTestId('pause')).toBeDisabled();
     await expect(page.getByTestId('reset')).toBeDisabled();
