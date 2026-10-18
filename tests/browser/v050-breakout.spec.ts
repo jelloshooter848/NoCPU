@@ -4,6 +4,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { installAudioProbe, expectViewportShell } from './helpers';
 import { installGamepads, padState } from './app-helpers';
+import { holdClock, presented, state, stepClock } from './game-helpers';
 import { breakoutSnapshot, breakoutAdvance, breakoutPause, launchBreakout, startBreakout,
   breakoutRaster, visibleBreakoutRaster, breakoutBall, expectBreakoutGeometry } from './v050-breakout-helpers';
 
@@ -44,19 +45,43 @@ test('Breakout retains original colored portrait frames, shared paddle, explicit
   await page.getByTestId('insert-coin').click(); await breakoutAdvance(page, 250000);
   expect((await commands(page, 'start')).length).toBe(starts); expect((await breakoutSnapshot(page)).run).toBe(false);
   expect((await commands(page, 'serve')).some((c) => c.held)).toBe(false);
-  await page.getByTestId('start-game').click(); await expect.poll(async () => (await breakoutSnapshot(page)).run).toBe(true);
+  // Start, Serve and the ball run on the held clock with the calibrated
+  // replays' timing (Serve 400 ms after the circuit first reports a running
+  // game following the Start press, held 100 ms), and the
+  // ball is looked for in one presented frame per 10 ms of circuit time. On
+  // the free-running clock a slow host pressed Serve late, after the circuit
+  // had stopped taking it, or looked only after the ball had left the court
+  // (WebKit: no ball, or ball 2 up and none visible).
+  await holdClock(page, true);
+  await page.getByTestId('start-game').click();
+  await expect.poll(async () => (await commands(page, 'start')).length).toBe(starts + 1);
+  for (let elapsed = 0; elapsed < 1_000_000 && !(await breakoutSnapshot(page)).run; elapsed += 10_000) await stepClock(page, 10_000);
+  expect((await breakoutSnapshot(page)).run).toBe(true);
   expect((await commands(page, 'start')).at(-1)).toMatchObject({ type: 'start', player: 1 });
   expect((await commands(page, 'serve')).some((c) => c.held)).toBe(false);
-  await serveKeyboard(page); const raster = await visibleBreakoutRaster(page), active = await breakoutSnapshot(page);
+  await stepClock(page, 400_000);
+  await page.keyboard.down('KeyS'); await expect.poll(async () => (await breakoutSnapshot(page)).serve).toBe(true);
+  await stepClock(page, 100_000); await page.keyboard.up('KeyS');
+  await expect.poll(async () => (await breakoutSnapshot(page)).serve).toBe(false);
+  await presented(page, await state(page));
+  const raster = await visibleBreakoutRaster(page), active = await breakoutSnapshot(page);
   expect(raster.colors).toEqual(expect.arrayContaining(['204,204,204', '163,30,10', '194,133,10', '10,133,51', '194,194,41', '10,133,194']));
-  let firstBall: Awaited<ReturnType<typeof breakoutBall>> | undefined;
-  await expect.poll(async () => { try { firstBall = await breakoutBall(page); return true; } catch { return false; } }, { timeout: 10_000 }).toBe(true);
-  const firstState = await breakoutSnapshot(page); await breakoutAdvance(page, 250000);
+  const ballAt = async (): Promise<Awaited<ReturnType<typeof breakoutBall>> | undefined> => {
+    await presented(page, await state(page));
+    try { return await breakoutBall(page); } catch { return undefined; }
+  };
+  let firstBall = await ballAt();
+  for (let elapsed = 0; !firstBall && elapsed < 2_000_000; elapsed += 10_000) { await stepClock(page, 10_000); firstBall = await ballAt(); }
+  expect(firstBall, 'the served ball appears within 2 simulated seconds').toBeDefined();
+  const firstState = await breakoutSnapshot(page);
   let movedBall: Awaited<ReturnType<typeof breakoutBall>> | undefined;
-  await expect.poll(async () => {
-    try { movedBall = await breakoutBall(page); return Math.hypot(movedBall.x - firstBall!.x, movedBall.y - firstBall!.y) > 5; }
-    catch { return false; }
-  }, { timeout: 10_000 }).toBe(true);
+  for (let elapsed = 0; elapsed < 250_000; elapsed += 10_000) {
+    await stepClock(page, 10_000); movedBall = await ballAt();
+    if (movedBall && Math.hypot(movedBall.x - firstBall!.x, movedBall.y - firstBall!.y) > 5) break;
+  }
+  expect(movedBall, 'the ball is still in play after it moves').toBeDefined();
+  expect(Math.hypot(movedBall!.x - firstBall!.x, movedBall!.y - firstBall!.y)).toBeGreaterThan(5);
+  await holdClock(page, false);
   const after = await breakoutSnapshot(page);
   expect(after.generation).toBe(firstState.generation); expect(after.resetId).toBe(firstState.resetId); expect(after.run).toBe(true);
   expect(after.frame).toBeGreaterThan(active.frame); expect(after.audio.generatedSamples).toBeGreaterThan(active.audio.generatedSamples);

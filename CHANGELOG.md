@@ -13,6 +13,14 @@ releases below.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-18
+
+### Fixed
+
+- Starting a game could crash the tab in Playwright's WebKit (WPE) build, and may affect other
+  Skia-based WebKitGTK/WPE browsers. The game display now uses a CPU-backed canvas, which avoids
+  the WebKit bug; play and visuals are unchanged in Chromium, Firefox and WebKit.
+
 ## [0.2.1] - 2026-10-17
 
 ### Changed
@@ -165,7 +173,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/jelloshooter848/NoCPU/compare/v0.1.6...v0.1.7
