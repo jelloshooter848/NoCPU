@@ -71,4 +71,5 @@ export type CoreEvent =
   | { type: 'frame'; epoch: number; pixels: ArrayBuffer | null; frame: number }
   | { type: 'reset'; id: number; epoch: number; snapshot: CoreSnapshot }
   | { type: 'snapshot'; id: number; snapshot: CoreSnapshot }
-  | { type: 'error'; message: string };
+  // detail names the underlying exception (for a bug report), never shown alone.
+  | { type: 'error'; message: string; detail?: string };

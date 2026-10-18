@@ -295,13 +295,139 @@ unchanged by this fix: Playwright's Chromium 145 build at about 0.86x paced
 bounds for an idle machine; like Gotcha's, they are input for the 0.4.0
 profiling milestone.
 
+## 0.3.0 comparison run — 2026-10-18
+
+Core of commit `61df02e` (TV Basketball, Pin Pong and Hi-Way, core IDs 10–12)
+on `wip/0.3.0-batch-b`, seed 848; later commits change docs and the browser
+registry only. Every original captured fresh (no reference cache) in the same
+pinned image (`nocpu-dice-qt4:0.1.0`, `sha256:bfdadad2…`), Xvfb, Mesa 20.0.8
+llvmpipe, x86-64 host with FMA. Native: GCC 13.3.0 build of `build-core.sh
+native`. Wasm: Emscripten 3.1.74 (`nocpu.wasm` `940ca7fc…`) run in Node
+22.22.0. The new chips, the wheel and portrait contract and the Wasm memory
+limit touch every compiled game's build, so every game was re-run in full.
+
+| Game | Scenarios | Streams compared | Result | Gaps |
+| --- | --- | --- | --- | --- |
+| TV Basketball | `tvbasketball-default` (35 kΩ): Start without a credit does not start, one coin and Start give the two-player game, paddle 1 moving both striped and paddle 2 both solid players (paddles 3 and 4 nobody), baskets scoring two for one side, both sides scoring, Start in play changing nothing, the clock running 120 periods of the 9D astable and ending the game (119 s), then two coins and Start giving a four-player game; every coin stopping VBLANK for the 0.53 s 3B one-shot and clearing both scores; `tvbasketball-four-players` (10 kΩ, 73 s): a four-player game with each of the four paddles moving its own player, a coin in play restarting it as a two-player game; `tvbasketball-max-time` (60 kΩ, 165 s): two complete games | PCM (13F.3), telemetry (both scores, the clock, active), inputs, events (coin, VBLANK, the 9D clock), frame times including the declared coin frame gaps, full-frame RGB hashes, gray observations, every full-RGB snapshot; native↔Wasm both reset epochs; registered-game ABI probe | **PASS** | Play comes from recorded closed-loop inputs, not players. The 9D astable's run-time `log()` arguments are constants (its control voltage is never written): identical in glibc 2.27, glibc 2.39 and musl |
+| Pin Pong | `pinpong-default` (DIP 0: one credit, free ball enabled, three balls): Start without a credit, a coin and Start beginning the game and serving the first ball, Start serving each later ball, each flipper (BUTTONS1 buttons 1 and 2) rising alone while held, scoring in play (the display shows ten times the count), the game ending after the third ball, a second coin and game; `pinpong-five-balls` (DIP 6: five balls, free ball disabled): the game ends after the fifth ball, no free ball awarded; `pinpong-two-credits` (DIP 1): one coin buying two games, then Start without a credit | PCM (one constructor sample: no hookup), telemetry (score, balls served, attract, active), inputs, events (coin, Start, ball served, drain), frame times, full-frame RGB hashes of the portrait 324 × 432 raster, gray observations, every full-RGB snapshot; native↔Wasm both reset epochs; registered-game ABI probe (portrait raster and flipper buttons) | **PASS** | The free-ball award (all knockdown targets down) is not reached by any scenario. DICE wires no output to the audio chip ("TODO: Finish Sound"): absent audio is inherited and compared as such, not reconstructed. The `OPTIMIZATION_HINT` tables need about 590 MB in Wasm (840 MB native RSS), so the Wasm memory limit is now 2 GiB (growth on demand); the other games stay at their 32 MiB initial memory |
+| Hi-Way | `hiway-default` (DIP 6, 510 kΩ): the coin starting a cleared game at once (no Start switch), the wheel turned left and then right moving the car that way, recorded closed-loop steering by the wheel axis and then by the held wheel keys, the accelerator held and released (no distance scored while released), the score counting distance one at a time on Fx, the game ending as the E8 counter wraps (81.1 s); `hiway-extended-play` (DIP 1, 1010 kΩ, steering by the wheel axis): reaching 10 points clears the clock at once and the game runs seven to eight more E9 periods; `hiway-double-traffic` (DIP 54, 10 kΩ, 51.4 s, steering by the wheel keys): concurrent and opposing traffic set to double (compared exactly; the traffic density itself has no separate check), a coin in play clearing the score but not the clock | PCM (one constructor sample: no hookup), telemetry (score, clock, active), inputs (wheel and accelerator), events (Fx, the E9 clock, the extended-play match), frame times, full-frame RGB hashes, gray observations, every full-RGB snapshot (car position); native↔Wasm both reset epochs (the wheel queues and `HighwaySpeedDesc` cleared in place); registered-game ABI probe (wheel slot) | **PASS** | One count exactly as the time runs out, without an Fx edge, is the original's and accepted as such. DICE wires no output to the audio chip ("todo: needs work"): absent audio is inherited. Floating point: `HIGHWAY_SPEED_CONTROL` takes run-time `exp()` of 18 distinct arguments; all are bit-identical and correctly rounded in glibc 2.27, glibc 2.39 and musl (exhaustive) |
+| Pong, Pong Doubles, Space Race, Breakout, Rebound, Quadrapong, Crossfire, Gotcha | `pong.tsv` and the twenty-six earlier ROM-free scenarios, unchanged | as in the runs above | **PASS** | Unchanged |
+| Stunt Cycle, Indy 4 | the six ROM-backed scenarios, unchanged, with the private fixtures | as in the 0.1.x run | **PASS** | Unchanged |
+
+Originals: `NOCPU_ANALYZE_JOBS=4 ./tools/capture-games.sh` (35 scenarios,
+`build/reference-games/20261018T031912235696007Z/`, "Original whole game
+reference qualification passed"; media and its report pruned after the run,
+its source bindings kept in the comparison report). Reports:
+`build/core/comparison.json` (Pong),
+`build/core/game-evidence/20261018T044920200177Z/report.json` (35 ROM-free
+scenarios, `full_batch: true`, 35/35, plus the multi-game probe, 562/562
+checks, and the Breakout probe, 502/502) and
+`build/rom-comparison/20261018T061244831242Z/report.json` (ROM-backed). The host's free
+disk (about 11 GB) cannot hold every scenario's four native/Wasm epochs at
+once (about 20 GB), so `make core-compare`'s replay and comparison steps ran
+through a scratch driver that performs the same `replay-games.sh` commands and
+the same `compare-games.py` per-scenario comparison and ABI probes scenario by
+scenario, deleting a scenario's native/Wasm media once it had passed; the
+report records this in its `driver` field. Subset runs during the port (TV
+Basketball, Pin Pong and Hi-Way alone) also passed, after a fix that leaves
+BUTTONS button 3 unassigned in a game with wheels (it had shared joystick
+button 2 with the wheel's left key and broke original↔native keyboard
+steering).
+
+Cold reset: a scan of the compiled objects of the three circuits and every
+chip they use found no mutable function-local or global static beyond the
+descriptors their `core/games/<id>.inc` files restore; no derived-source edit
+is needed. The 555 astables whose control voltage is never written take
+`log()` of the same constants (`ctrl` = 10/3 gives log(0.5) and log(1/3)),
+identical in all three libms.
+
+Real-time speed in play, measured on a 4-vCPU Xeon @2.1 GHz CI-class host; may
+run below real time on slower machines. Host load below 1, Playwright 1.58.2's
+headless builds, median of three runs, paced (the app's own clock) / raw
+(held-clock stepping as fast as possible), as a fraction of real time; not
+gated:
+
+| Game | Chromium 145.0.7632.6 | Firefox 146.0.1 | WebKit 26.0 |
+| --- | --- | --- | --- |
+| Pong (baseline) | 1.00 / 3.82 | 0.93 / 1.09 | 1.00 / 1.72 |
+| TV Basketball | 1.00 / 1.44 | 0.30 / 0.36 | 0.88 / 1.11 |
+| Pin Pong | 0.71 / 0.93 | 0.15 / 0.18 | 0.55 / 0.84 |
+| Hi-Way | 0.51 / 0.98 | 0.16 / 0.25 | 0.41 / 0.80 |
+
+Pin Pong and Hi-Way run below real time in all three engines on this host,
+and TV Basketball below it in Firefox and slightly below in WebKit. The owner
+released all three as playable in 0.3.0 (2026-10-18) with this recorded;
+making them real time is the 0.4.0 profiling target.
+
+Browser checks of the same build (TV Basketball, Pin Pong and Hi-Way verified,
+thirteen playable games), packaged (`make web-preview`, runtime SHA-256
+`4e1a8e63…`), in Playwright 1.58.2's headless Chromium 145.0.7632.6, Firefox
+146.0.1 and WebKit 26.0: the full suite passed in Chromium (68 passed), Firefox
+(67 passed, see below) and WebKit (68 passed on a quiet host); the 8 ROM tests
+skipped there ran separately with the private fixtures and the identity test,
+20/20 in Chromium and Firefox. In that Firefox run the Pin Pong DIP test failed
+once: the first ball was still in play after the test's fixed 12 s drain wait.
+The game had run paced before the test held the clock, and Firefox paces Pin
+Pong at about 0.15x, so the coin landed at a different circuit time and the
+ball took a different path. The test now resets the circuit cold under the
+held clock before its coin. The changed spec then passed in all three
+engines: Firefox (the DIP test twice and the whole file once), Chromium, and
+the WebKit full run above. A first WebKit full run had one Breakout failure
+(`v050-breakout.spec.ts`, the ball not seen moving within its 10 s wall-clock
+poll) while a Firefox Pin Pong test loaded the same host; the quiet re-run
+passed. These are automated checks, not human play or speaker output.
+
+### WebKit "could not load" on the release PR — 2026-10-18
+
+CI run 39114624732 (`85d74e1`, job 117638690255, Playwright 1.58.2 WebKit
+26.0) failed `library-controls.spec.ts` "gamepad capture rejects
+conflicts…": the first Pong launch of that page showed "Pong could not load.
+Check your connection and reload the game." about 0.1 s after the worker had
+fetched `nocpu.js` and `nocpu.wasm` (`940ca7fc…`, 582 771 bytes, 200). The
+same test on the same commit passed in push run 39114621426. The cause is not
+identified; what the evidence shows:
+
+- The core did not fail to download or instantiate. That path ends in
+  Emscripten's `abort()`, which reports "stopped unexpectedly" (the missing-Wasm
+  test shows exactly that), and only one Wasm request was made. The trace's
+  final DOM keeps the canvas at its default size, so `ready` never arrived:
+  an exception other than a `PlayerError` was thrown after instantiation, in
+  the C++ static constructors or the worker's `init` steps (a Wasm trap, a C++
+  exception or a browser error), or the worker raised an `error` event. The
+  app reported every such exception as that one message and kept its text.
+- The 2 GiB Wasm memory maximum is not the cause. JavaScriptCore reserves
+  only the initial size for non-shared memory, whatever its maximum
+  (`Wasm::Memory::tryCreate`, WebKit main read 2026-10-18; only shared memory
+  reserves the maximum), and Pong never grows past its 32 MiB initial memory.
+  In Playwright's WebKit 26.0, workers creating memories with 256 MiB, 1 GiB
+  and 2 GiB maxima and growing them to 64 MiB (20 each, terminated or kept)
+  or 594 MiB (10 each, terminated or kept) all succeeded. MAXIMUM_MEMORY is
+  unchanged.
+- Not reproduced locally in WebKit 26.0 on a 4-vCPU host: 0 failures in the
+  test repeated 30 times, 60 in-page relaunches alternating Pong and Pin Pong,
+  60 fresh-page launches, 300 fresh-page Pong launches, and three full suites
+  (one against the Vite preview, 68 passed; two against the packaged site, 69
+  passed, and 68 passed with one expected failure from a test already updated
+  for the change below run against the older package).
+
+The fix makes the next occurrence diagnosable instead of guessing: the worker
+logs the exception and the error panel adds a "Details:" line with its name
+and message (Emscripten's abort reason, the worker `error` event's message
+and location), and a failure after a game has loaded now reads "stopped
+unexpectedly" rather than "could not load". `pong.spec.ts` checks the line on
+the missing-Wasm path. Packaged site with that change (runtime SHA-256
+`e25a51b7…`): WebKit 26.0 full suite three times, 69 passed each; Chromium
+145.0.7632.6 69 passed; Firefox 146.0.1 69 passed (the 7 ROM tests skipped without fixtures in every run). The Wasm core is
+unchanged (`940ca7fc…`), so no core comparison was re-run.
+
 ## Desktop browser acceptance (generated by each release)
 
 Desktop acceptance for the ported games is produced by the release
 workflow itself, against the exact build it ships, rather than written here by
 hand. The [release readiness record](../tests/release-readiness.json) states
 only the policy: the games (Pong, Pong Doubles, Space Race, Breakout, Stunt
-Cycle, Indy 4 and, from 0.2.0, Rebound, Gotcha, Quadrapong and Crossfire), the required engines (Chromium and Firefox) and that a release
+Cycle, Indy 4, from 0.2.0 Rebound, Gotcha, Quadrapong and Crossfire, and from
+0.3.0 TV Basketball, Pin Pong and Hi-Way), the required engines (Chromium and Firefox) and that a release
 requires it. The release run then:
 
 1. runs the browser jobs (Chromium, Firefox, WebKit) and the ROM browser job

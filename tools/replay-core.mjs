@@ -45,6 +45,7 @@ const registeredActions = () => {
   for (let slot = 1; slot <= info(1); slot += 1) actions.push(`paddle${slot}`);
   for (let slot = 1; slot <= info(2); slot += 1) ['up', 'down', 'left', 'right'].forEach((name, bit) => { if ((info(3) >> bit) & 1) actions.push(`${name}${slot}`); });
   for (let slot = 1; slot <= info(4); slot += 1) for (let button = 1; button <= info(5); button += 1) actions.push(`button${slot}${button}`);
+  for (let slot = 1; slot <= info(15); slot += 1) actions.push(`wheel${slot}`, `wheelleft${slot}`, `wheelright${slot}`);
   return actions;
 };
 const allowed = registered ? registeredActions() : gameId === 5 ? ['coin','dollar','recreate', ...[1,2,3,4].flatMap((p) => ['coin','gas','brake','wheel','left','right'].map((key) => `${key}${p}`))]
@@ -54,7 +55,7 @@ const allowed = registered ? registeredActions() : gameId === 5 ? ['coin','dolla
 const events = (await readFile(options.replay, 'utf8')).split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith('#')).map((line) => {
   const [milliseconds, action, value, extra] = line.trim().split(/\s+/);
   if (extra || !allowed.includes(action) || !Number.isInteger(Number(milliseconds)) || Number(milliseconds) > 1000000 || !Number.isInteger(Number(value))) throw new Error('Invalid replay row.');
-  if (action.startsWith('paddle') || action.startsWith('wheel') ? Number(value) < -32768 || Number(value) > 32767 : action === 'throttle' ? Number(value) < 0 || Number(value) > 32767 : ![0, 1].includes(Number(value))) throw new Error('Replay input outside physical range.');
+  if (action.startsWith('paddle') || /^wheel[1-4]$/.test(action) ? Number(value) < -32768 || Number(value) > 32767 : action === 'throttle' ? Number(value) < 0 || Number(value) > 32767 : ![0, 1].includes(Number(value))) throw new Error('Replay input outside physical range.');
   return { time: BigInt(milliseconds) * 1_000_000_000n, action, value: Number(value) };
 });
 if (!events.length || events.at(-1).action !== 'recreate' || events.at(-1).time <= 0n || events.at(-1).value !== 1
@@ -93,7 +94,7 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   const made = epoch ? core._nocpu_reset(options.seed) : core._nocpu_create_game(gameId, options.seed, options.dip, options.potOhms);
   if (made !== 1) throw new Error('Core creation/reset failed.');
   width = core._nocpu_width(); height = core._nocpu_height();
-  if (width !== (gameId === 3 ? 324 : 576) || height !== 432) throw new Error('Selected native viewport differs from the measured original.');
+  if (width !== (gameId === 3 || (registered && info(14) === 1) ? 324 : 576) || height !== 432) throw new Error('Selected native viewport differs from the measured original.');
   if (core._nocpu_game() !== gameId || core._nocpu_dip() !== options.dip || core._nocpu_pot_ohms() !== options.potOhms) throw new Error('Native selected game/configuration mismatch.');
   const initialCount = core._nocpu_audio_count();
   if (core._nocpu_create(options.seed) !== 0 || core._nocpu_advance(100001) !== 0 || core._nocpu_advance(0) !== 1 || ps() !== 0n || core._nocpu_frame_number() !== 0 || core._nocpu_audio_count() !== initialCount) throw new Error('ABI lifetime/bounded-step contract violated.');
@@ -102,7 +103,7 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   const scoreSlots = registered ? Math.max(2, info(12)) : 2;
   const frames = ['frame,time_ps,fnv1a64\n'], telemetry = [`time_ps,${Array.from({ length: scoreSlots }, (_, slot) => `score${slot + 1}`).join(',')},run_n,attract_n,hits${gameId === 0 ? '\n' : ',active\n'}`];
   const inputs = ['requested_ps,applied_ps,action,value\n'], collisions = ['time_ps,hit_output\n'];
-  const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]], sticks = [[0, 0, 0, 0], [0, 0, 0, 0]], keys = Array.from({length:4},()=>[0,0]), buttons = Array.from({length:4},()=>[0,0]);
+  const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]], sticks = [[0, 0, 0, 0], [0, 0, 0, 0]], wheelKeys = Array.from({length:4},()=>[0,0]), keys = Array.from({length:4},()=>[0,0]), buttons = Array.from({length:4},()=>[0,0]);
   const hardware = [gameId === 4 ? 'time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n' : `time_ps,play,endgame_n,credit_n${[1,2,3,4].map((p)=>`,car${p}_attract,car${p}_collision,car${p}_heading,car${p}_speed,car${p}_lap,car${p}_score_code,car${p}_displayed_score`).join('')}\n`];
   const geometry = ['frame,time_ps,width,height\n'];
   let gzip, outputStream, gzipDone;
@@ -152,6 +153,12 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
         else if (event.action === 'start' || event.action === 'start2') accepted = core._nocpu_start_player(event.action === 'start' ? 1 : 2, event.value);
         else if (event.action.startsWith('paddle')) core._nocpu_paddle(Number(event.action.at(-1)) - 1, event.value);
         else if (event.action.startsWith('button')) accepted = core._nocpu_button(Number(event.action[6]) - 1, Number(event.action[7]), event.value);
+        else if (/^wheel[1-4]$/.test(event.action)) accepted = core._nocpu_wheel(Number(event.action.at(-1)) - 1, event.value);
+        else if (event.action.startsWith('wheel')) {
+          const slot = Number(event.action.at(-1)) - 1;
+          wheelKeys[slot][event.action.startsWith('wheelleft') ? 0 : 1] = event.value;
+          accepted = core._nocpu_wheel_keys(slot, ...wheelKeys[slot]);
+        }
         else {
           const slot = Number(event.action.at(-1)) - 1;
           sticks[slot][['up', 'down', 'left', 'right'].indexOf(event.action.slice(0, -1))] = event.value;

@@ -61,7 +61,7 @@ and delivery gates were still open when the legacy line ended. The 0.1.x patch
 releases re-run all six comparisons against the reduced desktop frontend rather
 than inheriting browser passes (done in 0.1.1; see [ACCEPTANCE.md](ACCEPTANCE.md)).
 
-Fifteen titles were unported at the restart (eleven remain after 0.2.0; see Milestones):
+Fifteen titles were unported at the restart (eight remain after 0.3.0; see Milestones):
 
 - ROM-free (7): Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way.
 - ROM-backed (8): Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase.
@@ -90,9 +90,9 @@ the release steps.
 | Simpler phone Home and Play (arcade style) | 0.1.6 | Released (2026-10-15) |
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
-| Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | In review |
-| WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | In review |
-| ROM-free batch B | 0.3.0 | Planned |
+| Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | Released (2026-10-17) |
+| WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | Released (2026-10-18) |
+| ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | In review |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
@@ -150,7 +150,15 @@ README.
 ### 0.3.0 — ROM-free batch B
 
 Port TV Basketball, Pin Pong and Hi-Way, including the rotated Pin Pong raster
-and Hi-Way's wheel mapping. All eleven ROM-free titles are playable at exit.
+and Hi-Way's wheel mapping.
+
+All three ship as playable in 0.3.0, each passing its original/native/Wasm
+comparison: TV Basketball (four paddles), Pin Pong (portrait raster,
+mouse-button flippers) and Hi-Way (steering wheel). Pin Pong and Hi-Way run
+below real time in desktop browsers, most in Firefox (measured on a 4-vCPU
+Xeon @2.1 GHz CI-class host; may run below real time on slower machines);
+making them real time is 0.4.0 work. All eleven ROM-free titles are playable at
+exit.
 
 ### 0.4.0 — Profiling and performance
 
@@ -160,7 +168,10 @@ generation and worker transfer costs. Optimise measured bottlenecks only, with
 every change verified by unchanged original/native/Wasm comparisons. Record
 simulation speed against real time for each ported game on named desktop
 hardware/browsers. Establish a single-threaded baseline before considering
-threads or SharedArrayBuffer.
+threads or SharedArrayBuffer. The targets carried from 0.3.0: make Hi-Way,
+Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
+CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
+has none) and its free-ball award, which no 0.3.0 scenario reaches.
 
 ### 0.5.0 — ROM-backed batch A
 
@@ -222,6 +233,9 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-17 — 0.2.1 docs patch.** v0.2.0 was released (release run 39043961048). At the owner's request 0.2.1 brings the README (with the site link at the top) and all docs up to date, re-assesses the browser license record for the ten-circuit build, and makes the packaging check require the game registry sources.
 - **2026-10-17 — Releases reuse a passing comparison.** The 0.2.1 pull request ran the full core comparison (65 minutes) only because it touched READMEs and packaging/license files. At the owner's request CI now leaves every `.md` file and the packaging and license records out of the core hash, and a release reuses a passing original/native/Wasm comparison of byte-identical core content on the same host compiler instead of always comparing fresh. Releases with core content never compared still run it in full with every original captured fresh. This replaces the 0.1.2 rule that a release always compares fresh.
 - **2026-10-17 — WebKit CI root cause and 0.3.0 in parallel.** The owner asked for both a WebKit CI root-cause patch 0.2.2 and 0.3.0. 0.2.2 finds and fixes the cause of the intermittent `browser (webkit)` failures (no skipped tests, no retries); 0.3.0 (ROM-free batch B) proceeds at the same time on its own branch.
+- **2026-10-18 — Pin Pong held, then released; schematic sound planned.** Pin Pong passed its comparison but ran below real time in every browser on the 4-vCPU test host, so the owner first moved it to 0.4.0. Hi-Way measured slower still on that host. The owner then released TV Basketball, Pin Pong and Hi-Way as playable in 0.3.0 to test them on their own hardware, since the test host is slow; the measured speeds are recorded in ACCEPTANCE.md and the changelog, and making them (and the Firefox cases) real time on CI-class hardware is the 0.4.0 target.
+- **2026-10-18 — Pin Pong sound and free-game select from the schematic (0.4.0).** DICE leaves Pin Pong's sound and its free-game score select unfinished (`TODO: Finish Sound`, `TODO: FREE GAME SELECT`). The owner approved reconstructing both in 0.4.0 from Atari's Rev G schematic (TM-007 manual, linked only, never included), after Pin Pong runs in real time. This is the first opt-in exception to reproducing only what DICE implements: the reconstruction is labelled as such, video and logic must still match original DICE exactly, and the sound is checked against values derived from the schematic's components. The other games without DICE audio stay in accuracy closure.
+- **2026-10-18 — 0.2.2 released.** v0.2.2 (the WebKit canvas crash fix) was published (release run 39099705868) and reused the 0.2.1 comparison as the new CI rule intends.
 
 ## After 1.0
 

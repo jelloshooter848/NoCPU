@@ -123,7 +123,9 @@ jobs:
     - core-build
     if: needs.scope.outputs.core == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    # Thirteen games (0.3.0) need more than two hours on a 4-vCPU runner: a
+    # cancelled run of the 0.3.0 core had used 103 minutes without finishing.
+    timeout-minutes: 240
     # actions: read lets the download below find the core of an earlier attempt.
     permissions:
       contents: read

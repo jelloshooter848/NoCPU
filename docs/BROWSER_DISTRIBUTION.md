@@ -9,7 +9,42 @@ for the current `VERSION` and every notice it lists is present and unchanged.
 The legacy line's assessments (0.2.0 through 0.6.0) are history in
 [legacy/BROWSER_DISTRIBUTION_0.6.md](legacy/BROWSER_DISTRIBUTION_0.6.md).
 
-## 0.2.1 assessment (2026-10-17)
+## 0.3.0 assessment (2026-10-18)
+
+**Result: ready** (a porting agent's review, not an independent one). This
+re-checks the actual local packaged build of `restart/desktop-first` after the
+0.3.0 merge (`f60a064`) and its review fixes, which change only `web/`, docs
+and release metadata, against the v0.2.0 build reviewed for 0.2.1 (which 0.2.2
+carried forward). The audit's `version` field is bumped by the release commit.
+
+- **Runtime:** the same seven files as 0.2.1. A fresh `./tools/build-core.sh
+  all` reproduced `core/nocpu.wasm` (`940ca7fc…`) and `core/nocpu.js`
+  (`1b527316…`) byte for byte: the module the 0.3.0 original/native/Wasm
+  comparison ran.
+- **Compiled code:** thirteen circuits, adding TV Basketball, Pin Pong and
+  Hi-Way. The linker map has 90 compiled units, thirteen more than 0.2.1: the
+  three circuit sources (Hi-Way's is `games/highway.cpp`), their
+  `core/games/` registrations and the DICE chips 2533, 74151, 74155, 7442, 7454,
+  9314 and `wired_logic`, all DICE GPL-3.0-or-later or NoCPU code.
+- **Flags:** the only Emscripten flag change is the larger memory limit
+  (`-sMAXIMUM_MEMORY=2147483648`, for Pin Pong); it links no extra code.
+- **SDK members:** the identical set of 147 linked Emscripten SDK members as the
+  0.2.0 build's map, including the same 27 musl math members, so no new notice.
+- **Dependencies:** still one npm runtime dependency, fflate 0.8.2.
+- **Notices:** all 27 match their recorded hashes; only `THIRD_PARTY_NOTICES.md`
+  changed, its Browser runtime paragraph now naming the thirteen circuits.
+- **Source archive and ROMs:** the source archive holds 888 files (every tracked
+  file plus `RELEASE-MANIFEST.json`, all 566 original DICE files) and no ROMs or
+  build output; the ROM-exclusion test passes with the ten private fixture
+  archives (44 members) present.
+
+The record's `review.findings` hold the hashes and counts.
+
+## 0.2.1 assessment (2026-10-17, history)
+
+This section records the 0.2.1 assessment as reviewed; the current record is
+the 0.3.0 assessment above.
+
 
 **Result: ready** (the integrating agent's review, not an independent one).
 Releases 0.1.2 to 0.2.0 carried the 0.1.1 assessment below forward with only

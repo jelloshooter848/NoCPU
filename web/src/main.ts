@@ -60,6 +60,9 @@ const SEED = 848;
 // reaches both ends of the original control range without leaving the display.
 const MOUSE_EDGE = 0.05;
 let axes: number[] = [0, 0];
+// The wheel slot whose current axis value is the mouse's turning rate (a
+// gamepad or the keys take a wheel over from the mouse; see pointerleave).
+let mouseWheelSlot: number | null = null;
 // Mouse button holds: the Stunt Cycle throttle and the Breakout Serve switch.
 let mouseThrottle: number | undefined;
 let mouseServe: number | undefined;
@@ -114,11 +117,23 @@ const settingsUI = createSettingsUI({
 });
 const controls = createControls({
   bindings: settingsUI.preferences.bindings,
-  onDirections: (directions) => { if (ready && !paused && !resetting) send({ type: 'keys', directions }); },
+  onDirections: (directions) => {
+    if (!ready || paused || resetting) return;
+    send({ type: 'keys', directions });
+    // Held wheel keys take the wheel over from the mouse: drop its turning
+    // rate so releasing the keys straightens the wheel instead of handing back
+    // a stale mouse rate.
+    const slot = mouseWheelSlot;
+    if (slot !== null && directions[slot] && registeredGame(activeGameId)?.channels[slot]?.kind === 'wheel') {
+      mouseWheelSlot = null;
+      if (axes[slot] !== 0) { axes[slot] = 0; sendInputs(slot); }
+    }
+  },
   onAxes: (changes) => {
     if (!ready || paused || resetting || failed) return;
     changes.forEach((axis, slot) => {
       if (axis === null || (mouseThrottle !== undefined && slot === settingsUI.mouseSlotFor(activeGameId))) return;
+      if (slot === mouseWheelSlot) mouseWheelSlot = null;
       axes[slot] = gameSpec(activeGameId).inputKind === 'paddle' ? canonicalPaddleAxis(activeGameId, axis, slot) : axis;
       sendInputs(slot);
     });
@@ -304,6 +319,8 @@ function mouseHelp(gameId: PlayableGameId): string {
   if (slot === null) return 'The mouse is off for this game. Choose a player under Mouse in Settings to use it.';
   if (gameId === 'stuntcycle') return 'Hold the left mouse button over the display and move right to open the shared throttle; release the button to idle.';
   if (gameId === 'breakout') return 'Move the mouse left or right over the display to move the shared paddle across its full range. Hold the left mouse button over the display to hold Serve.';
+  const mouse = registeredGame(gameId)?.mouse;
+  if (mouse) return mouse.help;
   if (registeredGame(gameId)) return `Move the mouse ${paddleOrientation(gameId, slot) === 'horizontal' ? 'left or right' : 'up or down'} over the display to move the ${gameSpec(gameId).controlLabels[slot].toLowerCase()} across its full range. Settings chooses which player the mouse controls.`;
   return `Move the mouse up or down over the display to move the Player ${slot + 1} paddle (${gameSpec(gameId).controlLabels[slot].toLowerCase()}) across its full range. Settings chooses which player the mouse controls.`;
 }
@@ -405,9 +422,9 @@ function releaseInputs(): void {
   controls.release();
   pausedMenuButtons.clear();
   const held = [mouseThrottle, mouseServe];
-  mouseThrottle = undefined; mouseServe = undefined;
+  mouseThrottle = undefined; mouseServe = undefined; mouseButtons = { left: false, right: false };
   for (const id of held) if (id !== undefined && canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
-  if (activeGameId === 'stuntcycle' || activeGameId === 'indy4') axes.fill(0);
+  if (activeGameId === 'stuntcycle' || activeGameId === 'indy4' || gameSpec(activeGameId).inputKind === 'wheel') axes.fill(0);
   if (ready) send({ type: 'release' });
 }
 
@@ -446,7 +463,7 @@ function resumeGame(userGesture = true): void {
   showStatus();
 }
 
-function failGame(message: string): void {
+function failGame(message: string, detail?: string): void {
   soundAttempt += 1;
   failed = true;
   ready = false;
@@ -462,6 +479,11 @@ function failGame(message: string): void {
   pauseButton.disabled = true;
   resetButton.disabled = true;
   element('#error-message').textContent = message;
+  // The underlying exception, when there is one, so a report can name it.
+  const details = element('#error-detail');
+  details.textContent = detail ? `Details: ${detail}` : '';
+  details.hidden = !detail;
+  if (detail) console.error(`${message} (${detail})`);
   showScreen('error');
   updatePads();
   showStatus(`${gameSpec(activeGameId).title} could not load`);
@@ -555,7 +577,11 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
     return;
   }
   worker = new Worker(new URL('./core.worker.ts', import.meta.url), { type: 'module' });
-  worker.addEventListener('error', () => { if (generation === ownGeneration) failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`); });
+  worker.addEventListener('error', (event) => {
+    if (generation !== ownGeneration) return;
+    failGame(`${gameSpec(activeGameId).title} could not load. Check your connection and reload the game.`,
+      `Worker error: ${event.message || 'the game worker failed'}${event.filename ? ` (${event.filename.split('/').pop()}:${event.lineno})` : ''}`);
+  });
   worker.addEventListener('message', (event: MessageEvent<CoreEvent>) => {
     if (generation !== ownGeneration || failed) return;
     const message = event.data;
@@ -613,7 +639,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
         if (request) { clearTimeout(request.timeout); snapshotRequests.delete(message.id); request.resolve(message.snapshot); }
         break;
       }
-      case 'error': failGame(message.message); break;
+      case 'error': failGame(message.message, message.detail); break;
     }
   });
   worker.postMessage({ type: 'init', moduleUrl: coreAssetUrls.moduleUrl, seed: SEED, gameId: activeGameId,
@@ -761,6 +787,13 @@ function applyMouse(event: PointerEvent): void {
     const fraction = mouseFraction(event, true);
     if (fraction === undefined) return;
     axis = Math.round(fraction * AXIS_MAX);
+  } else if (spec.inputKind === 'wheel' && registeredGame(activeGameId)?.mouse?.kind === 'wheel') {
+    // The horizontal position sets the original wheel's turning rate: the
+    // centre of the display is straight ahead, either edge a full turn.
+    const fraction = mouseFraction(event, true);
+    if (fraction === undefined) return;
+    axis = Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN));
+    mouseWheelSlot = slot;
   } else if (spec.inputKind === 'paddle') {
     const fraction = mouseFraction(event, paddleOrientation(activeGameId, slot) === 'horizontal');
     if (fraction === undefined) return;
@@ -779,8 +812,32 @@ document.addEventListener('pointermove', (event) => {
   pointerMoved = position !== lastPointer;
   lastPointer = position;
 }, { capture: true });
-canvas.addEventListener('pointermove', (event) => { if (pointerMoved) applyMouse(event); });
+// Registered games with a mouse-button mapping (game.mouse): the left and right
+// buttons over the display hold two original switches. Chorded presses arrive
+// as pointer moves, so the held state follows the event's button mask.
+let mouseButtons = { left: false, right: false };
+function applyMouseButtons(event: PointerEvent | null): void {
+  const mouse = registeredGame(activeGameId)?.mouse;
+  if (!mouse) return;
+  const on = event !== null && settingsUI.mouseSlotFor(activeGameId) !== null && mouseActive();
+  const next = { left: on && (event!.buttons & 1) !== 0, right: on && (event!.buttons & 2) !== 0 };
+  if (mouse.left && next.left !== mouseButtons.left) controls.setPointerAction(mouse.left, next.left);
+  if (mouse.right && next.right !== mouseButtons.right) controls.setPointerAction(mouse.right, next.right);
+  mouseButtons = next;
+}
+canvas.addEventListener('pointermove', (event) => { if (pointerMoved) applyMouse(event); if (mouseButtons.left || mouseButtons.right || event.buttons) applyMouseButtons(event); });
 canvas.addEventListener('pointerdown', (event) => {
+  if (registeredGame(activeGameId)?.mouse && (event.button === 0 || event.button === 2)) {
+    focusGame();
+    if (!mouseActive()) return;
+    event.preventDefault();
+    canvas.setPointerCapture(event.pointerId);
+    applyMouseButtons(event);
+    // A click alone (for example to focus the game) never sets a wheel's
+    // turning rate; only mouse movement over the display does.
+    if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel') applyMouse(event);
+    return;
+  }
   if (event.button !== 0) return;
   focusGame();
   if (!mouseActive()) return;
@@ -791,6 +848,7 @@ canvas.addEventListener('pointerdown', (event) => {
   applyMouse(event);
 });
 function releaseMouse(event: PointerEvent): void {
+  applyMouseButtons(event.type === 'pointerup' ? event : null);
   if (mouseThrottle === event.pointerId) {
     mouseThrottle = undefined;
     const slot = settingsUI.mouseSlotFor(activeGameId);
@@ -799,6 +857,18 @@ function releaseMouse(event: PointerEvent): void {
   if (mouseServe === event.pointerId) { mouseServe = undefined; controls.setPointerServe(false); }
 }
 canvas.addEventListener('pointerup', releaseMouse);
+// A mouse-steered wheel (game.mouse kind 'wheel') goes straight when the
+// pointer leaves the display, rather than holding its last turning rate.
+canvas.addEventListener('pointerleave', () => {
+  const slot = settingsUI.mouseSlotFor(activeGameId);
+  if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel' || slot === null || !ready || slot >= axes.length) return;
+  // Only the mouse's own turning rate is cleared, never a gamepad's.
+  if (mouseWheelSlot !== slot) return;
+  mouseWheelSlot = null;
+  if (axes[slot] === 0) return;
+  axes[slot] = 0;
+  sendInputs(slot);
+});
 canvas.addEventListener('pointercancel', releaseMouse);
 canvas.addEventListener('lostpointercapture', releaseMouse);
 canvas.addEventListener('contextmenu', (event) => { if (screen === 'playing') event.preventDefault(); });

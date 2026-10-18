@@ -29,7 +29,9 @@ bool registered(){return nocpu_game_info(game,NOCPU_INFO_REGISTERED)==1;}
 uint32_t info(uint32_t field){return nocpu_game_info(game,field);}
 uint32_t score_slots(){return registered()?std::max<uint32_t>(2,info(NOCPU_INFO_SCORES)):2;}
 // Generic replay vocabulary of a registered game: coin, start/start2,
-// paddleN, upN/downN/leftN/rightN (declared directions only), buttonSB.
+// paddleN, upN/downN/leftN/rightN (declared directions only), buttonSB, and
+// for declared wheels wheelN (signed rate axis) and wheelleftN/wheelrightN
+// (held keys).
 bool registered_action(const std::string& action,bool& analog) {
     analog=false;
     auto digit=[&](size_t at,uint32_t limit){return action.size()==at+1&&action[at]>='1'&&uint32_t(action[at]-'0')<=limit;};
@@ -37,6 +39,9 @@ bool registered_action(const std::string& action,bool& analog) {
     if(action=="start")return info(NOCPU_INFO_STARTS)>=1;
     if(action=="start2")return info(NOCPU_INFO_STARTS)>=2;
     if(action.compare(0,6,"paddle")==0&&digit(6,info(NOCPU_INFO_PADDLES))){analog=true;return true;}
+    if(action.compare(0,9,"wheelleft")==0)return digit(9,info(NOCPU_INFO_WHEELS));
+    if(action.compare(0,10,"wheelright")==0)return digit(10,info(NOCPU_INFO_WHEELS));
+    if(action.compare(0,5,"wheel")==0&&digit(5,info(NOCPU_INFO_WHEELS))){analog=true;return true;}
     const char* names[]={"up","down","left","right"};
     for(unsigned bit=0;bit<4;++bit) {
         const std::string name=names[bit];
@@ -261,7 +266,7 @@ int main(int argc,char** argv) {
                 boundary<<"{\"constructor_samples\":"<<nocpu_audio_count()<<",\"constructor_time_ps\":"<<time_now()<<"}\n";
                 if(!boundary)throw std::runtime_error("Audio boundary write failed");
             }
-            bool directions[2][2]={{false,false},{false,false}},keys[4][2]={},buttons[4][2]={},sticks[2][4]={};
+            bool directions[2][2]={{false,false},{false,false}},keys[4][2]={},buttons[4][2]={},sticks[2][4]={},wheel_keys[4][2]={};
             uint64_t deadline=0;size_t next_event=0;bool complete=false;
             while(!complete) {
                 const uint64_t now=time_now();
@@ -290,6 +295,14 @@ int main(int argc,char** argv) {
                         else if(event.action=="start"||event.action=="start2")accepted=nocpu_start_player(event.action=="start"?1:2,event.value);
                         else if(event.action.compare(0,6,"paddle")==0)nocpu_paddle(event.action.back()-'1',event.value);
                         else if(event.action.compare(0,6,"button")==0)accepted=nocpu_button(event.action[6]-'1',event.action[7]-'0',event.value);
+                        else if(event.action.compare(0,5,"wheel")==0) {
+                            const unsigned slot=event.action.back()-'1';
+                            if(event.action.size()==6)accepted=nocpu_wheel(slot,event.value);
+                            else {
+                                wheel_keys[slot][event.action[5]=='l'?0:1]=event.value;
+                                accepted=nocpu_wheel_keys(slot,wheel_keys[slot][0],wheel_keys[slot][1]);
+                            }
+                        }
                         else {
                             const unsigned slot=event.action.back()-'1';
                             const char first=event.action[0];

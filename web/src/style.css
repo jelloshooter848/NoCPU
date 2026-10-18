@@ -182,6 +182,7 @@ kbd { display: inline-block; min-width: 24px; padding: 1px 6px; border: 1px soli
 .rom-entry { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .rom-file-name { color: var(--muted); font-size: 13px; }
 .error-panel p { overflow-wrap: anywhere; }
+.error-panel .error-detail { font-size: 0.85em; opacity: 0.75; }
 .error-panel button { margin: 8px 8px 0 0; }
 
 /* Home: a schematic drafting sheet. */

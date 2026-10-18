@@ -8,14 +8,16 @@
 import type { ActionId } from '../control-schema';
 
 /** One logical control the player moves along a line: an absolute paddle
- * (original analog axis) or one axis of a digital joystick. Channels are the
- * entries of the browser's `directions` array, in order. Paddle channels come
- * first and their index is the core paddle slot. */
+ * (original analog axis), one axis of a digital joystick, or an original
+ * quadrature steering wheel (WHEELn_INPUT: a signed turning-rate axis from a
+ * gamepad or the mouse, or the held left/right keys). Channels are the entries
+ * of the browser's `directions` array, in order. Paddle and wheel channels
+ * come first; their index is the core paddle or wheel slot. */
 export interface ChannelDefinition {
   label: string;
-  kind: 'paddle' | 'stick';
+  kind: 'paddle' | 'stick' | 'wheel';
   orientation: 'vertical' | 'horizontal';
-  /** Core paddle slot (paddle) or joystick slot (stick). */
+  /** Core paddle slot (paddle), joystick slot (stick) or wheel slot (wheel). */
   slot: number;
   /** Measured against the original raster: +1 when a larger canonical axis
    * moves the paddle down (vertical) or right (horizontal), -1 otherwise. */
@@ -46,7 +48,7 @@ export interface GameDefinition {
   title: string;
   /** True only once the game's original/native/Wasm comparison passes (docs/ACCEPTANCE.md). */
   verified: boolean;
-  playerCount: 2 | 4;
+  playerCount: 1 | 2 | 4;
   channels: readonly ChannelDefinition[];
   buttons: readonly ButtonDefinition[];
   /** Number of original Start switches (0 when Coin starts the game). */
@@ -62,6 +64,12 @@ export interface GameDefinition {
   labels: Readonly<Partial<Record<ActionId, string>>>;
   /** Default keys, by action; coin/menu/reset/mute/start keep the shared defaults. */
   keys: Readonly<Partial<Record<ActionId, readonly string[]>>>;
+  /** A mouse mapping other than a paddle channel. 'buttons': the left and
+   * right mouse buttons over the display hold two of the game's held buttons.
+   * 'wheel': the horizontal mouse position over the display sets the turning
+   * rate of wheel channel 0 (centre straight, edges full turn), and the left
+   * button holds `left`. The mouse setting offers this one assignment (or off). */
+  mouse?: { kind: 'buttons' | 'wheel'; label: string; left?: ActionId; right?: ActionId; help: string };
   /** Extra default gamepad buttons, by action (channels and coin/menu/start are automatic). */
   gamepadButtons?: Readonly<Partial<Record<ActionId, readonly { pad: number; button: number }[]>>>;
   text: {

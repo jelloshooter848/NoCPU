@@ -260,10 +260,22 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     frame_period = frame_period_ps(game)
     reset_sequence = _space_reset_sequence(scenario, replay) if game == "spacerace" else ()
     expected_reset_pairs = list(zip(reset_sequence, reset_sequence[1:]))
+    # A registered game whose original circuit stops its own video sync (TV
+    # Basketball's coin) declares, per replay input, windows in which one frame
+    # gap may (or, if required, must) appear: (earliest frame before, latest
+    # frame after, shortest gap, longest gap in ps, required).
+    gap_rule = getattr(registered_game(game), "frame_gap_windows", None)
+    gap_windows = list(gap_rule(scenario, replay)) if gap_rule and scenario is not None and replay is not None else []
+    matched_windows = [0] * len(gap_windows)
     for a, b in zip(times, times[1:]):
         if b - a == frame_period:
             continue
+        windows = [index for index, (earliest, latest, shortest, longest, _) in enumerate(gap_windows)
+                   if earliest <= a and b <= latest and shortest <= b - a <= longest and not matched_windows[index]]
         if (a, b) in expected_reset_pairs:
+            reset_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
+        elif len(windows) == 1:
+            matched_windows[windows[0]] += 1
             reset_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
         else:
             unexpected_pairs.append({"before_ps": a, "after_ps": b, "gap_ps": b - a})
@@ -275,13 +287,19 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     # must not masquerade as the default long gap or a regular-cadence stream.
     required_pairs = [pair for pair in expected_reset_pairs if valid_parameters and pair[1] <= duration_ps]
     observed_pairs = [(item["before_ps"], item["after_ps"]) for item in reset_pairs]
-    reset_complete = observed_pairs == required_pairs
+    reset_complete = [pair for pair in observed_pairs if pair in required_pairs] == required_pairs \
+        and len(observed_pairs) == len(required_pairs) + sum(matched_windows) \
+        and all(count == 1 for count, window in zip(matched_windows, gap_windows) if window[4] and window[1] <= duration_ps)
     cadence_complete = valid_parameters and not errors and bool(periods) and indices_complete \
         and not unexpected_pairs and reset_complete
     duration_complete = valid_parameters and not errors and bool(times) and times[0] == first \
         and 0 <= duration_ps - times[-1] < frame_period and len(times) == expected_frames
     expected_samples = duration_ps * PCM_RATE // PS_PER_SECOND if valid_parameters else None
-    pcm_duration_complete = valid_parameters and abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE
+    # A game DICE leaves without an audio hookup (NO_AUDIO_HOOKUP in its module)
+    # generates only the audio chip's single constructor sample.
+    silent = getattr(registered_game(game), "NO_AUDIO_HOOKUP", False) if valid_parameters else False
+    pcm_duration_complete = valid_parameters and (sample_count == 1 if silent
+                                                  else abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE)
     pcm_container_complete = pcm_byte_count is None or (type(pcm_byte_count) is int \
         and pcm_byte_count >= 0 and pcm_byte_count % 2 == 0 and pcm_byte_count == sample_count * 2)
     return {"expected_duration_ps": duration_ps, "game": game, "errors": errors,

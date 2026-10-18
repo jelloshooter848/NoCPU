@@ -89,6 +89,11 @@ export function createSettingsUI(options: SettingsOptions) {
     }
     const spec = gameSpec(controlGameId);
     const slot = preferences.mouseByGame[controlGameId];
+    const mouse = registeredGame(controlGameId)?.mouse;
+    if (mouse) {
+      container.innerHTML = `<label for="mouse-slot">Mouse controls</label><select id="mouse-slot" data-testid="mouse-slot"><option value="0"${slot === 0 ? ' selected' : ''}>${escapeText(mouse.label)}</option><option value="off"${slot === null ? ' selected' : ''}>Off</option></select><p class="panel-note">${escapeText(mouse.help)}</p>`;
+      return;
+    }
     const how = controlGameId === 'stuntcycle'
       ? 'Hold the left mouse button over the display and move right to open the shared throttle; release the button to idle.'
       : `Move the mouse over the display to position the paddle across its full range${controlGameId === 'breakout' ? '. Hold the left mouse button over the display to hold Serve' : ''}.`;
