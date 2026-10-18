@@ -70,6 +70,11 @@ test('loads genuine Wasm at the Pages base path and starts the original circuit'
   await start(page);
   expect(wasmResponses.length).toBeGreaterThan(0);
   await Promise.all(wasmResponses);
+  // The raster canvas is CPU-backed (main.ts): an accelerated one made Linux
+  // WebKit compile a Skia shader on the main thread for every new page, which
+  // a JavaScriptCore GC signal could abort ("Target crashed" in CI).
+  expect(await page.getByTestId('game-canvas').evaluate((canvas) =>
+    (canvas as HTMLCanvasElement).getContext('2d')!.getContextAttributes().willReadFrequently)).toBe(true);
   const attract = await snapshot(page);
   expect(attract.attract).toBe(true);
   expect(attract.run).toBe(false);

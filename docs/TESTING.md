@@ -470,6 +470,38 @@ slow or unevenly loaded runner, so:
   carries into the acceptance record beside that test's outcome. It never
   decides a game's status.
 
+### WebKit page crashes at game start (fixed in 0.2.2)
+
+From 0.1.4 to 0.2.1, CI's `browser (webkit)` job lost about one run in ten to
+a page that crashed ("Target crashed") or stopped answering within a second of
+a game starting. The cause is in Playwright's WebKit build (WPE, Skia), not in
+the tests:
+
+- the game canvas was GPU-accelerated, so the first `putImageData` made Skia
+  compile its premultiply shader (`floor(color * 255 + 0.5) / 255`) on the
+  page's main thread;
+- Skia's SkSL parser reads integer literals with `errno = 0; strtoull(...)`
+  and treats a non-zero `errno` as "integer is too large";
+- while a game runs, JavaScriptCore suspends and resumes the main thread with
+  `SIGUSR1` (strace: 2 to 25 times a second, in step with the worker thread),
+  and WTF's suspend handler returns from `sigsuspend` without restoring
+  `errno`, leaving `EINTR`.
+
+A signal landing inside that parse aborts the web process with
+`SkRuntimeEffectPriv.h:204: fatal error: "error: 1: integer is too large:
+255"` (seen in a local stress run). While the system writes the core dump the
+page is frozen, which is the "stall" signature; then it is "Target crashed".
+Holding the main thread in a debugger at that `strtoull` call makes the race
+certain (`build/diag/sksl*/` in the 0.2.2 evidence).
+
+The fix is in the app: the raster canvas is created with
+`willReadFrequently: true`, which WebKit, Chromium and Firefox all honour with
+a CPU-backed canvas. The raster is only ever copied in with `putImageData`, so
+nothing is lost, and Skia no longer compiles shaders on the main thread.
+`pong.spec.ts` checks the context attribute. The WebKit bug itself (an
+`errno`-clobbering signal handler) can still affect other main-thread code in
+WebKitGTK/WPE; Safari on macOS draws with Core Graphics and does not use Skia.
+
 ### Desktop acceptance record
 
 Every CI and release run generates the desktop acceptance record of the
