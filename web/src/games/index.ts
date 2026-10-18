@@ -11,7 +11,7 @@ import { quadrapong } from './quadrapong';
 
 import { crossfire } from './crossfire';
 
-// Reserved: import { tvbasketball } from './tvbasketball';
+import { tvbasketball } from './tvbasketball';
 
 // Reserved: import { pinpong } from './pinpong';
 
@@ -26,7 +26,7 @@ export const REGISTERED_GAMES = [
 
   crossfire,
 
-  // Reserved: tvbasketball,
+  tvbasketball,
 
   // Reserved: pinpong,
 

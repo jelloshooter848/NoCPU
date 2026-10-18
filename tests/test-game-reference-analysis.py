@@ -586,5 +586,63 @@ class GotchaModuleTests(unittest.TestCase):
         self.assertIsNone(self.module.snapshot_objects(bytes(rgb), width, height)["square_x"])
 
 
+class TVBasketballModuleTests(unittest.TestCase):
+    """TV Basketball reads four players by column and allows exactly one sync stop per coin."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("tvbasketball")
+
+    def test_settings_are_the_play_time_potentiometer_only(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("tvbasketball", 10))
+        self.assertTrue(self.module.valid_options(0, 10000) and self.module.valid_options(0, 60000))
+        self.assertFalse(self.module.valid_options(1, 35000) or self.module.valid_options(0, 9999) or self.module.valid_options(0, 60001))
+        self.assertAlmostEqual(self.module.clock_period_ps(35000) / 10**12, 0.9912, places=3)
+
+    def frames(self, duration, gaps):
+        rows, time = [], self.module.FIRST_FRAME_PS
+        while time <= duration:
+            rows.append({"frame": str(len(rows)), "time_ps": str(time)})
+            gap = next((length for at, length in gaps if time <= at < time + self.module.FRAME_PERIOD_PS), None)
+            time += gap if gap else self.module.FRAME_PERIOD_PS
+        return rows
+
+    def test_each_coin_allows_one_sync_stop_and_nothing_else(self):
+        ms, duration = 10**9, 5 * 10**12
+        replay = [(500 * ms, "coin", 1), (600 * ms, "coin", 0), (5000 * ms, "recreate", 1)]
+        scenario = {"game": "tvbasketball", "dip": 0, "pot_ohms": 35000}
+        samples = duration * 48000 // 10**12
+        coverage = lambda rows: MEDIA.media_coverage(rows, samples, duration, "tvbasketball", scenario=scenario, replay=replay)["checks"]
+        self.assertTrue(all(coverage(self.frames(duration, [(500 * ms, 533 * ms)])).values()))
+        # No stop at the coin, a stop elsewhere, or a second stop all fail.
+        self.assertFalse(coverage(self.frames(duration, []))["native_video_cadence_complete"])
+        self.assertFalse(all(coverage(self.frames(duration, [(2000 * ms, 533 * ms)])).values()))
+        self.assertFalse(all(coverage(self.frames(duration, [(500 * ms, 533 * ms), (3000 * ms, 533 * ms)])).values()))
+        self.assertFalse(all(coverage(self.frames(duration, [(500 * ms, 700 * ms)])).values()))
+        # The reset may first cut the frame in progress short (one frame within 20 ms of the press).
+        rows = [row for row in self.frames(duration, [(500 * ms, 533 * ms)])]
+        cut = next(index for index, row in enumerate(rows) if int(row["time_ps"]) > 500 * ms)
+        before = int(rows[cut - 1]["time_ps"])
+        shifted = rows[:cut] + [{"frame": str(cut), "time_ps": str(before + 1265 * 10**6)}] + [
+            {"frame": str(int(row["frame"]) + 1), "time_ps": str(int(row["time_ps"]) + 1265 * 10**6)} for row in rows[cut:]]
+        shifted = [row for row in shifted if int(row["time_ps"]) <= duration]
+        self.assertTrue(all(coverage(shifted).values()))
+
+    def test_players_are_read_in_their_columns(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1, step=1):
+            for y in range(y0, y1 + 1, step):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(101, 124, 84, 134, 2)    # striped player at the top (rows of stripes)
+        light(225, 248, 313, 363)      # solid player at the bottom
+        light(323, 346, 177, 227, 3)   # striped player in the middle
+        light(446, 470, 177, 227)      # solid player in the middle...
+        light(452, 464, 228, 241)      # ...touching the ball is not read
+        objects = self.module.snapshot_objects(bytes(rgb), width, height)
+        self.assertEqual([objects["striped_left_top"], objects["solid_left_top"], objects["striped_right_top"]], [84, 313, 177])
+        self.assertIsNone(objects["solid_right_top"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -561,6 +561,19 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(contract.gameSpec('gotcha').hasStart, true);
   assert.equal(prefs.isMouseGame('gotcha'), false);
   assert.equal(schema.actionLabel('p2Left', 'gotcha'), 'Square left');
+  // TV Basketball: four vertical paddles (PADDLE1..4 = left striped, right
+  // solid, right striped, left solid), one Start, the play-time potentiometer.
+  assert.deepEqual(schema.actionsForGame('tvbasketball'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const tvbasketball = schema.defaultBindings('tvbasketball');
+  assert.equal(schema.validateBindings(tvbasketball, 'tvbasketball').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([tvbasketball.keyboard.p3Up, tvbasketball.keyboard.p4Down, tvbasketball.keyboard.start], [['KeyI'], ['KeyG'], ['Digit1']]);
+  assert.deepEqual(tvbasketball.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1], [2, 1], [3, 1]]);
+  assert.deepEqual(contract.coreGameOptions('tvbasketball', { playtimeOhms: 10000 }), { game: 10, dip: 0, potOhms: 10000 });
+  assert.deepEqual(contract.defaultGameOptions('tvbasketball'), { playtimeOhms: 35000 });
+  assert.equal(contract.isGameOptions('tvbasketball', { playtimeOhms: 60500 }), false);
+  assert.equal(contract.gameSpec('tvbasketball').paddleCount, 4);
+  assert.equal(prefs.isMouseGame('tvbasketball'), true);
+  assert.equal(schema.actionLabel('p4Up', 'tvbasketball'), 'Left solid player up');
 });
 
 test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {

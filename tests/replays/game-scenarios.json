@@ -649,6 +649,128 @@
       ],
       "minimum_catches": 10,
       "complete_games": 1
+    },
+    {
+      "id": "tvbasketball-default",
+      "game": "tvbasketball",
+      "core_id": 10,
+      "replay": "tests/replays/tvbasketball.tsv",
+      "dip": 0,
+      "pot_ohms": 35000,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        200,
+        125000
+      ],
+      "coin_without_start_ms": 1400,
+      "games": [
+        {
+          "start_ms": 1500,
+          "players": 2
+        },
+        {
+          "start_ms": 130000,
+          "players": 4
+        }
+      ],
+      "ignored_in_play_ms": [
+        61500
+      ],
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "players": 2,
+          "low_ms": 2100,
+          "high_ms": 2300
+        },
+        {
+          "slot": 2,
+          "players": 2,
+          "low_ms": 2600,
+          "high_ms": 2750
+        },
+        {
+          "slot": 3,
+          "players": 2,
+          "low_ms": 3200,
+          "high_ms": 3400
+        },
+        {
+          "slot": 4,
+          "players": 2,
+          "low_ms": 3700,
+          "high_ms": 3900
+        }
+      ]
+    },
+    {
+      "id": "tvbasketball-four-players",
+      "game": "tvbasketball",
+      "core_id": 10,
+      "replay": "tests/replays/tvbasketball-four-players.tsv",
+      "dip": 0,
+      "pot_ohms": 10000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1800,
+      "games": [
+        {
+          "start_ms": 1850,
+          "players": 4
+        },
+        {
+          "start_ms": 107500,
+          "players": 2
+        }
+      ],
+      "coin_in_play_ms": [
+        30000
+      ],
+      "paddle_sweeps": [
+        {
+          "slot": 1,
+          "players": 4,
+          "low_ms": 2200,
+          "high_ms": 2300
+        },
+        {
+          "slot": 2,
+          "players": 4,
+          "low_ms": 2700,
+          "high_ms": 3000
+        },
+        {
+          "slot": 3,
+          "players": 4,
+          "low_ms": 3250,
+          "high_ms": 3500
+        },
+        {
+          "slot": 4,
+          "players": 4,
+          "low_ms": 3800,
+          "high_ms": 4000
+        }
+      ]
+    },
+    {
+      "id": "tvbasketball-max-time",
+      "game": "tvbasketball",
+      "core_id": 10,
+      "replay": "tests/replays/tvbasketball-max-time.tsv",
+      "dip": 0,
+      "pot_ohms": 60000,
+      "kind": "coin_restart",
+      "coin_without_start_ms": 1400,
+      "games": [
+        {
+          "start_ms": 1500,
+          "players": 2
+        },
+        {
+          "start_ms": 170500,
+          "players": 2
+        }
+      ]
     }
   ]
 }

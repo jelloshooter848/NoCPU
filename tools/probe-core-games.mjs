@@ -50,7 +50,14 @@ function create(game) {
   check(`${game.name}: cold integer clock`, time() === 0n && core._nocpu_frame_number() === 0);
 }
 const action = (ms, kind, slot, value, other) => ({ ms, kind, slot, value, ...(other === undefined ? {} : { other }) });
+// TV Basketball's coin holds a 0.52 s one-shot (3B) and stops the video sync
+// while it runs, so its two coins (a four-player game) are spaced by that
+// one-shot and its traces run longer to hold as many frames.
+const SYNC_STOPPING_COIN = new Set(['tvbasketball']);
+const probeMs = (game) => SYNC_STOPPING_COIN.has(game.name) ? 3300 : 2200;
 function playScript(game) {
+  if (SYNC_STOPPING_COIN.has(game.name)) return [action(100, 'coin', 0, 1), action(200, 'coin', 0, 0),
+    action(650, 'coin', 0, 1), action(750, 'coin', 0, 0), action(1200, 'start', 0, 1), action(1300, 'start', 0, 0)];
   const script = [action(500, 'coin', 0, 1), action(600, 'coin', 0, 0)];
   // A second coin: Pong Doubles, and four-paddle registered games, whose one-credit
   // game may leave two paddles out of play (Quadrapong's top and bottom walls).
@@ -67,7 +74,7 @@ function apply(event) {
   else if (event.kind === 'button') core._nocpu_button(event.slot, event.other, event.value);
   else throw new Error(`Unsupported probe action ${event.kind}`);
 }
-function capture(label, game, script = playScript(game), durationMs = 2200) {
+function capture(label, game, script = playScript(game), durationMs = probeMs(game)) {
   const streams = Object.fromEntries(['rgba', 'frame_times', 'pcm', 'events', 'collisions'].map((key) => [key, createHash('sha256')]));
   const events = [], requested = [];
   let samples = 0, frame = 0, eventIndex = 0, eventCount = 0, collisions = 0;
