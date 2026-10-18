@@ -46,7 +46,8 @@ test('Breakout retains original colored portrait frames, shared paddle, explicit
   expect((await commands(page, 'start')).length).toBe(starts); expect((await breakoutSnapshot(page)).run).toBe(false);
   expect((await commands(page, 'serve')).some((c) => c.held)).toBe(false);
   // Start, Serve and the ball run on the held clock with the calibrated
-  // replays' timing (Serve 400 ms after the Start pulse, held 100 ms), and the
+  // replays' timing (Serve 400 ms after the circuit first reports a running
+  // game following the Start press, held 100 ms), and the
   // ball is looked for in one presented frame per 10 ms of circuit time. On
   // the free-running clock a slow host pressed Serve late, after the circuit
   // had stopped taking it, or looked only after the ball had left the court

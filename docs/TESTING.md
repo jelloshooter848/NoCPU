@@ -474,33 +474,40 @@ slow or unevenly loaded runner, so:
 
 From 0.1.4 to 0.2.1, CI's `browser (webkit)` job lost about one run in ten to
 a page that crashed ("Target crashed") or stopped answering within a second of
-a game starting. The cause is in Playwright's WebKit build (WPE, Skia), not in
-the tests:
+a game starting. The failed CI attempts' traces were overwritten by their
+re-runs, so the CI failures themselves were not examined; the most likely
+cause, reproduced locally, is a bug in Playwright's WebKit build (WPE, Skia):
 
 - the game canvas was GPU-accelerated, so the first `putImageData` made Skia
   compile its premultiply shader (`floor(color * 255 + 0.5) / 255`) on the
   page's main thread;
 - Skia's SkSL parser reads integer literals with `errno = 0; strtoull(...)`
-  and treats a non-zero `errno` as "integer is too large";
+  and treats a non-zero `errno` as "integer is too large" (`SkSL::stoi` in
+  `src/sksl/SkSLString.cpp`, Skia main, read 2026-10-18);
 - while a game runs, JavaScriptCore suspends and resumes the main thread with
-  `SIGUSR1` (strace: 2 to 25 times a second, in step with the worker thread),
-  and WTF's suspend handler returns from `sigsuspend` without restoring
-  `errno`, leaving `EINTR`.
+  `SIGUSR1` (strace: none on the title screen, 2 to 25 a second during play,
+  in step with the worker thread). In WebKit's source
+  (`Source/WTF/wtf/posix/ThreadingPOSIX.cpp`, `Thread::signalHandlerSuspendResume`,
+  WebKit main read 2026-10-18; the 26.0 build is assumed to match) the handler
+  returns from `sigsuspend`, which sets `errno` to `EINTR`, without restoring
+  `errno`.
 
-A signal landing inside that parse aborts the web process with
-`SkRuntimeEffectPriv.h:204: fatal error: "error: 1: integer is too large:
-255"` (seen in a local stress run). While the system writes the core dump the
-page is frozen, which is the "stall" signature; then it is "Target crashed".
-Holding the main thread in a debugger at that `strtoull` call makes the race
-certain (`build/diag/sksl*/` in the 0.2.2 evidence).
+A signal landing inside that parse aborts the web process. A local stress run
+captured it once, with WebKit's stderr reading `SkRuntimeEffectPriv.h:204:
+fatal error: "error: 1: integer is too large: 255"` and the page crashing;
+that page hung for about 18 seconds before the crash was reported, which would
+explain the "stopped answering" signature too (likely, not shown for the CI
+run). Holding the main thread in a debugger at that `strtoull` call makes the
+race certain: 9 of 9 launches crashed before the fix, 0 of 14 after
+([ACCEPTANCE.md](ACCEPTANCE.md#022-webkit-ci-stability--2026-10-18)).
 
 The fix is in the app: the raster canvas is created with
 `willReadFrequently: true`, which WebKit, Chromium and Firefox all honour with
 a CPU-backed canvas. The raster is only ever copied in with `putImageData`, so
-nothing is lost, and Skia no longer compiles shaders on the main thread.
-`pong.spec.ts` checks the context attribute. The WebKit bug itself (an
-`errno`-clobbering signal handler) can still affect other main-thread code in
-WebKitGTK/WPE; Safari on macOS draws with Core Graphics and does not use Skia.
+nothing is lost, and Skia no longer compiles shaders on the main thread during
+play. `pong.spec.ts` checks the context attribute. The WebKit bug itself can
+still affect other main-thread code that checks `errno`; Safari on macOS draws
+with Core Graphics, not Skia.
 
 ### Desktop acceptance record
 

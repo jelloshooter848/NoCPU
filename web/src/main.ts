@@ -48,8 +48,8 @@ const hud = element('.game-hud');
 // drawn with paths, so a CPU-backed canvas is the right home for it.
 // willReadFrequently keeps WebKit from GPU-accelerating it: on Linux WebKit
 // (Skia), putImageData into an accelerated canvas compiles a Skia shader on
-// the page's main thread, and a JavaScriptCore garbage-collection suspend
-// signal landing inside that compile aborts the tab ("integer is too large:
+// the page's main thread, and a JavaScriptCore thread-suspend signal
+// (SIGUSR1) landing inside that compile aborts the tab ("integer is too large:
 // 255", Target crashed in Playwright WebKit). See docs/TESTING.md.
 const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
 const audio = new CircuitAudio(() => pauseGame('Sound interrupted — choose Resume.'));
