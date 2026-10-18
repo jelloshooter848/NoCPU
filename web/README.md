@@ -3,10 +3,10 @@
 The frontend is the minimal desktop interface defined in the
 [roadmap](../docs/ROADMAP.md) "Goal". It runs the DICE 0.9 circuits that the
 core compiles (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4,
-Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball and Hi-Way) in desktop
-browsers with keyboard, mouse and optional gamepads. Pin Pong is compiled and
-ported but held for 0.4.0 (below real time), so it is listed under Coming soon
-with the eight DICE games not ported yet.
+Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong and Hi-Way) in
+desktop browsers with keyboard, mouse and optional gamepads; the eight DICE
+games not ported yet are listed under Coming soon. Pin Pong and Hi-Way can run
+below real time on slower computers, most in Firefox.
 
 ## What it offers
 
@@ -38,6 +38,7 @@ with the eight DICE games not ported yet.
 - **Keyboard and mouse.** Default keys: W/S and Up/Down move the Pong paddles,
   A/D and Left/Right the Rebound paddles, WASD and the arrow keys the Gotcha
   cross and square, W/S, Up/Down, I/K and T/G the four TV Basketball players,
+  Z or Left and / or Right the Pin Pong flippers (1 starts and serves),
   Left/Right or A/D the Hi-Way steering wheel with Up or W to accelerate,
   Enter inserts a coin, Space opens the menu and Escape
   pauses or goes back; each game's help lists the rest. For the paddle games
@@ -46,7 +47,9 @@ with the eight DICE games not ported yet.
   player's paddle across the full original range, horizontally or vertically
   as the paddle moves; each
   edge of the display keeps a 5% margin so both endpoints are reachable. In
-  Breakout the left mouse button over the display holds Serve. In Stunt Cycle
+  Breakout the left mouse button over the display holds Serve. In Pin Pong the
+  left and right mouse buttons held over the display raise the left and right
+  flippers. In Stunt Cycle
   the left button held over the display sets the shared throttle from idle
   (left) to full (right) and releasing it idles. In Hi-Way the mouse position
   left or right of the display's centre turns the original steering wheel that

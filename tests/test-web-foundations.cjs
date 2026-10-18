@@ -574,8 +574,21 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(contract.gameSpec('tvbasketball').paddleCount, 4);
   assert.equal(prefs.isMouseGame('tvbasketball'), true);
   assert.equal(schema.actionLabel('p4Up', 'tvbasketball'), 'Left solid player up');
-  // Pin Pong is ported but held for 0.4.0: not a playable game in this build.
-  assert.equal(contract.isPlayableGameId('pinpong'), false);
+  // Pin Pong: no channel, the two held flipper switches (FLIPPERS buttons 1
+  // and 2), Start that also serves, three DIP switches and a mouse-button mapping.
+  assert.deepEqual(schema.actionsForGame('pinpong'), ['p1Fire', 'p2Fire', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const pinpong = schema.defaultBindings('pinpong');
+  assert.equal(schema.validateBindings(pinpong, 'pinpong').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([pinpong.keyboard.p1Fire, pinpong.keyboard.p2Fire, pinpong.keyboard.start], [['KeyZ', 'ArrowLeft'], ['Slash', 'ArrowRight'], ['Digit1']]);
+  assert.deepEqual(pinpong.gamepad.players, []);
+  assert.deepEqual([pinpong.gamepad.buttons.p1Fire[0], pinpong.gamepad.buttons.coin, pinpong.gamepad.buttons.start], [{ pad: 0, button: 4 }, [{ pad: 0, button: 0 }], [{ pad: 0, button: 1 }]]);
+  assert.deepEqual(contract.defaultGameOptions('pinpong'), { coinage: 1, freeBall: 1, balls: 3 });
+  // Packed original indices: coinage bit 0, free ball (0 enabled, 1 disabled) bit 1, ball count (0 three, 1 five) bit 2.
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 2, freeBall: 0, balls: 5 }), { game: 11, dip: 7, potOhms: 0 });
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 5 }), { game: 11, dip: 4, potOhms: 0 });
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 4 }), false);
+  assert.equal(prefs.isMouseGame('pinpong'), true);
+  assert.equal(schema.actionLabel('start', 'pinpong'), 'Start game / serve ball');
   // Hi-Way: one wheel channel (keys, gamepad axis, mouse), the held accelerator,
   // no Start (the coin starts), three DIP switches and the play-time potentiometer.
   assert.deepEqual(schema.actionsForGame('hiway'), ['p1Left', 'p1Right', 'p1Gas', 'coin', 'menu', 'reset', 'mute']);

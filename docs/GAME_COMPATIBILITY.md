@@ -9,18 +9,17 @@ capabilities, not verified gameplay.
 
 | Status | Games |
 | --- | --- |
-| Compiled by the core, ROM-free | Pong, Pong Doubles, Rebound, Gotcha, Space Race, Breakout, Quadrapong, Crossfire |
+| Compiled by the core, ROM-free | Pong, Pong Doubles, Rebound, Gotcha, Space Race, TV Basketball, Breakout, Quadrapong, Crossfire, Pin Pong, Hi-Way |
 | Compiled by the core, player-supplied ROM | Stunt Cycle, Indy 4 |
-| Unported, ROM-free | TV Basketball, Pin Pong, Hi-Way |
 | Unported, ROM-backed | Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase |
 
 Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle and Indy 4 had
 original/native/Wasm comparison evidence in the legacy line (see [Verification
 status](#verification-status)); legacy evidence is not a restarted-line pass.
 On the restarted line those six passed their bounded original/native/Wasm
-comparisons in 0.1.1 and Rebound, Gotcha, Quadrapong and Crossfire passed
-theirs in 0.2.0 ([ACCEPTANCE.md](ACCEPTANCE.md), with the coverage gaps listed
-there), and from 0.1.3 each release publishes a
+comparisons in 0.1.1, Rebound, Gotcha, Quadrapong and Crossfire passed
+theirs in 0.2.0, and TV Basketball, Pin Pong and Hi-Way theirs in
+0.3.0 ([ACCEPTANCE.md](ACCEPTANCE.md), with the coverage gaps listed there), and from 0.1.3 each release publishes a
 desktop acceptance record of automated browser checks in Playwright's Chromium
 and Firefox builds ([RELEASING.md](RELEASING.md#the-desktop-acceptance-record)).
 
@@ -44,6 +43,21 @@ real time in the same Wasm measurement.
 
 All four have active audio hookups. None uses a ROM. DICE's inaccuracies and
 TODOs in these circuits are inherited and recorded, not fixed.
+
+## 0.3.0 batch survey (ROM-free batch B)
+
+TV Basketball, Pin Pong and Hi-Way, ported through the registered-game
+contract from 2026-10-17; all three are playable in 0.3.0. Speeds below are
+measured on a 4-vCPU Xeon @2.1 GHz CI-class host; may run below real time on slower machines (Playwright's Chromium 145.0.7632.6,
+Firefox 146.0.1 and WebKit 26.0 builds, paced / raw held-clock stepping,
+median of three runs; Pong in the same runs: 1.00/3.82, 0.93/1.09 and
+1.00/1.72).
+
+| Game | Circuit | Inputs | Settings | Video / audio | Unusual | Port notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| TV Basketball | `games/tvbasketball.cpp` (1658 lines), 14.318 MHz | Four vertical paddles; the chip type selects the input (`PAD2` is `PADDLE4_VERTICAL_INPUT`, `PAD4` is `PADDLE2_…`), so paddle 1 is the left striped player, 2 the right solid, 3 the right striped, 4 the left solid; Coin, one Start | Play-time potentiometer `POT_555_ASTABLE` 10–60 kΩ on 9D, default 35 kΩ; no DIP | Four-level video (contrast 1.5), 455 × 262 pixel clocks; audio wired (13F.3). Speed: Chromium 1.00/1.44, Firefox 0.30/0.36, WebKit 0.88/1.11 | One coin is a two-player game: paddle 1 moves both striped players, paddle 2 both solid players, paddles 3 and 4 move nobody; two coins before Start are a four-player game. Every coin stops VBLANK for about 0.53 s (the 3B one-shot), clears both scores and reloads the clock; in play it restarts the game as a two-player game. A ball in the right basket scores two for the striped team (left score), the left basket two for the solid team | **Ported in 0.3.0.** Data-only contract; no mutable static beyond the restored descriptors. The clock counts down from 120 once per 9D period (ln 2 (R + 30 kΩ) 22 µF): 73, 119 and 165 s at 10, 35 and 60 kΩ. A registered game may declare its coin's frame gap (`frame_gap_windows`). The 9D astable's run-time `log()` arguments are constants (its control voltage is never written) |
+| Pin Pong | `games/pinpong.cpp` (1632 lines), 14.318 MHz | `BUTTONS1_INPUT` buttons 1/2 (left/right flipper), Coin, Start ("Start Game / Serve Ball") | DIP coinage, free ball, ball count 3/5 | `ROTATE_90`: the portrait 324 × 432 raster; 450 × 263 pixel clocks; **no audio hookup** ("TODO: Finish Sound"). Speed: Chromium 0.71/0.93, Firefox 0.15/0.18, WebKit 0.55/0.84 (below real time in all three) | The original's `OPTIMIZATION_HINT` tables need about 590 MB in Wasm (840 MB native); the Wasm memory limit was raised to 2 GiB for it | **Ported in 0.3.0.** Portrait-raster contract (`portrait`), mouse-button flippers. Start serves each ball; the score shows ten times the counted value. The free-ball award (all knockdown targets) is not reached by any scenario |
+| Hi-Way | `games/highway.cpp` + `highway.h` (1654 lines; DICE ID `hiway`), 12.096 MHz | `WHEEL1_INPUT` quadrature steering wheel, `BUTTONS1` button 1 accelerator, Coin starts (no Start) | DIP extended-play score (`DIPSWITCH_4SPST`, None/10–150, default 60), concurrent and opposing traffic regular/double; play-time potentiometer 10–1010 kΩ on E9, default 510 kΩ | Default monochrome; **no audio hookup** (commented "todo: needs work"). Speed: Chromium 0.51/0.98, Firefox 0.16/0.25, WebKit 0.41/0.80 (below real time in all three) | Custom `HIGHWAY_SPEED_CONTROL` (run-time `exp()` of 16 input combinations), 2533 RAM, wired-AND chips | **Ported in 0.3.0.** Wheel contract (`wheels`, replay `wheelN`/`wheelleftN`/`wheelrightN`); prepare-core maps `hiway` to `highway.cpp`. A game with wheels leaves BUTTONS button 3 unassigned (it shared a joystick button with the wheel's left key). The game lasts ln 3 (R + 470 kΩ) C + 7 ln 2 (R + 940 kΩ) C (C = 10 µF): 51.4, 81.1 and 110.9 s at 10, 510 and 1010 kΩ; reaching the extended-play score clears the clock. A coin in play clears the score only. All 18 run-time `exp()` arguments give identical, correctly rounded bits in glibc 2.27, glibc 2.39 and musl |
 
 ## Source inventory
 
@@ -109,7 +123,10 @@ name the legacy line come from its ledgers in [docs/legacy/](legacy/README.md)
 | Quadrapong | Original/native/Wasm comparison passes for `quadrapong-default` and `quadrapong-two-credits` (0.2.0 Quadrapong run, [ACCEPTANCE.md](ACCEPTANCE.md)): no-credit Start, coin without Start, one- and two-credit games, each of the four paddles across its side alone, contacts by all four paddles, each miss counted once, game end with one player left, restarts, exact full-RGB snapshots (contrast 3.0 raster). Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds (automated, [ACCEPTANCE.md](ACCEPTANCE.md)) |
 | Crossfire | Original/native/Wasm comparison passes for `crossfire-default`, `crossfire-min-time` and `crossfire-max-time` (0.2.0 Crossfire run, [ACCEPTANCE.md](ACCEPTANCE.md)): coin starts (Fire in attract or after the end does not), each stick over its full range alone, one bullet per press with held and in-flight presses, hits ending the bullet, one point per goal for the shooter, play time and GNE warning at 680, 1180 and 1680 kΩ, a coin in play ignored, restarts with cleared scores, exact full-RGB snapshots. Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds (automated, [ACCEPTANCE.md](ACCEPTANCE.md)) |
 | Gotcha | Original/native/Wasm comparison passes for `gotcha-default`, `gotcha-min-time` and `gotcha-mid-time` (0.2.0 Gotcha run, [ACCEPTANCE.md](ACCEPTANCE.md)): Start needs a credit, one coin buys two games, coins in play ignored, each of the eight stick directions moves only its player, catches counted one each, maze blanking and change, play time at 47, 172 and 297 kΩ, game end at 99, the proximity tone, restarts with cleared counters, both reset epochs identical, exact full-RGB snapshots. Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds (automated, [ACCEPTANCE.md](ACCEPTANCE.md)); in Playwright's Firefox build it runs at only about 0.35x real time on the test host |
-| Eleven unported games | Source-inventoried only; no render or play claim |
+| TV Basketball | Original/native/Wasm comparison passes for `tvbasketball-default`, `tvbasketball-four-players` and `tvbasketball-max-time` (0.3.0 run, [ACCEPTANCE.md](ACCEPTANCE.md)): Start needs a credit, one and two coins choose the two- and four-player games, which players each paddle moves, two points a basket for each side, coins clearing the scores (and in play restarting the game), the clock at 10, 35 and 60 kΩ, exact full-RGB snapshots. Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds |
+| Hi-Way | Original/native/Wasm comparison passes for `hiway-default`, `hiway-extended-play` and `hiway-double-traffic` (0.3.0 run): the coin starting a cleared game, wheel turns by axis and by keys, the accelerator, distance scoring, play time at 10, 510 and 1010 kΩ, extended play at 10 points, double traffic, a coin in play. Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds. Runs below real time in all three (measured on a 4-vCPU Xeon @2.1 GHz CI-class host; may run below real time on slower machines). Inherits DICE's absent audio |
+| Pin Pong | Original/native/Wasm comparison passes for `pinpong-default`, `pinpong-five-balls` and `pinpong-two-credits` (0.3.0 run, [ACCEPTANCE.md](ACCEPTANCE.md)): coin and Start rules, coinage, Start serving each ball, both flippers by keyboard, mouse buttons and gamepad, scoring, game end after three and five balls, the portrait raster, exact full-RGB snapshots; the free-ball award is not reached. Its browser tests pass in Playwright's Chromium, Firefox and WebKit builds. Runs below real time in all three (measured on a 4-vCPU Xeon @2.1 GHz CI-class host; may run below real time on slower machines). Inherits DICE's absent audio |
+| Eight unported games | Source-inventoried only; no render or play claim |
 | Audible audio and audio/video synchronization | Not verified for any game; automated checks cover generated PCM and its scheduling only |
 
 Known inherited behaviors: original Space Race Start activates `GAME_ON`

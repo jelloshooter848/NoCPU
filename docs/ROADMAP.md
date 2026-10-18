@@ -91,7 +91,7 @@ the release steps.
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | In review |
-| ROM-free batch B: TV Basketball and Hi-Way (Pin Pong moved to 0.4.0) | 0.3.0 | In progress |
+| ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | In progress |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
@@ -151,11 +151,13 @@ README.
 Port TV Basketball, Pin Pong and Hi-Way, including the rotated Pin Pong raster
 and Hi-Way's wheel mapping.
 
-TV Basketball and Hi-Way ship in 0.3.0. Pin Pong is ported on the same branch
-(portrait raster, mouse-button flippers) and its original/native/Wasm
-comparison passes, but it runs well below real time in every desktop browser,
-so it is held for the 0.4.0 profiling milestone and stays under Coming soon
-until then. Ten of the eleven ROM-free titles are playable at exit.
+All three ship as playable in 0.3.0, each passing its original/native/Wasm
+comparison: TV Basketball (four paddles), Pin Pong (portrait raster,
+mouse-button flippers) and Hi-Way (steering wheel). Pin Pong and Hi-Way run
+below real time in desktop browsers, most in Firefox (measured on a 4-vCPU
+Xeon @2.1 GHz CI-class host; may run below real time on slower machines);
+making them real time is 0.4.0 work. All eleven ROM-free titles are playable at
+exit.
 
 ### 0.4.0 — Profiling and performance
 
@@ -165,7 +167,10 @@ generation and worker transfer costs. Optimise measured bottlenecks only, with
 every change verified by unchanged original/native/Wasm comparisons. Record
 simulation speed against real time for each ported game on named desktop
 hardware/browsers. Establish a single-threaded baseline before considering
-threads or SharedArrayBuffer.
+threads or SharedArrayBuffer. The targets carried from 0.3.0: make Hi-Way,
+Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
+CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
+has none) and its free-ball award, which no 0.3.0 scenario reaches.
 
 ### 0.5.0 — ROM-backed batch A
 

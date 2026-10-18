@@ -238,7 +238,8 @@ Desktop acceptance for the ported games is produced by the release
 workflow itself, against the exact build it ships, rather than written here by
 hand. The [release readiness record](../tests/release-readiness.json) states
 only the policy: the games (Pong, Pong Doubles, Space Race, Breakout, Stunt
-Cycle, Indy 4 and, from 0.2.0, Rebound, Gotcha, Quadrapong and Crossfire), the required engines (Chromium and Firefox) and that a release
+Cycle, Indy 4, from 0.2.0 Rebound, Gotcha, Quadrapong and Crossfire, and from
+0.3.0 TV Basketball, Pin Pong and Hi-Way), the required engines (Chromium and Firefox) and that a release
 requires it. The release run then:
 
 1. runs the browser jobs (Chromium, Firefox, WebKit) and the ROM browser job

@@ -13,10 +13,7 @@ import { crossfire } from './crossfire';
 
 import { tvbasketball } from './tvbasketball';
 
-// Pin Pong (web/src/games/pinpong.ts) is ported and its comparison passes, but
-// it is held for 0.4.0 because it runs below real time (owner decision
-// 2026-10-18): it stays off this list, so Play shows it under Coming soon.
-// Reserved: import { pinpong } from './pinpong';
+import { pinpong } from './pinpong';
 
 import { hiway } from './hiway';
 
@@ -31,7 +28,7 @@ export const REGISTERED_GAMES = [
 
   tvbasketball,
 
-  // Held for 0.4.0: pinpong,
+  pinpong,
 
   hiway,
 ] as const satisfies readonly GameDefinition[];
