@@ -115,6 +115,32 @@ test('Hi-Way plays from Play: the coin starts it, the wheel steers by keys, game
   await expect.poll(async () => (await state(page)).held).toEqual([false]);
   await page.mouse.move(box.x + box.width / 2, box.y - 20);
   await expect.poll(async () => (await state(page)).inputs.paddle1, 'Leaving the display straightens the wheel').toBe(0);
+  // Held wheel keys take the wheel over from the mouse: releasing them leaves
+  // the wheel straight rather than handing back the mouse's last turning rate.
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await expect.poll(async () => (await state(page)).inputs.paddle1).toBe(-32768);
+  await page.keyboard.down('ArrowRight');
+  await expect.poll(async () => (await state(page)).inputs.paddle1, 'The keys take the wheel over').toBe(0);
+  await stepClock(page, 100_000);
+  await page.keyboard.up('ArrowRight');
+  await stepClock(page, 100_000);
+  expect((await state(page)).inputs.paddle1, 'Released keys leave the wheel straight').toBe(0);
+  // A click without mouse movement (for example to focus the game) sets no
+  // turning rate; its left button still holds the accelerator.
+  await page.mouse.down();
+  await expect.poll(async () => (await state(page)).held).toEqual([true]);
+  expect((await state(page)).inputs.paddle1, 'A click alone does not turn the wheel').toBe(0);
+  await page.mouse.up();
+  await expect.poll(async () => (await state(page)).held).toEqual([false]);
+  expect((await state(page)).inputs.paddle1).toBe(0);
+  // Leaving the display clears only the mouse's turning rate, not a held stick's.
+  await padState(page, 0, { axis: [0, -1] });
+  await expect.poll(async () => (await state(page)).inputs.paddle1).toBe(-32768);
+  await page.mouse.move(box.x + box.width / 2, box.y - 20);
+  await stepClock(page, 100_000);
+  expect((await state(page)).inputs.paddle1, 'A held stick keeps turning after the pointer leaves').toBe(-32768);
+  await padState(page, 0, { axis: [0, 0] });
+  await expect.poll(async () => (await state(page)).inputs.paddle1).toBe(0);
 
   // Real-time speed is measured and reported, never gated (docs/TESTING.md).
   const wallNow = () => page.evaluate(() => performance.now());

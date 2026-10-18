@@ -60,6 +60,9 @@ const SEED = 848;
 // reaches both ends of the original control range without leaving the display.
 const MOUSE_EDGE = 0.05;
 let axes: number[] = [0, 0];
+// The wheel slot whose current axis value is the mouse's turning rate (a
+// gamepad or the keys take a wheel over from the mouse; see pointerleave).
+let mouseWheelSlot: number | null = null;
 // Mouse button holds: the Stunt Cycle throttle and the Breakout Serve switch.
 let mouseThrottle: number | undefined;
 let mouseServe: number | undefined;
@@ -114,11 +117,23 @@ const settingsUI = createSettingsUI({
 });
 const controls = createControls({
   bindings: settingsUI.preferences.bindings,
-  onDirections: (directions) => { if (ready && !paused && !resetting) send({ type: 'keys', directions }); },
+  onDirections: (directions) => {
+    if (!ready || paused || resetting) return;
+    send({ type: 'keys', directions });
+    // Held wheel keys take the wheel over from the mouse: drop its turning
+    // rate so releasing the keys straightens the wheel instead of handing back
+    // a stale mouse rate.
+    const slot = mouseWheelSlot;
+    if (slot !== null && directions[slot] && registeredGame(activeGameId)?.channels[slot]?.kind === 'wheel') {
+      mouseWheelSlot = null;
+      if (axes[slot] !== 0) { axes[slot] = 0; sendInputs(slot); }
+    }
+  },
   onAxes: (changes) => {
     if (!ready || paused || resetting || failed) return;
     changes.forEach((axis, slot) => {
       if (axis === null || (mouseThrottle !== undefined && slot === settingsUI.mouseSlotFor(activeGameId))) return;
+      if (slot === mouseWheelSlot) mouseWheelSlot = null;
       axes[slot] = gameSpec(activeGameId).inputKind === 'paddle' ? canonicalPaddleAxis(activeGameId, axis, slot) : axis;
       sendInputs(slot);
     });
@@ -769,6 +784,7 @@ function applyMouse(event: PointerEvent): void {
     const fraction = mouseFraction(event, true);
     if (fraction === undefined) return;
     axis = Math.round(AXIS_MIN + fraction * (AXIS_MAX - AXIS_MIN));
+    mouseWheelSlot = slot;
   } else if (spec.inputKind === 'paddle') {
     const fraction = mouseFraction(event, paddleOrientation(activeGameId, slot) === 'horizontal');
     if (fraction === undefined) return;
@@ -808,7 +824,9 @@ canvas.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
     applyMouseButtons(event);
-    applyMouse(event);
+    // A click alone (for example to focus the game) never sets a wheel's
+    // turning rate; only mouse movement over the display does.
+    if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel') applyMouse(event);
     return;
   }
   if (event.button !== 0) return;
@@ -834,7 +852,11 @@ canvas.addEventListener('pointerup', releaseMouse);
 // pointer leaves the display, rather than holding its last turning rate.
 canvas.addEventListener('pointerleave', () => {
   const slot = settingsUI.mouseSlotFor(activeGameId);
-  if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel' || slot === null || !ready || slot >= axes.length || axes[slot] === 0) return;
+  if (registeredGame(activeGameId)?.mouse?.kind !== 'wheel' || slot === null || !ready || slot >= axes.length) return;
+  // Only the mouse's own turning rate is cleared, never a gamepad's.
+  if (mouseWheelSlot !== slot) return;
+  mouseWheelSlot = null;
+  if (axes[slot] === 0) return;
   axes[slot] = 0;
   sendInputs(slot);
 });
