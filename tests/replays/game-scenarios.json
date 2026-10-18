@@ -833,6 +833,58 @@
         1500,
         17860
       ]
+    },
+    {
+      "id": "hiway-default",
+      "game": "hiway",
+      "core_id": 12,
+      "replay": "tests/replays/hiway.tsv",
+      "dip": 6,
+      "pot_ohms": 510000,
+      "kind": "coin_restart",
+      "wheel_tests": [
+        {
+          "direction": "left",
+          "before_ms": 2250,
+          "after_ms": 2750
+        },
+        {
+          "direction": "right",
+          "before_ms": 3300,
+          "after_ms": 4000
+        }
+      ],
+      "accelerator_released_ms": [
+        [
+          31000,
+          36000
+        ]
+      ],
+      "minimum_score": 5
+    },
+    {
+      "id": "hiway-extended-play",
+      "game": "hiway",
+      "core_id": 12,
+      "replay": "tests/replays/hiway-extended-play.tsv",
+      "dip": 1,
+      "pot_ohms": 1010000,
+      "kind": "coin_restart",
+      "extended_play": 10,
+      "minimum_score": 15
+    },
+    {
+      "id": "hiway-double-traffic",
+      "game": "hiway",
+      "core_id": 12,
+      "replay": "tests/replays/hiway-double-traffic.tsv",
+      "dip": 54,
+      "pot_ohms": 10000,
+      "kind": "coin_restart",
+      "coin_in_play_ms": [
+        30000
+      ],
+      "minimum_score": 2
     }
   ]
 }

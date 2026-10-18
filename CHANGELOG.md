@@ -13,6 +13,19 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- TV Basketball (Midway, 1974) is playable: the original circuit, verified against original DICE,
+  with its play-time setting. One coin is a two-player game (each control moves both players of a
+  team), two coins a four-player game; the four players are on W/S, the Up/Down arrow keys, I/K and
+  T/G, the mouse or four gamepads, with the circuit's own sound. A coin always clears the scores
+  and restarts the clock, even during a game.
+- Hi-Way (Atari, 1975) is playable: the original circuit, verified against original DICE, with its
+  extended-play, traffic and play-time settings. The coin starts the game; the original steering
+  wheel turns with the Left/Right arrow keys or A/D, a gamepad stick, or the mouse (its position
+  left or right of the display's centre sets how fast the wheel turns), and the accelerator is the
+  Up arrow, W, a gamepad button or the left mouse button. DICE has no sound for Hi-Way.
+
 ## [0.2.1] - 2026-10-17
 
 ### Changed

@@ -644,5 +644,33 @@ class TVBasketballModuleTests(unittest.TestCase):
         self.assertIsNone(objects["solid_right_top"])
 
 
+class HiWayModuleTests(unittest.TestCase):
+    """Hi-Way's play time follows the E9 astable and its car is read on its rows."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("hiway")
+
+    def test_settings_and_game_length(self):
+        self.assertEqual((self.module.GAME, self.module.CORE_ID), ("hiway", 12))
+        self.assertTrue(self.module.valid_options(63, 10000) and self.module.valid_options(6, 1010000))
+        self.assertFalse(self.module.valid_options(64, 510000) or self.module.valid_options(6, 9999))
+        # Measured on the original captures: 81.120 s at 510 kOhm, 51.367 s at 10 kOhm.
+        self.assertAlmostEqual(self.module.game_length_ps(510000) / 10**12, 81.120, places=2)
+        self.assertAlmostEqual(self.module.game_length_ps(10000) / 10**12, 51.367, places=2)
+
+    def test_car_is_read_on_its_rows(self):
+        width, height = 576, 432
+        rgb = bytearray(width * height * 3)
+        def light(x0, x1, y0, y1):
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    rgb[(y * width + x) * 3] = 255
+        light(300, 320, 320, 330)      # the car
+        light(100, 110, 100, 140)      # traffic elsewhere is ignored
+        self.assertEqual(self.module.snapshot_objects(bytes(rgb), width, height)["car_x"], 310)
+        light(400, 410, 318, 325)      # something else on the car's rows: unclear
+        self.assertIsNone(self.module.snapshot_objects(bytes(rgb), width, height)["car_x"])
+
+
 if __name__ == "__main__":
     unittest.main()

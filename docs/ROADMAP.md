@@ -91,7 +91,7 @@ the release steps.
 | CI: skip already-compared core content across branches and release edits; robust WebKit Space Race test | 0.1.7 | Released (2026-10-16) |
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | In review |
-| ROM-free batch B | 0.3.0 | In progress |
+| ROM-free batch B: TV Basketball and Hi-Way (Pin Pong moved to 0.4.0) | 0.3.0 | In progress |
 | Profiling and performance | 0.4.0 | Planned |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
@@ -149,7 +149,13 @@ README.
 ### 0.3.0 — ROM-free batch B
 
 Port TV Basketball, Pin Pong and Hi-Way, including the rotated Pin Pong raster
-and Hi-Way's wheel mapping. All eleven ROM-free titles are playable at exit.
+and Hi-Way's wheel mapping.
+
+TV Basketball and Hi-Way ship in 0.3.0. Pin Pong is ported on the same branch
+(portrait raster, mouse-button flippers) and its original/native/Wasm
+comparison passes, but it runs well below real time in every desktop browser,
+so it is held for the 0.4.0 profiling milestone and stays under Coming soon
+until then. Ten of the eleven ROM-free titles are playable at exit.
 
 ### 0.4.0 — Profiling and performance
 

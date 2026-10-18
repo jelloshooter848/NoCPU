@@ -148,17 +148,21 @@ edit('games/gotcha.cpp',[
 # The six legacy circuits keep their established order; later games follow in
 # name order, so adding a game never reorders the earlier sources.
 LEGACY_GAMES=['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']
+# A registered game is named by its DICE command-line ID; Hi-Way's circuit
+# lives in games/highway.cpp.
+SOURCE_FILES={'hiway':'highway'}
 added=sorted(path.stem for path in (ROOT/'core/games').glob('*.inc') if path.stem not in LEGACY_GAMES)
 GAMES=LEGACY_GAMES+added
 for game in GAMES:
-    if not (out/'games'/(game+'.cpp')).is_file():
+    source=SOURCE_FILES.get(game,game)
+    if not (out/'games'/(source+'.cpp')).is_file():
         raise SystemExit('No original DICE circuit for core/games/'+game+'.inc')
     lines=(ROOT/'core/games'/(game+'.inc')).read_text().splitlines(True)
     if not lines or not lines[0].startswith('// SPDX-License-Identifier:'):
         raise SystemExit('core/games/'+game+'.inc must start with its SPDX line')
-    write('games/'+game+'.cpp',(out/'games'/(game+'.cpp')).read_text()+'\n'+''.join(lines[1:]))
+    write('games/'+source+'.cpp',(out/'games'/(source+'.cpp')).read_text()+'\n'+''.join(lines[1:]))
 
-sources=['chip.cpp','circuit.cpp']+['games/'+game+'.cpp' for game in GAMES]
+sources=['chip.cpp','circuit.cpp']+['games/'+SOURCE_FILES.get(game,game)+'.cpp' for game in GAMES]
 chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','7474','7483','7486','7490','7493','74107','74153','9316','555mono','clock','latch','clk_gate','input','audio','video','dipswitch',
        'capacitor','555pwm','566','9602','diode_matrix','mixer','9311','9312','9322',
        '555astable','7408','7411','74175','74192','74193','74279','7432','7437','82S16','9310',
@@ -166,7 +170,9 @@ chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','74
        # Chips first needed by the 0.2.0 batch (Crossfire); 74157 is an alias of 9322.
        '7492','9321',
        # Chips first needed by the 0.3.0 batch (TV Basketball, Pin Pong).
-       '74151','74155','7454','9314']
+       '74151','74155','7454','9314',
+       # Hi-Way: 2533 RAM, 7442 (74145 is its alias) and the wired-AND chip.
+       '2533','7442','wired_logic']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))

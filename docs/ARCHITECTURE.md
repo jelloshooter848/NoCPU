@@ -45,7 +45,8 @@ earlier circuits through their own code and every game registered in
 | 8 | Quadrapong | none (registered, 0.2.0) |
 | 9 | Crossfire | none (registered, 0.2.0) |
 | 10 | TV Basketball | none (registered, 0.3.0) |
-| 11 | Pin Pong | none (registered, 0.3.0; portrait raster) |
+| 11 | Pin Pong | none (registered, 0.3.0; portrait raster; held for 0.4.0, not playable) |
+| 12 | Hi-Way | none (registered, 0.3.0; DICE ID `hiway`, circuit `games/highway.cpp`) |
 
 A registered game declares its original DIP switches (by descriptor name,
 packed from bit 0), potentiometer range, paddle, joystick, button and Start

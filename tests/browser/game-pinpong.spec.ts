@@ -10,6 +10,12 @@ import { installGamepads, padState, screen, titleSettings } from './app-helpers'
 import { holdClock, launch, presented, state, stepUntil } from './game-helpers';
 import { pinpong } from '../../web/src/games/pinpong';
 
+// Pin Pong is ported (its original/native/Wasm comparison passes) but held for
+// 0.4.0 because it runs below real time (owner decision 2026-10-18): it is not
+// in the playable registry, so these tests are skipped until it is listed in
+// web/src/games/index.ts again. The release acceptance policy does not list it.
+test.skip(true, 'Pin Pong is held for 0.4.0 (below real time); not playable in this build.');
+
 /** Advance the held clock in 100 ms slices: Pin Pong steps below real time in
  * some engines, and each debug step must answer within 5 s. */
 async function stepClock(page: Page, microseconds: number): Promise<void> {

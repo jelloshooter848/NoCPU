@@ -155,3 +155,15 @@ and a host CPU with FMA (`grep -m1 -o fma /proc/cpuinfo`).
   and `200 + index` for the declared event pins.
 - `nocpu_game_info` exposes the contract to tools (`tools/replay-core.mjs`,
   the probes); the browser reads its own definition.
+- From 0.3.0: `portrait=true` declares a circuit that rotates its monitor
+  (Pin Pong, a 324x432 raster; creation checks it), and `wheels` declares
+  `WHEELn_INPUT` slots (Hi-Way), steered in replays with `wheelN` (the signed
+  turning-rate axis) and `wheelleftN`/`wheelrightN` (held keys) and in the
+  browser by a `wheel` channel. A circuit file whose name differs from the DICE
+  ID is mapped in `tools/prepare-core.py` (`SOURCE_FILES`, Hi-Way's
+  `games/highway.cpp`). A browser definition can map the mouse buttons or a
+  mouse-steered wheel with `mouse`.
+- An analysis module may declare `frame_gap_windows(scenario, replay)` for a
+  circuit that stops its own video sync (TV Basketball's coin) and
+  `NO_AUDIO_HOOKUP = True` for a game DICE leaves without sound; any other
+  frame gap or PCM length still fails.

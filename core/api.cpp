@@ -448,7 +448,9 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
             auto& buttons=engine->settings.input.buttons[slot];
             buttons.button1=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,0,slot);
             buttons.button2=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,1,slot);
-            buttons.button3=KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,2,slot);
+            // A wheel's held keys use joystick buttons 3 and 4 of its slot
+            // (nocpu_wheel_keys), so a game with wheels leaves button 3 unassigned.
+            buttons.button3=def->wheels?KeyAssignment():KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,2,slot);
         }
         engine->roms=std::move(staged_roms);staged_roms=NoCPURomSession{};
         if(game==NOCPU_INDY_4)engine->settings.input.buttons[0].button1=
