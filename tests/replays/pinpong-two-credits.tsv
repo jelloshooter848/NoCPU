@@ -1,0 +1,21 @@
+# Original DICE Pin Pong, DIP 1 (1 coin / 2 credits, free ball enabled, 3 balls). One coin (500 ms)
+# buys two games. Start (1500 ms) begins the first; the flippers rest and Start serves each lost ball
+# until the game ends; Start then begins the second game on the remaining credit, played the same way;
+# a third Start without a coin does not begin a game.
+500 coin 1
+600 coin 0
+1500 start 1
+1600 start 0
+7020 start 1
+7120 start 0
+11680 start 1
+11780 start 0
+17860 start 1
+17960 start 0
+21960 start 1
+22060 start 0
+29620 start 1
+29720 start 0
+35580 start 1
+35680 start 0
+70000 recreate 1

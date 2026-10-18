@@ -44,8 +44,8 @@ export interface GameSpec {
   title: string;
   coreId: number;
   inputKind: GameInputKind;
-  playerCount: 2 | 4;
-  controlSlotCount: 1 | 2 | 4;
+  playerCount: 1 | 2 | 4;
+  controlSlotCount: 0 | 1 | 2 | 4;
   axisCount: 0 | 1 | 2 | 4;
   paddleCount: 0 | 1 | 2 | 4;
   paddleOrientation: 'vertical' | 'horizontal';
@@ -78,8 +78,9 @@ const GAME_SPECS: Record<LegacyGameId, GameSpec> = {
 
 function registeredSpec(game: GameDefinition): GameSpec {
   const paddles = game.channels.filter((channel) => channel.kind === 'paddle');
-  return { title: game.title, coreId: game.coreId, inputKind: paddles.length ? 'paddle' : 'joystick', playerCount: game.playerCount,
-    controlSlotCount: game.channels.length as GameSpec['controlSlotCount'], axisCount: paddles.length as GameSpec['axisCount'],
+  const wheels = game.channels.filter((channel) => channel.kind === 'wheel');
+  return { title: game.title, coreId: game.coreId, inputKind: paddles.length ? 'paddle' : wheels.length ? 'wheel' : 'joystick', playerCount: game.playerCount,
+    controlSlotCount: game.channels.length as GameSpec['controlSlotCount'], axisCount: (paddles.length + wheels.length) as GameSpec['axisCount'],
     paddleCount: paddles.length as GameSpec['paddleCount'], paddleOrientation: game.channels[0]?.orientation ?? 'vertical',
     paddleAxisSign: paddles[0]?.axisSign ?? 1, hasStart: game.starts > 0, startButtons: game.starts, hasServe: false,
     controlLabels: game.channels.map((channel) => channel.label), channels: game.channels };

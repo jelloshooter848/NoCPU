@@ -22,6 +22,8 @@ export interface Controls {
   setGame(gameId: PlayableGameId, bindings: Bindings): void;
   /** A held Serve from the mouse button over the display (Breakout). */
   setPointerServe(held: boolean): void;
+  /** A held registered button from a mouse button over the display (game.mouse). */
+  setPointerAction(action: ActionId, held: boolean): void;
   pollGamepads(gamepads?: readonly (Gamepad | null)[]): void; getState(): ControlState;
 }
 const directional = (action: ActionId): boolean => /^p[1-4](Up|Down|Left|Right)$/.test(action);
@@ -45,6 +47,7 @@ export function createControls(options: ControlOptions): Controls {
   let held: boolean[] = [];
   let directions: number[] = [];
   let pointerServe = false;
+  const pointerActions = new Set<ActionId>();
   let serve = false;
   let connected: ConnectedGamepad[] = [];
   let revision = 0;
@@ -71,7 +74,7 @@ export function createControls(options: ControlOptions): Controls {
     if (next !== serve) { serve = next; options.onServe?.(next); }
   }
   function updatePedals(): void {
-    const active = (action: ActionId): boolean => heldButtons.has(action) || bindings.keyboard[action].some((code) => heldKeys.has(code));
+    const active = (action: ActionId): boolean => heldButtons.has(action) || pointerActions.has(action) || bindings.keyboard[action].some((code) => heldKeys.has(code));
     const nextGas = gas.map((_, slot) => enabled && gameId === 'indy4' && active(`p${slot + 1}Gas` as ActionId));
     const nextBrake = brake.map((_, slot) => enabled && gameId === 'indy4' && active(`p${slot + 1}Brake` as ActionId));
     if (nextGas.some((held, slot) => held !== gas[slot]) || nextBrake.some((held, slot) => held !== brake[slot])) {
@@ -82,7 +85,7 @@ export function createControls(options: ControlOptions): Controls {
   }
   function release(): void {
     revision += 1; heldKeys.clear(); heldButtons.clear(); armedButtons.clear(); lastButtons.clear();
-    pointerServe = false; updateServe(); updatePedals();
+    pointerServe = false; pointerActions.clear(); updateServe(); updatePedals();
     resetPlayers(); options.onDirections([...directions]);
   }
   function actionFor(code: string): ActionId | undefined { return actionsForGame(gameId).find((action) => bindings.keyboard[action].includes(code)); }
@@ -106,6 +109,12 @@ export function createControls(options: ControlOptions): Controls {
     setBindings(next) { bindings = cloneBindings(next); release(); },
     setGame(next, nextBindings) { release(); gameId = next; bindings = cloneBindings(nextBindings); resetPlayers(); },
     setPointerServe(held) { if (!enabled || gameId !== 'breakout') return; pointerServe = held; updateServe(); },
+    setPointerAction(action, held) {
+      const mouse = registeredGame(gameId)?.mouse;
+      if (!enabled || !mouse || (action !== mouse.left && action !== mouse.right)) return;
+      if (held) pointerActions.add(action); else pointerActions.delete(action);
+      updatePedals();
+    },
     pollGamepads(supplied) {
       const pads = supplied ?? defaultPads();
       const nextConnected = pads.filter((pad): pad is Gamepad => !!pad && pad.connected !== false).map((pad) => ({ index: pad.index, id: pad.id, mapping: pad.mapping, axes: pad.axes.length, buttons: pad.buttons.length }));
@@ -122,7 +131,7 @@ export function createControls(options: ControlOptions): Controls {
         const value = Math.max(-1, Math.min(1, raw)) * (binding.invert ? -1 : 1);
         if (Math.abs(value) <= binding.deadzone) {
           armedAxes[slot] = true; axisDirections[slot] = 0;
-          if (gameId === 'indy4' || gameId === 'stuntcycle') {
+          if (gameId === 'indy4' || gameId === 'stuntcycle' || registeredGame(gameId)?.channels[slot]?.kind === 'wheel') {
             if (lastAxes[slot] !== 0) axisChanges[slot] = 0;
             lastAxes[slot] = 0;
           } else lastAxes[slot] = undefined;

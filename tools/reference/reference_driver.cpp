@@ -29,6 +29,7 @@ struct ReferenceGame {
     std::string pot;
     unsigned pot_min = 0, pot_max = 0, pot_default = 0;
     unsigned paddles = 0, joysticks = 0, joystick_directions = 0, button_slots = 0, buttons = 0, starts = 0;
+    unsigned wheels = 0; // WHEELn_INPUT slots, steered by a signed rate axis or held keys
     std::vector<std::vector<ReferenceTerm>> scores;
     std::string active, attract_n, hit;
     std::vector<std::string> events;
@@ -265,8 +266,9 @@ unsigned reference_initialize(Settings& settings) {
             auto numbered = [&](const std::string& prefix, unsigned limit) {
                 return a.size() == prefix.size() + 1 && a.compare(0, prefix.size(), prefix) == 0 && a.back() >= '1' && unsigned(a.back() - '0') <= limit;
             };
-            const bool analog = numbered("paddle", g.paddles);
+            const bool analog = numbered("paddle", g.paddles) || numbered("wheel", g.wheels);
             const bool known = a == "coin" || a == "recreate" || (a == "start" && g.starts >= 1) || (a == "start2" && g.starts >= 2) || analog
+                || numbered("wheelleft", g.wheels) || numbered("wheelright", g.wheels)
                 || (numbered("up", g.joysticks) && (g.joystick_directions & 1)) || (numbered("down", g.joysticks) && (g.joystick_directions & 2))
                 || (numbered("left", g.joysticks) && (g.joystick_directions & 4)) || (numbered("right", g.joysticks) && (g.joystick_directions & 8))
                 || (a.size() == 8 && a.compare(0, 6, "button") == 0 && a[6] >= '1' && unsigned(a[6] - '0') <= g.button_slots && a[7] >= '1' && unsigned(a[7] - '0') <= g.buttons);
@@ -342,6 +344,13 @@ unsigned reference_initialize(Settings& settings) {
     settings.input.coin_start.dollar = KeyAssignment(KeyAssignment::KEYBOARD, 224, 0);
     settings.input.throttle[0].key = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 1, 0);
     settings.input.throttle[0].keyboard_sensitivity = 250;
+    // A registered game's wheels: the original keyboard/axis wheel settings,
+    // as for Indy 4; its BUTTONSn keep the registered assignments above.
+    if(ref_registered) for(unsigned p = 0; p < ref_registered->wheels; ++p) {
+        auto& wheel = settings.input.wheel[p]; wheel.use_mouse = false; wheel.use_keyboard = true; wheel.keyboard_sensitivity = 500;
+        wheel.left = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 0, p);
+        wheel.right = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 1, p);
+    }
     if(ref_game == "indy4") for(unsigned p = 0; p < 4; ++p) {
         auto& wheel = settings.input.wheel[p]; wheel.use_mouse = false; wheel.use_keyboard = true; wheel.keyboard_sensitivity = 500;
         wheel.left = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 0, p);
@@ -860,6 +869,14 @@ static bool reference_step(Circuit*& circuit, Settings& settings, Input& input, 
             else if(a == "start2") ref_start2 = event.value;
             else if(a.compare(0, 6, "paddle") == 0) ref_axes[a.back() - '1'] = event.value;
             else if(a.compare(0, 6, "button") == 0) ref_buttons[a[6] - '1'][a[7] - '1'] = event.value;
+            else if(a.compare(0, 9, "wheelleft") == 0 || a.compare(0, 10, "wheelright") == 0) {
+                const unsigned p = a.back() - '1'; ref_wheel_keys[p][a[5] == 'l' ? 0 : 1] = event.value;
+                settings.input.wheel[p].left = KeyAssignment(KeyAssignment::KEYBOARD, 270 + 2 * p, 0); settings.input.wheel[p].right = KeyAssignment(KeyAssignment::KEYBOARD, 271 + 2 * p, 0);
+            }
+            else if(a.compare(0, 5, "wheel") == 0) {
+                const unsigned p = a.back() - '1'; ref_axes[p] = event.value;
+                settings.input.wheel[p].left = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 0, p); settings.input.wheel[p].right = KeyAssignment(KeyAssignment::JOYSTICK_AXIS, 1, p);
+            }
             else if(a.compare(0, 2, "up") == 0) ref_directions[a.back() - '1'][0] = event.value;
             else if(a.compare(0, 4, "down") == 0) ref_directions[a.back() - '1'][1] = event.value;
             else if(a.compare(0, 4, "left") == 0) ref_left_right[a.back() - '1'][0] = event.value;

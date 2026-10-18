@@ -39,6 +39,12 @@ struct NoCPUGameDef {
     // orientation; joysticks are digital switches; buttons are BUTTONSn_INPUT.
     uint32_t paddles=0, joysticks=0, joystick_directions=0;
     uint32_t button_slots=0, buttons=0, starts=0;
+    // WHEELn_INPUT slots (original quadrature wheels, as Indy 4's), reached
+    // through nocpu_wheel and nocpu_wheel_keys.
+    uint32_t wheels=0;
+    // The circuit's VIDEO_ORIENTATION rotates the monitor 90 or 270 degrees:
+    // the raster is the 324x432 portrait crop. Creation checks it.
+    bool portrait=false;
     // Observations, read from original output pins. They never feed the circuit.
     std::vector<std::vector<NoCPUPinTerm>> scores;  // one sum per player slot
     std::string active;                    // high while a game is in play

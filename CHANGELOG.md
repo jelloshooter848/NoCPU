@@ -13,6 +13,29 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- TV Basketball (Midway, 1974) is playable: the original circuit, verified against original DICE,
+  with its play-time setting. One coin is a two-player game (each control moves both players of a
+  team), two coins a four-player game; the four players are on W/S, the Up/Down arrow keys, I/K and
+  T/G, the mouse or four gamepads, with the circuit's own sound. A coin always clears the scores
+  and restarts the clock, even during a game.
+- Hi-Way (Atari, 1975) is playable: the original circuit, verified against original DICE, with its
+  extended-play, traffic and play-time settings. The coin starts the game; the original steering
+  wheel turns with the Left/Right arrow keys or A/D, a gamepad stick, or the mouse (its position
+  left or right of the display's centre sets how fast the wheel turns), and the accelerator is the
+  Up arrow, W, a gamepad button or the left mouse button. DICE has no sound for Hi-Way.
+- Pin Pong (Atari, 1974) is playable: the original circuit, verified against original DICE, with
+  its coinage, free-ball and balls-per-game settings, shown upright in the original portrait
+  picture. The left flipper is Z or the Left arrow key, the right flipper / or the Right arrow key,
+  the left and right mouse buttons or the gamepad shoulder buttons; Start begins the game and serves
+  each ball. DICE has no sound for Pin Pong.
+- Pin Pong and Hi-Way can run below full speed on slower computers, most in Firefox. On the 4-vCPU
+  test machine, Playwright's Chromium build ran Pin Pong at about 0.7 and Hi-Way at about half of
+  full speed, its WebKit build at about 0.55 and 0.4, and its Firefox build at about a sixth of
+  full speed; TV Basketball ran at full speed in Chromium, about 0.9 in WebKit and 0.3 in Firefox.
+  Other browsers were not measured.
+
 ## [0.2.2] - 2026-10-18
 
 ### Fixed

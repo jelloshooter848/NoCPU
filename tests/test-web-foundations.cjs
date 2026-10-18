@@ -561,6 +561,52 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.equal(contract.gameSpec('gotcha').hasStart, true);
   assert.equal(prefs.isMouseGame('gotcha'), false);
   assert.equal(schema.actionLabel('p2Left', 'gotcha'), 'Square left');
+  // TV Basketball: four vertical paddles (PADDLE1..4 = left striped, right
+  // solid, right striped, left solid), one Start, the play-time potentiometer.
+  assert.deepEqual(schema.actionsForGame('tvbasketball'), ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'p3Up', 'p3Down', 'p4Up', 'p4Down', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const tvbasketball = schema.defaultBindings('tvbasketball');
+  assert.equal(schema.validateBindings(tvbasketball, 'tvbasketball').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([tvbasketball.keyboard.p3Up, tvbasketball.keyboard.p4Down, tvbasketball.keyboard.start], [['KeyI'], ['KeyG'], ['Digit1']]);
+  assert.deepEqual(tvbasketball.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 1], [1, 1], [2, 1], [3, 1]]);
+  assert.deepEqual(contract.coreGameOptions('tvbasketball', { playtimeOhms: 10000 }), { game: 10, dip: 0, potOhms: 10000 });
+  assert.deepEqual(contract.defaultGameOptions('tvbasketball'), { playtimeOhms: 35000 });
+  assert.equal(contract.isGameOptions('tvbasketball', { playtimeOhms: 60500 }), false);
+  assert.equal(contract.gameSpec('tvbasketball').paddleCount, 4);
+  assert.equal(prefs.isMouseGame('tvbasketball'), true);
+  assert.equal(schema.actionLabel('p4Up', 'tvbasketball'), 'Left solid player up');
+  // Pin Pong: no channel, the two held flipper switches (FLIPPERS buttons 1
+  // and 2), Start that also serves, three DIP switches and a mouse-button mapping.
+  assert.deepEqual(schema.actionsForGame('pinpong'), ['p1Fire', 'p2Fire', 'coin', 'start', 'menu', 'reset', 'mute']);
+  const pinpong = schema.defaultBindings('pinpong');
+  assert.equal(schema.validateBindings(pinpong, 'pinpong').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([pinpong.keyboard.p1Fire, pinpong.keyboard.p2Fire, pinpong.keyboard.start], [['KeyZ', 'ArrowLeft'], ['Slash', 'ArrowRight'], ['Digit1']]);
+  assert.deepEqual(pinpong.gamepad.players, []);
+  assert.deepEqual([pinpong.gamepad.buttons.p1Fire[0], pinpong.gamepad.buttons.coin, pinpong.gamepad.buttons.start], [{ pad: 0, button: 4 }, [{ pad: 0, button: 0 }], [{ pad: 0, button: 1 }]]);
+  assert.deepEqual(contract.defaultGameOptions('pinpong'), { coinage: 1, freeBall: 1, balls: 3 });
+  // Packed original indices: coinage bit 0, free ball (0 enabled, 1 disabled) bit 1, ball count (0 three, 1 five) bit 2.
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 2, freeBall: 0, balls: 5 }), { game: 11, dip: 7, potOhms: 0 });
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 5 }), { game: 11, dip: 4, potOhms: 0 });
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 4 }), false);
+  assert.equal(prefs.isMouseGame('pinpong'), true);
+  assert.equal(schema.actionLabel('start', 'pinpong'), 'Start game / serve ball');
+  // Hi-Way: one wheel channel (keys, gamepad axis, mouse), the held accelerator,
+  // no Start (the coin starts), three DIP switches and the play-time potentiometer.
+  assert.deepEqual(schema.actionsForGame('hiway'), ['p1Left', 'p1Right', 'p1Gas', 'coin', 'menu', 'reset', 'mute']);
+  const hiway = schema.defaultBindings('hiway');
+  assert.equal(schema.validateBindings(hiway, 'hiway').ok, true, 'default keys and buttons do not conflict');
+  assert.deepEqual([hiway.keyboard.p1Left, hiway.keyboard.p1Gas, hiway.keyboard.start], [['ArrowLeft', 'KeyA'], ['ArrowUp', 'KeyW'], []]);
+  assert.deepEqual(hiway.gamepad.players.map((player) => [player.pad, player.axis]), [[0, 0]]);
+  assert.deepEqual([hiway.gamepad.buttons.p1Gas, hiway.gamepad.buttons.coin, hiway.gamepad.buttons.p1Left], [[{ pad: 0, button: 0 }, { pad: 0, button: 7 }], [{ pad: 0, button: 2 }], [{ pad: 0, button: 14 }]]);
+  assert.deepEqual(contract.defaultGameOptions('hiway'), { extendedPlay: 60, concurrentTraffic: 1, opposingTraffic: 1, playtimeOhms: 510000 });
+  // Packed original indices: extended play 0..15 in bits 0-3, concurrent traffic bit 4, opposing traffic bit 5.
+  assert.deepEqual(contract.coreGameOptions('hiway', { extendedPlay: 10, concurrentTraffic: 2, opposingTraffic: 2, playtimeOhms: 1010000 }), { game: 12, dip: 49, potOhms: 1010000 });
+  assert.deepEqual(contract.coreGameOptions('hiway', { extendedPlay: 60, concurrentTraffic: 1, opposingTraffic: 1, playtimeOhms: 510000 }), { game: 12, dip: 6, potOhms: 510000 });
+  assert.equal(contract.isGameOptions('hiway', { extendedPlay: 65, concurrentTraffic: 1, opposingTraffic: 1, playtimeOhms: 510000 }), false);
+  assert.equal(contract.gameSpec('hiway').inputKind, 'wheel');
+  assert.equal(contract.gameSpec('hiway').axisCount, 1);
+  assert.equal(contract.gameSpec('hiway').hasStart, false);
+  assert.equal(prefs.isMouseGame('hiway'), true);
+  assert.equal(schema.actionLabel('p1Gas', 'hiway'), 'Accelerator');
 });
 
 test('a saved record from before a registered game existed loads silently; a present invalid entry recovers', () => {

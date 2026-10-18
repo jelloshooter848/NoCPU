@@ -6,11 +6,20 @@
 extern "C" {
 #endif
 // ABI 5: one live original DICE circuit per module. Earlier IDs/exports remain.
-// IDs 6..9 are the 0.2.0 batch, reserved in advance; an ID is usable only once
-// its game registers a definition (core/games/<id>.cpp, docs/PORT_GAME.md).
+// IDs 6..9 are the 0.2.0 batch and 10..12 the 0.3.0 batch, reserved in advance;
+// an ID is usable only once its game registers a definition
+// (core/games/<id>.cpp, docs/PORT_GAME.md).
 enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_BREAKOUT=3,
                  NOCPU_STUNT_CYCLE=4, NOCPU_INDY_4=5, NOCPU_REBOUND=6, NOCPU_GOTCHA=7,
-                 NOCPU_QUADRAPONG=8, NOCPU_CROSSFIRE=9, NOCPU_GAME_LIMIT=32 };
+                 NOCPU_QUADRAPONG=8, NOCPU_CROSSFIRE=9,
+
+                 NOCPU_TVBASKETBALL=10,
+
+                 NOCPU_PINPONG=11,
+
+                 NOCPU_HIWAY=12,
+
+                 NOCPU_GAME_LIMIT=32 };
 // Event IDs of registered games: HIT stays NOCPU_HIT (0); a game's other
 // declared source pins are NOCPU_GAME_EVENT_BASE + their declared index.
 enum { NOCPU_GAME_EVENT_BASE=200, NOCPU_GAME_EVENT_LIMIT=8 };
@@ -52,11 +61,14 @@ const char* nocpu_game_name(uint32_t game);
 // 1 paddle slots, 2 joystick slots, 3 joystick direction mask (1 up, 2 down,
 // 4 left, 8 right), 4 button slots, 5 buttons per slot, 6 Start switches,
 // 7 default packed DIP, 8 valid DIP bit mask, 9 potentiometer minimum ohms,
-// 10 maximum, 11 default (all 0 without one), 12 score slots, 13 coin channels.
+// 10 maximum, 11 default (all 0 without one), 12 score slots, 13 coin channels,
+// 14 portrait raster (1: the circuit rotates its monitor 90 degrees, 324x432),
+// 15 wheel slots (WHEELn_INPUT, reached through nocpu_wheel/nocpu_wheel_keys).
 enum NoCPUGameInfo { NOCPU_INFO_REGISTERED=0, NOCPU_INFO_PADDLES=1, NOCPU_INFO_JOYSTICKS=2,
     NOCPU_INFO_JOYSTICK_DIRECTIONS=3, NOCPU_INFO_BUTTON_SLOTS=4, NOCPU_INFO_BUTTONS=5,
     NOCPU_INFO_STARTS=6, NOCPU_INFO_DEFAULT_DIP=7, NOCPU_INFO_DIP_MASK=8, NOCPU_INFO_POT_MIN=9,
-    NOCPU_INFO_POT_MAX=10, NOCPU_INFO_POT_DEFAULT=11, NOCPU_INFO_SCORES=12, NOCPU_INFO_COINS=13 };
+    NOCPU_INFO_POT_MAX=10, NOCPU_INFO_POT_DEFAULT=11, NOCPU_INFO_SCORES=12, NOCPU_INFO_COINS=13,
+    NOCPU_INFO_PORTRAIT=14, NOCPU_INFO_WHEELS=15 };
 uint32_t nocpu_game_info(uint32_t game, uint32_t field);
 // dip is the original 0/1 index. pot_ohms is zero for paddle games;
 // Space Race accepts an integer 470000..1470000 (original default 970000).
@@ -109,7 +121,8 @@ uint32_t nocpu_throttle(int32_t axis);
 uint32_t nocpu_throttle_key(uint32_t held);
 // Original Indy wheel input: held signed joystick rate, 20% deadzone and
 // sensitivity500; or separate held keyboard left/right. Original10ms polling,
-// +/-15degree delta clamp and quadrature events remain unchanged.
+// +/-15degree delta clamp and quadrature events remain unchanged. Registered
+// games declaring wheel slots (info field 15) use the same two entry points.
 uint32_t nocpu_wheel(uint32_t slot,int32_t axis);
 uint32_t nocpu_wheel_keys(uint32_t slot,uint32_t left,uint32_t right);
 uint32_t nocpu_buttons(uint32_t slot,uint32_t gas,uint32_t brake);

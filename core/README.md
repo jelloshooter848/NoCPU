@@ -2,8 +2,8 @@
 
 The core compiles the original DICE 0.9 Pong, Pong Doubles, Space Race,
 Breakout, Stunt Cycle and Indy 4 circuits (game IDs 0 to 5), the registered
-games Rebound, Gotcha, Quadrapong and Crossfire (IDs 6 to 9) and the chip
-scheduler without Qt, SDL devices, or an OpenGL window. The same generated source builds
+games Rebound, Gotcha, Quadrapong and Crossfire (IDs 6 to 9) and TV
+Basketball (ID 10), and the chip scheduler without Qt, SDL devices, or an OpenGL window. The same generated source builds
 as a native evidence runner and an Emscripten module. Historical files under
 [`upstream/dice-0.9/`](../upstream/dice-0.9) remain byte-identical; the preparation
 script writes a disposable copy under ignored `build/` and records its complete

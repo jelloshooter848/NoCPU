@@ -191,6 +191,7 @@ function releaseHeld(): void {
   const game = registeredGame(gameId);
   if (game) {
     for (const slot of new Set(game.channels.filter((channel) => channel.kind === 'stick').map((channel) => channel.slot))) core?._nocpu_joystick_switches(slot, 0, 0, 0, 0);
+    game.channels.forEach((channel, index) => { if (channel.kind === 'wheel') { axes[index] = 0; core?._nocpu_wheel(channel.slot, 0); core?._nocpu_wheel_keys(channel.slot, 0, 0); } });
     game.buttons.forEach((button) => core?._nocpu_button(button.slot, button.button, 0));
   }
   held = Array(game?.buttons.length ?? 0).fill(false);
@@ -415,6 +416,9 @@ async function handle(command: CoreCommand): Promise<void> {
         axes[slot] = Math.round(Math.max(-32768, Math.min(32767, axis)));
         if (gameId === 'stuntcycle') { throttleAnalogActive = axes[slot] > 0; if (directions[0] === 0) core!._nocpu_throttle(axes[slot]); }
         else if (gameId === 'indy4') { if (directions[slot] === 0) core!._nocpu_wheel(slot, axes[slot]); }
+        else if (registeredGame(gameId)?.channels[slot]?.kind === 'wheel') {
+          if (directions[slot] === 0 && core!._nocpu_wheel(registeredGame(gameId)!.channels[slot].slot, axes[slot]) !== 1) throw new PlayerError('The steering input is unsupported. Reload the game.');
+        }
         else core!._nocpu_paddle(slot, axes[slot]);
       });
       inputRevision = command.revision;
@@ -439,6 +443,13 @@ async function handle(command: CoreCommand): Promise<void> {
         core!._nocpu_joystick(slot, Number(direction < 0), Number(direction > 0));
       });
       applyStickChannels();
+      // Registered wheels: held keys steer through the original keyboard
+      // wheel path; released, the wheel follows its axis again (as Indy 4).
+      registeredGame(gameId)?.channels.forEach((channel, index) => {
+        if (channel.kind !== 'wheel') return;
+        if (directions[index] !== 0) core!._nocpu_wheel_keys(channel.slot, Number(directions[index] < 0), Number(directions[index] > 0));
+        else core!._nocpu_wheel(channel.slot, axes[index]);
+      });
       break;
     case 'held': {
       const game = registeredGame(gameId);

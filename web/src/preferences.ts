@@ -1,12 +1,13 @@
 import { cloneBindings, defaultBindings, validateBindings, type Bindings } from './control-schema';
-import { defaultGameOptions, gameSpec, isPlayableGameId, normalizeGameOptions, PLAYABLE_GAME_IDS, REGISTERED_GAME_IDS,
+import { defaultGameOptions, gameSpec, isPlayableGameId, normalizeGameOptions, PLAYABLE_GAME_IDS, REGISTERED_GAME_IDS, registeredGame,
   type GameOptionsById, type PlayableGameId, type RegisteredGameId } from './game-contract';
 
 /** Games whose original absolute analog control (paddle or throttle) the mouse can drive:
- * four earlier games, and every registered game with a paddle. */
+ * four earlier games, every registered game with a paddle, and registered games
+ * with their own mouse mapping (game.mouse). */
 export type MouseGameId = 'pong' | 'pongdoubles' | 'breakout' | 'stuntcycle' | RegisteredGameId;
 export const MOUSE_GAMES: readonly MouseGameId[] = ['pong', 'pongdoubles', 'breakout', 'stuntcycle',
-  ...REGISTERED_GAME_IDS.filter((gameId) => gameSpec(gameId).paddleCount > 0)];
+  ...REGISTERED_GAME_IDS.filter((gameId) => gameSpec(gameId).paddleCount > 0 || registeredGame(gameId)?.mouse)];
 export function isMouseGame(gameId: PlayableGameId): gameId is MouseGameId { return (MOUSE_GAMES as readonly string[]).includes(gameId); }
 /** The player slot the mouse drives for each mouse game, or null when the mouse is off. */
 export type MouseSlots = Record<MouseGameId, number | null>;
@@ -40,7 +41,7 @@ export function withGameBindings(preferences: Preferences, gameId: PlayableGameI
   return gameId === 'pong' ? { ...preferences, bindings } : { ...preferences, bindingsByGame: { ...preferences.bindingsByGame, [gameId]: bindings } };
 }
 export function validMouseSlot(gameId: MouseGameId, value: unknown): value is number | null {
-  return value === null || (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < gameSpec(gameId).axisCount);
+  return value === null || (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < (registeredGame(gameId)?.mouse ? 1 : gameSpec(gameId).axisCount));
 }
 function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === 'object' && !Array.isArray(value); }
 function validVolume(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1; }
