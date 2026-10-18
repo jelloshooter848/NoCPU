@@ -13,6 +13,12 @@ releases below.
 
 ## [Unreleased]
 
+### Fixed
+
+- Starting a game could crash the tab in Playwright's WebKit (WPE) build, and may affect other
+  Skia-based WebKitGTK/WPE browsers. The game display now uses a CPU-backed canvas, which avoids
+  the WebKit bug; play and visuals are unchanged in Chromium, Firefox and WebKit.
+
 ## [0.2.1] - 2026-10-17
 
 ### Changed
