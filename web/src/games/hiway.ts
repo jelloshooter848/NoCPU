@@ -6,7 +6,8 @@ export const hiway = {
   id: 'hiway',
   coreId: 12,
   title: 'Hi-Way',
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-18 (docs/ACCEPTANCE.md, 0.3.0 comparison run).
+  verified: true,
   playerCount: 1,
   // STEERINGWHEEL is the original WHEEL1_INPUT quadrature wheel: held keys
   // turn it through DICE's keyboard wheel path; a gamepad axis or the mouse

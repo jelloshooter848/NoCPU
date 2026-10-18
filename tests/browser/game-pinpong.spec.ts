@@ -161,8 +161,17 @@ test('Pin Pong DIP settings reach the original switches: two credits, and the ga
   await page.getByTestId('resume').click();
 
   // One coin, two games. Untouched flippers let each ball drain; Start serves
-  // the next until the third is lost and the game ends.
+  // the next until the third is lost and the game ends. The ball's path, and
+  // so how long it takes to drain, depends on when the coin and Start land, so
+  // the circuit is reset cold under the held clock first: from simulated time
+  // zero the run no longer depends on how fast this engine paced it before.
   await holdClock(page, true);
+  const paced = (await state(page)).identity.resetId;
+  await page.getByTestId('game-canvas').focus();
+  await page.keyboard.press('KeyR');
+  await expect.poll(async () => (await state(page)).identity.resetId).toBeGreaterThan(paced);
+  const cold0 = await state(page);
+  expect([cold0.nativeRunning, BigInt(cold0.timePs)], 'A cold, held circuit at simulated time zero').toEqual([false, 0n]);
   await coin(page);
   await start(page);
   let s = await stepUntil(page, (value) => value.nativeRunning, 300_000);

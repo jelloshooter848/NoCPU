@@ -6,7 +6,8 @@ export const pinpong = {
   id: 'pinpong',
   coreId: 11,
   title: 'Pin Pong',
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-18 (docs/ACCEPTANCE.md, 0.3.0 comparison run).
+  verified: true,
   playerCount: 1,
   // No analog control: the two flippers are the held FLIPPERS (BUTTONS1_INPUT)
   // switches 1 (left) and 2 (right).

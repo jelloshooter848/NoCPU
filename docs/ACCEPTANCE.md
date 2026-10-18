@@ -232,6 +232,72 @@ build does **not**: paced 0.35x, raw 0.39x real time, so a player in that
 Firefox build gets Gotcha at about a third of its original speed. (Pong in
 the same Firefox run: 0.98x.) This is input for the 0.4.0 profiling milestone.
 
+## 0.3.0 comparison run — 2026-10-18
+
+Core of commit `61df02e` (TV Basketball, Pin Pong and Hi-Way, core IDs 10–12)
+on `wip/0.3.0-batch-b`, seed 848; later commits change docs and the browser
+registry only. Every original captured fresh (no reference cache) in the same
+pinned image (`nocpu-dice-qt4:0.1.0`, `sha256:bfdadad2…`), Xvfb, Mesa 20.0.8
+llvmpipe, x86-64 host with FMA. Native: GCC 13.3.0 build of `build-core.sh
+native`. Wasm: Emscripten 3.1.74 (`nocpu.wasm` `940ca7fc…`) run in Node
+22.22.0. The new chips, the wheel and portrait contract and the Wasm memory
+limit touch every compiled game's build, so every game was re-run in full.
+
+| Game | Scenarios | Streams compared | Result | Gaps |
+| --- | --- | --- | --- | --- |
+| TV Basketball | `tvbasketball-default` (35 kΩ): Start without a credit does not start, one coin and Start give the two-player game, paddle 1 moving both striped and paddle 2 both solid players (paddles 3 and 4 nobody), baskets scoring two for one side, both sides scoring, Start in play changing nothing, the clock running 120 periods of the 9D astable and ending the game (119 s), then two coins and Start giving a four-player game; every coin stopping VBLANK for the 0.53 s 3B one-shot and clearing both scores; `tvbasketball-four-players` (10 kΩ, 73 s): a four-player game with each of the four paddles moving its own player, a coin in play restarting it as a two-player game; `tvbasketball-max-time` (60 kΩ, 165 s): two complete games | PCM (13F.3), telemetry (both scores, the clock, active), inputs, events (coin, VBLANK, the 9D clock), frame times including the declared coin frame gaps, full-frame RGB hashes, gray observations, every full-RGB snapshot; native↔Wasm both reset epochs; registered-game ABI probe | **PASS** | Play comes from recorded closed-loop inputs, not players. The 9D astable's run-time `log()` arguments are constants (its control voltage is never written): identical in glibc 2.27, glibc 2.39 and musl |
+| Pin Pong | `pinpong-default` (DIP 0: one credit, free ball enabled, three balls): Start without a credit, a coin and Start beginning the game and serving the first ball, Start serving each later ball, each flipper (BUTTONS1 buttons 1 and 2) rising alone while held, scoring in play (the display shows ten times the count), the game ending after the third ball, a second coin and game; `pinpong-five-balls` (DIP 6: five balls, free ball disabled): the game ends after the fifth ball, no free ball awarded; `pinpong-two-credits` (DIP 1): one coin buying two games, then Start without a credit | PCM (one constructor sample: no hookup), telemetry (score, balls served, attract, active), inputs, events (coin, Start, ball served, drain), frame times, full-frame RGB hashes of the portrait 324 × 432 raster, gray observations, every full-RGB snapshot; native↔Wasm both reset epochs; registered-game ABI probe (portrait raster and flipper buttons) | **PASS** | The free-ball award (all knockdown targets down) is not reached by any scenario. DICE wires no output to the audio chip ("TODO: Finish Sound"): absent audio is inherited and compared as such, not reconstructed. The `OPTIMIZATION_HINT` tables need about 590 MB in Wasm (840 MB native RSS), so the Wasm memory limit is now 2 GiB (growth on demand); the other games stay at their 32 MiB initial memory |
+| Hi-Way | `hiway-default` (DIP 6, 510 kΩ): the coin starting a cleared game at once (no Start switch), the wheel turned left and then right moving the car that way, recorded closed-loop steering by the wheel axis and then by the held wheel keys, the accelerator held and released (no distance scored while released), the score counting distance one at a time on Fx, the game ending as the E8 counter wraps (81.1 s); `hiway-extended-play` (DIP 1, 1010 kΩ, steering by the wheel axis): reaching 10 points clears the clock at once and the game runs seven to eight more E9 periods; `hiway-double-traffic` (DIP 54, 10 kΩ, 51.4 s, steering by the wheel keys): concurrent and opposing traffic set to double (compared exactly; the traffic density itself has no separate check), a coin in play clearing the score but not the clock | PCM (one constructor sample: no hookup), telemetry (score, clock, active), inputs (wheel and accelerator), events (Fx, the E9 clock, the extended-play match), frame times, full-frame RGB hashes, gray observations, every full-RGB snapshot (car position); native↔Wasm both reset epochs (the wheel queues and `HighwaySpeedDesc` cleared in place); registered-game ABI probe (wheel slot) | **PASS** | One count exactly as the time runs out, without an Fx edge, is the original's and accepted as such. DICE wires no output to the audio chip ("todo: needs work"): absent audio is inherited. Floating point: `HIGHWAY_SPEED_CONTROL` takes run-time `exp()` of 18 distinct arguments; all are bit-identical and correctly rounded in glibc 2.27, glibc 2.39 and musl (exhaustive) |
+| Pong, Pong Doubles, Space Race, Breakout, Rebound, Quadrapong, Crossfire, Gotcha | `pong.tsv` and the twenty-six earlier ROM-free scenarios, unchanged | as in the runs above | **PASS** | Unchanged |
+| Stunt Cycle, Indy 4 | the six ROM-backed scenarios, unchanged, with the private fixtures | as in the 0.1.x run | **PASS** | Unchanged |
+
+Originals: `NOCPU_ANALYZE_JOBS=4 ./tools/capture-games.sh` (35 scenarios,
+`build/reference-games/20261018T031912235696007Z/`, "Original whole game
+reference qualification passed"; media and its report pruned after the run,
+its source bindings kept in the comparison report). Reports:
+`build/core/comparison.json` (Pong),
+`build/core/game-evidence/20261018T044920200177Z/report.json` (35 ROM-free
+scenarios, `full_batch: true`, 35/35, plus the multi-game probe, 562/562
+checks, and the Breakout probe, 502/502) and
+`build/rom-comparison/20261018T061244831242Z/report.json` (ROM-backed). The host's free
+disk (about 11 GB) cannot hold every scenario's four native/Wasm epochs at
+once (about 20 GB), so `make core-compare`'s replay and comparison steps ran
+through a scratch driver that performs the same `replay-games.sh` commands and
+the same `compare-games.py` per-scenario comparison and ABI probes scenario by
+scenario, deleting a scenario's native/Wasm media once it had passed; the
+report records this in its `driver` field. Subset runs during the port (TV
+Basketball, Pin Pong and Hi-Way alone) also passed, after a fix that leaves
+BUTTONS button 3 unassigned in a game with wheels (it had shared joystick
+button 2 with the wheel's left key and broke original↔native keyboard
+steering).
+
+Cold reset: a scan of the compiled objects of the three circuits and every
+chip they use found no mutable function-local or global static beyond the
+descriptors their `core/games/<id>.inc` files restore; no derived-source edit
+is needed. The 555 astables whose control voltage is never written take
+`log()` of the same constants (`ctrl` = 10/3 gives log(0.5) and log(1/3)),
+identical in all three libms.
+
+Real-time speed in play, measured on a 4-vCPU Xeon @2.1 GHz CI-class host; may
+run below real time on slower machines. Host load below 1, Playwright 1.58.2's
+headless builds, median of three runs, paced (the app's own clock) / raw
+(held-clock stepping as fast as possible), as a fraction of real time; not
+gated:
+
+| Game | Chromium 145.0.7632.6 | Firefox 146.0.1 | WebKit 26.0 |
+| --- | --- | --- | --- |
+| Pong (baseline) | 1.00 / 3.82 | 0.93 / 1.09 | 1.00 / 1.72 |
+| TV Basketball | 1.00 / 1.44 | 0.30 / 0.36 | 0.88 / 1.11 |
+| Pin Pong | 0.71 / 0.93 | 0.15 / 0.18 | 0.55 / 0.84 |
+| Hi-Way | 0.51 / 0.98 | 0.16 / 0.25 | 0.41 / 0.80 |
+
+Pin Pong and Hi-Way run below real time in all three engines on this host,
+and TV Basketball below it in Firefox and slightly below in WebKit. The owner
+released all three as playable in 0.3.0 (2026-10-18) with this recorded;
+making them real time is the 0.4.0 profiling target.
+
+BROWSER_RESULTS_PLACEHOLDER
+
 ## Desktop browser acceptance (generated by each release)
 
 Desktop acceptance for the ported games is produced by the release

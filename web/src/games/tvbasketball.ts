@@ -10,7 +10,8 @@ export const tvbasketball = {
   id: 'tvbasketball',
   coreId: 10,
   title: 'TV Basketball',
-  verified: false,
+  // Original/native/Wasm comparison passed on 2026-10-18 (docs/ACCEPTANCE.md, 0.3.0 comparison run).
+  verified: true,
   playerCount: 4,
   // Four PADDLEn_VERTICAL_INPUT chips. Measured on the original raster: a
   // larger canonical axis moves a player down. In a two-player game (one coin)
