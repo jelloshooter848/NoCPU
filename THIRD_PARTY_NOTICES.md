@@ -91,8 +91,9 @@ test ROMs are excluded from this repository and its release archives.
 ## Browser runtime
 
 The browser build compiles DICE's Pong, Pong Doubles, Space Race, Breakout,
-Rebound, Gotcha, Quadrapong, Crossfire, Stunt Cycle and Indy 4 circuits to
-WebAssembly, retaining DICE's simulation and replacing native input,
+Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong, Hi-Way, Stunt
+Cycle and Indy 4 circuits to WebAssembly, retaining DICE's simulation and
+replacing native input,
 presentation and device-audio access with maintained adapters. The separately reviewed
 [browser distribution assessment](docs/BROWSER_DISTRIBUTION.md) and
 [`tests/browser-license-audit.json`](tests/browser-license-audit.json) cover the
