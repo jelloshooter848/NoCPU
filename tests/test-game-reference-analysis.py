@@ -672,5 +672,35 @@ class HiWayModuleTests(unittest.TestCase):
         self.assertIsNone(self.module.snapshot_objects(bytes(rgb), width, height)["car_x"])
 
 
+class PinPongSoundTests(unittest.TestCase):
+    """Pin Pong's reconstructed sound: the schematic-derived expectations and
+    the settings the original receives (docs/PINPONG_SOUND.md)."""
+
+    def setUp(self):
+        self.module = MEDIA.registered_game("pinpong")
+
+    def test_nocpu_settings_never_reach_the_original(self):
+        self.assertTrue(self.module.RECONSTRUCTED_AUDIO and self.module.NO_AUDIO_HOOKUP)
+        self.assertTrue(self.module.valid_options(7 | 8 << 3, 100) and self.module.valid_options(0, 1500))
+        self.assertFalse(self.module.valid_options(9 << 3, 1500) or self.module.valid_options(0, 99) or self.module.valid_options(0, 1501))
+        self.assertEqual(MEDIA.original_options("pinpong", 6 | 3 << 3, 800), (6, 0))
+        self.assertEqual(MEDIA.original_options("hiway", 6, 510000), (6, 510000))
+
+    def test_pitches_follow_the_latch_resistors_and_tone(self):
+        # Hand calculation: Vc = (14/R + 0.85/Rk) / (1/R + 1/Rk), R = TONE + 220,
+        # f = 2 (14 - Vc) / (2.2k * 0.22u * 14).
+        expected = {"flipper": 232.448, "slingshot": 399.277, "100": 486.583, "1000": 1039.862}
+        for kind, hertz in expected.items():
+            self.assertAlmostEqual(self.module.expected_frequency(kind, 1500)[0], hertz, places=2)
+        # The TONE limit keeps every state within 0.2 % of the NE566's 0.75 V+ control floor.
+        self.assertGreater(self.module.expected_frequency("1000", 1500)[1], 0.748 * 14)
+
+    def test_decay_times_follow_c33_and_the_attenuator_curve(self):
+        # tau = 4.7 kOhm * 100 uF; MC3340 Fig. 3 interpolated to 14 V.
+        self.assertAlmostEqual(self.module.TAU, 0.47)
+        for level, seconds in ((0.5, 0.430), (0.1, 0.472), (0.01, 0.585)):
+            self.assertAlmostEqual(self.module.expected_decay_s(level), seconds, places=3)
+
+
 if __name__ == "__main__":
     unittest.main()

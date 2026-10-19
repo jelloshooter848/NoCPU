@@ -52,7 +52,7 @@ struct Engine {
     // declared sound pins (index = position in def->sound_pins).
     std::unique_ptr<NoCPUSound> sound;
     std::vector<Chip*> sound_observed;
-    // Every distinct chip in hit, observed and game_observed: a chip outside
+    // Every distinct chip in hit, observed, game_observed and sound_observed: a chip outside
     // it records nothing when its output changes, so the per-transition hook
     // can return after one short scan (refresh_watched keeps it current).
     std::vector<Chip*> watched;

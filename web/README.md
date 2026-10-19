@@ -32,7 +32,9 @@ below real time on slower computers, most in Firefox.
 - **Game canvas.** The circuit's own raster, at its original orientation and
   aspect ratio, as large as the window allows above a single action bar
   (coin, start and Pause · Esc buttons, plus a short status line). The
-  frontend draws no substitute court, score or sound.
+  frontend draws no substitute court, score or sound. (Pin Pong's sound is
+  generated in the core, by NoCPU's reconstruction of Atari's sound board,
+  because DICE has none; see [PINPONG_SOUND.md](../docs/PINPONG_SOUND.md).)
 - **Controls help.** How to play shows the rules and the current keyboard,
   mouse and gamepad assignments for each game.
 - **Keyboard and mouse.** Default keys: W/S and Up/Down move the Pong paddles,
@@ -65,7 +67,9 @@ below real time on slower computers, most in Firefox.
   or Home.
 - **Volume and mute** in Settings → Sound.
 - **DIP and potentiometer settings** for each game in Settings → Controls; they
-  apply when the game starts or after Apply & reset game.
+  apply when the game starts or after Apply & reset game. Pin Pong adds two
+  NoCPU settings reconstructed from Atari's schematic: the free-game score
+  (jumpers; "None" is DICE's wiring) and the sound board's tone trimmer.
 - **About** shows the DICE credit, links to the GPL and the third-party notices
   shipped with the build and to its corresponding-source archive, and the build
   string: `vX.Y.Z` for a site packaged from its release tag, `vX.Y.Z-dev.<sha>`
