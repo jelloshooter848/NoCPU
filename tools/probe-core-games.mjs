@@ -56,7 +56,8 @@ const action = (ms, kind, slot, value, other) => ({ ms, kind, slot, value, ...(o
 const SYNC_STOPPING_COIN = new Set(['tvbasketball']);
 // DICE wires no circuit output to the AUDIO chip of these games (inherited
 // absent audio): their PCM is the audio chip's single constructor sample.
-const NO_AUDIO_HOOKUP = new Set(['pinpong', 'hiway']);
+// Pin Pong's sound is NoCPU's reconstruction from the schematic: a full stream.
+const NO_AUDIO_HOOKUP = new Set(['hiway']);
 const probeMs = (game) => SYNC_STOPPING_COIN.has(game.name) ? 3300 : 2200;
 function playScript(game) {
   if (SYNC_STOPPING_COIN.has(game.name)) return [action(100, 'coin', 0, 1), action(200, 'coin', 0, 0),

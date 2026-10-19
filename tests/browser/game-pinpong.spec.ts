@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pin Pong in a desktop browser: Play entry, the rotated portrait raster, the
 // original coin/Start switches (Start also serves), both flippers by keyboard,
-// mouse buttons and gamepad, the DIP settings, help, and the inherited absent
-// sound. Circuit behavior is asserted in simulated time; the
+// mouse buttons and gamepad, the DIP settings, help, and the sound and
+// free-game select NoCPU reconstructs from Atari's schematic. Circuit behavior is asserted in simulated time; the
 // original/native/Wasm comparison (tools/compare-games.py) is the accuracy
 // gate, not this spec.
 import { test, expect, type Page } from '@playwright/test';
@@ -52,7 +52,7 @@ test('Pin Pong plays from Play on its rotated raster: credits, Start serves, bot
   if (pinpong.verified) await expect(page.getByTestId('play-detail-verified')).toBeVisible();
   else await expect(page.getByTestId('play-detail-verified')).toBeHidden();
   const cold = await launch(page, 'pinpong');
-  expect(cold.gameOptions).toEqual({ coinage: 1, freeBall: 1, balls: 3 });
+  expect(cold.gameOptions).toEqual({ coinage: 1, freeBall: 1, balls: 3, freeGame: 0, toneOhms: 1500 });
   expect(cold.display, 'The original monitor is rotated: a portrait raster').toEqual({ width: 324, height: 432, pixelFormat: 'rgba8888' });
   const box = (await page.getByTestId('game-canvas').boundingBox())!;
   expect(box.height, 'The canvas keeps the portrait aspect').toBeGreaterThan(box.width);
@@ -117,8 +117,10 @@ test('Pin Pong plays from Play on its rotated raster: credits, Start serves, bot
     evidenceScope: 'Pin Pong in play in a headless desktop browser on this host; reported, not gated, and not a performance qualification.' };
   await testInfo.attach('pinpong-performance.json', { body: Buffer.from(JSON.stringify(performanceMetrics, null, 2)), contentType: 'application/json' });
   testInfo.annotations.push({ type: 'performance', description: `simulationSpeedRatio=${performanceMetrics.simulationSpeedRatio.toFixed(3)} rawSpeedRatio=${rawSpeedRatio.toFixed(3)}` });
-  // DICE wires no sound for Pin Pong: the circuit generates no samples.
-  expect((await state(page)).audio.generatedSamples, 'Inherited absent audio').toBeLessThanOrEqual(1);
+  // The sound board NoCPU reconstructs from the schematic (DICE has none)
+  // generates a full 48 kHz stream; tools/reference/games/pinpong.py checks its content.
+  const played = await state(page);
+  expect(played.audio.generatedSamples, 'A reconstructed 48 kHz stream').toBeGreaterThan(48000 * 5);
   await page.screenshot({ path: testInfo.outputPath('pinpong-play.png') });
 
   await page.getByTestId('pause').click();
@@ -127,6 +129,7 @@ test('Pin Pong plays from Play on its rotated raster: credits, Start serves, bot
   const help = page.locator('#game-help-content');
   await expect(help).toContainText('press Start to serve the next one');
   await expect(help).toContainText('last of the 3 balls');
+  await expect(help).toContainText("reconstructed by NoCPU from Atari's schematic");
   for (const [label, keys] of [['Left flipper', ['Z', '←']], ['Right flipper', ['/', '→']], ['Insert coin', ['Enter']], ['Start game / serve ball', ['1']]] as const) {
     await expect(help.locator('dl.controls-help > div', { has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) }).locator('kbd')).toHaveText([...keys]);
   }
@@ -144,19 +147,25 @@ test('Pin Pong DIP settings reach the original switches: two credits, and the ga
   await expect(page.getByTestId('balls')).toHaveValue('3');
   await expect(page.getByTestId('binding-p1Fire')).toContainText('Z');
   await expect(page.getByTestId('mouse-slot')).toHaveValue('0');
+  await expect(page.getByTestId('free-game')).toHaveValue('0');
+  await expect(page.getByTestId('tone-value')).toHaveText('100%');
   await page.getByTestId('coinage').selectOption('2');
   await page.getByTestId('free-ball').selectOption('0');
+  await page.getByTestId('free-game').selectOption('50000');
+  await page.getByTestId('tone').fill('50');
+  await expect(page.getByTestId('tone-value')).toHaveText('50%');
   await page.reload();
   await titleSettings(page);
   await page.getByTestId('settings-game').selectOption('pinpong');
   await expect(page.getByTestId('coinage')).toHaveValue('2');
   const cold = await launch(page, 'pinpong');
   // The worker only reports options the core accepted as the packed DIP.
-  expect(cold.gameOptions).toEqual({ coinage: 2, freeBall: 0, balls: 3 });
+  expect(cold.gameOptions).toEqual({ coinage: 2, freeBall: 0, balls: 3, freeGame: 50000, toneOhms: 800 });
   await page.getByTestId('pause').click();
   await page.getByRole('button', { name: 'How to play', exact: true }).click();
   await expect(page.locator('#game-help-content')).toContainText('Insert a coin for two games');
   await expect(page.locator('#game-help-content')).toContainText('The free ball is switched off.');
+  await expect(page.locator('#game-help-content')).toContainText('A score of 50,000 earns a free game.');
   await page.getByTestId('back').click();
   await page.getByTestId('resume').click();
 
@@ -186,6 +195,10 @@ test('Pin Pong DIP settings reach the original switches: two credits, and the ga
   s = await stepUntil(page, (value) => !value.nativeRunning, 10_000_000, 200_000);
   expect(s.nativeRunning, 'The game ends after the third ball').toBe(false);
   expect(s.playerScores[1]).toBe(3);
+  // The ball scored on its way down, and each hit rang the reconstructed
+  // sound board at full drive (+-3.85 V at the attenuator, 15400 in PCM).
+  expect(s.playerScores[0], 'Points scored').toBeGreaterThan(0);
+  expect(s.audio.generatedPeak, 'Hits sound').toBe(15400);
   // The second credit: Start begins another cleared game without a coin.
   await stepClock(page, 500_000);
   await start(page);
@@ -200,7 +213,7 @@ test('Pin Pong DIP settings reach the original switches: two credits, and the ga
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByTestId('balls').selectOption('5');
   await page.getByTestId('apply-game-options').click();
-  await expect.poll(async () => (await state(page)).gameOptions).toEqual({ coinage: 2, freeBall: 0, balls: 5 });
+  await expect.poll(async () => (await state(page)).gameOptions).toEqual({ coinage: 2, freeBall: 0, balls: 5, freeGame: 50000, toneOhms: 800 });
   const reset = await state(page);
   expect(reset.identity.resetId).toBeGreaterThan(cold.identity.resetId);
   expect(reset.nativeRunning).toBe(false);

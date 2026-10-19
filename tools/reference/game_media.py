@@ -44,6 +44,25 @@ ROOT = Path(__file__).resolve().parents[2]
 GAMES_DIRECTORY = Path(__file__).resolve().parent / "games"
 
 
+def original_options(game, dip, pot_ohms):
+    """The settings the original DICE capture runs with for a scenario.
+
+    A game module may declare NoCPU-only settings (Pin Pong's free-game
+    jumpers and TONE trimmer, reconstructed from Atari's schematic) through
+    ``original_options(dip, pot)``; the original receives only the settings
+    DICE implements. Every other game runs the original with its own values.
+    """
+    module = registered_game(game)
+    if module is not None and hasattr(module, "original_options"):
+        return tuple(module.original_options(dip, pot_ohms))
+    return dip, pot_ohms
+
+
+def reconstructed_audio(game):
+    """True for a game whose PCM is a NoCPU reconstruction DICE lacks."""
+    return bool(getattr(registered_game(game), "RECONSTRUCTED_AUDIO", False))
+
+
 @functools.lru_cache(maxsize=None)
 def registered_game(game):
     """The per-game analysis module of a game ported from 0.2.0 on, or None.
@@ -231,7 +250,7 @@ def _space_reset_sequence(scenario, replay):
 
 
 def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_count=None,
-                   scenario=None, replay=None):
+                   scenario=None, replay=None, original=False):
     """Reject missing media using the exact per-game original cadence/phase.
 
     Full raster hashes, PCM bytes, replay accounting and gameplay assertions
@@ -297,7 +316,11 @@ def media_coverage(frame_rows, sample_count, duration_ps, game, *, pcm_byte_coun
     expected_samples = duration_ps * PCM_RATE // PS_PER_SECOND if valid_parameters else None
     # A game DICE leaves without an audio hookup (NO_AUDIO_HOOKUP in its module)
     # generates only the audio chip's single constructor sample.
+    # Pin Pong's PCM is a NoCPU reconstruction: the original still has only the
+    # constructor sample, the portable core a full-length stream.
     silent = getattr(registered_game(game), "NO_AUDIO_HOOKUP", False) if valid_parameters else False
+    if silent and reconstructed_audio(game) and not original:
+        silent = False
     pcm_duration_complete = valid_parameters and (sample_count == 1 if silent
                                                   else abs(sample_count - expected_samples) <= PCM_SAMPLE_COUNT_TOLERANCE)
     pcm_container_complete = pcm_byte_count is None or (type(pcm_byte_count) is int \
