@@ -13,6 +13,8 @@ releases below.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+
 ### Added
 
 - Pin Pong has sound, as reconstructed from Atari's sound board: each hit rings and fades out at
@@ -229,7 +231,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...v0.2.1
