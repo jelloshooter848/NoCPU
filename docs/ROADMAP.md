@@ -61,7 +61,7 @@ and delivery gates were still open when the legacy line ended. The 0.1.x patch
 releases re-run all six comparisons against the reduced desktop frontend rather
 than inheriting browser passes (done in 0.1.1; see [ACCEPTANCE.md](ACCEPTANCE.md)).
 
-Fifteen titles were unported at the restart (eight remain after 0.3.0; see Milestones):
+Fifteen titles were unported at the restart (eight remain after 0.3.0, four after 0.5.0; see Milestones):
 
 - ROM-free (7): Rebound, Gotcha, TV Basketball, Quadrapong, Crossfire, Pin Pong, Hi-Way.
 - ROM-backed (8): Anti-Aircraft, Attack, Shark Jaws, Jet Fighter, Crash 'N Score, Clean Sweep, Wipe Out, Steeplechase.
@@ -94,7 +94,7 @@ the release steps.
 | WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | Released (2026-10-18) |
 | ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | Released (2026-10-18) |
 | Profiling and performance (part 1: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2; [PINPONG_SOUND.md](PINPONG_SOUND.md)) | 0.4.0 | Released (2026-10-19) |
-| ROM-backed batch A: Anti-Aircraft, Shark Jaws, Jet Fighter and Attack | 0.5.0 | In progress |
+| ROM-backed batch A: Anti-Aircraft, Shark Jaws, Jet Fighter and Attack | 0.5.0 | In review |
 | ROM-backed batch B | 0.6.0 | Planned |
 | Accuracy closure | 0.7.0 and later 0.x | Planned |
 | All 21 accurate on desktop | 1.0.0 | Planned |
@@ -216,7 +216,12 @@ alternative CRCs). Comparisons require authorized private fixtures; without
 them the games are recorded as blocked, not passed.
 
 Started on 2026-10-19 (game IDs 13–16 reserved), one game at a time through
-the registered-game contract, which gains player-supplied ROMs for it.
+the registered-game contract, which gains player-supplied ROMs for it. All
+four are ported on `wip/0.5.0-rom-batch-a` and pass their original/native/Wasm
+comparisons with the private fixtures (Attack with both accepted ROM sets);
+in review. Shark Jaws and Jet Fighter run at about 0.8x real time on the
+2.8 GHz test host in Chromium and a release Firefox
+([PERFORMANCE.md](PERFORMANCE.md)); reported, not gated.
 
 ### 0.6.0 — ROM-backed batch B
 
