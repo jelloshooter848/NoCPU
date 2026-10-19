@@ -27,6 +27,11 @@ releases below.
   slow down with W/S and fire with F (the black jet: the arrow keys and /). It is verified against
   original DICE and, like DICE, has no sound. It runs below full speed on slower computers (about
   0.8x on the test machine).
+- Attack (Exidy, 1977) is playable with your own ROM files, in either accepted dump set: one player
+  sails a ship and shoots at a plane, the other flies the plane and sinks the ship. The ship moves
+  with A/D, turns its gun with W/S and fires with F; the plane turns with the left and right arrow
+  keys, speeds up with the up arrow and fires with /. The coin starts the game. It is verified
+  against original DICE, with DICE's sound.
 
 ## [0.4.0] - 2026-10-19
 

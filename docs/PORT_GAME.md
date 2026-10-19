@@ -51,7 +51,7 @@ These have one entry per game and may need a trivial merge (keep both sides):
 
 Nothing else should change for a ROM-free game with paddles, digital
 joysticks, buttons, Coin and up to two Starts. A game needing an input family
-the contract lacks (wheel, throttle, rotated raster, ROMs) needs shared work
+the contract lacks (a throttle, for example) needs shared work
 first; agree it with the orchestrator before editing shared files.
 
 ## Steps and commands
@@ -164,6 +164,18 @@ and a host CPU with FMA (`grep -m1 -o fma /proc/cpuinfo`).
   ID is mapped in `tools/prepare-core.py` (`SOURCE_FILES`, Hi-Way's
   `games/highway.cpp`). A browser definition can map the mouse buttons or a
   mouse-steered wheel with `mouse`.
+- From 0.5.0: `rom_file` (the DICE runtime ZIP basename) and `roms` declare
+  a game's ROM descriptors in core slot order, each with one or two accepted
+  `{crc, size}` identities, exactly the audited manifest's (at most eight
+  descriptors); `nocpu_game_info` field 16 and `nocpu_game_rom_name/crc/size`
+  expose them. Creation is refused until a ROM session supplies valid bytes
+  for every slot. The browser definition's `roms` lists the same member names
+  (checked by the foundation tests), and the game's scenarios go to
+  `tests/replays/rom-scenarios.json` (an optional `"rom_variant"` selects the
+  alternate dump set) and its browser spec to the `rom-browser` CI job, which
+  runs every `tests/browser/game-<id>.spec.ts` of a ROM-backed game listed in
+  `.github/workflows/verify-browser.yml`. The original capture uses the
+  reference driver's full-media path for registered ROM games.
 - An analysis module may declare `frame_gap_windows(scenario, replay)` for a
   circuit that stops its own video sync (TV Basketball's coin) and
   `NO_AUDIO_HOOKUP = True` for a game DICE leaves without sound; any other

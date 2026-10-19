@@ -235,6 +235,52 @@
         }
       ],
       "minimum_points": 1
+    },
+    {
+      "id": "attack-default",
+      "game": "attack",
+      "replay": "tests/replays/attack.tsv",
+      "dip": 0,
+      "pot_ohms": 2500000,
+      "move_tests": [
+        {
+          "direction": "left",
+          "ms": [
+            3000,
+            4000
+          ]
+        },
+        {
+          "direction": "right",
+          "ms": [
+            4500,
+            5500
+          ]
+        }
+      ],
+      "faster_test": {
+        "ms": [
+          11500,
+          13500
+        ]
+      },
+      "coin_in_play_ms": [
+        52500
+      ],
+      "games": 2,
+      "minimum_points": 3
+    },
+    {
+      "id": "attack-alt-roms",
+      "game": "attack",
+      "replay": "tests/replays/attack-alt-roms.tsv",
+      "rom_variant": 1,
+      "dip": 0,
+      "pot_ohms": 1000000,
+      "games": 2,
+      "minimum_points": 2,
+      "expect_sea_fall": true,
+      "expect_bombing": false
     }
   ]
 }

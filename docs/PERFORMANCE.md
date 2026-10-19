@@ -250,6 +250,27 @@ Core alone on recorded scenarios (`tools/bench-core.mjs`, Node 22.22.0, first
   - it stays slow (baseline Wasm compiler only), although every heavy game
     is about 1.5 to 2 times faster than before.
 
+### 0.5.0: the ROM-backed batch A games
+
+Measured on the 2.8 GHz 4-vCPU Xeon host (not the 2.1 GHz host above), quiet,
+with the private ROM fixtures: `tools/measure-speed.mjs --mode app` and
+`--mode core`, three runs each, Playwright's Chromium and a release Firefox
+146.0.1.
+
+| Game | chromium 145.0.7632.6 paced / raw | chromium core raw | firefox-release 146.0.1 paced / raw | firefox-release core raw |
+| --- | --- | --- | --- | --- |
+| antiaircraft | 1.00 / 1.95 | 1.85 | 1.00 / 1.80 | 1.78 |
+| sharkjaws | **0.79** / 0.87 | 0.84 | **0.78** / 0.81 | 0.84 |
+| jetfighter | **0.79** / 0.78 | 0.80 | **0.75** / 0.80 | 0.77 |
+| attack | 1.00 / 17.9 | 17.7 | 1.00 / 18.2 | 17.9 |
+
+Shark Jaws and Jet Fighter run below real time on this host in both
+browsers. A native gprof profile of Shark Jaws puts most of the time in
+DICE's own scheduler (`Chip::activation_check`, `Chip::update_inputs`, the
+event queue), as for Hi-Way; NoCPU's rasterizer takes about 5%. Jet
+Fighter's native capture runs at about 1.5x real time, its Wasm core at 0.8x.
+Reported to the owner, not optimized in 0.5.0.
+
 ## What remains
 
 - **Hi-Way.** It does not sustain real time while driving on this hardware:
@@ -261,6 +282,8 @@ Core alone on recorded scenarios (`tools/bench-core.mjs`, Node 22.22.0, first
   decided on 2026-10-19 to accept the current speed for 0.4.0 and to test
   Hi-Way on their own hardware; a scheduler investigation would be a later
   patch, only if it is slow there ([ROADMAP.md](ROADMAP.md)).
+- **Shark Jaws and Jet Fighter** (0.5.0) run at about 0.8x on the 2.8 GHz
+  host in Chromium and a release Firefox, for the same reason as Hi-Way.
 - **WebKit's paced Hi-Way** (0.49 against raw 0.91) is the one remaining
   pacing gap. It was not profiled.
 - **Playwright's Firefox build** cannot reach real time on the heavy games

@@ -23,7 +23,7 @@ import { sharkjaws } from './sharkjaws';
 
 import { jetfighter } from './jetfighter';
 
-// Reserved: import { attack } from './attack';
+import { attack } from './attack';
 
 export const REGISTERED_GAMES = [
   rebound,
@@ -46,5 +46,5 @@ export const REGISTERED_GAMES = [
 
   jetfighter,
 
-  // Reserved: attack,
+  attack,
 ] as const satisfies readonly GameDefinition[];
