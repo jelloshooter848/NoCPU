@@ -383,6 +383,16 @@ function tick(): void {
   }
 }
 
+/** The engine rejected the core's WebAssembly (for example a browser without
+ * WebAssembly exception handling, which the core needs): an unsupported
+ * browser, not a failed download. */
+function engineUnsupported(error: unknown): boolean {
+  return (typeof WebAssembly !== 'undefined' && error instanceof WebAssembly.CompileError) || /\bCompileError\b/.test(errorDetail(error));
+}
+function unsupportedMessage(): string {
+  return `This browser cannot run ${gameSpec(gameId).title}. Try a recent version of Chrome, Firefox, Edge or Safari.`;
+}
+
 /** A short, single-line description of an unexpected exception for the error panel. */
 function errorDetail(error: unknown): string {
   let text: string;
@@ -406,7 +416,8 @@ async function handle(command: CoreCommand): Promise<void> {
       locateFile: (file: string) => locateCoreAsset(file, command.moduleUrl),
       print: () => {},
       printErr: () => {},
-      onAbort: (what: unknown) => send({ type: 'error', message: `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.`, detail: errorDetail(what) }),
+      onAbort: (what: unknown) => send({ type: 'error', message: engineUnsupported(what) ? unsupportedMessage()
+        : `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.`, detail: errorDetail(what) }),
     });
     if (core._nocpu_abi_version() !== 5) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
     const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2'] : [];
@@ -616,7 +627,7 @@ self.addEventListener('message', (event: MessageEvent<CoreCommand>) => {
     // An unexpected exception (a Wasm trap, a C++ exception, a browser
     // RangeError) is reported with its own text so a failure can be diagnosed.
     console.error(`NoCPU core ${event.data.type} failed:`, error);
-    send({ type: 'error', detail: errorDetail(error), message: loading
+    send({ type: 'error', detail: errorDetail(error), message: loading && engineUnsupported(error) ? unsupportedMessage() : loading
       ? `${gameSpec(gameId).title} could not load. Check your connection and reload the game.`
       : `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.` });
   });
