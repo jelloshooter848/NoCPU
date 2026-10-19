@@ -93,7 +93,7 @@ the release steps.
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | Released (2026-10-17) |
 | WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | Released (2026-10-18) |
 | ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | Released (2026-10-18) |
-| Profiling and performance (part 1 done: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2) | 0.4.0 | In progress |
+| Profiling and performance (part 1: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2; [PINPONG_SOUND.md](PINPONG_SOUND.md)) | 0.4.0 | In review |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
 | Accuracy closure | 0.7.0 and later 0.x | Planned |
@@ -171,13 +171,10 @@ hardware/browsers. Establish a single-threaded baseline before considering
 threads or SharedArrayBuffer. The targets carried from 0.3.0: make Hi-Way,
 Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
 CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
-has none) and its free-ball award, which no 0.3.0 scenario reaches. (Done on
-`wip/0.4.0-pinpong-sound`: the sound board and the free-game select are
-reconstructed from the TM-007 Rev G schematic, with a TONE setting; the new
-`pinpong-free-ball` scenario reaches the award; the Pin Pong subset comparison
-passes with the PCM compared native↔Wasm and checked against schematic-derived
-values; [PINPONG_SOUND.md](PINPONG_SOUND.md), [ACCEPTANCE.md](ACCEPTANCE.md).
-The full comparison runs at integration.)
+has none) and its free-ball award, which no 0.3.0 scenario reaches.
+
+Both parts are done and in review (merged into the working branch at
+`a75a826`; the full comparison runs in the release pull request's CI).
 
 Part 1 (profiling and performance) is done; [PERFORMANCE.md](PERFORMANCE.md)
 has the method, the profiles, each change's gain and the before/after tables.
@@ -199,7 +196,19 @@ Measured on the 4-vCPU Xeon @2.1 GHz CI-class host:
 - Playwright's Firefox build runs WebAssembly with its baseline compiler only,
   so its numbers stay four to five times below a release Firefox's.
 
-Part 2 (Pin Pong's schematic sound and free-game select) follows.
+Part 2 (Pin Pong's schematic sound and free-game select) is done; see
+[PINPONG_SOUND.md](PINPONG_SOUND.md):
+
+- the sound board (NE566 tone pitched by the last-hit object's latch, MFC6040
+  decay) and the free-game score select are reconstructed from the TM-007
+  Rev G schematic and labelled as NoCPU's reconstruction; a Tone setting
+  adjusts the board's trimmer, whose factory setting is unknown;
+- the picture and play still match original DICE exactly; the PCM is compared
+  native↔Wasm and checked against values derived from the components;
+- the new `pinpong-free-ball` scenario reaches the free-ball award, and a probe
+  checks the free-game select ([ACCEPTANCE.md](ACCEPTANCE.md)).
+- Pin Pong with sound still runs at full speed (paced 1.00) in Playwright's
+  Chromium.
 
 ### 0.5.0 — ROM-backed batch A
 

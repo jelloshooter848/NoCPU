@@ -2,7 +2,7 @@
   "schema_version": 1,
   "version": "0.3.0",
   "release_ready": true,
-  "assessment_scope": "0.3.0 desktop browser build (re-assessed against the actual local packaged build of restart/desktop-first after the 0.3.0 merge f60a064 and its review fixes): the thirteen compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong and Hi-Way, ROM-free, and Stunt Cycle and Indy 4 with player-supplied ROMs; all are DICE GPL-3.0-or-later code covered by the existing DICE notice) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (schematic Home screen, arcade Play screen, keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the eight unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
+  "assessment_scope": "0.4.0 desktop browser build (re-assessed against the actual local packaged build of restart/desktop-first after the 0.4.0 merge a75a826 and its review fixes: the part 1 speed changes, including WebAssembly exception handling, and the Pin Pong sound and free-game reconstruction): the thirteen compiled DICE circuits (Pong, Pong Doubles, Space Race, Breakout, Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong and Hi-Way, ROM-free, and Stunt Cycle and Indy 4 with player-supplied ROMs; all are DICE GPL-3.0-or-later code covered by the existing DICE notice) with the portable chip-ROM adapter, compiled with Emscripten 3.1.74, and the minimal desktop frontend (schematic Home screen, arcade Play screen, keyboard/mouse/gamepad controls, settings, player-supplied ROM loading through fflate, About panel with build string, notices and source link). Reviewed against the actual local build output, its notices and its corresponding-source archive. It covers browser JS/Wasm/asset distribution only; native binaries, toolchain containers, ROM payloads and the eight unported DICE circuits are excluded. It makes no gameplay, accuracy or browser-compatibility claim.",
   "combined_distribution_license": "GPL-3.0-only",
   "blockers": [],
   "notices": [
@@ -40,7 +40,7 @@
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "sha256": "7f180e4b74f3c6b5ce5eb0339238434abb9005dedfe300dcf27bc5b5564558e6"
+      "sha256": "6624694d40ffcd8640cfa61df476303c112b695fe17645fb3aa29d3eef423b3c"
     },
     {
       "path": "upstream/dice-0.9/README.txt",
@@ -87,6 +87,10 @@
       "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
     },
     {
+      "path": "docs/licenses/LLVM-libunwind-3.1.74-LICENSE.txt",
+      "sha256": "b5efebcaca80879234098e52d1725e6d9eb8fb96a19fce625d39184b705f7b6d"
+    },
+    {
       "path": "docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt",
       "sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af"
     },
@@ -117,7 +121,7 @@
   ],
   "components": [
     {
-      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon, and the original DICE 0.9 sources compiled for the thirteen circuits (from 0.2.0 including Rebound, Gotcha, Quadrapong, Crossfire and chips 7492 and 9321; from 0.3.0 TV Basketball, Pin Pong, Hi-Way (games/highway.cpp) and chips 2533, 74151, 74155, 7442, 7454, 9314 and wired_logic; DICE GPL-3.0-or-later code covered by the existing DICE notice)",
+      "scope": "NoCPU-maintained core adapters (core/), browser frontend (web/src, web/index.html), SVG icon, and the original DICE 0.9 sources compiled for the thirteen circuits (from 0.2.0 including Rebound, Gotcha, Quadrapong, Crossfire and chips 7492 and 9321; from 0.3.0 TV Basketball, Pin Pong, Hi-Way (games/highway.cpp) and chips 2533, 74151, 74155, 7442, 7454, 9314 and wired_logic; from 0.4.0 NoCPU's Pin Pong sound-board model core/games/pinpong_sound.cpp and the free-game jumper chip that tools/prepare-core.py adds to a derived copy of games/pinpong.cpp; DICE GPL-3.0-or-later code covered by the existing DICE notice)",
       "license": "GPL-3.0-only combined; NoCPU and DICE grants GPL-3.0-or-later individually",
       "basis": "tests/license-audit.json and docs/PROVENANCE.md; DICE sources are prepared unchanged from upstream/dice-0.9 (tests/source-manifest.json)"
     },
@@ -131,10 +135,10 @@
       "release_bundle": "c2655005234810c7c42e02a18e4696554abe0352"
     },
     {
-      "scope": "LLVM libc++, libc++abi and compiler-rt members linked into the Wasm module",
+      "scope": "LLVM libc++, libc++abi, libunwind and compiler-rt members linked into the Wasm module",
       "version": "bundled with Emscripten 3.1.74",
       "license": "Apache-2.0 WITH LLVM-exception",
-      "basis": "Linker map: libc++ 12, libc++abi 10, compiler-rt 18 members. Retained LICENSE.TXT and CREDITS.TXT are byte-identical to the installed SDK files."
+      "basis": "Linker map (0.4.0, built with -fwasm-exceptions): libc++-except 12, libc++abi-except 11, libunwind-except 1 (Unwind-wasm.o, new in 0.4.0), compiler-rt-wasm-sjlj 18 members. Retained LICENSE.TXT and CREDITS.TXT are byte-identical to the installed SDK files; libunwind's LICENSE.TXT (retained as docs/licenses/LLVM-libunwind-3.1.74-LICENSE.txt) is byte-identical to system/lib/libunwind/LICENSE.TXT, and the SDK ships no CREDITS file for libunwind."
     },
     {
       "scope": "musl libc members linked into the Wasm module, including 27 math routines",
@@ -169,21 +173,22 @@
     "delivery": "tools/package-web.py builds the archive from the same checkout into the packaged site with its .sha256, links it from the app, and the release workflow attaches it as nocpu-0.3.0-source.tar.gz. It holds the unchanged DICE 0.9 sources, NoCPU core adapters and frontend, the fflate preferred source, the icon SVG, build scripts, lockfiles, manifests and all notices; it excludes Git metadata, ROMs, private fixtures, build output and compiled payloads."
   },
   "review": {
-    "date": "2026-10-18",
+    "date": "2026-10-19",
     "result": "ready",
-    "by": "Agent review (a porting agent, not independent) of the actual local packaged build of wip/0.3.0-fixes (restart/desktop-first at the 0.3.0 merge f60a064 plus the review fixes, which change web/, docs and release metadata only), compared with the v0.2.0 build reviewed for 0.2.1 (core/nocpu.wasm 9baeb1c4).",
+    "by": "Agent review (the Pin Pong sound agent, not independent) of the actual local packaged build of wip/0.4.0-review-fixes (restart/desktop-first at the 0.4.0 merge a75a826 plus the review fixes), compared with a fresh rebuild of v0.3.0 (core/nocpu.wasm 940ca7fc, reproduced byte for byte).",
     "commands": [
       "./tools/build-core.sh all",
       "NOCPU_BASE_PATH=/NoCPU/ npm run build:web",
       "python3 tools/package-web.py --preview --archive-dir build/release",
-      "python3 tests/test-dev-rom-exclusion.py --require-build"
+      "python3 tests/test-dev-rom-exclusion.py --require-build",
+      "git worktree add build/scratch-v030 v0.3.0 && ./tools/build-core.sh wasm (in it), then the two linker maps compared"
     ],
     "findings": [
-      "Shipped runtime: 7 files from build/web, the same set as 0.2.1: index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. Local review runtime SHA-256 9e6b651a0e5892e96651f44cbe03bde54fc2f79a7e5d34ae5afb35d085438700; core/nocpu.wasm 940ca7fc271bd9562ec3030a9646c60f1f66a16ab5a94a656e7a814bbec85fb0; core/nocpu.js 1b52731674d8bb082b8bd5e6f3eb4efd8bfaed1c5a05dc25a6fe66a13746d1c6. A fresh ./tools/build-core.sh all reproduced both core files byte for byte (the same files the 0.3.0 original/native/Wasm comparison ran).",
-      "Wasm link inventory (build/core/wasm/linker.map): 90 compiled NoCPU/DICE units, thirteen more than 0.2.1's 77 — the TV Basketball, Pin Pong and Hi-Way circuit sources (Hi-Way's is games/highway.cpp), their three core/games/<id>.cpp registrations, and the DICE chips 2533, 74151, 74155, 7442, 7454, 9314 and wired_logic, all DICE GPL-3.0-or-later or NoCPU code. The linked SDK archive members are the identical set of 147 (libc 103, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1) to the 0.2.0 build's map, including the same 27 math members; no new SDK component or notice. The raised Wasm memory limit (-sMAXIMUM_MEMORY=2147483648) is a link setting and adds no member.",
-      "Core changes since 0.2.1 add only NoCPU-owned code (core/games/ registrations, the wheel and portrait contract in core/api.cpp and core/game_registry.h) and preparation of the three unchanged DICE circuits and seven chips in tools/prepare-core.py (upstream/dice-0.9 unchanged); no new dependency. package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2.",
-      "The 27 notices match their recorded hashes. THIRD_PARTY_NOTICES.md's Browser runtime paragraph now names the thirteen compiled circuits; its hash is updated here and in tests/license-audit.json, and no other notice changed. The packaged site carries the notices under notices/ together with the curated files their local links reach (115 files in all, each copied from the audited source inventory), notices/browser-license-audit.json and source/nocpu-<version>-source.tar.gz.",
-      "The source archive (888 files: the 887 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/ including core/games/, web/, tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
+      "Shipped runtime: 7 files from build/web, the same set as 0.3.0: index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. Local review runtime SHA-256 09be9a9ea905acebc7b7ccb902e1f47838740385e8893c94e52de281a051a309; core/nocpu.wasm 1ef66c15ef632bde7117b27ec161d33d98c21e5f019e07da03c61dec41b9d812; core/nocpu.js eadbe7c76f397479c653520938383614d995b9f34cf9063af3d53572361d22c6.",
+      "Wasm link inventory (build/core/wasm/linker.map): 91 compiled NoCPU/DICE units, one more than 0.3.0's 90 (core/games/pinpong_sound.cpp, NoCPU GPL-3.0-or-later); the free-game jumper chip is NoCPU code inside the prepared games/pinpong.cpp unit. 149 SDK archive members against 0.3.0's 147. -fwasm-exceptions selects the exception-handling variants of the same libraries (libc++-except, libc++abi-except, libcompiler_rt-wasm-sjlj) and changes four members: libc++abi cxa_exception_emscripten.o is replaced by cxa_exception.o and cxa_exception_storage.o (same LLVM libc++abi licence and notice); compiler-rt emscripten_exception_builtins.o is replaced by __trap.o (a two-line Emscripten file without a header, covered by the retained Emscripten and compiler-rt notices); and LLVM libunwind is linked for the first time (Unwind-wasm.o, Apache-2.0 WITH LLVM-exception per its SPDX header). libc (103 members, the same 27 math members), dlmalloc 2, noexit 1 and stubs 1 are unchanged.",
+      "New notice: docs/licenses/LLVM-libunwind-3.1.74-LICENSE.txt, byte-identical to the installed SDK's system/lib/libunwind/LICENSE.TXT; added to THIRD_PARTY_NOTICES.md (new table row; its hash updated here and in tests/license-audit.json), tests/license-audit.json, tools/package-web.py's compiled notices and this record. The other 27 notices match their recorded hashes. The packaged site carries the notices under notices/ with the curated files their local links reach (118 files in all; 0.3.0: 115), notices/browser-license-audit.json and the source archive.",
+      "Core changes since 0.3.0 add only NoCPU-owned code (part 1's renderer, frame clear and output-hook changes; the Pin Pong sound model, the registry's NoCPU settings and sound fields, the observation-hook additions) and one generated derived layout of the unchanged DICE Pin Pong circuit in tools/prepare-core.py (upstream/dice-0.9 unchanged); no new dependency. package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2.",
+      "The source archive (898 files: the 897 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/ including core/games/, web/, tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice including the new libunwind licence; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
       "No member of the ten private fixture archives in build/roms (44 members) appears in the packaged output; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
     ]
   },
@@ -201,8 +206,28 @@
     "Node/TypeScript/Playwright executables",
     "Development-server ROM fixture plugin and web/src/dev-roms.ts (not in production output; tests/test-dev-rom-exclusion.py)"
   ],
-  "history": "The 0.1.1 assessment (2026-10-13, with its independent and delta reviews) and the 0.1.0 assessment are kept under previous_reviews; releases 0.1.2 to 0.2.0 carried the 0.1.1 assessment forward with only version fields bumped, the 0.2.1 assessment (of the v0.2.0 build, carried forward by 0.2.2 with only version fields bumped) is kept under previous_reviews as well, and this record re-assesses the build from 0.3.0 on. The legacy line's assessments (0.2.0 through 0.6.0, including the independent component reviews) are preserved in this file at tag legacy-0.6.0 and in docs/legacy/BROWSER_DISTRIBUTION_0.6.md. They are history; this record is the 0.3.0 assessment.",
+  "history": "The 0.1.1 assessment (2026-10-13, with its independent and delta reviews) and the 0.1.0 assessment are kept under previous_reviews; releases 0.1.2 to 0.2.0 carried the 0.1.1 assessment forward with only version fields bumped, the 0.2.1 assessment (of the v0.2.0 build, carried forward by 0.2.2 with only version fields bumped) is kept under previous_reviews as well, the 0.3.0 assessment is kept under previous_reviews too, and this record re-assesses the build from 0.4.0 on. The legacy line's assessments (0.2.0 through 0.6.0, including the independent component reviews) are preserved in this file at tag legacy-0.6.0 and in docs/legacy/BROWSER_DISTRIBUTION_0.6.md. They are history; this record is the 0.4.0 assessment.",
   "previous_reviews": [
+    {
+      "release": "0.3.0",
+      "date": "2026-10-18",
+      "result": "ready",
+      "by": "Agent review (a porting agent, not independent) of the actual local packaged build of wip/0.3.0-fixes (restart/desktop-first at the 0.3.0 merge f60a064 plus the review fixes, which change web/, docs and release metadata only), compared with the v0.2.0 build reviewed for 0.2.1 (core/nocpu.wasm 9baeb1c4).",
+      "commands": [
+        "./tools/build-core.sh all",
+        "NOCPU_BASE_PATH=/NoCPU/ npm run build:web",
+        "python3 tools/package-web.py --preview --archive-dir build/release",
+        "python3 tests/test-dev-rom-exclusion.py --require-build"
+      ],
+      "findings": [
+        "Shipped runtime: 7 files from build/web, the same set as 0.2.1: index.html, assets/index-*.js (application with fflate and the Vite modulepreload helper), assets/core.worker-*.js, assets/index-*.css, core/nocpu.js (Emscripten glue), core/nocpu.wasm and icon.svg. Local review runtime SHA-256 9e6b651a0e5892e96651f44cbe03bde54fc2f79a7e5d34ae5afb35d085438700; core/nocpu.wasm 940ca7fc271bd9562ec3030a9646c60f1f66a16ab5a94a656e7a814bbec85fb0; core/nocpu.js 1b52731674d8bb082b8bd5e6f3eb4efd8bfaed1c5a05dc25a6fe66a13746d1c6. A fresh ./tools/build-core.sh all reproduced both core files byte for byte (the same files the 0.3.0 original/native/Wasm comparison ran).",
+        "Wasm link inventory (build/core/wasm/linker.map): 90 compiled NoCPU/DICE units, thirteen more than 0.2.1's 77 — the TV Basketball, Pin Pong and Hi-Way circuit sources (Hi-Way's is games/highway.cpp), their three core/games/<id>.cpp registrations, and the DICE chips 2533, 74151, 74155, 7442, 7454, 9314 and wired_logic, all DICE GPL-3.0-or-later or NoCPU code. The linked SDK archive members are the identical set of 147 (libc 103, compiler-rt 18, libc++ 12, libc++abi 10, dlmalloc 2, noexit 1, stubs 1) to the 0.2.0 build's map, including the same 27 math members; no new SDK component or notice. The raised Wasm memory limit (-sMAXIMUM_MEMORY=2147483648) is a link setting and adds no member.",
+        "Core changes since 0.2.1 add only NoCPU-owned code (core/games/ registrations, the wheel and portrait contract in core/api.cpp and core/game_registry.h) and preparation of the three unchanged DICE circuits and seven chips in tools/prepare-core.py (upstream/dice-0.9 unchanged); no new dependency. package.json and package-lock.json still pin one runtime dependency, fflate 0.8.2.",
+        "The 27 notices match their recorded hashes. THIRD_PARTY_NOTICES.md's Browser runtime paragraph now names the thirteen compiled circuits; its hash is updated here and in tests/license-audit.json, and no other notice changed. The packaged site carries the notices under notices/ together with the curated files their local links reach (115 files in all, each copied from the audited source inventory), notices/browser-license-audit.json and source/nocpu-<version>-source.tar.gz.",
+        "The source archive (888 files: the 887 tracked files plus RELEASE-MANIFEST.json) holds all 566 original DICE files, core/ including core/games/, web/, tools/, upstream/fflate-0.8.2, lockfiles, manifests and every notice; it has no Git metadata, build output, node_modules, compiled payloads or ROMs.",
+        "No member of the ten private fixture archives in build/roms (44 members) appears in the packaged output; tests/test-dev-rom-exclusion.py --require-build passes on the production bundle with fixtures present."
+      ]
+    },
     {
       "release": "0.2.1",
       "date": "2026-10-17",

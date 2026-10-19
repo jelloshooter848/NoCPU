@@ -480,7 +480,11 @@ Firefox, is tabulated in [PERFORMANCE.md](PERFORMANCE.md#results).
 
 ## 0.4.0 Pin Pong sound and free-game select — 2026-10-19
 
-Branch `wip/0.4.0-pinpong-sound` (from `b93dab8`), seed 848. NoCPU's
+A branch run: `wip/0.4.0-pinpong-sound` (from `b93dab8`, before the merge
+with part 1's later commits), seed 848. After the merge into the working
+branch (`a75a826`) an independent review re-ran a fresh-original subset
+(`pinpong-default`, `pinpong-free-ball`, Pong Doubles and Breakout), which
+passed; the whole batch runs in the release pull request's CI. NoCPU's
 reconstruction of Pin Pong's sound board and free-game select from Atari's
 schematic ([PINPONG_SOUND.md](PINPONG_SOUND.md)); DICE has neither. The Pin
 Pong originals were captured fresh (stored in the local reference cache) in the

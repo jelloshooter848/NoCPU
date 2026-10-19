@@ -9,7 +9,46 @@ for the current `VERSION` and every notice it lists is present and unchanged.
 The legacy line's assessments (0.2.0 through 0.6.0) are history in
 [legacy/BROWSER_DISTRIBUTION_0.6.md](legacy/BROWSER_DISTRIBUTION_0.6.md).
 
-## 0.3.0 assessment (2026-10-18)
+## 0.4.0 assessment (2026-10-19)
+
+**Result: ready** (an agent's review, not an independent one). This re-checks
+the actual local packaged build of `restart/desktop-first` after the 0.4.0
+merge (`a75a826`: part 1's speed changes and the Pin Pong sound and free-game
+reconstruction) and its review fixes, against a fresh rebuild of v0.3.0 (which
+reproduced its `core/nocpu.wasm`, `940ca7fc…`, byte for byte). The audit's
+`version` field is bumped by the release commit.
+
+- **Runtime:** the same seven files as 0.3.0 (`core/nocpu.wasm` `1ef66c15…`,
+  `core/nocpu.js` `eadbe7c7…`).
+- **Compiled code:** the same thirteen circuits. The linker map has 91 compiled
+  units, one more than 0.3.0: NoCPU's Pin Pong sound-board model
+  (`core/games/pinpong_sound.cpp`). The free-game jumper chip is NoCPU code in
+  the prepared `games/pinpong.cpp`, a derived copy of the unchanged DICE
+  layout made by `tools/prepare-core.py`.
+- **Flags:** part 1 builds with WebAssembly exception handling
+  (`-fwasm-exceptions`), which links the exception-handling variants of the
+  same SDK libraries.
+- **SDK members:** 149 (0.3.0: 147). Four differ: libc++abi's
+  `cxa_exception_emscripten.o` became `cxa_exception.o` and
+  `cxa_exception_storage.o`; compiler-rt's `emscripten_exception_builtins.o`
+  became `__trap.o` (a two-line Emscripten file without a header, under the
+  retained Emscripten and compiler-rt notices); and **LLVM libunwind** is linked
+  for the first time (`Unwind-wasm.o`, Apache-2.0 WITH LLVM-exception). libc
+  (103, the same 27 math members), dlmalloc, noexit and stubs are unchanged.
+- **New notice:** [LLVM-libunwind-3.1.74-LICENSE.txt](licenses/LLVM-libunwind-3.1.74-LICENSE.txt),
+  byte-identical to the SDK's `system/lib/libunwind/LICENSE.TXT` (the SDK has
+  no CREDITS file for it), listed in `THIRD_PARTY_NOTICES.md`, both audits and
+  `tools/package-web.py`. All 28 notices match their recorded hashes.
+- **Dependencies:** still one npm runtime dependency, fflate 0.8.2.
+- **Source archive and ROMs:** 898 files (every tracked file plus
+  `RELEASE-MANIFEST.json`, all 566 original DICE files, the new notice) and no
+  ROMs or build output; the packaged `notices/` holds 118 files. The
+  ROM-exclusion test passes with the ten private fixture archives (44 members)
+  present.
+
+The record's `review.findings` hold the hashes and counts.
+
+## 0.3.0 assessment (2026-10-18, history)
 
 **Result: ready** (a porting agent's review, not an independent one). This
 re-checks the actual local packaged build of `restart/desktop-first` after the
@@ -43,7 +82,7 @@ The record's `review.findings` hold the hashes and counts.
 ## 0.2.1 assessment (2026-10-17, history)
 
 This section records the 0.2.1 assessment as reviewed; the current record is
-the 0.3.0 assessment above.
+the 0.4.0 assessment above.
 
 
 **Result: ready** (the integrating agent's review, not an independent one).
@@ -180,7 +219,7 @@ files.
 | --- | --- | --- |
 | DICE 0.9 circuits and chips, NoCPU core adapters, frontend and icons | GPL-3.0-only combined (GPL-3.0-or-later grants individually) | Prepared unchanged from `upstream/dice-0.9`; see [tests/license-audit.json](../tests/license-audit.json) and [PROVENANCE.md](PROVENANCE.md) |
 | Emscripten 3.1.74 generated JS and runtime support | MIT (MIT/NCSA dual) | Installed compiler reports 3.1.74 (`1092ec30`); retained LICENSE and AUTHORS byte-identical to the SDK |
-| LLVM libc++ (12 members), libc++abi (10), compiler-rt (18) | Apache-2.0 WITH LLVM-exception | Linker map; retained LICENSE/CREDITS byte-identical to the SDK |
+| LLVM libc++ (12 members), libc++abi (10; 11 from 0.4.0), compiler-rt (18), libunwind (from 0.4.0: 1) | Apache-2.0 WITH LLVM-exception | Linker map; retained LICENSE/CREDITS byte-identical to the SDK |
 | musl libc (103 members, 27 of them math routines) | MIT; Sun-derived routines keep their notice grant; `fmaf` is BSD-2-Clause | The 26 math members of the reviewed legacy inventory plus `fmaf` (and the header-less `fenv`); COPYRIGHT byte-identical; Sun, Arm and FreeBSD `fmaf` headers in [MATH-NOTICES](licenses/musl-emscripten-3.1.74-MATH-NOTICES.txt) |
 | dlmalloc 2.8.6 (2 members), Emscripten noexit and stubs (1 each) | CC0 dedication; Emscripten changes MIT | Doug Lea's dedication and Emscripten notices retained |
 | Vite 7.3.1 modulepreload helper | MIT | Retained license byte-identical to the installed package |

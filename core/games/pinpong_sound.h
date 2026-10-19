@@ -30,9 +30,11 @@ enum Pin { F1_Q=0,       // F1.9: the hit pulse (A5 9602 edge until VRESET)
            ANY_HIT,      // D8.8: clock of every D9 latch
            PIN_COUNT };
 
-// The TONE trimmer R41 (10K on the board), in ohms. Its factory setting is
-// not documented; the range is limited to settings that keep every latch
-// state inside the NE566's specified control range (0.75 V+ <= Vc <= V+).
+// The TONE trimmer R41 (a 0-10K trimmer on the board), in ohms. Its factory
+// setting is unknown; the 100-1500 ohm range and the 1500 ohm default are
+// NoCPU's choice. At 1500 ohms the cross-centre state sits approximately at
+// the edge of the NE566's specified control range (10.48 V against the
+// 0.75 V+ = 10.5 V floor); below it every state is inside the range.
 // The lower limit is 100 ohms, not 0: NoCPU's replay tools read a potentiometer
 // of 0 as "the default".
 enum { TONE_MIN_OHMS=100, TONE_MAX_OHMS=1500, TONE_DEFAULT_OHMS=1500 };

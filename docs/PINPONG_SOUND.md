@@ -32,12 +32,12 @@ changelog and the comparison reports, and not a DICE behavior.
 
 ## The circuit (sheet 3)
 
-All values below were read from the sheet and are legible; none was guessed.
+All component values below were read from the sheet and are legible. One reference designator is uncertain: the transistor marked 3643 next to R53 is labelled in very small type, which reads as Q5 at 300 dpi (an earlier reading as Q8 was wrong); its part number, 2N3643, is clear and is confirmed by the parts list and the sheet's note that all transistors are 2N3643.
 
 | Part | Role |
 | --- | --- |
 | A5 9602 (pin 10), F1 7474 (D = SERVE_n, CLK = A5.10, /CLR = VRST_n) | The hit pulse: F1.Q (pin 9) rises when the hit one-shot fires during play and falls at the next vertical reset, so it lasts 0–16.7 ms |
-| R53 1K, Q8 2N3643 (emitter to ground) | F1.Q turns Q8 on; its collector discharges C33 |
+| R53 1K, Q5 2N3643 (emitter to ground) | F1.Q turns Q5 on; its collector discharges C33 |
 | C33 100 µF ("DECAY"), B10 MFC6040 pin 2 | The attenuator's control pin; C33 recharges from the pin's own internal source after the pulse, so the tone fades |
 | D9-2 (pins 8–13) Q-bar → D19, R47 15K | Latched slingshot hit (10 points) |
 | D9-2 (pins 1–6) Q-bar → D20, R48 12K | Latched 100-point object |
@@ -102,7 +102,7 @@ own series exponential, so native and Wasm give identical bytes.
    gives 4.73 kΩ and 7.39 V, matching the 4.7 kΩ at pin 2 in Fig. 2. Scaled
    to 14 V (the curves move in proportion to the supply) the source is
    6.47 V. With C33 the recharge time constant is τ = 4.7 kΩ × 100 µF =
-   0.47 s. During F1.Q, Q8 sinks 100 × (3.4 − 0.7) V / 1 kΩ = 270 mA, so C33
+   0.47 s. During F1.Q, Q5 sinks 100 × (3.4 − 0.7) V / 1 kΩ = 270 mA, so C33
    falls at 2.7 V/ms to 0.1 V (2.4 ms from rest).
 4. **Attenuation.** Fig. 3 read at its 12 V and 16 V curves and interpolated
    to 14 V: 0 dB up to 3.80 V, 20 dB at 4.07 V, 40 dB at 4.56 V, 60 dB at
@@ -117,12 +117,16 @@ own series exponential, so native and Wasm give identical bytes.
 
 ### TONE trimmer
 
-The factory setting of R41 is not documented. NoCPU exposes it as a Pin Pong
-setting ("Tone (sound board trimmer)", the core's potentiometer) from 100 Ω to
-1.5 kΩ, default 1.5 kΩ. Above about 1.49 kΩ the cross-centre state would leave
-the NE566's specified control range (0.75 V+ = 10.5 V); at 1.5 kΩ it sits at
-10.48 V, 0.2 % below that edge and well inside the uncertainty of the diode
-drop. The limit is 100 Ω rather than 0 because NoCPU's replay tools read a
+Atari's factory setting of R41, a 0–10 kΩ trimmer on the board, is unknown:
+neither the schematic nor the parts list gives it and the manual has no
+adjustment procedure. The range NoCPU offers, 100 Ω to 1.5 kΩ, and the
+1.5 kΩ default are therefore NoCPU's choice, exposed as a Pin Pong setting
+("Tone (sound board trimmer)", the core's potentiometer). At the default the
+cross-centre state sits approximately at the edge of the NE566's specified
+control range (0.75 V+ = 10.5 V): 10.48 V, 0.2 % below it and within the
+uncertainty of the diode drop; every lower setting keeps all four states
+inside it, and every higher one would take the cross-centre state further
+outside. The limit is 100 Ω rather than 0 because NoCPU's replay tools read a
 potentiometer of 0 as "the default".
 
 | TONE | Flipper (27K) | Slingshot (15K) | 100 points (12K) | Cross centre (4.7K) |
@@ -149,8 +153,13 @@ The reconstruction is only as exact as its inputs: resistors ±5 %, the 0.22 µF
 Mylar and the NE566's own frequency accuracy (data sheet: a few percent),
 electrolytic C33 (−20/+50 % typical for the period), the MC3340's internal
 4.7 kΩ and open-circuit voltage (fitted from two figures, about ±10 %), the
-Fig. 3 reading (±0.1 V), β of Q8 (100–300: discharge 0.8–2.4 ms) and the
-diode drop (0.6–0.7 V). A real board's pitches could differ by several
+Fig. 3 reading (±0.1 V), β of Q5 (100–300: discharge 0.8–2.4 ms) and the
+diode drop (0.6–0.7 V). Two modelling choices are not data-sheet facts: the NE566
+triangle is fixed at its typical 2.4 Vpp, the data sheet's figure at 12 V,
+not scaled to the 14 V supply; and its 0.68 Vrms at the attenuator input
+exceeds the MC3340's 0.5 Vrms maximum input, so at full gain the output would
+be well beyond the 7.7 Vpp swing of Fig. 6. NoCPU clips hard at that swing;
+how a real MFC6040 overdriven like this distorts is not documented. A real board's pitches could differ by several
 percent and its decay by tens of percent; the TONE trimmer was set by hand on
 each machine. The checks below test the model against these nominal values,
 not a cabinet.

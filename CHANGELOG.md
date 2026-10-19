@@ -15,11 +15,12 @@ releases below.
 
 ### Added
 
-- Pin Pong has sound: bumper, target, slingshot and flipper hits ring with their own pitch and fade
-  out, as Atari's sound board does. DICE has no sound for Pin Pong; NoCPU reconstructs it from
-  Atari's schematic (TM-007 Rev G) and the parts' data sheets, not from a recording, and the game's
-  picture and play still match original DICE exactly. A new Pin Pong setting adjusts the sound
-  board's tone trimmer.
+- Pin Pong has sound, as reconstructed from Atari's sound board: each hit rings and fades out at
+  one of four pitches, set by the kind of object hit last (slingshots, 100-point objects, the cross
+  centre, a moving flipper). DICE has no sound for Pin Pong; NoCPU reconstructs it from Atari's
+  schematic (TM-007 Rev G) and the parts' data sheets, not from a recording, and the game's picture
+  and play still match original DICE exactly. A new Pin Pong setting adjusts the sound board's tone
+  trimmer; Atari's factory setting is unknown, so its range and default are NoCPU's choice.
 - Pin Pong's free-game setting: a score of 10,000 to 90,000 points can earn a free game, using the
   jumper options on Atari's schematic (DICE leaves this unfinished). The default, no free game, is
   DICE's behaviour.

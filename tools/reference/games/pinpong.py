@@ -82,7 +82,7 @@ HZ_PER_VOLT = 2.0 / (2200.0 * 0.22e-6 * V_PLUS)       # NE566: f = 2(V+ - Vc)/(R
 V_PULL = 0.2 + 0.65                                   # TTL low + 1N914
 LATCH_OHMS = {"slingshot": 15000.0, "100": 12000.0, "1000": 4700.0, "flipper": 27000.0}
 V_OPEN, TAU = 7.39 * 14.0 / 16.0, 4700.0 * 100e-6     # MFC6040 control source; C33
-Q8_SAT = 0.1
+Q5_SAT = 0.1
 INPUT_PEAK = 1.2 * 4700.0 / 4800.0                    # NE566 triangle through R43/R42
 OUT_PEAK, MAX_GAIN_DB = 3.85, 13.0
 PCM_PER_VOLT = 4000.0
@@ -100,13 +100,13 @@ def expected_frequency(kind, tone_ohms):
 
 def expected_decay_s(level):
     """Seconds after the hit pulse ends until the output peak falls below
-    `level` of full drive: C33 recharges from Q8's saturation voltage towards
+    `level` of full drive: C33 recharges from Q5's saturation voltage towards
     the control pin's open-circuit voltage through its internal resistance."""
     attenuation = MAX_GAIN_DB - 20.0 * math.log10(level * OUT_PEAK / INPUT_PEAK)
     for (v0, a0), (v1, a1) in zip(ATTENUATION, ATTENUATION[1:]):
         if a0 <= attenuation <= a1:
             target = v0 + (v1 - v0) * (attenuation - a0) / (a1 - a0)
-            return TAU * math.log((V_OPEN - Q8_SAT) / (V_OPEN - target))
+            return TAU * math.log((V_OPEN - Q5_SAT) / (V_OPEN - target))
     raise ValueError("attenuation outside the data-sheet curve")
 
 

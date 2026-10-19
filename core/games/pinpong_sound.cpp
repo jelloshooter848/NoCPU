@@ -26,9 +26,9 @@ constexpr double TRIANGLE_PEAK=1.2, DIVIDER=4700.0/4800.0;
 constexpr double V_OPEN=7.39*V_PLUS/16.0, R_CONTROL=4700.0, MAX_GAIN_DB=13.0, OUT_PEAK=7.7/2.0;
 // C33 100 uF "DECAY" on the control pin.
 constexpr double C33=100e-6, TAU=R_CONTROL*C33;
-// Q8 2N3643 (data-sheet minimum hFE 100) driven from F1.Q (3.4 V) through
+// Q5 2N3643 (data-sheet minimum hFE 100) driven from F1.Q (3.4 V) through
 // R53 1K: a 270 mA collector sink, saturating at about 0.1 V.
-constexpr double Q8_CURRENT=100.0*(3.4-0.7)/1000.0, Q8_SAT=0.1;
+constexpr double Q5_CURRENT=100.0*(3.4-0.7)/1000.0, Q5_SAT=0.1;
 // PCM scale: volts at the attenuator output to signed 16-bit samples
 // (+-3.85 V full drive gives +-15400, about Pong's loudest level).
 constexpr double PCM_PER_VOLT=4000.0;
@@ -90,8 +90,8 @@ void SoundBoard::integrate(uint64_t dt_ps) {
     phase+=frequency*seconds;
     phase-=std::floor(phase);
     if(q8_on) {
-        v_c33-=Q8_CURRENT/C33*seconds;
-        if(v_c33<Q8_SAT)v_c33=Q8_SAT;
+        v_c33-=Q5_CURRENT/C33*seconds;
+        if(v_c33<Q5_SAT)v_c33=Q5_SAT;
     } else {
         const double decay=dt_ps==SAMPLE_PERIOD_PS?decay_per_sample:exp_det(-seconds/TAU);
         v_c33=V_OPEN-(V_OPEN-v_c33)*decay;

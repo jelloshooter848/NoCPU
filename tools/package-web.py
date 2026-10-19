@@ -36,6 +36,7 @@ COMPILED_NOTICES = {
     'docs/licenses/LLVM-compiler-rt-3.1.74-CREDITS.txt', 'docs/licenses/LLVM-compiler-rt-3.1.74-LICENSE.txt',
     'docs/licenses/LLVM-libcxx-3.1.74-CREDITS.txt', 'docs/licenses/LLVM-libcxx-3.1.74-LICENSE.txt',
     'docs/licenses/LLVM-libcxxabi-3.1.74-CREDITS.txt', 'docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt',
+    'docs/licenses/LLVM-libunwind-3.1.74-LICENSE.txt',
     'docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt', 'docs/licenses/Vite-7.3.1-LICENSE.md',
     'docs/licenses/Emscripten-3.1.74-RUNTIME-NOTICES.txt', 'docs/licenses/dlmalloc-2.8.6-NOTICE.txt',
     'docs/licenses/fflate-0.8.2-LICENSE.txt',
