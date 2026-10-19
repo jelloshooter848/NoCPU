@@ -472,6 +472,20 @@ slow or unevenly loaded runner, so:
   carries into the acceptance record beside that test's outcome. It never
   decides a game's status.
 
+### Speed measurement
+
+`node tools/measure-speed.mjs` measures paced and raw real-time speed of every
+playable game in Playwright's Chromium, Firefox and WebKit, and optionally in a
+release Firefox over WebDriver BiDi (`--engines …,firefox-release
+--firefox-release PATH`). It runs against a packaged site (`make web-preview`)
+that it serves on port 4673, and writes `build/perf/speed-<stamp>.json`.
+`node tools/bench-core.mjs --scenario ID` times the Wasm core on a recorded
+scenario in Node. Neither is a test or part of CI. Playwright's Firefox build
+runs WebAssembly with its baseline compiler only, so its speeds are four to
+five times below a release Firefox's.
+[PERFORMANCE.md](PERFORMANCE.md) has the method, the profiles and the measured
+tables.
+
 ### WebKit page crashes at game start (fixed in 0.2.2)
 
 From 0.1.4 to 0.2.1, CI's `browser (webkit)` job lost about one run in ten to

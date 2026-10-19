@@ -85,7 +85,10 @@ The main rules of the boundary, detailed in [core/README.md](../core/README.md):
 The page runs the core in a dedicated single-threaded worker with no shared
 memory. The page sends ordered control and input messages; the worker owns the
 simulation clock, advances in bounded slices with a capped time debt, and
-transfers copied frames and PCM with bounded outstanding output. Canvas
+transfers copied frames and PCM with bounded outstanding output. When the
+circuit is behind real time, the next tick follows at once through a
+`MessageChannel`. A zero-delay timeout would be clamped to 4 ms
+([PERFORMANCE.md](PERFORMANCE.md)). Canvas
 presents the latest frame at the original orientation and aspect; Web Audio
 plays the circuit's own samples. Pause and lost visibility stop advancing
 rather than accumulating hidden simulation time, and pausing releases held
