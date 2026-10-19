@@ -13,6 +13,16 @@ releases below.
 
 ## [Unreleased]
 
+### Changed
+
+- Games run faster in the browser. A game that cannot keep up no longer idles between steps, and the
+  emulator core is up to about one and a half times faster, with the circuits unchanged (still
+  verified against original DICE). On the 4-core test computer, Pin Pong, TV Basketball, Gotcha,
+  Breakout and Stunt Cycle now run at full speed in Chromium and Firefox; Pin Pong ran
+  at 70% before. Hi-Way runs about twice as fast and nearly at full speed when a game starts, but
+  can still fall below full speed there while driving: most of its time is DICE's own circuit
+  scheduler.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added

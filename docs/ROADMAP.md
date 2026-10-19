@@ -182,17 +182,16 @@ The changes are all exact (comparisons pass):
 - Wasm uses WebAssembly exception handling;
 - NoCPU's frame clear, rotated-raster rasterizer and output hook are faster.
 
-Measured in Playwright's Chromium on a 4-vCPU Xeon (2.8 GHz):
+Measured on the 4-vCPU Xeon @2.1 GHz CI-class host:
 
 - Pin Pong, TV Basketball, Gotcha, Breakout and Stunt Cycle now run at full
-  speed.
-- Hi-Way's simulation is 89% DICE's own scheduler. It runs at 0.87–0.90 paced
-  at the start of play and slower in heavy driving: the core alone does about
-  0.67x on its recorded scenario, and even native code about 0.8x on that host.
-  The owner accepted this (decision of 2026-10-19).
+  speed in Playwright's Chromium and in a release Firefox.
+- Hi-Way reaches 0.97 at the start of play in Chromium (0.89 in release
+  Firefox) and is slower in heavy driving: its core runs its recorded scenario
+  at about 0.7x, and 89% of its time is DICE's own scheduler. The owner
+  accepted this (decision of 2026-10-19).
 - Playwright's Firefox build runs WebAssembly with its baseline compiler only,
-  so its numbers stay four to five times below a release Firefox's. Mozilla's
-  release Firefox, measured separately, runs the core as fast as Chromium.
+  so its numbers stay four to five times below a release Firefox's.
 
 Part 2 (Pin Pong's schematic sound and free-game select) follows.
 
