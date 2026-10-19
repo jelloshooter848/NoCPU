@@ -102,7 +102,7 @@ write("chips/audio.cpp",contents)
 # Retain Video::video timing and VIDEO_Buf delays; replace GL presentation only.
 contents=(out/"chips/video.cpp").read_text()
 start=contents.index('#include <phoenix.hpp>');end=contents.index('/*',start)
-contents=contents[:start]+'#include "../port_hooks.h"\n#include <algorithm>\n#include <cmath>\n\n'+contents[end:]
+contents=contents[:start]+'#include "../port_hooks.h"\n#include <algorithm>\n#include <cmath>\n#include <cstring>\n\n'+contents[end:]
 start=contents.index('void Video::video_init(');end=contents.index('void Video::init_color_lut(',start)
 contents=contents[:start]+contents[end:]
 for signature in ('void Video::draw(Chip* chip)','void Video::draw_overlays()'):
@@ -112,7 +112,7 @@ contents=contents.replace('color(3 << 8)','color(3 << 8), back(WIDTH*HEIGHT*4,0)
 contents=contents.replace('        video->swap_buffers();\n        if(video->desc->scan_mode == PROGRESSIVE)',
     '        video->swap_buffers();\n        nocpu_capture_frame(global_time);\n        if(video->desc->scan_mode == PROGRESSIVE)')
 contents=contents.replace('            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);',
-    '            for(size_t i=0;i<video->back.size();++i) video->back[i]=(i%4==3)?255:0;')
+    '            video->clear_back();')
 throttle='''        // Make sure real time is caught up
         if(chip->circuit->settings.throttle)
             while(chip->circuit->rtc.get_usecs() < uint64_t(global_time * 1000000.0 * Circuit::timescale));'''
@@ -121,7 +121,7 @@ contents=contents.replace(throttle,'        // Presentation pacing belongs to th
 contents+='\n'+(ROOT/'core/platform/portable_video.inc').read_text()
 write('chips/video.cpp',contents)
 edit('chips/video.h',[
-    ('    std::vector<float> color;','    std::vector<float> color;\n    std::vector<uint8_t> back,front;\n    unsigned pixels_width=576,pixels_height=432,viewport_x=0,viewport_y=0;\n    float projection[6]={};\n    void draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],bool blend);'),
+    ('    std::vector<float> color;','    std::vector<float> color;\n    std::vector<uint8_t> back,front;\n    unsigned pixels_width=576,pixels_height=432,viewport_x=0,viewport_y=0;\n    float projection[6]={};\n    void draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],bool blend);\n    void clear_back();'),
     ('    virtual void swap_buffers() = 0;','    virtual void swap_buffers();'),
     ('    virtual void show_cursor(bool show) = 0;','    virtual void show_cursor(bool show);'),
     ('    static Video* createDefault(phoenix::VerticalLayout& layout, phoenix::Viewport*& viewport);',

@@ -48,6 +48,17 @@ struct Engine {
     // of their declared event pins, reported as NOCPU_GAME_EVENT_BASE+index.
     const NoCPUGameDef* def=nullptr;
     Chip* game_observed[NOCPU_GAME_EVENT_LIMIT]={};
+    // Every distinct chip in hit, observed and game_observed: a chip outside
+    // it records nothing when its output changes, so the per-transition hook
+    // can return after one short scan (refresh_watched keeps it current).
+    std::vector<Chip*> watched;
+    void refresh_watched() {
+        watched.clear();
+        auto add=[this](Chip* chip){if(chip&&std::find(watched.begin(),watched.end(),chip)==watched.end())watched.push_back(chip);};
+        add(hit);
+        for(Chip* chip:observed)add(chip);
+        for(Chip* chip:game_observed)add(chip);
+    }
     uint32_t event_counts[NOCPU_EVENT_TYPES]={};
     NoCPURomSession roms;
     uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0,crashes[2]={0,0};
@@ -255,6 +266,7 @@ void nocpu_register_chip(const char* name,unsigned output_pin,Chip* chip) {
             if(key==checkpoint[i])engine->observed[NOCPU_INDY_CHECKPOINT_GREEN_N+i]=chip;
         }
     }
+    engine->refresh_watched();
 }
 void nocpu_unregister_chip(Chip* chip) {
     if(!engine)return;
@@ -264,10 +276,12 @@ void nocpu_unregister_chip(Chip* chip) {
     if(engine->hit==chip)engine->hit=nullptr;
     for(auto& observed:engine->observed)if(observed==chip)observed=nullptr;
     for(auto& observed:engine->game_observed)if(observed==chip)observed=nullptr;
+    engine->refresh_watched();
 }
 NoCPUOutputObservation::NoCPUOutputObservation(Chip* value):chip(value),previous(value->output){}
 NoCPUOutputObservation::~NoCPUOutputObservation(){
     if(!engine||chip->output==previous)return;
+    if(std::find(engine->watched.begin(),engine->watched.end(),chip)==engine->watched.end())return;
     uint64_t time=chip->circuit->global_time;
     if(chip==engine->hit) {
         if(chip->output)++engine->hits;
