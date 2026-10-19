@@ -12,7 +12,7 @@ import type { GameDefinition, RegisteredOptions } from './games/types';
 function registeredOptionsMarkup(game: GameDefinition, options: RegisteredOptions): string {
   return game.settings.map((setting) => setting.kind === 'select'
     ? `<label for="${setting.testId}">${escapeText(setting.label)}</label><select id="${setting.testId}" data-testid="${setting.testId}" data-option="${setting.key}">${setting.choices.map((choice) => `<option value="${choice.value}"${choice.value === options[setting.key] ? ' selected' : ''}>${escapeText(choice.label)}</option>`).join('')}</select>`
-    : `<label for="${setting.testId}">${escapeText(setting.label)} <span data-testid="playtime-value">${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%</span></label><input id="${setting.testId}" data-testid="${setting.testId}" data-option="${setting.key}" type="range" min="0" max="100" step="0.1" value="${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}" aria-label="${escapeText(setting.label)}" /><p class="panel-note">A higher setting allows more time. The original default is ${Math.round((setting.defaultOhms - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100))}%.</p>`).join('');
+    : `<label for="${setting.testId}">${escapeText(setting.label)} <span data-testid="${setting.testId}-value">${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%</span></label><input id="${setting.testId}" data-testid="${setting.testId}" data-option="${setting.key}" type="range" min="0" max="100" step="0.1" value="${(options[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}" aria-label="${escapeText(setting.label)}" /><p class="panel-note">${escapeText(setting.note ?? `A higher setting allows more time. The original default is ${Math.round((setting.defaultOhms - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100))}%.`)}</p>`).join('');
 }
 
 interface SettingsOptions {
@@ -330,7 +330,7 @@ export function createSettingsUI(options: SettingsOptions) {
         : Math.round(setting.minOhms + Number(input.value) * (setting.maxOhms - setting.minOhms) / 100);
       const next = normalizeGameOptions(controlGameId, { ...current, [setting.key]: value }) as unknown as RegisteredOptions;
       setPreferences({ ...preferences, optionsByGame: { ...preferences.optionsByGame, [controlGameId]: next } });
-      if (setting.kind === 'percent') find('[data-testid="playtime-value"]').textContent = `${(next[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%`;
+      if (setting.kind === 'percent') find(`[data-testid="${setting.testId}-value"]`).textContent = `${(next[setting.key] - setting.minOhms) / ((setting.maxOhms - setting.minOhms) / 100)}%`;
       return;
     }
     const changed = input.id === 'misses' ? { ...current, misses: Number(input.value) }

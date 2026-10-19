@@ -778,7 +778,7 @@
       "core_id": 11,
       "replay": "tests/replays/pinpong.tsv",
       "dip": 0,
-      "pot_ohms": 0,
+      "pot_ohms": 1500,
       "kind": "coin_restart",
       "no_credit_start_ms": [
         200
@@ -807,7 +807,7 @@
       "core_id": 11,
       "replay": "tests/replays/pinpong-five-balls.tsv",
       "dip": 6,
-      "pot_ohms": 0,
+      "pot_ohms": 1500,
       "kind": "coin_restart",
       "no_credit_start_ms": [
         70000
@@ -823,7 +823,7 @@
       "core_id": 11,
       "replay": "tests/replays/pinpong-two-credits.tsv",
       "dip": 1,
-      "pot_ohms": 0,
+      "pot_ohms": 1500,
       "kind": "coin_restart",
       "no_credit_start_ms": [
         35580
@@ -833,6 +833,25 @@
         1500,
         17860
       ]
+    },
+    {
+      "id": "pinpong-free-ball",
+      "game": "pinpong",
+      "core_id": 11,
+      "replay": "tests/replays/pinpong-free-ball.tsv",
+      "dip": 0,
+      "pot_ohms": 800,
+      "kind": "coin_restart",
+      "no_credit_start_ms": [
+        53000,
+        101000
+      ],
+      "credit_start_ms": [
+        1000,
+        57000,
+        105000
+      ],
+      "free_ball_award": true
     },
     {
       "id": "hiway-default",

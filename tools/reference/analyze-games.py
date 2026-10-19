@@ -202,7 +202,9 @@ def analyze_epoch(path, scenario, *, original=False):
             ROOT=ROOT, pong=pong, game_media=game_media, active_pcm=active_pcm), original=original)
     module = game_media.registered_game(game)
     captured_configuration = json.loads((path.parent / "configuration.json").read_text())
-    expected_configuration = {"game": game, "dip": scenario["dip"], "pot_ohms": scenario["pot_ohms"]}
+    expected_dip, expected_pot = (game_media.original_options(game, scenario["dip"], scenario["pot_ohms"]) if original
+                                  else (scenario["dip"], scenario["pot_ohms"]))
+    expected_configuration = {"game": game, "dip": expected_dip, "pot_ohms": expected_pot}
     configuration_matches = captured_configuration == expected_configuration and all(
         type(captured_configuration.get(key)) is type(value) for key, value in expected_configuration.items())
     replay = pong.read_replay(ROOT / scenario["replay"])
@@ -226,7 +228,7 @@ def analyze_epoch(path, scenario, *, original=False):
         raise ValueError("Missing generated PCM")
     coverage = game_media.media_coverage(frame_rows, len(pcm), duration, game, pcm_byte_count=len(pcm_bytes),
                                         scenario=scenario if configuration_matches else None,
-                                        replay=replay if configuration_matches else None)
+                                        replay=replay if configuration_matches else None, original=original)
     skews = [int(row["applied_ps"]) - int(row["requested_ps"]) for row in inputs]
     score_slots = [int(key[5:]) for key in telemetry[0] if key.startswith("score")] if module else [1, 2]
     maximum_scores = [max(int(row[f"score{slot}"]) for row in telemetry) for slot in score_slots]
@@ -253,7 +255,7 @@ def analyze_epoch(path, scenario, *, original=False):
         result = module.analyze(SimpleNamespace(
             scenario=scenario, replay=replay, duration_ps=duration, telemetry=telemetry, events=events,
             snapshots=snapshots, pcm_context=pcm_context, active_transitions=active_transitions,
-            maximum_scores=maximum_scores, original=original,
+            maximum_scores=maximum_scores, original=original, path=path,
             state_at=lambda milliseconds: state_at(telemetry, milliseconds),
             snapshot_at=lambda milliseconds: snapshot_at(snapshots, milliseconds),
             contact_groups=lambda: contact_groups(events), PS_PER_MS=10**9))

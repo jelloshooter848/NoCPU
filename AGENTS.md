@@ -17,6 +17,7 @@
 - Preserve the circuit scheduler, integer simulation time, video geometry, PCM generation, and supported physical inputs. Browser adaptations must change access to the hardware, with behavior verified against the native reference.
 - Keep picosecond time inside C++/Wasm integer values and respect the ABI's frame/PCM ownership and bounded stepping rules.
 - Reproduce sound that DICE implements and record inherited absent audio; never fabricate replacement sound.
+  The one owner-approved exception is Pin Pong's sound and free-game select, reconstructed from Atari's schematic and labelled as such ([docs/PINPONG_SOUND.md](docs/PINPONG_SOUND.md); ROADMAP decision of 2026-10-18). Any further reconstruction needs its own owner decision.
 
 ## Assets and generated output
 

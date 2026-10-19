@@ -582,11 +582,18 @@ test('registered games derive actions, bindings, options and DIP packing from th
   assert.deepEqual([pinpong.keyboard.p1Fire, pinpong.keyboard.p2Fire, pinpong.keyboard.start], [['KeyZ', 'ArrowLeft'], ['Slash', 'ArrowRight'], ['Digit1']]);
   assert.deepEqual(pinpong.gamepad.players, []);
   assert.deepEqual([pinpong.gamepad.buttons.p1Fire[0], pinpong.gamepad.buttons.coin, pinpong.gamepad.buttons.start], [{ pad: 0, button: 4 }, [{ pad: 0, button: 0 }], [{ pad: 0, button: 1 }]]);
-  assert.deepEqual(contract.defaultGameOptions('pinpong'), { coinage: 1, freeBall: 1, balls: 3 });
+  assert.deepEqual(contract.defaultGameOptions('pinpong'), { coinage: 1, freeBall: 1, balls: 3, freeGame: 0, toneOhms: 1500 });
   // Packed original indices: coinage bit 0, free ball (0 enabled, 1 disabled) bit 1, ball count (0 three, 1 five) bit 2.
-  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 2, freeBall: 0, balls: 5 }), { game: 11, dip: 7, potOhms: 0 });
-  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 5 }), { game: 11, dip: 4, potOhms: 0 });
-  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 4 }), false);
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 2, freeBall: 0, balls: 5, freeGame: 0, toneOhms: 1500 }), { game: 11, dip: 7, potOhms: 1500 });
+  // NoCPU's schematic reconstructions: free-game jumpers in DIP bits 3-6 (index 0 = none, DICE's
+  // wiring; 1..8 = 10,000..90,000) and the TONE trimmer as the potentiometer.
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 3, freeGame: 10000, toneOhms: 800 }), { game: 11, dip: 8, potOhms: 800 });
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 3, freeGame: 90000, toneOhms: 100 }), { game: 11, dip: 64, potOhms: 100 });
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 3, freeGame: 70000, toneOhms: 1500 }), false);
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 3, freeGame: 0, toneOhms: 1501 }), false);
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 3, freeGame: 0, toneOhms: 99 }), false);
+  assert.deepEqual(contract.coreGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 5, freeGame: 0, toneOhms: 1500 }), { game: 11, dip: 4, potOhms: 1500 });
+  assert.equal(contract.isGameOptions('pinpong', { coinage: 1, freeBall: 1, balls: 4, freeGame: 0, toneOhms: 1500 }), false);
   assert.equal(prefs.isMouseGame('pinpong'), true);
   assert.equal(schema.actionLabel('start', 'pinpong'), 'Start game / serve ball');
   // Hi-Way: one wheel channel (keys, gamepad axis, mouse), the held accelerator,

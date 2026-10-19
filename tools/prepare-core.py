@@ -141,6 +141,53 @@ edit('games/gotcha.cpp',[
     ('    static double v_cap = 0.0;\n',
      '    double& v_cap = nocpu_gotcha_proximity_v_cap;\n')])
 
+# Pin Pong's free-game score select is unfinished in DICE ("TODO: FREE GAME
+# SELECT": B5.4, the free-game flip-flop's preset, is tied to VCC, which is
+# the schematic's "no free game" jumper option). The original layout stays
+# exactly as it is and remains the default. A second, derived layout
+# circuit_pinpong_free_game() copies it and drives B5.4 from the jumper
+# options of Atari's schematic (TM-007 Rev G, drawing 001660 sheet 3): C5
+# NAND pins 9/10 (terminals 1 and 2) wired to the C6 10,000s decade outputs
+# M/N/O/P. One NoCPU chip holds the jumper choice and that NAND; it is created
+# first so it settles B5.4 high during construction, as VCC does in the
+# original. core/games/pinpong.cpp selects the layout and the jumpers.
+contents=(out/'games/pinpong.cpp').read_text()
+start=contents.index('CIRCUIT_LAYOUT( pinpong )')
+end=contents.index('CIRCUIT_LAYOUT_END',start)+len('CIRCUIT_LAYOUT_END')
+layout=contents[start:end]
+for old,new in [('CIRCUIT_LAYOUT( pinpong )','CIRCUIT_LAYOUT( pinpong_free_game )'),
+        ('    CHIP("CLOCK", CLOCK_14_318_MHZ)',
+         '    CHIP("NOCPU_JUMPERS", NOCPU_FREE_GAME_JUMPERS)\n    CHIP("CLOCK", CLOCK_14_318_MHZ)'),
+        ('    CONNECTION(VCC, "B5", 4)',
+         '    CONNECTION("C6", 12, "NOCPU_JUMPERS", 1) // M\n'
+         '    CONNECTION("C6", 9, "NOCPU_JUMPERS", 2)  // N\n'
+         '    CONNECTION("C6", 8, "NOCPU_JUMPERS", 3)  // O\n'
+         '    CONNECTION("C6", 11, "NOCPU_JUMPERS", 4) // P\n'
+         '    CONNECTION("NOCPU_JUMPERS", 8, "B5", 4)  // C5 pin 8')]:
+    if layout.count(old)!=1: raise SystemExit('Pin Pong layout anchor not found: '+old)
+    layout=layout.replace(old,new)
+jumpers='''
+// NoCPU: Pin Pong free-game select (docs/UPSTREAM_PATCHES.md). Terminal k of
+// the jumper block is 0..3 = M..P (C6 QA..QD) or 4 = ground ("3").
+unsigned nocpu_pinpong_free_game_jumpers = 4 | 4 << 4;
+static int nocpu_jumper(const int* pin, unsigned terminal) { return terminal < 4 ? pin[1 + terminal] : 0; }
+static CHIP_LOGIC( NOCPU_FREE_GAME_JUMPERS )
+{
+    // C5 7400 gate pins 9, 10 -> 8, folded into this chip.
+    pin[8] = (nocpu_jumper(pin, nocpu_pinpong_free_game_jumpers & 15) & nocpu_jumper(pin, nocpu_pinpong_free_game_jumpers >> 4)) ^ 1;
+}
+static CHIP_DESC( NOCPU_FREE_GAME_JUMPERS ) =
+{
+    CHIP_START( NOCPU_FREE_GAME_JUMPERS )
+        INPUT_PINS( 1, 2, 3, 4 )
+        OUTPUT_PIN( 8 )
+        OUTPUT_DELAY_NS( 11.0, 7.0 ), // the 7400 gate's delays
+    CHIP_DESC_END
+};
+
+'''
+write('games/pinpong.cpp',contents[:end]+'\n'+jumpers+layout+contents[end:])
+
 # DICE stores mutable hardware descriptors statically. A portable reset creates
 # a fresh machine, so each compiled game appends a function restoring its custom
 # descriptor objects before construction. The appended code is kept per game in

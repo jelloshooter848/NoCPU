@@ -24,7 +24,22 @@ struct NoCPUPinTerm { std::string pin; uint32_t weight; bool inverted; }; // omi
 // original descriptor name. Packed DIP values hold the settings in declared
 // order from bit 0, each `bits` wide; `values` is the number of named
 // original choices (indices 0..values-1).
-struct NoCPUDipField { std::string name; uint32_t bits, values, default_index; };
+struct NoCPUDipField { std::string name; uint32_t bits, values, default_index;
+    // A NoCPU setting that is not an original descriptor (Pin Pong's
+    // free-game jumpers): packed like the others but never searched in the
+    // circuit; the game's circuit_for/sound read it.
+    bool nocpu; };  // omitted: false
+
+// A NoCPU reconstruction of sound that DICE leaves unfinished (Pin Pong). It
+// is fed the output transitions of `sound_pins` through the read-only
+// observation hook and writes PCM through nocpu_capture_audio; it never feeds
+// the circuit or adds scheduler events.
+struct NoCPUSound {
+    virtual ~NoCPUSound() {}
+    virtual void start(const int* levels) = 0;              // pin levels after construction
+    virtual void pin(unsigned index, int value, uint64_t time_ps) = 0;
+    virtual void emit_before(uint64_t time_ps) = 0;         // samples strictly before time_ps
+};
 
 struct NoCPUGameDef {
     uint32_t id=0;
@@ -35,6 +50,16 @@ struct NoCPUGameDef {
     // Original potentiometer descriptor name (POT_555_MONO/ASTABLE), or empty.
     std::string pot;
     uint32_t pot_min=0, pot_max=0, pot_default=0;
+    // The potentiometer is a NoCPU reconstruction setting (Pin Pong's TONE
+    // trimmer), not an original descriptor: never searched in the circuit.
+    bool pot_nocpu=false;
+    // Optional: choose the circuit for the packed DIP value (Pin Pong's
+    // free-game jumpers select a derived layout; the default keeps the
+    // original one). Null: always `circuit`.
+    const CircuitDesc* (*circuit_for)(uint32_t dip)=nullptr;
+    // Optional NoCPU sound reconstruction and the original pins it observes.
+    NoCPUSound* (*sound)(uint32_t dip, uint32_t pot)=nullptr;
+    std::vector<std::string> sound_pins;
     // Original inputs. Paddle slots use input axes 0..paddles-1 whatever their
     // orientation; joysticks are digital switches; buttons are BUTTONSn_INPUT.
     uint32_t paddles=0, joysticks=0, joystick_directions=0;

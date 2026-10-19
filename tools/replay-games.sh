@@ -92,8 +92,35 @@ elif [[ "$SUBSET" == 1 ]]; then
 else
   echo 'Missing breakout-pilot/breakout-default originals for the Breakout ABI probe.' >&2; exit 1
 fi
+# Pin Pong's free-game select is NoCPU's reconstruction from the schematic and
+# has no original to compare: its probe checks the award through the Wasm ABI,
+# and the 10,000-point run must be byte-identical native<->Wasm in both epochs.
+PINPONG_PROBE=''
+pinpong_free_game() {
+  local run=$1 out="$1/pinpong-free-game"
+  node tools/probe-core-pinpong.mjs --module build/core/wasm/nocpu.js --output "$out/probe.json" || return 1
+  build/core/native/pong-runner --output "$out/native" --game pinpong --replay tests/replays/pinpong-free-game.tsv \
+    --seed 848 --dip 8 --pot-ohms 1500 --epochs 2 > "$out/native.log" 2>&1 || return 1
+  node tools/replay-core.mjs --output "$out/wasm" --game pinpong --replay tests/replays/pinpong-free-game.tsv \
+    --seed 848 --dip 8 --pot-ohms 1500 --epochs 2 > "$out/wasm.log" 2>&1 || return 1
+  for epoch in epoch0 epoch1; do
+    for name in audio.s16le telemetry.csv inputs.csv collisions.csv events.csv frames.csv frames.gray; do
+      cmp -s "$out/native/$epoch/$name" "$out/wasm/$epoch/$name" || { echo "native/Wasm differ: $epoch/$name"; return 1; }
+    done
+  done
+  cmp -s "$out/native/epoch0/audio.s16le" "$out/native/epoch1/audio.s16le" || { echo 'reset epochs differ'; return 1; }
+  echo 'Pin Pong free-game run: native and Wasm byte-identical in both reset epochs.'
+}
+if cut -f2 "$RUN/scenarios.tsv" | grep -qx pinpong; then
+  mkdir -p "$RUN/pinpong-free-game"
+  pinpong_free_game "$RUN" > "$RUN/pinpong-free-game.log" 2>&1 &
+  PINPONG_PROBE=$!
+fi
 STATUS=0
 python3 tools/compare-games.py "${COMPARE_ARGS[@]}" || STATUS=1
+if [[ -n "$PINPONG_PROBE" ]]; then
+  wait "$PINPONG_PROBE" || { echo "FAILED: Pin Pong free-game probe; see $RUN/pinpong-free-game.log" >&2; STATUS=1; }
+fi
 wait "$GAMES_PROBE" || { echo "FAILED: multi-game ABI probe; see $RUN/abi-games.log" >&2; STATUS=1; }
 if [[ -n "$BREAKOUT_PROBE" ]]; then
   wait "$BREAKOUT_PROBE" || { echo "FAILED: Breakout ABI probe; see $RUN/abi-breakout.log" >&2; STATUS=1; }

@@ -70,7 +70,11 @@ def compare_scenario(original, evidence, scenario):
     native, wasm = evidence / name / 'native', evidence / name / 'wasm'
     epochs = {label: [analysis.analyze_epoch(path / f'epoch{i}', scenario) for i in range(2)]
               for label, path in [('native', native), ('wasm', wasm)]}
-    original_exact = compare_pair(fresh, native / 'epoch0')
+    # A NoCPU audio reconstruction (Pin Pong) has no original counterpart: its
+    # PCM is compared native<->Wasm and checked by the game's analysis instead.
+    reconstructed = analysis.game_media.reconstructed_audio(game)
+    original_exact = compare_pair(fresh, native / 'epoch0',
+                                  [name for name in EXACT if not (reconstructed and name == 'audio.s16le')])
     native_wasm = [compare_pair(native / f'epoch{i}', wasm / f'epoch{i}') for i in range(2)]
     reset = {label: compare_pair(path / 'epoch0', path / 'epoch1') for label, path in [('native', native), ('wasm', wasm)]}
     geometry = snapshot_geometry(fresh, native / 'epoch0', game)
@@ -85,7 +89,9 @@ def compare_scenario(original, evidence, scenario):
         and all(all(item.values()) for item in reset.values()) and geometry['passed'] \
         and all(epoch['passed'] for group in epochs.values() for epoch in group) and all(snapshot_exact.values())
     return {'id': name, 'game': game, 'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']},
-            'original_to_native_exact': original_exact, 'native_to_wasm_exact': native_wasm,
+            'original_to_native_exact': original_exact,
+            'original_to_native_audio': 'not compared: NoCPU reconstruction from the schematic; DICE has no audio for this game'
+                if reconstructed else 'exact', 'native_to_wasm_exact': native_wasm,
             'same_module_reset_exact': reset, 'renderer': geometry, 'selected_full_RGB_snapshots_exact': snapshot_exact,
             'behavioral_epochs': epochs, 'passed': passed}
 

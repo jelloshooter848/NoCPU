@@ -15,5 +15,7 @@ REFERENCE_GAME(pinpong) {
                  {"C6.12", 1000}, {"C6.9", 2000}, {"C6.8", 4000}, {"C6.11", 8000}},
                 {{"N10.3", 1}, {"N10.4", 1}, {"N10.5", 1}, {"N10.6", 1}, {"N10.10", 1}}};
     g.active = "J9.6"; g.attract_n = "J9.6";     // ATTRACT_n
-    g.events = {"F4.3", "H10.6", "K10.6", "J9.9"}; // MISS_n, SERVE, FREE_BALL_INDICATOR, START
+    // MISS_n, SERVE, FREE_BALL_INDICATOR, START; the hit pulse F1.Q and the
+    // three scoring object latches (D9-2 Q pins 9 and 5, D9-1 Q pin 5).
+    g.events = {"F4.3", "H10.6", "K10.6", "J9.9", "F1.9", "D9-2.9", "D9-2.5", "D9-1.5"};
 }
