@@ -19,7 +19,7 @@ import { hiway } from './hiway';
 
 import { antiaircraft } from './antiaircraft';
 
-// Reserved: import { sharkjaws } from './sharkjaws';
+import { sharkjaws } from './sharkjaws';
 
 // Reserved: import { jetfighter } from './jetfighter';
 
@@ -42,7 +42,7 @@ export const REGISTERED_GAMES = [
 
   antiaircraft,
 
-  // Reserved: sharkjaws,
+  sharkjaws,
 
   // Reserved: jetfighter,
 

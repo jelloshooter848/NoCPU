@@ -3,10 +3,10 @@
 The frontend is the minimal desktop interface defined in the
 [roadmap](../docs/ROADMAP.md) "Goal". It runs the DICE 0.9 circuits that the
 core compiles (Pong, Pong Doubles, Space Race, Breakout, Stunt Cycle, Indy 4,
-Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong, Hi-Way and
-Anti-Aircraft) in desktop browsers with keyboard, mouse and optional gamepads;
-the DICE games not ported yet are listed under Coming soon. Pin Pong and Hi-Way can run
-below real time on slower computers, most in Firefox.
+Rebound, Gotcha, Quadrapong, Crossfire, TV Basketball, Pin Pong, Hi-Way,
+Anti-Aircraft and Shark Jaws) in desktop browsers with keyboard, mouse and optional gamepads;
+the DICE games not ported yet are listed under Coming soon. Pin Pong, Hi-Way and Shark
+Jaws can run below real time on slower computers.
 
 ## What it offers
 
@@ -43,7 +43,8 @@ below real time on slower computers, most in Firefox.
   Z or Left and / or Right the Pin Pong flippers (1 starts and serves),
   Left/Right or A/D the Hi-Way steering wheel with Up or W to accelerate,
   Q/A/Z and O/L/. aim the left and right Anti-Aircraft launchers high, to
-  the middle or low and fire, Enter inserts a coin, Space opens the menu and Escape
+  the middle or low and fire, the arrow keys or WASD the Shark Jaws diver,
+  Enter inserts a coin, Space opens the menu and Escape
   pauses or goes back; each game's help lists the rest. For the paddle games
   (Pong, Pong Doubles, Breakout, Rebound, Quadrapong, TV Basketball) moving the mouse over the
   display sets the chosen
@@ -58,7 +59,7 @@ below real time on slower computers, most in Firefox.
   left or right of the display's centre turns the original steering wheel that
   way (further out turns faster; leaving the display straightens it) and the
   left button held over the display accelerates. Space Race, Indy 4, Gotcha,
-  Crossfire and Anti-Aircraft use the keyboard or a gamepad. Settings → Controls chooses which player the mouse
+  Crossfire, Anti-Aircraft and Shark Jaws use the keyboard or a gamepad. Settings → Controls chooses which player the mouse
   drives, or turns it off, for each game.
 - **ROM loading.** Settings → Local ROMs validates player-supplied ZIPs against
   the audited CRC and size requirements, locally; files are never uploaded.

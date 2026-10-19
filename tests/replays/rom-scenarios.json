@@ -105,6 +105,55 @@
       "start_without_credit_ms": [
         53000
       ]
+    },
+    {
+      "id": "sharkjaws-default",
+      "game": "sharkjaws",
+      "replay": "tests/replays/sharkjaws.tsv",
+      "dip": 0,
+      "pot_ohms": 970000,
+      "direction_tests": [
+        {
+          "direction": "up",
+          "before_ms": 1800,
+          "after_ms": 2500
+        },
+        {
+          "direction": "down",
+          "before_ms": 2600,
+          "after_ms": 3400
+        },
+        {
+          "direction": "left",
+          "before_ms": 3400,
+          "after_ms": 4250
+        },
+        {
+          "direction": "right",
+          "before_ms": 4250,
+          "after_ms": 5000
+        }
+      ],
+      "games": 1,
+      "timed_games": 1,
+      "minimum_points": 20,
+      "expect_tens": true,
+      "start_without_credit_ms": [
+        110000
+      ]
+    },
+    {
+      "id": "sharkjaws-min-time",
+      "game": "sharkjaws",
+      "replay": "tests/replays/sharkjaws-min-time.tsv",
+      "dip": 1,
+      "pot_ohms": 470000,
+      "games": 2,
+      "timed_games": 2,
+      "minimum_points": 10,
+      "start_without_credit_ms": [
+        107500
+      ]
     }
   ]
 }

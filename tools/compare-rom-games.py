@@ -96,15 +96,32 @@ def projected(name, data):
     return data
 
 
+PROJECTED = {'frame-geometry.csv', 'audio-boundary.json', 'audio-events.csv'}
+
+
+def streamed_digest(path):
+    """(bytes, sha256) of a file's logical content, decompressed in chunks: a
+    long scenario's full-RGB stream is several gigabytes."""
+    digest, size = hashlib.sha256(), 0
+    with (gzip.open(path, 'rb') if path.suffix == '.gz' else path.open('rb')) as stream:
+        for chunk in iter(lambda: stream.read(1 << 22), b''):
+            digest.update(chunk)
+            size += len(chunk)
+    return size, digest.hexdigest()
+
+
 def digest_tree(directory):
     """Map logical evidence names to (bytes, sha256) of their decoded content."""
     result = {}
     for path in sorted(directory.iterdir()):
         if path.is_file() and not path.name.endswith('.log'):
             name = logical_name(path.name)
-            data = projected(name, payload_bytes(path))
-            name = 'audio-boundary.json' if name == 'audio-events.csv' else name
-            result[name] = (len(data), hashlib.sha256(data).hexdigest())
+            if name in PROJECTED:
+                data = projected(name, payload_bytes(path))
+                digest = (len(data), hashlib.sha256(data).hexdigest())
+            else:
+                digest = streamed_digest(path)
+            result['audio-boundary.json' if name == 'audio-events.csv' else name] = digest
     return result
 
 
@@ -362,7 +379,8 @@ def main():
             summary = json.loads(probe.read_text()) if probe.is_file() else {}
             report['abi_probe'] = {'passed': result.returncode == 0 and summary.get('passed') is True,
                                    'passed_checks': summary.get('passed_checks'), 'completed_checks': summary.get('completed_checks'),
-                                   'rom_games': summary.get('rom_games_checked'), 'error': summary.get('error')}
+                                   'rom_games': summary.get('rom_games_checked'), 'rom_games_not_staged': summary.get('rom_games_skipped'),
+                                   'error': summary.get('error')}
             print(f"  ABI probe: {'PASS' if report['abi_probe']['passed'] else 'FAIL'}; {result.stdout.strip()}")
     finally:
         shutil.rmtree(stage, ignore_errors=True)

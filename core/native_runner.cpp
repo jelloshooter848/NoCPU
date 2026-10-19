@@ -29,7 +29,8 @@ uint32_t info(uint32_t field){return nocpu_game_info(game,field);}
 // ROM-backed games (Stunt Cycle, Indy 4 and registered games declaring ROM
 // slots, from 0.5.0) record the complete RGB stream, frame geometry, a
 // hardware table and the audio boundary for tools/compare-rom-games.py.
-bool rom_registered(){return registered()&&info(NOCPU_INFO_ROMS)>0;}
+// Fixed once the game is chosen; on_frame asks for every pixel.
+bool rom_registered(){static uint32_t cached=UINT32_MAX,value=0;if(cached!=game){cached=game;value=registered()&&info(NOCPU_INFO_ROMS)>0;}return value;}
 bool selected(){return game==NOCPU_STUNT_CYCLE||game==NOCPU_INDY_4||rom_registered();}
 uint32_t score_slots(){return registered()?std::max<uint32_t>(2,info(NOCPU_INFO_SCORES)):2;}
 // Generic replay vocabulary of a registered game: coin, start/start2,

@@ -19,6 +19,9 @@ releases below.
   launchers at the bottom of the screen at passing airplanes or UFOs. Each launcher has three
   buttons that aim it high, to the middle or low and fire (Q/A/Z and O/L/. by default). It is
   verified against original DICE, and like DICE it has no sound.
+- Shark Jaws (Atari, 1975) is playable with your own ROM files: steer the diver with the arrow keys
+  or WASD to catch fish while the shark hunts you. It is verified against original DICE and, like
+  DICE, has no sound. It runs below full speed on slower computers (about 0.8x on the test machine).
 
 ## [0.4.0] - 2026-10-19
 

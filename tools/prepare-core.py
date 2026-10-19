@@ -233,7 +233,11 @@ chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','74
        # Chips first needed by the 0.3.0 batch (TV Basketball, Pin Pong).
        '74151','74155','7454','9314',
        # Hi-Way: 2533 RAM, 7442 (74145 is its alias) and the wired-AND chip.
-       '2533','7442','wired_logic']
+       '2533','7442','wired_logic',
+       # The 0.5.0 batch: 8225 RAM (Jet Fighter), 74116, 74191, 7495, 7496
+       # and 82S131 (Attack); 74123 is in 9602, 74H04 in 7404, 7413/7414 are
+       # aliases of 7420/7404.
+       '8225','74116','74191','7495','7496','82S131']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))

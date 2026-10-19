@@ -4,6 +4,7 @@
 // No mock module, descriptor edits, fake memory or browser viewport inference.
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -285,7 +286,8 @@ try {
       const cold = state();
       check(`${game.name}: creation without its ROMs is refused`, core._nocpu_create_game(id, 848, game.dip, game.pot) === 0
         && core._nocpu_rom_error() === 5 && equal(cold, state()));
-      if (!options['rom-dir']) { report.rom_games_skipped.push(game.name); continue; }
+      // A run stages the descriptors of its own scenarios' games only.
+      if (!options['rom-dir'] || !existsSync(resolve(options['rom-dir'], game.name))) { report.rom_games_skipped.push(game.name); continue; }
       romPayloads.set(game.name, await Promise.all(declared.map(async (rom) => readFile(resolve(options['rom-dir'], game.name, rom.expected_member)))));
       report.rom_games_checked.push(game.name);
     }
