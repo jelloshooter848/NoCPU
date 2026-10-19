@@ -171,7 +171,13 @@ hardware/browsers. Establish a single-threaded baseline before considering
 threads or SharedArrayBuffer. The targets carried from 0.3.0: make Hi-Way,
 Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
 CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
-has none) and its free-ball award, which no 0.3.0 scenario reaches.
+has none) and its free-ball award, which no 0.3.0 scenario reaches. (Done on
+`wip/0.4.0-pinpong-sound`: the sound board and the free-game select are
+reconstructed from the TM-007 Rev G schematic, with a TONE setting; the new
+`pinpong-free-ball` scenario reaches the award; the Pin Pong subset comparison
+passes with the PCM compared native↔Wasm and checked against schematic-derived
+values; [PINPONG_SOUND.md](PINPONG_SOUND.md), [ACCEPTANCE.md](ACCEPTANCE.md).
+The full comparison runs at integration.)
 
 ### 0.5.0 — ROM-backed batch A
 
