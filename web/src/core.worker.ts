@@ -115,6 +115,31 @@ const MAX_SLICE_US = 5000;
 const CPU_BUDGET_MS = 8;
 const MAX_PENDING_SAMPLES = 4800; // 100 ms at the circuit's 48 kHz sample rate.
 
+// The next pacing tick. When the circuit is behind real time it runs as soon
+// as the messages already queued (inputs, frame requests, acknowledgments) are
+// handled, through a MessageChannel: a zero-delay setTimeout cannot do that,
+// because browsers clamp nested timeouts to at least 4 ms, which left the
+// worker idle for about a third of each tick (docs/PERFORMANCE.md). When the
+// circuit has caught up it waits TICK_MS as before.
+const continuation = new MessageChannel();
+let continuationToken = 0;
+let continuationPending = false;
+continuation.port1.onmessage = (event: MessageEvent<number>) => {
+  if (!continuationPending || event.data !== continuationToken) return;
+  continuationPending = false;
+  tick();
+};
+function scheduleTick(delayMs: number): void {
+  if (delayMs > 0) { timer = setTimeout(tick, delayMs); return; }
+  continuationPending = true;
+  continuation.port2.postMessage(++continuationToken);
+}
+function cancelTick(): void {
+  if (timer !== undefined) clearTimeout(timer);
+  timer = undefined;
+  continuationPending = false;
+}
+
 function send(event: CoreEvent, transfer: Transferable[] = []): void {
   self.postMessage(event, { transfer });
 }
@@ -213,8 +238,7 @@ function applyStickChannels(): void {
 
 function stopClock(): void {
   running = false;
-  if (timer !== undefined) clearTimeout(timer);
-  timer = undefined;
+  cancelTick();
   debtUs = 0;
   outstanding = undefined;
   pendingAudio = [];
@@ -229,7 +253,7 @@ function setClock(nextEpoch: number, shouldRun: boolean): void {
   if (!shouldRun) { releaseHeld(); return; }
   running = true;
   clockAt = performance.now();
-  if (!debugHeld) timer = setTimeout(tick, TICK_MS);
+  if (!debugHeld) scheduleTick(TICK_MS);
 }
 
 function flushOutput(): void {
@@ -350,7 +374,7 @@ function tick(): void {
     while (debtUs >= 1000 && performance.now() - started < CPU_BUDGET_MS) debtUs -= advanceSlice(debtUs);
     collectOutput(started);
     flushOutput();
-    timer = setTimeout(tick, debtUs >= 1000 ? 0 : TICK_MS);
+    scheduleTick(debtUs >= 1000 ? 0 : TICK_MS);
   } catch (error: unknown) {
     stopClock();
     if (!(error instanceof PlayerError)) console.error('NoCPU core stopped:', error);
@@ -505,11 +529,10 @@ async function handle(command: CoreCommand): Promise<void> {
       if (typeof command.held !== 'boolean') throw new PlayerError('The debug clock request is unsupported.');
       if (command.held !== debugHeld) {
         debugHeld = command.held;
-        if (timer !== undefined) clearTimeout(timer);
-        timer = undefined;
+        cancelTick();
         debtUs = 0;
         // Releasing resumes pacing from now; held time is never owed as debt.
-        if (!debugHeld && running) { clockAt = performance.now(); timer = setTimeout(tick, TICK_MS); }
+        if (!debugHeld && running) { clockAt = performance.now(); scheduleTick(TICK_MS); }
       }
       send({ type: 'snapshot', id: command.id, snapshot: snapshot() });
       break;
