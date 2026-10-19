@@ -22,6 +22,11 @@ releases below.
 - Shark Jaws (Atari, 1975) is playable with your own ROM files: steer the diver with the arrow keys
   or WASD to catch fish while the shark hunts you. It is verified against original DICE and, like
   DICE, has no sound. It runs below full speed on slower computers (about 0.8x on the test machine).
+- Jet Fighter (Atari, 1975) is playable with your own ROM files: two jets dogfight across a gray sky,
+  or one player flies the white jet against the circuit's own pilot. Turn with A/D, speed up and
+  slow down with W/S and fire with F (the black jet: the arrow keys and /). It is verified against
+  original DICE and, like DICE, has no sound. It runs below full speed on slower computers (about
+  0.8x on the test machine).
 
 ## [0.4.0] - 2026-10-19
 

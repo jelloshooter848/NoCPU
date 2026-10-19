@@ -154,6 +154,87 @@
       "start_without_credit_ms": [
         107500
       ]
+    },
+    {
+      "id": "jetfighter-two-players",
+      "game": "jetfighter",
+      "replay": "tests/replays/jetfighter.tsv",
+      "dip": 0,
+      "pot_ohms": 510000,
+      "players": 2,
+      "start_tests": [
+        {
+          "action": "start2",
+          "ms": 1000,
+          "starts": true
+        },
+        {
+          "action": "start2",
+          "ms": 86700,
+          "starts": false
+        }
+      ],
+      "speed_tests": [
+        {
+          "slot": 1,
+          "direction": "up",
+          "ms": [
+            11400,
+            12400
+          ]
+        },
+        {
+          "slot": 1,
+          "direction": "down",
+          "ms": [
+            13000,
+            14000
+          ]
+        },
+        {
+          "slot": 2,
+          "direction": "down",
+          "ms": [
+            14600,
+            15600
+          ]
+        },
+        {
+          "slot": 2,
+          "direction": "up",
+          "ms": [
+            18600,
+            19600
+          ]
+        }
+      ],
+      "minimum_points": 2
+    },
+    {
+      "id": "jetfighter-one-player",
+      "game": "jetfighter",
+      "replay": "tests/replays/jetfighter-one-player.tsv",
+      "dip": 1,
+      "pot_ohms": 10000,
+      "players": 1,
+      "start_tests": [
+        {
+          "action": "start2",
+          "ms": 1000,
+          "starts": false
+        },
+        {
+          "action": "start",
+          "ms": 1500,
+          "starts": true
+        },
+        {
+          "action": "start",
+          "ms": 58000,
+          "starts": false
+        }
+      ],
+      "minimum_points": 1
     }
   ]
 }

@@ -21,7 +21,7 @@ import { antiaircraft } from './antiaircraft';
 
 import { sharkjaws } from './sharkjaws';
 
-// Reserved: import { jetfighter } from './jetfighter';
+import { jetfighter } from './jetfighter';
 
 // Reserved: import { attack } from './attack';
 
@@ -44,7 +44,7 @@ export const REGISTERED_GAMES = [
 
   sharkjaws,
 
-  // Reserved: jetfighter,
+  jetfighter,
 
   // Reserved: attack,
 ] as const satisfies readonly GameDefinition[];
