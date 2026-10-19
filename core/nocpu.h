@@ -72,13 +72,21 @@ const char* nocpu_game_name(uint32_t game);
 // 7 default packed DIP, 8 valid DIP bit mask, 9 potentiometer minimum ohms,
 // 10 maximum, 11 default (all 0 without one), 12 score slots, 13 coin channels,
 // 14 portrait raster (1: the circuit rotates its monitor 90 degrees, 324x432),
-// 15 wheel slots (WHEELn_INPUT, reached through nocpu_wheel/nocpu_wheel_keys).
+// 15 wheel slots (WHEELn_INPUT, reached through nocpu_wheel/nocpu_wheel_keys),
+// 16 ROM descriptor slots the player must supply (0 for a ROM-free game; from 0.5.0).
 enum NoCPUGameInfo { NOCPU_INFO_REGISTERED=0, NOCPU_INFO_PADDLES=1, NOCPU_INFO_JOYSTICKS=2,
     NOCPU_INFO_JOYSTICK_DIRECTIONS=3, NOCPU_INFO_BUTTON_SLOTS=4, NOCPU_INFO_BUTTONS=5,
     NOCPU_INFO_STARTS=6, NOCPU_INFO_DEFAULT_DIP=7, NOCPU_INFO_DIP_MASK=8, NOCPU_INFO_POT_MIN=9,
     NOCPU_INFO_POT_MAX=10, NOCPU_INFO_POT_DEFAULT=11, NOCPU_INFO_SCORES=12, NOCPU_INFO_COINS=13,
-    NOCPU_INFO_PORTRAIT=14, NOCPU_INFO_WHEELS=15 };
+    NOCPU_INFO_PORTRAIT=14, NOCPU_INFO_WHEELS=15, NOCPU_INFO_ROMS=16 };
 uint32_t nocpu_game_info(uint32_t game, uint32_t field);
+// A registered ROM-backed game's descriptor slot: its documentary member name
+// (the RomDesc rom_name, as tests/fixtures/game-manifest.json lists it), or
+// null. Its accepted identities: variant v's CRC32 and exact size, UINT32_MAX
+// past the last variant. Staging uses the same slot order.
+const char* nocpu_game_rom_name(uint32_t game, uint32_t slot);
+uint32_t nocpu_game_rom_crc(uint32_t game, uint32_t slot, uint32_t variant);
+uint32_t nocpu_game_rom_size(uint32_t game, uint32_t slot, uint32_t variant);
 // dip is the original 0/1 index. pot_ohms is zero for paddle games;
 // Space Race accepts an integer 470000..1470000 (original default 970000).
 // Breakout uses packed original DIP indices: bonus_credit0..8 in bits0..3,

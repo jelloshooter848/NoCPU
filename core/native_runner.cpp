@@ -22,11 +22,15 @@ std::ofstream hardware,geometry;
 std::ofstream pcm,frames,gray,telemetry,inputs,collisions,transition_events;
 uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0;
 bool gzip_snapshots=false;
-bool selected(){return game==NOCPU_STUNT_CYCLE||game==NOCPU_INDY_4;}
 const char* game_name(){return nocpu_game_name(game);}
 // Games ported from 0.2.0 on describe their inputs through the ABI.
 bool registered(){return nocpu_game_info(game,NOCPU_INFO_REGISTERED)==1;}
 uint32_t info(uint32_t field){return nocpu_game_info(game,field);}
+// ROM-backed games (Stunt Cycle, Indy 4 and registered games declaring ROM
+// slots, from 0.5.0) record the complete RGB stream, frame geometry, a
+// hardware table and the audio boundary for tools/compare-rom-games.py.
+bool rom_registered(){return registered()&&info(NOCPU_INFO_ROMS)>0;}
+bool selected(){return game==NOCPU_STUNT_CYCLE||game==NOCPU_INDY_4||rom_registered();}
 uint32_t score_slots(){return registered()?std::max<uint32_t>(2,info(NOCPU_INFO_SCORES)):2;}
 // Generic replay vocabulary of a registered game: coin, start/start2,
 // paddleN, upN/downN/leftN/rightN (declared directions only), buttonSB, and
@@ -140,7 +144,10 @@ void open_epoch(unsigned epoch) {
         hardware.open(epoch_path+"/hardware.csv");geometry.open(epoch_path+"/frame-geometry.csv");
         if(!rgb||!hardware||!geometry)throw std::runtime_error("Selected evidence open failed");
         geometry<<"frame,time_ps,width,height\n";
-        if(game==NOCPU_STUNT_CYCLE)hardware<<"time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n";
+        // A registered game's hardware table holds the sample times only, as
+        // the original reference writes it for every registered game.
+        if(rom_registered())hardware<<"time_ps\n";
+        else if(game==NOCPU_STUNT_CYCLE)hardware<<"time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n";
         else {
             hardware<<"time_ps,play,endgame_n,credit_n";
             for(unsigned p=1;p<=4;++p)hardware<<",car"<<p<<"_attract,car"<<p<<"_collision,car"<<p<<"_heading,car"<<p<<"_speed,car"<<p<<"_lap,car"<<p<<"_score_code,car"<<p<<"_displayed_score";
@@ -247,11 +254,17 @@ int main(int argc,char** argv) {
             if(rom_dir.empty()||!nocpu_rom_begin(game))throw std::runtime_error("Trusted private ROM input required");
             const char* names[]={"82s123.4d","82s115.1fh","indy.s1","indy.s2","indy.c1","indy.c2"};
             const unsigned sizes[]={32,512,512,32,512,32};
-            const unsigned first=game==NOCPU_STUNT_CYCLE?0:2,count=game==NOCPU_STUNT_CYCLE?2:4;
+            const unsigned first=game==NOCPU_STUNT_CYCLE?0:2,count=rom_registered()?info(NOCPU_INFO_ROMS):game==NOCPU_STUNT_CYCLE?2:4;
             for(unsigned slot=0;slot<count;++slot) {
-                std::ifstream input(rom_dir+"/"+game_name()+"/"+names[first+slot],std::ios::binary);
+                // Registered games name their descriptor slots through the ABI;
+                // each may accept more than one audited size (Attack).
+                const std::string name=rom_registered()?nocpu_game_rom_name(game,slot):names[first+slot];
+                std::ifstream input(rom_dir+"/"+game_name()+"/"+name,std::ios::binary);
                 std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),std::istreambuf_iterator<char>());
-                if(!input||bytes.size()!=sizes[first+slot])throw std::runtime_error("Private descriptor input size invalid");
+                bool size_ok=!rom_registered()&&bytes.size()==sizes[first+slot];
+                for(uint32_t variant=0;rom_registered()&&nocpu_game_rom_size(game,slot,variant)!=UINT32_MAX;++variant)
+                    size_ok=size_ok||bytes.size()==nocpu_game_rom_size(game,slot,variant);
+                if(!input||!size_ok)throw std::runtime_error("Private descriptor input size invalid");
                 auto* owned=nocpu_rom_buffer(slot,bytes.size());if(!owned)throw std::runtime_error("Private owned ROM buffer rejected");
                 std::copy(bytes.begin(),bytes.end(),owned);
             }
@@ -277,7 +290,8 @@ int main(int argc,char** argv) {
                 telemetry<<'\n';
                 if(selected()) {
                     hardware<<now;
-                    if(game==NOCPU_STUNT_CYCLE) {
+                    if(rom_registered()) {}
+                    else if(game==NOCPU_STUNT_CYCLE) {
                         for(unsigned i=0;i<8;++i)hardware<<','<<nocpu_stuntcycle_signal(i);
                         hardware<<','<<nocpu_stuntcycle_throttle()<<','<<nocpu_score(0)<<','<<nocpu_score(1);
                     } else {

@@ -41,6 +41,15 @@ struct NoCPUSound {
     virtual void emit_before(uint64_t time_ps) = 0;         // samples strictly before time_ps
 };
 
+// One original RomDesc of a ROM-backed game (from 0.5.0): its documentary
+// rom_name and the accepted dump identities, each a CRC32 with its exact
+// audited size. A descriptor slot accepts any one of its variants (Attack's
+// 256-byte set and its 512-byte alternative CRCs); DICE's RomDesc crc and
+// alt_crc are both among them. The player supplies the bytes
+// (nocpu_rom_begin/buffer/finish); nothing is bundled.
+struct NoCPURomVariant { uint32_t crc, size; };
+struct NoCPURom { std::string name; std::vector<NoCPURomVariant> variants; };
+
 struct NoCPUGameDef {
     uint32_t id=0;
     std::string name;                         // DICE command-line ID
@@ -76,6 +85,10 @@ struct NoCPUGameDef {
     std::string attract_n;                 // optional raw ATTRACT_n pin
     std::string hit;                       // optional pin whose rises are hits
     std::vector<std::string> events;       // up to NOCPU_GAME_EVENT_LIMIT pins
+    // ROM-backed games: the RomDesc file_name (the original ZIP basename) and
+    // its descriptors in slot order. Empty for a ROM-free game.
+    std::string rom_file;
+    std::vector<NoCPURom> roms;
 };
 
 const NoCPUGameDef* nocpu_registered_game(uint32_t id);

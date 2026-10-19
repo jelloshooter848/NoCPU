@@ -200,6 +200,20 @@ LEGACY_GAMES=['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']
 SOURCE_FILES={'hiway':'highway'}
 added=sorted(path.stem for path in (ROOT/'core/games').glob('*.inc') if path.stem not in LEGACY_GAMES)
 GAMES=LEGACY_GAMES+added
+
+# Anti-Aircraft's RANDOM_CLOCK_GEN custom chip draws its period from the C
+# library's rand(). The original reference runs on glibc, whose rand() is the
+# additive-feedback TYPE_3 generator; Emscripten's musl rand() is a different
+# generator, so the Wasm build would draw other periods than native and the
+# original. The derived copy calls nocpu_glibc_rand(), an exact reproduction
+# of glibc's generator seeded with the core's seed (core/api.cpp), in native
+# and Wasm alike; NOCPU_GLIBC_RAND_MAX equals glibc's RAND_MAX. The
+# arithmetic of the period is unchanged (docs/UPSTREAM_PATCHES.md).
+if 'antiaircraft' in GAMES:
+    edit('games/antiaircraft.cpp',[
+        ('#include "../circuit.h"\n', '#include "../circuit.h"\n#include "../port_hooks.h"\n'),
+        ('        double r = 1.0 + (double(rand()) / RAND_MAX - 0.5) / 2.0;',
+         '        double r = 1.0 + (double(nocpu_glibc_rand()) / NOCPU_GLIBC_RAND_MAX - 0.5) / 2.0; // NoCPU: glibc rand()')])
 for game in GAMES:
     source=SOURCE_FILES.get(game,game)
     if not (out/'games'/(source+'.cpp')).is_file():

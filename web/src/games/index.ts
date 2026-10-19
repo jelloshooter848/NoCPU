@@ -17,7 +17,7 @@ import { pinpong } from './pinpong';
 
 import { hiway } from './hiway';
 
-// Reserved: import { antiaircraft } from './antiaircraft';
+import { antiaircraft } from './antiaircraft';
 
 // Reserved: import { sharkjaws } from './sharkjaws';
 
@@ -40,7 +40,7 @@ export const REGISTERED_GAMES = [
 
   hiway,
 
-  // Reserved: antiaircraft,
+  antiaircraft,
 
   // Reserved: sharkjaws,
 

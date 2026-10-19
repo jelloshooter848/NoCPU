@@ -117,10 +117,14 @@ test('valid local ZIPs remain private, unavailable ports stay pending and malfor
   const path = await downloaded.path();
   expect(path).not.toBeNull();
   expect(await readFile(path!)).toEqual(valid);
+  // A validated archive for a game not ported yet (Steeplechase, ported in
+  // 0.6.0) leaves it pending.
+  await importZip(page, 'steeplechase', 'synthetic-unported.zip', syntheticGameZip('steeplechase', 0, 8));
+  await expect(page.getByTestId('rom-import-status')).toContainText('ROM validated');
   expect(requests, 'Local import/export must make no HTTP requests, including GET-based uploads').toEqual([]);
   await page.getByTestId('back').click();
   await page.getByTestId('open-library').click();
-  await page.getByTestId('game-antiaircraft').click();
+  await page.getByTestId('game-steeplechase').click();
   await expect(page.getByTestId('game-rom-status')).toContainText('Validated locally');
   await expect(page.getByTestId('game-port-status')).toHaveText('Browser port pending');
   await expect(page.getByTestId('play-selected')).toBeDisabled();
@@ -128,6 +132,7 @@ test('valid local ZIPs remain private, unavailable ports stay pending and malfor
   await page.reload();
   await titleSettings(page);
   await expect(page.getByTestId('rom-item-antiaircraft')).toHaveCount(0);
+  await expect(page.getByTestId('rom-item-steeplechase')).toHaveCount(0);
 });
 
 test('remembered ZIP replacement, corruption, eviction and remove recover from actual stored bytes', async ({ page }) => {

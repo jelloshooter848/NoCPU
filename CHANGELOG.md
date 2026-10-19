@@ -13,6 +13,13 @@ releases below.
 
 ## [Unreleased]
 
+### Added
+
+- Anti-Aircraft (Atari, 1975) is playable with your own ROM file: two players fire missiles from
+  launchers at the bottom of the screen at passing airplanes or UFOs. Each launcher has three
+  buttons that aim it high, to the middle or low and fire (Q/A/Z and O/L/. by default). It is
+  verified against original DICE, and like DICE it has no sound.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added

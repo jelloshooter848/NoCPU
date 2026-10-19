@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Original/native/Wasm comparison for the ROM-backed Stunt Cycle and Indy 4.
+"""Original/native/Wasm comparison for the ROM-backed games.
+
+Stunt Cycle and Indy 4, and from 0.5.0 the registered ROM-backed games
+(Anti-Aircraft, Shark Jaws, Jet Fighter, Attack).
 
 ROM fixtures come from --rom-dir, else NOCPU_ROM_DIR, else build/roms when it
 exists (see tools/fetch-roms.sh). Without fixtures nothing is run and the
@@ -15,9 +18,19 @@ observations). The descriptor bytes the portable runners need are staged in
 a private 0700 directory below the run and removed afterwards. Captured
 frames are ROM-derived; they stay under ignored build/ output and only the
 payload-free report.json is suitable for upload.
+
+A registered game with an analysis module (tools/reference/games/<id>.py)
+also has its original capture checked for the game's original behavior, as
+the ROM-free comparison does; the report records only the checks' outcomes.
+A scenario may select another accepted dump identity with "rom_variant" (the
+index into each descriptor's manifest dump_variants, Attack's alternative
+CRCs): the original then reads a private ZIP holding only those members,
+staged like the descriptors. After the scenarios, the registered-game ABI
+probe (tools/probe-core-games.mjs) runs with the staged descriptors.
 """
 # SPDX-License-Identifier: GPL-3.0-or-later
 import argparse
+import concurrent.futures
 import datetime
 import gzip
 import hashlib
@@ -106,14 +119,21 @@ def compare_trees(left, right):
     }
 
 
-def stage_descriptors(game, archive, stage):
-    """Write each required descriptor, found by CRC like DICE, as <stage>/<game>/<member>."""
+def stage_descriptors(game, archive, stage, variant=None):
+    """Write each required descriptor, found by CRC like DICE, as <stage>/<game>/<member>.
+
+    With ``variant`` (an index into each descriptor's manifest dump_variants)
+    only that identity is accepted, and the same members are also written to
+    a private ZIP, <stage>/<runtime archive>, for the original to read.
+    """
     target = stage / game['id']
-    target.mkdir(mode=0o700)
+    target.mkdir(mode=0o700, parents=True)
+    staged = []
     with zipfile.ZipFile(archive) as source:
         members = [info for info in source.infolist() if not info.is_dir() and info.file_size <= 1048576]
         for rom in game['roms']:
-            accepted = {(int(v['crc32'], 16), v['size_bytes']) for v in rom['dump_variants']}
+            variants = rom['dump_variants'] if variant is None else rom['dump_variants'][variant:variant + 1]
+            accepted = {(int(v['crc32'], 16), v['size_bytes']) for v in variants}
             match = next((info for info in members if (info.CRC, info.file_size) in accepted), None)
             if match is None:
                 raise ValueError(f"{game['id']}: required descriptor {rom['expected_member']} missing")
@@ -121,6 +141,20 @@ def stage_descriptors(game, archive, stage):
             if (zlib.crc32(data) & 0xFFFFFFFF, len(data)) not in accepted:
                 raise ValueError(f"{game['id']}: descriptor bytes do not match the manifest")
             (target / rom['expected_member']).write_bytes(data)
+            staged.append((rom['expected_member'], data))
+    if variant is not None:
+        private = stage / game['roms'][0]['archive']
+        with zipfile.ZipFile(private, 'w', zipfile.ZIP_DEFLATED) as zipped:
+            for name, data in staged:
+                zipped.writestr(name, data)
+        os.chmod(private, 0o600)
+        return private
+    return None
+
+
+def registered_rom_game(game_id):
+    """A game ported from 0.5.0 on through the registered-game contract."""
+    return game_id not in ('stuntcycle', 'indy4')
 
 
 def run(command, log, timeout, **kwargs):
@@ -164,6 +198,21 @@ def replay_portable(run_dir, scenario, stage):
     return base / 'native', base / 'wasm'
 
 
+def analyze_original(scenario, original):
+    """The game's original-behavior checks on the original capture, if it has a module."""
+    analysis = load('analyze_games', ROOT / 'tools/reference/analyze-games.py')
+    if analysis.game_media.registered_game(scenario['game']) is None:
+        return None
+    try:
+        evidence = analysis.analyze_epoch(original, scenario, original=True)
+    except (OSError, ValueError, KeyError, IndexError) as error:
+        return {'passed': False, 'error': f'{type(error).__name__}: {error}'}
+    # Outcomes only: positions and hashes of ROM-derived frames stay local.
+    return {'passed': evidence['passed'], 'checks': evidence['checks'],
+            'failed_checks': sorted(name for name, passed in evidence['checks'].items() if not passed),
+            'maximum_scores': evidence['maximum_scores'], 'active_transitions': evidence['active_transitions']}
+
+
 def evaluate(scenario, original, native, wasm):
     pairs = {'original_vs_native_epoch0': compare_trees(original, native / 'epoch0')}
     for epoch in range(2):
@@ -187,10 +236,14 @@ def evaluate(scenario, original, native, wasm):
         pair['streams_compared'] = len(pair['equal'])
         pair['all_equal'] = all(pair['equal'].values())
     frames = sum(1 for _ in (native / 'epoch0/frames.csv').open()) - 1
+    analysis = analyze_original(scenario, original)
+    if analysis is not None and not analysis['passed']:
+        failures.append('original behavior checks failed: ' + ', '.join(analysis.get('failed_checks') or [analysis.get('error', '')]))
     return {'id': scenario['id'], 'game': scenario['game'], 'replay': scenario['replay'],
             'replay_sha256': hashlib.sha256((ROOT / scenario['replay']).read_bytes()).hexdigest(),
-            'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']}, 'frames': frames,
-            'comparisons': pairs, 'failures': failures, 'passed': not failures}
+            'options': {'dip': scenario['dip'], 'pot_ohms': scenario['pot_ohms']},
+            'rom_variant': scenario.get('rom_variant', 0), 'frames': frames,
+            'original_behavior': analysis, 'comparisons': pairs, 'failures': failures, 'passed': not failures}
 
 
 def main():
@@ -199,8 +252,12 @@ def main():
     parser.add_argument('--scenario', action='append', help='scenario ID (repeatable); default all')
     parser.add_argument('--output-root', type=Path, default=ROOT / 'build/rom-comparison')
     parser.add_argument('--timeout', type=int, default=int(os.environ.get('NOCPU_REFERENCE_TIMEOUT', '900')))
+    parser.add_argument('--jobs', type=int, default=int(os.environ.get('NOCPU_ROM_COMPARE_JOBS', '1')),
+                        help='scenarios compared at once (default NOCPU_ROM_COMPARE_JOBS, else 1)')
     args = parser.parse_args()
 
+    if args.jobs < 1:
+        parser.error('--jobs must be a positive integer')
     manifest = json.loads(SCENARIOS.read_text())['scenarios']
     scenarios = [item for item in manifest if not args.scenario or item['id'] in args.scenario]
     if not scenarios or (args.scenario and len(scenarios) != len(set(args.scenario))):
@@ -248,11 +305,21 @@ def main():
                                   for line in Path('/proc/cpuinfo').read_text().splitlines()),
               'scenarios': [], 'limitations': [
                   'Exact equality covers the listed bounded replays only, not complete gameplay.',
-                  'Generated PCM equality does not establish audible speaker output; both games inherit absent DICE audio hookups.',
+                  'Generated PCM equality does not establish audible speaker output; Stunt Cycle, Indy 4, Anti-Aircraft, '
+                  'Shark Jaws and Jet Fighter inherit absent DICE audio hookups.',
                   'Desktop browser behavior is checked separately.']}
+    # One staged descriptor set per (game, dump variant). The default variant
+    # is found by CRC in the player's archive exactly as DICE finds it; the
+    # original reads that archive itself.
+    variants = sorted({(item['game'], item.get('rom_variant')) for item in scenarios}, key=str)
+    variant_dir = lambda variant: stage / ('default' if variant is None else f'variant{variant}')
+    private_archives = {}
     try:
         for game_id, archive in archives.items():
-            stage_descriptors(games[game_id], archive, stage)
+            private_archives[(game_id, None)] = stage_descriptors(games[game_id], archive, variant_dir(None))
+        for game_id, variant in variants:
+            if variant is not None:
+                private_archives[(game_id, variant)] = stage_descriptors(games[game_id], archives[game_id], variant_dir(variant), variant)
         shutil.copytree(ROOT / 'build/native', run_dir / 'source', symlinks=True)
         subprocess.run([sys.executable, str(ROOT / 'tools/reference/apply_adapter.py'), str(run_dir / 'source'),
                         str(ROOT / 'tools/reference')], check=True, cwd=ROOT)
@@ -265,24 +332,44 @@ def main():
              '--mount', f"type=bind,source={run_dir / 'source'},target=/source", '--workdir', '/source', IMAGE,
              '/bin/bash', '-euo', 'pipefail', '-c', 'make -j "$1"', 'nocpu-rom-reference-build',
              os.environ.get('BUILD_JOBS', '2')], run_dir / 'build.log', 3600)
-        for scenario in scenarios:
-            print(f"Comparing {scenario['id']}: original DICE, portable native and Wasm")
+        def compare(scenario):
+            print(f"Comparing {scenario['id']}: original DICE, portable native and Wasm", flush=True)
             try:
-                original = capture_original(run_dir, scenario, archives[scenario['game']],
+                variant = scenario.get('rom_variant')
+                original = capture_original(run_dir, scenario, private_archives[(scenario['game'], variant)] or archives[scenario['game']],
                                             games[scenario['game']]['roms'][0]['archive'], args.timeout)
-                native, wasm = replay_portable(run_dir, scenario, stage)
+                native, wasm = replay_portable(run_dir, scenario, variant_dir(variant))
                 result = evaluate(scenario, original, native, wasm)
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
                 result = {'id': scenario['id'], 'game': scenario['game'], 'passed': False,
                           'failures': [f'{type(error).__name__}: {error}']}
-            report['scenarios'].append(result)
             print(f"  {scenario['id']}: {'PASS' if result['passed'] else 'FAIL'}"
-                  + ''.join(f'\n    {failure}' for failure in result['failures']))
+                  + ''.join(f'\n    {failure}' for failure in result['failures']), flush=True)
+            return result
+        # Scenarios are independent (each writes only below its own directory);
+        # NOCPU_ROM_COMPARE_JOBS runs that many at once. The report keeps the
+        # manifest order.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            report['scenarios'] = list(pool.map(compare, scenarios))
+        # The registered-game ABI contract, with the ROM-backed games' staged
+        # default descriptors (each registered ROM game of this run).
+        if any(registered_rom_game(game_id) for game_id, _ in variants):
+            print('Registered-game ABI probe with the staged ROM descriptors')
+            probe = run_dir / 'abi-games.json'
+            result = subprocess.run(['node', str(ROOT / 'tools/probe-core-games.mjs'), '--module', str(ROOT / 'build/core/wasm/nocpu.js'),
+                                     '--output', str(probe), '--rom-dir', str(variant_dir(None))],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=3600)
+            summary = json.loads(probe.read_text()) if probe.is_file() else {}
+            report['abi_probe'] = {'passed': result.returncode == 0 and summary.get('passed') is True,
+                                   'passed_checks': summary.get('passed_checks'), 'completed_checks': summary.get('completed_checks'),
+                                   'rom_games': summary.get('rom_games_checked'), 'error': summary.get('error')}
+            print(f"  ABI probe: {'PASS' if report['abi_probe']['passed'] else 'FAIL'}; {result.stdout.strip()}")
     finally:
         shutil.rmtree(stage, ignore_errors=True)
         for placeholder in (run_dir / 'source/roms').glob('*.zip'):
             placeholder.unlink()
-    report['passed'] = bool(report['scenarios']) and all(item['passed'] for item in report['scenarios'])
+    report['passed'] = bool(report['scenarios']) and all(item['passed'] for item in report['scenarios']) \
+        and report.get('abi_probe', {'passed': True})['passed']
     (run_dir / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     if report['passed']:
         (root / 'latest.txt').write_text(f'{run_dir}\n')

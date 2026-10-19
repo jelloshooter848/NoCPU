@@ -107,8 +107,12 @@ class DesktopAcceptanceTests(unittest.TestCase):
         holders = [step for step in rom if 'secrets.NOCPU_ROMS_TOKEN' in step]
         self.assertEqual(len(holders), 1)
         self.assertIn('./tools/fetch-roms.sh', holders[0])
-        play = rom[find(rom, 'Play Stunt Cycle and Indy 4')]
+        play = rom[find(rom, 'Play the ROM-backed games')]
         self.assertIn("NOCPU_TEST_ROM_SAFE: '1'", play)
+        # Every ROM-backed game's browser tests play from the fixtures there.
+        for spec in ('v060-driving.spec.ts', 'game-$game.spec.ts'):
+            self.assertIn(spec, play)
+        self.assertIn('for game in antiaircraft sharkjaws jetfighter attack; do', play)
         upload = [step for step in rom if 'upload-artifact' in step]
         self.assertTrue(upload)
         for step in upload:
