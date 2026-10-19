@@ -93,8 +93,8 @@ the release steps.
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | Released (2026-10-17) |
 | WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | Released (2026-10-18) |
 | ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | Released (2026-10-18) |
-| Profiling and performance (part 1: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2; [PINPONG_SOUND.md](PINPONG_SOUND.md)) | 0.4.0 | In review |
-| ROM-backed batch A | 0.5.0 | Planned |
+| Profiling and performance (part 1: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2; [PINPONG_SOUND.md](PINPONG_SOUND.md)) | 0.4.0 | Released (2026-10-19) |
+| ROM-backed batch A: Anti-Aircraft, Shark Jaws, Jet Fighter and Attack | 0.5.0 | In progress |
 | ROM-backed batch B | 0.6.0 | Planned |
 | Accuracy closure | 0.7.0 and later 0.x | Planned |
 | All 21 accurate on desktop | 1.0.0 | Planned |
@@ -173,8 +173,7 @@ Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
 CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
 has none) and its free-ball award, which no 0.3.0 scenario reaches.
 
-Both parts are done and in review (merged into the working branch at
-`a75a826`; the full comparison runs in the release pull request's CI).
+Both parts are done and were released in 0.4.0 on 2026-10-19.
 
 Part 1 (profiling and performance) is done; [PERFORMANCE.md](PERFORMANCE.md)
 has the method, the profiles, each change's gain and the before/after tables.
@@ -216,11 +215,21 @@ Port Anti-Aircraft, Shark Jaws, Jet Fighter and Attack (including Attack's
 alternative CRCs). Comparisons require authorized private fixtures; without
 them the games are recorded as blocked, not passed.
 
+Started on 2026-10-19 (game IDs 13–16 reserved), one game at a time through
+the registered-game contract, which gains player-supplied ROMs for it.
+
 ### 0.6.0 — ROM-backed batch B
 
 Port Crash 'N Score, Clean Sweep, Wipe Out and Steeplechase (six players; its
 missing bugle ROM is an inherited DICE limitation). All 21 games are ported at
 exit.
+
+### Circuits workbench — after 0.6.0
+
+The Circuits workbench (owner decision of 2026-10-14) waits until all 21 games
+are ported, that is after 0.6.0 (owner decision of 2026-10-19): schematics and
+board views first, then the live view, which needs a read-only probe in the
+core and therefore a full comparison run.
 
 ### 0.7.0 and later 0.x — Accuracy closure
 
@@ -275,6 +284,7 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-18 — 0.2.2 released.** v0.2.2 (the WebKit canvas crash fix) was published (release run 39099705868) and reused the 0.2.1 comparison as the new CI rule intends.
 - **2026-10-18 — 0.4.0 started.** The owner gave the go-ahead for 0.4.0 after v0.3.0: part 1 is profiling and performance, part 2 Pin Pong's schematic sound and free-game select.
 - **2026-10-19 — Hi-Way speed accepted (0.4.0 option A).** Profiling showed Hi-Way's remaining cost is DICE's own event scheduler (0.87x paced in Playwright's Chromium on the 2.8 GHz test host, slower in heavy driving; native code too is below real time there). (The final before/after table in [PERFORMANCE.md](PERFORMANCE.md#results), measured on the 2.1 GHz CI-class host, has 0.97 at the start of play.) The owner accepted its current speed for 0.4.0, with no scheduler restructuring; the owner tests it on their own hardware, and a scheduler investigation would be a later patch only if it is slow there.
+- **2026-10-19 — 0.5.0 starts; Circuits after all 21 games.** v0.4.0 was released. The owner gave the go-ahead for 0.5.0, ROM-backed batch A (Anti-Aircraft, Shark Jaws, Jet Fighter and Attack, with player-supplied ROMs as for Stunt Cycle and Indy 4). 0.5.0 starts; the Circuits workbench waits until all 21 games are ported (after 0.6.0). This replaces the 2026-10-14 timing ("after the 0.4.0 profiling milestone"); the workbench's scope is unchanged.
 
 ## After 1.0
 

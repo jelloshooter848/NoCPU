@@ -34,8 +34,9 @@ parallel ports do not touch the same lines:
 - `core/nocpu.h`: the game's ID in `NoCPUGame`, reserved before the batch
   starts (0.2.0 reserved `NOCPU_REBOUND=6`, `NOCPU_GOTCHA=7`,
   `NOCPU_QUADRAPONG=8`, `NOCPU_CROSSFIRE=9`; 0.3.0 reserved
-  `NOCPU_TVBASKETBALL=10`, `NOCPU_PINPONG=11`, `NOCPU_HIWAY=12`). Later
-  batches add theirs.
+  `NOCPU_TVBASKETBALL=10`, `NOCPU_PINPONG=11`, `NOCPU_HIWAY=12`; 0.5.0
+  reserved `NOCPU_ANTIAIRCRAFT=13`, `NOCPU_SHARKJAWS=14`,
+  `NOCPU_JETFIGHTER=15`, `NOCPU_ATTACK=16`). Later batches add theirs.
 - `web/src/games/index.ts`: the game's `import` line and its list entry,
   reserved as `// Reserved:` comments before the batch starts; the port
   uncomments them.

@@ -6,7 +6,8 @@
 extern "C" {
 #endif
 // ABI 5: one live original DICE circuit per module. Earlier IDs/exports remain.
-// IDs 6..9 are the 0.2.0 batch and 10..12 the 0.3.0 batch, reserved in advance;
+// IDs 6..9 are the 0.2.0 batch, 10..12 the 0.3.0 batch and 13..16 the 0.5.0
+// batch (ROM-backed), reserved in advance;
 // an ID is usable only once its game registers a definition
 // (core/games/<id>.cpp, docs/PORT_GAME.md).
 enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_BREAKOUT=3,
@@ -18,6 +19,14 @@ enum NoCPUGame { NOCPU_PONG=0, NOCPU_PONG_DOUBLES=1, NOCPU_SPACE_RACE=2, NOCPU_B
                  NOCPU_PINPONG=11,
 
                  NOCPU_HIWAY=12,
+
+                 NOCPU_ANTIAIRCRAFT=13,
+
+                 NOCPU_SHARKJAWS=14,
+
+                 NOCPU_JETFIGHTER=15,
+
+                 NOCPU_ATTACK=16,
 
                  NOCPU_GAME_LIMIT=32 };
 // Event IDs of registered games: HIT stays NOCPU_HIT (0); a game's other
