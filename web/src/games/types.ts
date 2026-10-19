@@ -37,8 +37,10 @@ export interface ButtonDefinition { action: ActionId; slot: number; button: 1 | 
 export type SettingDefinition =
   | { kind: 'select'; key: string; label: string; testId: string; dipShift: number;
     choices: readonly { value: number; label: string }[]; defaultValue: number }
-  | { kind: 'percent'; key: string; label: string; testId: 'playtime';
-    minOhms: number; maxOhms: number; defaultOhms: number };
+  | { kind: 'percent'; key: string; label: string; testId: 'playtime' | 'tone';
+    minOhms: number; maxOhms: number; defaultOhms: number;
+    /** Explanation under the slider; the default reads "A higher setting allows more time…". */
+    note?: string };
 
 export type RegisteredOptions = Readonly<Record<string, number>>;
 

@@ -2,7 +2,7 @@
 // Black-box desktop browser checks.
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -13,13 +13,14 @@ import { snapshot, waitSimulation, holdPageClock, paddles, initialRenderedPaddle
 const version = readFileSync(new URL('../../VERSION', import.meta.url), 'utf8').trim();
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
-async function missingWasmServer(): Promise<{ url: string; wasmSha256: string; restore: () => void; log: () => string; close: () => Promise<void> }> {
+async function missingWasmServer(replacement?: Buffer): Promise<{ url: string; wasmSha256: string; restore: () => void; log: () => string; close: () => Promise<void> }> {
   const fixture = mkdtempSync(join(root, 'build/missing-wasm.'));
   const runtime = process.env.NOCPU_TEST_PACKAGED === '1'
     ? packagedDirectory(root) : join(root, 'build/web');
   const wasmSha256 = createHash('sha256').update(readFileSync(join(runtime, 'core/nocpu.wasm'))).digest('hex');
   cpSync(runtime, fixture, { recursive: true });
-  rmSync(join(fixture, 'core/nocpu.wasm'));
+  if (replacement) writeFileSync(join(fixture, 'core/nocpu.wasm'), replacement);
+  else rmSync(join(fixture, 'core/nocpu.wasm'));
   const server = spawn('python3', ['tools/serve-pages.py', '--directory', fixture, '--base', '/NoCPU/', '--port', '0'], {
     cwd: root, stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -320,6 +321,23 @@ test('a missing Wasm asset produces an actionable error instead of simulated gam
     await waitSimulation(page, 800_000_000_000n);
     await expect(page.getByTestId('error')).toBeHidden();
     await expect(page.getByTestId('insert-coin')).toBeEnabled();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('a WebAssembly module the browser cannot compile is reported as an unsupported browser', async ({ page }) => {
+  // A browser without a WebAssembly feature the core uses (exception handling)
+  // fails to compile it; a module with a valid header and an invalid section
+  // fails the same way in every engine.
+  const fixture = await missingWasmServer(Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0xff, 0xff]));
+  try {
+    await page.goto(`${fixture.url}?debug`);
+    await playFromLibrary(page);
+    await expect(page.getByTestId('error')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('error')).toContainText('This browser cannot run Pong');
+    await expect(page.getByTestId('error-detail')).toContainText(/^Details: .*CompileError/);
+    await expect(page.getByTestId('insert-coin')).toBeDisabled();
   } finally {
     await fixture.close();
   }

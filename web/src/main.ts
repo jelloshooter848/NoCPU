@@ -89,6 +89,9 @@ let generation = 0;
 let snapshotId = 0;
 let loadTimeout: ReturnType<typeof setTimeout> | undefined;
 let generatedSamples = 0;
+let generatedPeak = 0;
+// The ?debug test interface also tracks the generated PCM's peak (Pin Pong's reconstructed sound).
+const debugEnabled = new URLSearchParams(location.search).has('debug');
 let workerTimeMs = 0;
 let workerSteps = 0;
 let workerMaxMs = 0;
@@ -528,6 +531,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
   inputRevision = 0;
   axisRevisions = Array(axes.length).fill(0);
   generatedSamples = 0;
+  generatedPeak = 0;
   workerTimeMs = 0;
   workerSteps = 0;
   workerMaxMs = 0;
@@ -610,6 +614,7 @@ async function startGame(gameId: PlayableGameId = 'pong'): Promise<void> {
       case 'output':
         if (message.epoch !== clockEpoch || paused || resetting) break;
         generatedSamples += message.audio.byteLength / 2;
+        if (debugEnabled) for (const sample of new Int16Array(message.audio)) generatedPeak = Math.max(generatedPeak, Math.abs(sample));
         workerTimeMs += message.elapsed;
         workerSteps += 1;
         workerMaxMs = Math.max(workerMaxMs, message.elapsed);
@@ -1050,7 +1055,7 @@ if (new URLSearchParams(location.search).has('debug')) {
         playerScores: state.playerScores, held: state.held,
         crashes: state.crashes, presentedFrame,
         heldKeys: controls.getState().heldKeys, pointerCount: Number(mouseThrottle !== undefined) + Number(mouseServe !== undefined), paused, screen, selectedGame: selectedGameId,
-        audio: { generatedSamples, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
+        audio: { generatedSamples, generatedPeak, coreOverruns: state.audioOverruns, transportDroppedSamples: state.audioTransportDroppedSamples, ...audio.metrics() },
         worker: { simulatedUs: Number(BigInt(state.timeps) / 1000000n), steps: workerSteps, totalMs: workerTimeMs, maxMs: workerMaxMs,
           wasmMemoryCapacityBytes: state.wasmMemoryCapacityBytes },
       };

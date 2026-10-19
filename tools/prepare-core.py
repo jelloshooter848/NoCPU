@@ -102,7 +102,7 @@ write("chips/audio.cpp",contents)
 # Retain Video::video timing and VIDEO_Buf delays; replace GL presentation only.
 contents=(out/"chips/video.cpp").read_text()
 start=contents.index('#include <phoenix.hpp>');end=contents.index('/*',start)
-contents=contents[:start]+'#include "../port_hooks.h"\n#include <algorithm>\n#include <cmath>\n\n'+contents[end:]
+contents=contents[:start]+'#include "../port_hooks.h"\n#include <algorithm>\n#include <cmath>\n#include <cstring>\n\n'+contents[end:]
 start=contents.index('void Video::video_init(');end=contents.index('void Video::init_color_lut(',start)
 contents=contents[:start]+contents[end:]
 for signature in ('void Video::draw(Chip* chip)','void Video::draw_overlays()'):
@@ -112,7 +112,7 @@ contents=contents.replace('color(3 << 8)','color(3 << 8), back(WIDTH*HEIGHT*4,0)
 contents=contents.replace('        video->swap_buffers();\n        if(video->desc->scan_mode == PROGRESSIVE)',
     '        video->swap_buffers();\n        nocpu_capture_frame(global_time);\n        if(video->desc->scan_mode == PROGRESSIVE)')
 contents=contents.replace('            glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);',
-    '            for(size_t i=0;i<video->back.size();++i) video->back[i]=(i%4==3)?255:0;')
+    '            video->clear_back();')
 throttle='''        // Make sure real time is caught up
         if(chip->circuit->settings.throttle)
             while(chip->circuit->rtc.get_usecs() < uint64_t(global_time * 1000000.0 * Circuit::timescale));'''
@@ -121,7 +121,7 @@ contents=contents.replace(throttle,'        // Presentation pacing belongs to th
 contents+='\n'+(ROOT/'core/platform/portable_video.inc').read_text()
 write('chips/video.cpp',contents)
 edit('chips/video.h',[
-    ('    std::vector<float> color;','    std::vector<float> color;\n    std::vector<uint8_t> back,front;\n    unsigned pixels_width=576,pixels_height=432,viewport_x=0,viewport_y=0;\n    float projection[6]={};\n    void draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],bool blend);'),
+    ('    std::vector<float> color;','    std::vector<float> color;\n    std::vector<uint8_t> back,front;\n    unsigned pixels_width=576,pixels_height=432,viewport_x=0,viewport_y=0;\n    float projection[6]={};\n    void draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],bool blend);\n    void clear_back();'),
     ('    virtual void swap_buffers() = 0;','    virtual void swap_buffers();'),
     ('    virtual void show_cursor(bool show) = 0;','    virtual void show_cursor(bool show);'),
     ('    static Video* createDefault(phoenix::VerticalLayout& layout, phoenix::Viewport*& viewport);',
@@ -140,6 +140,53 @@ edit('games/gotcha.cpp',[
      'static CUSTOM_LOGIC( proximity )\n{'),
     ('    static double v_cap = 0.0;\n',
      '    double& v_cap = nocpu_gotcha_proximity_v_cap;\n')])
+
+# Pin Pong's free-game score select is unfinished in DICE ("TODO: FREE GAME
+# SELECT": B5.4, the free-game flip-flop's preset, is tied to VCC, which is
+# the schematic's "no free game" jumper option). The original layout stays
+# exactly as it is and remains the default. A second, derived layout
+# circuit_pinpong_free_game() copies it and drives B5.4 from the jumper
+# options of Atari's schematic (TM-007 Rev G, drawing 001660 sheet 3): C5
+# NAND pins 9/10 (terminals 1 and 2) wired to the C6 10,000s decade outputs
+# M/N/O/P. One NoCPU chip holds the jumper choice and that NAND; it is created
+# first so it settles B5.4 high during construction, as VCC does in the
+# original. core/games/pinpong.cpp selects the layout and the jumpers.
+contents=(out/'games/pinpong.cpp').read_text()
+start=contents.index('CIRCUIT_LAYOUT( pinpong )')
+end=contents.index('CIRCUIT_LAYOUT_END',start)+len('CIRCUIT_LAYOUT_END')
+layout=contents[start:end]
+for old,new in [('CIRCUIT_LAYOUT( pinpong )','CIRCUIT_LAYOUT( pinpong_free_game )'),
+        ('    CHIP("CLOCK", CLOCK_14_318_MHZ)',
+         '    CHIP("NOCPU_JUMPERS", NOCPU_FREE_GAME_JUMPERS)\n    CHIP("CLOCK", CLOCK_14_318_MHZ)'),
+        ('    CONNECTION(VCC, "B5", 4)',
+         '    CONNECTION("C6", 12, "NOCPU_JUMPERS", 1) // M\n'
+         '    CONNECTION("C6", 9, "NOCPU_JUMPERS", 2)  // N\n'
+         '    CONNECTION("C6", 8, "NOCPU_JUMPERS", 3)  // O\n'
+         '    CONNECTION("C6", 11, "NOCPU_JUMPERS", 4) // P\n'
+         '    CONNECTION("NOCPU_JUMPERS", 8, "B5", 4)  // C5 pin 8')]:
+    if layout.count(old)!=1: raise SystemExit('Pin Pong layout anchor not found: '+old)
+    layout=layout.replace(old,new)
+jumpers='''
+// NoCPU: Pin Pong free-game select (docs/UPSTREAM_PATCHES.md). Terminal k of
+// the jumper block is 0..3 = M..P (C6 QA..QD) or 4 = ground ("3").
+unsigned nocpu_pinpong_free_game_jumpers = 4 | 4 << 4;
+static int nocpu_jumper(const int* pin, unsigned terminal) { return terminal < 4 ? pin[1 + terminal] : 0; }
+static CHIP_LOGIC( NOCPU_FREE_GAME_JUMPERS )
+{
+    // C5 7400 gate pins 9, 10 -> 8, folded into this chip.
+    pin[8] = (nocpu_jumper(pin, nocpu_pinpong_free_game_jumpers & 15) & nocpu_jumper(pin, nocpu_pinpong_free_game_jumpers >> 4)) ^ 1;
+}
+static CHIP_DESC( NOCPU_FREE_GAME_JUMPERS ) =
+{
+    CHIP_START( NOCPU_FREE_GAME_JUMPERS )
+        INPUT_PINS( 1, 2, 3, 4 )
+        OUTPUT_PIN( 8 )
+        OUTPUT_DELAY_NS( 11.0, 7.0 ), // the 7400 gate's delays
+    CHIP_DESC_END
+};
+
+'''
+write('games/pinpong.cpp',contents[:end]+'\n'+jumpers+layout+contents[end:])
 
 # DICE stores mutable hardware descriptors statically. A portable reset creates
 # a fresh machine, so each compiled game appends a function restoring its custom

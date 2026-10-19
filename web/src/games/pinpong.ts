@@ -27,6 +27,14 @@ export const pinpong = {
       choices: [{ value: 1, label: 'Enabled' }, { value: 0, label: 'Disabled' }], defaultValue: 1 },
     { kind: 'select', key: 'balls', label: 'Balls per game', testId: 'balls', dipShift: 2,
       choices: [{ value: 3, label: '3' }, { value: 5, label: '5' }], defaultValue: 3 },
+    // NoCPU additions reconstructed from Atari's schematic (DICE leaves both
+    // unfinished): the free-game jumpers (bits 3-6; "None" is DICE's wiring)
+    // and the sound board's TONE trimmer R41 (the core's potentiometer, ohms).
+    { kind: 'select', key: 'freeGame', label: 'Free game at (schematic jumpers)', testId: 'free-game', dipShift: 3,
+      choices: [{ value: 0, label: 'None (as DICE)' }, ...[10, 20, 30, 40, 50, 60, 80, 90].map((thousands) => ({ value: thousands * 1000, label: `${thousands},000 points` }))],
+      defaultValue: 0 },
+    { kind: 'percent', key: 'toneOhms', label: 'Tone (sound board trimmer)', testId: 'tone', minOhms: 100, maxOhms: 1500, defaultOhms: 1500,
+      note: 'The sound board\'s TONE trimmer R41, reconstructed from Atari\'s schematic: a higher setting raises the pitch. Atari\'s factory setting is unknown: the range (100 Ω to 1.5 kΩ of the board\'s 0 to 10 kΩ trimmer) and the default, 100% (1.5 kΩ, approximately at the edge of the NE566 oscillator\'s specified range), are NoCPU\'s choice.' },
   ],
   labels: { p1Fire: 'Left flipper', p2Fire: 'Right flipper', start: 'Start game / serve ball' },
   keys: { p1Fire: ['KeyZ', 'ArrowLeft'], p2Fire: ['Slash', 'ArrowRight'] },
@@ -41,7 +49,7 @@ export const pinpong = {
     help: 'Hold the left mouse button over the display to raise the left flipper and the right button to raise the right flipper.' },
   text: {
     info: 'A one-player pinball game on a video screen: keep the ball in play with two flippers and score off the bumpers and targets.',
-    rules: (options) => `${options.coinage === 2 ? 'Insert a coin for two games' : 'Insert a coin'}, then press Start: the game begins and the first ball is served. When a ball drains past the flippers, press Start to serve the next one; the game ends when the last of the ${options.balls ?? 3} balls is lost. Hold a flipper to raise it and hit the ball back up the table. The bumpers and targets score; the score at the top counts in points.${options.freeBall === 0 ? ' The free ball is switched off.' : ''} DICE has no sound for this game.`,
+    rules: (options) => `${options.coinage === 2 ? 'Insert a coin for two games' : 'Insert a coin'}, then press Start: the game begins and the first ball is served. When a ball drains past the flippers, press Start to serve the next one; the game ends when the last of the ${options.balls ?? 3} balls is lost. Hold a flipper to raise it and hit the ball back up the table. The bumpers and targets score; the score at the top counts in points.${options.freeBall === 0 ? ' The free ball is switched off.' : ''}${options.freeGame ? ` A score of ${options.freeGame.toLocaleString('en-US')} earns a free game.` : ''} The sound and the free-game setting are reconstructed by NoCPU from Atari's schematic; DICE has neither. The Tone setting is the sound board's trimmer: Atari's factory setting is unknown, so its range and default are NoCPU's choice.`,
     gamepad: 'Controller 1: the shoulder buttons, triggers or the d-pad left and right raise the left and right flippers; A inserts a coin, B is Start and the Start button opens the menu.',
     status: 'Insert a coin, then Start to play',
   },

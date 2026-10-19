@@ -13,6 +13,33 @@ releases below.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+
+### Added
+
+- Pin Pong has sound, as reconstructed from Atari's sound board: each hit rings and fades out at
+  one of four pitches, set by the kind of object hit last (slingshots, 100-point objects, the cross
+  centre, a moving flipper). DICE has no sound for Pin Pong; NoCPU reconstructs it from Atari's
+  schematic (TM-007 Rev G) and the parts' data sheets, not from a recording, and the game's picture
+  and play still match original DICE exactly. A new Pin Pong setting adjusts the sound board's tone
+  trimmer; Atari's factory setting is unknown, so its range and default are NoCPU's choice.
+- Pin Pong's free-game setting: a score of 10,000 to 90,000 points can earn a free game, using the
+  jumper options on Atari's schematic (DICE leaves this unfinished). The default, no free game, is
+  DICE's behaviour.
+
+### Changed
+
+- Games run faster in the browser. A game that cannot keep up no longer idles between steps, and the
+  emulator core itself is faster, with the circuits unchanged (still verified against original DICE).
+  In Chromium the core runs from about 1.25 times as fast (Hi-Way) to about 2.3 times as fast (Pong,
+  Indy 4, Crossfire). On the 4-core test computer, Pin Pong, TV Basketball, Gotcha, Breakout and
+  Stunt Cycle now run at full speed in Chromium and Firefox; Pin Pong ran at 70% before. Hi-Way,
+  measured at the start of play, went from 46% to 97% of full speed in Chromium and from 47% to 89%
+  in Firefox, but can still fall below full speed there while driving: most of its time is DICE's
+  own circuit scheduler.
+- A browser that cannot run the game's WebAssembly now says so ("This browser cannot run …")
+  instead of suggesting a connection problem.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added
@@ -204,7 +231,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.0...v0.2.1

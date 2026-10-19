@@ -48,6 +48,22 @@ struct Engine {
     // of their declared event pins, reported as NOCPU_GAME_EVENT_BASE+index.
     const NoCPUGameDef* def=nullptr;
     Chip* game_observed[NOCPU_GAME_EVENT_LIMIT]={};
+    // A registered game's NoCPU sound reconstruction and the chips of its
+    // declared sound pins (index = position in def->sound_pins).
+    std::unique_ptr<NoCPUSound> sound;
+    std::vector<Chip*> sound_observed;
+    // Every distinct chip in hit, observed, game_observed and sound_observed: a chip outside
+    // it records nothing when its output changes, so the per-transition hook
+    // can return after one short scan (refresh_watched keeps it current).
+    std::vector<Chip*> watched;
+    void refresh_watched() {
+        watched.clear();
+        auto add=[this](Chip* chip){if(chip&&std::find(watched.begin(),watched.end(),chip)==watched.end())watched.push_back(chip);};
+        add(hit);
+        for(Chip* chip:observed)add(chip);
+        for(Chip* chip:game_observed)add(chip);
+        for(Chip* chip:sound_observed)add(chip);
+    }
     uint32_t event_counts[NOCPU_EVENT_TYPES]={};
     NoCPURomSession roms;
     uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0,crashes[2]={0,0};
@@ -95,18 +111,18 @@ bool configure_registered(const NoCPUGameDef& def,const CircuitDesc* desc,uint32
             auto* setting=reinterpret_cast<DipswitchBase*>(instance.custom_data);
             uint32_t shift=0;
             for(size_t i=0;i<def.dips.size();++i) {
-                if(def.dips[i].name==setting->name) {
+                if(!def.dips[i].nocpu&&def.dips[i].name==setting->name) {
                     setting->state=(dip>>shift)&((1u<<def.dips[i].bits)-1);++found[i];
                 }
                 shift+=def.dips[i].bits;
             }
         } else if(instance.chip==chip_POT_555_MONO||instance.chip==chip_POT_555_ASTABLE) {
             auto* setting=reinterpret_cast<PotentiometerBase*>(instance.custom_data);
-            if(!def.pot.empty()&&def.pot==setting->name){setting->current_val=double(pot);++pots;}
+            if(!def.pot.empty()&&!def.pot_nocpu&&def.pot==setting->name){setting->current_val=double(pot);++pots;}
         }
     }
-    for(unsigned count:found)if(count!=1)return false;
-    return pots==(def.pot.empty()?0u:1u);
+    for(size_t i=0;i<found.size();++i)if(found[i]!=(def.dips[i].nocpu?0u:1u))return false;
+    return pots==(def.pot.empty()||def.pot_nocpu?0u:1u);
 }
 struct RomRequirement { const char* file;const char* name;uint32_t crc,size; };
 const RomRequirement stunt_roms[]={
@@ -190,6 +206,7 @@ bool observations_ready() {
         for(const auto& sum:def->scores)for(const auto& term:sum)required.push_back(term.pin);
         for(const auto* key:{&def->active,&def->attract_n,&def->hit})if(!key->empty())required.push_back(*key);
         for(const auto& key:def->events)required.push_back(key);
+        for(const auto& key:def->sound_pins)required.push_back(key);
     } else if(engine->game==NOCPU_STUNT_CYCLE) {
         add("",{"D9.9","H6.8","N9.11","N7.5","K7.6","K7.9","LATCH.3","A9.9","A9.5"});
         for(const char* counter:{"E5","B8","B9"})for(const char* suffix:{".3",".2",".6",".7"})required.emplace_back(std::string(counter)+suffix);
@@ -234,6 +251,8 @@ void nocpu_register_chip(const char* name,unsigned output_pin,Chip* chip) {
     if(const auto* def=engine->def) {
         if(!def->hit.empty()&&key==def->hit)engine->hit=engine->observed[NOCPU_HIT]=chip;
         for(size_t i=0;i<def->events.size();++i)if(key==def->events[i])engine->game_observed[i]=chip;
+        engine->sound_observed.resize(def->sound_pins.size(),nullptr);
+        for(size_t i=0;i<def->sound_pins.size();++i)if(key==def->sound_pins[i])engine->sound_observed[i]=chip;
     } else if(engine->game==NOCPU_PONG&&key=="B2.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
     else if(engine->game==NOCPU_PONG_DOUBLES&&key=="B3.8")engine->hit=engine->observed[NOCPU_HIT]=chip;
     else if(engine->game==NOCPU_SPACE_RACE) {
@@ -255,6 +274,7 @@ void nocpu_register_chip(const char* name,unsigned output_pin,Chip* chip) {
             if(key==checkpoint[i])engine->observed[NOCPU_INDY_CHECKPOINT_GREEN_N+i]=chip;
         }
     }
+    engine->refresh_watched();
 }
 void nocpu_unregister_chip(Chip* chip) {
     if(!engine)return;
@@ -264,10 +284,13 @@ void nocpu_unregister_chip(Chip* chip) {
     if(engine->hit==chip)engine->hit=nullptr;
     for(auto& observed:engine->observed)if(observed==chip)observed=nullptr;
     for(auto& observed:engine->game_observed)if(observed==chip)observed=nullptr;
+    for(auto& observed:engine->sound_observed)if(observed==chip)observed=nullptr;
+    engine->refresh_watched();
 }
 NoCPUOutputObservation::NoCPUOutputObservation(Chip* value):chip(value),previous(value->output){}
 NoCPUOutputObservation::~NoCPUOutputObservation(){
     if(!engine||chip->output==previous)return;
+    if(std::find(engine->watched.begin(),engine->watched.end(),chip)==engine->watched.end())return;
     uint64_t time=chip->circuit->global_time;
     if(chip==engine->hit) {
         if(chip->output)++engine->hits;
@@ -282,6 +305,9 @@ NoCPUOutputObservation::~NoCPUOutputObservation(){
     // reference observer's active capture boundary. Legacy Pong HIT capture
     // above retains its established behavior exactly.
     if(!engine->circuit)return;
+    // A NoCPU sound reconstruction listens to its pins; it never feeds back.
+    if(engine->sound)for(size_t index=0;index<engine->sound_observed.size();++index)
+        if(chip==engine->sound_observed[index])engine->sound->pin(unsigned(index),chip->output,time);
     for(unsigned signal=0;signal<NOCPU_EVENT_TYPES;++signal)if(chip==engine->observed[signal]) {
         if((signal==NOCPU_CRASH1_N||signal==NOCPU_CRASH2_N)&&!chip->output)
             ++engine->crashes[signal-NOCPU_CRASH1_N];
@@ -419,7 +445,7 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
         const CircuitDesc* desc=nullptr;const char* name=nullptr;
         const NoCPUGameDef* def=nocpu_registered_game(game);
         if(def) {
-            def->reset_descriptors();desc=def->circuit();name=def->name.c_str();
+            def->reset_descriptors();desc=def->circuit_for?def->circuit_for(dip):def->circuit();name=def->name.c_str();
             if(!configure_registered(*def,desc,dip,pot_ohms))return 0;
         } else if(game==NOCPU_PONG) {
             nocpu_reset_pong_descriptors();nocpu_configure_pong(dip);
@@ -464,6 +490,14 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
         // A registered game's declared raster must be the one its circuit makes.
         if(def&&engine->video.pixel_width()!=(def->portrait?324u:576u)) {engine.reset();return 0;}
         if(!observations_ready()) {engine.reset();return 0;}
+        if(def&&def->sound) {
+            // Levels at the end of construction; later transitions are fed by
+            // the observation hook as the circuit runs.
+            std::vector<int> levels;
+            for(const auto& key:def->sound_pins)levels.push_back(pin(key));
+            engine->sound.reset(def->sound(dip,pot_ohms));
+            engine->sound->start(levels.data());
+        }
         return 1;
     } catch(...) {engine.reset();return 0;}
 }
@@ -580,6 +614,9 @@ uint32_t nocpu_advance(uint32_t microseconds){
         engine->circuit->run(next>now()?int64_t(next-now()):1);
         engine->deadline=next;
     }
+    // Samples before the current circuit time are final: any later transition
+    // happens at or after it.
+    if(engine->sound)engine->sound->emit_before(now());
     return 1;
 }
 const uint8_t* nocpu_frame(){return engine?engine->video.pixels():nullptr;}

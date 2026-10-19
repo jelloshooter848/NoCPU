@@ -420,6 +420,99 @@ the missing-Wasm path. Packaged site with that change (runtime SHA-256
 145.0.7632.6 69 passed; Firefox 146.0.1 69 passed (the 7 ROM tests skipped without fixtures in every run). The Wasm core is
 unchanged (`940ca7fc…`), so no core comparison was re-run.
 
+## 0.4.0 part 1: profiling and performance — 2026-10-19
+
+The core of commit `ce9d1c3` on `wip/0.4.0-perf`, seed 848 (Wasm `nocpu.wasm`
+`a2721a45…`). It is built with WebAssembly exception handling and NoCPU's faster
+frame clear, rotated rasterizer and output hook, with no DICE logic changed
+([PERFORMANCE.md](PERFORMANCE.md)). Every original was captured fresh (no
+reference cache) in the pinned image (`nocpu-dice-qt4:0.1.0`), Xvfb, Mesa
+20.0.8 llvmpipe, x86-64 host with FMA. Native: GCC 13.3.0 build of
+`build-core.sh native`. Wasm: Emscripten 3.1.74, run in Node 22.22.0. The
+change touches every compiled game's build, so every game was re-run in full.
+
+| Game | Scenarios | Result |
+| --- | --- | --- |
+| Pong | `pong.tsv` | **PASS** (`build/core/comparison.json`) |
+| Pong Doubles, Space Race, Breakout, Rebound, Quadrapong, Crossfire, Gotcha, TV Basketball, Pin Pong, Hi-Way | all 35 ROM-free scenarios, streams as in the runs above | **PASS** 35/35, `full_batch: true`; multi-game ABI probe 562/562, Breakout probe 502/502 |
+| Stunt Cycle, Indy 4 | the six ROM-backed scenarios with the private fixtures | **PASS** 6/6 |
+
+**Reports**
+
+- Originals: `NOCPU_ANALYZE_JOBS=4 ./tools/capture-games.sh`,
+  `build/reference-games/20261019T024539454969007Z/`, "Original whole game
+  reference qualification passed". Media were pruned after the run.
+- ROM-free comparison:
+  `build/core/game-evidence/20261019T040457763343Z/report.json`.
+- ROM-backed comparison:
+  `build/rom-comparison/20261019T005649761677Z/report.json`. ROM-derived
+  media were pruned.
+
+The host's free disk could not hold every scenario's four native/Wasm epochs
+at once. As in 0.3.0, the replay and comparison steps therefore ran through a
+scratch driver that performs the same `replay-games.sh` commands and the same
+`compare-games.py` per-scenario comparison and ABI probes, scenario by
+scenario. It deleted a scenario's native/Wasm media once that scenario had
+passed; its report records this in a `driver` field.
+
+**Extra exactness checks**
+
+- The new portable native runner's output is byte-identical to v0.3.0's for
+  `pong.tsv` and all 35 scenarios (2 epochs, every file).
+- The new rasterizer's coverage equals the 0.3.0 per-pixel test on about
+  5×10⁹ pixel centres of random and degenerate quads.
+
+**Browser checks**
+
+Browser checks of the same build, packaged (`make web-preview`, runtime
+SHA-256 `99a3f9f9…`), in Playwright 1.58.2's headless Chromium
+145.0.7632.6, Firefox 146.0.1 and WebKit 26.0:
+
+- the full suite passed in each engine: 69 passed, with the 7 ROM tests
+  skipped;
+- the ROM tests and the identity test, run with the private fixtures, passed
+  20/20 in Chromium and Firefox.
+
+These are automated checks, not human play or speaker output.
+
+Real-time speed before and after, in all four engines including a release
+Firefox, is tabulated in [PERFORMANCE.md](PERFORMANCE.md#results).
+
+## 0.4.0 Pin Pong sound and free-game select — 2026-10-19
+
+A branch run: `wip/0.4.0-pinpong-sound` (from `b93dab8`, before the merge
+with part 1's later commits), seed 848. After the merge into the working
+branch (`a75a826`) an independent review re-ran a fresh-original subset
+(`pinpong-default`, `pinpong-free-ball`, Pong Doubles and Breakout), which
+passed; the whole batch runs in the release pull request's CI. NoCPU's
+reconstruction of Pin Pong's sound board and free-game select from Atari's
+schematic ([PINPONG_SOUND.md](PINPONG_SOUND.md)); DICE has neither. The Pin
+Pong originals were captured fresh (stored in the local reference cache) in the
+pinned image, Xvfb and Mesa llvmpipe on an x86-64 host with FMA, receiving
+only the settings DICE has (`dip & 7`, no potentiometer). Native: GCC 13.3.0;
+Wasm: Emscripten 3.1.74 in Node 22.22.0. Subset run
+`build/core/game-evidence/20261019T074628657932614Z/` (`full_batch: false`):
+
+| Scenario | Settings | Result | Notes |
+| --- | --- | --- | --- |
+| `pinpong-default`, `pinpong-five-balls`, `pinpong-two-credits` | as in 0.3.0; TONE 1.5 kΩ | **PASS** | Frames, telemetry, inputs, collisions and events (now also F1.Q and the three scoring latches) byte-identical to original DICE; PCM excluded from original↔native ("NoCPU reconstruction"), byte-identical native↔Wasm in both reset epochs; sound checks: pitch 232.45 / 399.28 / 486.58 Hz (flipper, slingshot, 100 points; derived 232.448 / 399.277 / 486.583), decay to half drive, −20 dB and −40 dB 0.430 / 0.475 / 0.585 s (derived 0.430 / 0.472 / 0.585), silence and a sound on every hit pulse |
+| `pinpong-free-ball` (new, 224 s, recorded closed-loop) | DIP 0, TONE 800 Ω | **PASS** | All eight knockdown targets in one ball at 137.2 s: the indicator lights and the next serve (156.5 s) is not counted. Closes the 0.3.0 gap. All four latch pitches: 141.29 / 247.13 / 304.07 / 692.13 Hz (derived 141.291 / 247.127 / 304.069 / 692.128) |
+| Free-game select (`tools/probe-core-pinpong.mjs`, `tests/replays/pinpong-free-game.tsv`) | None / 10,000 / 20,000 | **PASS** (NoCPU only) | No original exists. The 20,000 jumpers play exactly as DICE's wiring throughout; the 10,000 jumpers until the score reaches 10,000 (82.754 s), after which only the score display blinks (from 82.869 s) and a Start after the game begins a free game; native↔Wasm byte-identical in both epochs |
+
+The registered-game ABI probe passed 562/562. No recording of a real cabinet was
+used; the sound is checked against values derived from the schematic's
+components and data sheets, not against DICE. Browser: the full suites pass in
+Playwright's Chromium 145.0.7632.6, Firefox 146.0.1 and WebKit 26.0 builds (69
+passed, 7 ROM tests skipped each). Native A/B against `b93dab8` on 30 s of
+Pin Pong: the same time (42.3 s versus 42.2 s for two epochs) and byte-identical
+frames, telemetry, inputs and collisions. Speed with sound, quiet host (load
+about 1.2), `tools/measure-speed.mjs --mode app` in Playwright's Chromium
+145.0.7632.6, three runs of three repeats interleaved with a build of
+`b93dab8`: paced 1.00 / 1.00 / 1.00 with sound and without; raw 1.45, 1.46,
+1.35 with sound against 1.58, 1.47, 1.35 without (run-to-run noise, no
+measurable cost; the sound model itself takes 0.78 ms of native CPU per
+simulated second).
+
 ## Desktop browser acceptance (generated by each release)
 
 Desktop acceptance for the ported games is produced by the release

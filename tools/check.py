@@ -221,6 +221,8 @@ GAME_SPECS = {
         "a missing Wasm asset produces an actionable error instead of simulated gameplay":
             "delivery failure handling; no circuit runs",
         "distributed assets, source and notices match the build manifest": "package contents, not gameplay",
+        "a WebAssembly module the browser cannot compile is reported as an unsupported browser":
+            "unsupported-browser handling; no circuit runs",
     },
     "tests/browser/v040-game-ui.spec.ts": {
         "historical custom Pong settings migrate intact while new-game remaps persist independently":

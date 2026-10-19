@@ -99,6 +99,9 @@ while IFS=$'\t' read -r ID GAME REPLAY DIP POT; do
     if [[ "$STATUS" == 0 ]]; then CACHED_IDS+=("$ID"); continue; fi
     [[ "$STATUS" == 3 ]] || { echo "Reference cache restore failed for $ID" >&2; exit 1; }
   fi
+  # NoCPU-only settings (tools/reference/game_media.py original_options) are
+  # not given to the original, which runs the settings DICE implements.
+  read -r ODIP OPOT < <(python3 -c 'import sys; sys.path.insert(0, "tools/reference"); import game_media; print(*game_media.original_options(sys.argv[1], int(sys.argv[2]), int(sys.argv[3])))' "$GAME" "$DIP" "$POT")
   FRESH_IDS+=("$ID")
   mkdir -p "$RUN/$ID"
   cp "$RUN/capture-image-id.txt" "$RUN/$ID/capture-image-id.txt"
@@ -114,7 +117,7 @@ PY
       --env SDL_AUDIODRIVER=dummy --env LIBGL_ALWAYS_SOFTWARE=1 \
       --env NOCPU_REFERENCE_OUTPUT=/artifacts --env "NOCPU_REFERENCE_REPLAY=/repo/$REPLAY" \
       --env NOCPU_REFERENCE_SEED=848 --env "NOCPU_REFERENCE_GAME=$GAME" --env NOCPU_REFERENCE_EPOCHS=1 \
-      --env "NOCPU_REFERENCE_DIP=$DIP" --env "NOCPU_REFERENCE_POT_OHMS=$POT" \
+      --env "NOCPU_REFERENCE_DIP=$ODIP" --env "NOCPU_REFERENCE_POT_OHMS=$OPOT" \
       --mount "type=bind,source=$ROOT,target=/repo,readonly" \
       --mount "type=bind,source=$RUN/source,target=/source,readonly" \
       --mount "type=bind,source=$RUN/$ID/$ATTEMPT,target=/artifacts" \

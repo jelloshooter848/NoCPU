@@ -37,22 +37,54 @@ struct ReferenceVertex { int64_t x,y; };
 int64_t reference_edge(ReferenceVertex a,ReferenceVertex b,ReferenceVertex p) {
     return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
 }
-bool reference_in_triangle(ReferenceVertex a,ReferenceVertex b,ReferenceVertex c,ReferenceVertex p) {
+// One triangle of a quad, prepared once per quad rather than per pixel: its
+// winding normalized to a positive area (b and c swapped when negative) and
+// each edge's tie rule. A pixel center is covered when every edge function is
+// positive, or zero on an inclusive edge; a zero-area triangle covers nothing.
+struct ReferenceTriangle {
+    ReferenceVertex start[3],end[3];
+    bool inclusive[3];
+    bool empty;
+};
+ReferenceTriangle reference_triangle(ReferenceVertex a,ReferenceVertex b,ReferenceVertex c) {
+    ReferenceTriangle triangle{};
     const int64_t area=reference_edge(a,b,c);
-    if(!area)return false;
+    triangle.empty=!area;
     if(area<0)std::swap(b,c);
     const ReferenceVertex vertices[]={a,b,c,a};
     for(unsigned i=0;i<3;++i) {
-        const ReferenceVertex start=vertices[i],end=vertices[i+1];
-        const int64_t edge=reference_edge(start,end,p);
+        triangle.start[i]=vertices[i];triangle.end[i]=vertices[i+1];
         // Mesa flips a default window to Y_0_TOP and selects bottom_edge_rule.
         // In upward coordinates (the negated downward window y), lp_setup_tri's
         // adjusted planes include left and lower edges; upper and right edges
         // exclude a tied center.
-        const bool inclusive=end.y<start.y||(end.y==start.y&&end.x>start.x);
-        if(edge<0||(edge==0&&!inclusive))return false;
+        triangle.inclusive[i]=vertices[i+1].y<vertices[i].y||(vertices[i+1].y==vertices[i].y&&vertices[i+1].x>vertices[i].x);
     }
-    return true;
+    return triangle;
+}
+// Floor and ceiling of a/b for b>0, exact for negative a.
+int64_t reference_floor_div(int64_t a,int64_t b) { const int64_t q=a/b; return a%b!=0&&a<0?q-1:q; }
+int64_t reference_ceil_div(int64_t a,int64_t b) { const int64_t q=a/b; return a%b!=0&&a>0?q+1:q; }
+// The pixel centers first+k*delta, 0<=k<count, of one row or column of the
+// box that a triangle covers, as the interval [begin,end). A center is covered
+// when each edge function is at least 1, or at least 0 on an inclusive edge
+// (the functions are integers). Each edge function is linear in k with an
+// exact integer step, so the centers satisfying one edge are a run of k found
+// by exact integer division, and the triangle covers their intersection: the
+// same centers as evaluating every edge function at every center.
+void reference_line_interval(const ReferenceTriangle& triangle,ReferenceVertex first,ReferenceVertex delta,int64_t count,
+                             int64_t& begin,int64_t& end) {
+    begin=0;end=triangle.empty?0:count;
+    for(unsigned i=0;i<3&&begin<end;++i) {
+        const ReferenceVertex a=triangle.start[i],b=triangle.end[i];
+        const int64_t edge=reference_edge(a,b,first);
+        const int64_t step=(b.x-a.x)*delta.y-(b.y-a.y)*delta.x;
+        const int64_t least=triangle.inclusive[i]?0:1;  // edge+k*step >= least
+        if(step==0) { if(edge<least)end=begin; }
+        else if(step>0) begin=std::max(begin,reference_ceil_div(least-edge,step));
+        else end=std::min(end,reference_floor_div(edge-least,-step)+1);
+    }
+    if(end<begin)end=begin;
 }
 uint8_t reference_color_byte(float value) {
     return uint8_t(std::lround(std::max(0.0f,std::min(1.0f,value))*255));
@@ -118,7 +150,7 @@ void Video::draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],b
     // (see the comments there). The vertex transform itself stays unfused; the
     // pinned llvmpipe matches unfused projection products for the rotated
     // matrix. Store y as the negated downward fixed coordinate, an upward axis
-    // in which reference_in_triangle's lower-edge rule is bottom_edge_rule.
+    // in which the triangles' lower-edge rule is bottom_edge_rule.
     const float half_width=float(pixels_width)*0.5f,half_height=float(pixels_height)*0.5f;
     const float window_height=float(2*viewport_y+pixels_height);
     const float translate_y=window_height-(float(viewport_y)+half_height);
@@ -137,20 +169,41 @@ void Video::draw_quad(float x0,float y0,float x1,float y1,const uint8_t rgb[3],b
         min_x=std::min(min_x,vertices[i].x);max_x=std::max(max_x,vertices[i].x);
         min_y=std::min(min_y,vertices[i].y);max_y=std::max(max_y,vertices[i].y);
     }
-    // A conservative pixel box; reference_in_triangle decides each center.
+    // A conservative pixel box; the triangle edge functions decide each center.
     const int x0_pixel=int(std::max<int64_t>(0,reference_floor_pixel(min_x)-viewport_x));
     const int x1_pixel=int(std::min<int64_t>(pixels_width,reference_floor_pixel(max_x)+2-viewport_x));
     const int y0_pixel=int(std::max<int64_t>(0,reference_floor_pixel(-max_y)-viewport_y));
     const int y1_pixel=int(std::min<int64_t>(pixels_height,reference_floor_pixel(-min_y)+2-viewport_y));
-    for(int y=y0_pixel;y<y1_pixel;++y)for(int x=x0_pixel;x<x1_pixel;++x) {
+    // The quad is the two triangles (0,1,2) and (0,2,3); a center inside
+    // either is covered.
+    const ReferenceTriangle first=reference_triangle(vertices[0],vertices[1],vertices[2]);
+    const ReferenceTriangle second=reference_triangle(vertices[0],vertices[2],vertices[3]);
+    // Walk the box along its longer side: one interval per row of a wide box,
+    // one per column of a tall one (a rotated raster's scanline segment).
+    const bool rows=x1_pixel-x0_pixel>=y1_pixel-y0_pixel;
+    const int lines=rows?y1_pixel-y0_pixel:x1_pixel-x0_pixel;
+    const int64_t count=std::max(0,rows?x1_pixel-x0_pixel:y1_pixel-y0_pixel);
+    const ReferenceVertex delta=rows?ReferenceVertex{256,0}:ReferenceVertex{0,-256};
+    for(int line=0;line<lines;++line) {
+        const int x=rows?x0_pixel:x0_pixel+line,y=rows?y0_pixel+line:y0_pixel;
         const ReferenceVertex center={int64_t(x+viewport_x)*256,-int64_t(viewport_y+y)*256};
-        if(!reference_in_triangle(vertices[0],vertices[1],vertices[2],center)
-           &&!reference_in_triangle(vertices[0],vertices[2],vertices[3],center))continue;
-        uint8_t* pixel=&back[(size_t(y)*pixels_width+x)*4];
-        for(unsigned channel=0;channel<3;++channel) {
-            // GL_ZERO/GL_SRC_COLOR multiplies framebuffer UNORM8 values by the
-            // quantized source color; round the resulting UNORM8 product.
-            pixel[channel]=blend?uint8_t((unsigned(pixel[channel])*rgb[channel]+127)/255):rgb[channel];
+        int64_t first_begin,first_end,second_begin,second_end;
+        reference_line_interval(first,center,delta,count,first_begin,first_end);
+        reference_line_interval(second,center,delta,count,second_begin,second_end);
+        const bool first_empty=first_begin==first_end,second_empty=second_begin==second_end;
+        if(first_empty&&second_empty)continue;
+        const int64_t begin=first_empty?second_begin:second_empty?first_begin:std::min(first_begin,second_begin);
+        const int64_t end=first_empty?second_end:second_empty?first_end:std::max(first_end,second_end);
+        // Each center at most once, even where the two intervals meet.
+        for(int64_t k=begin;k<end;++k) {
+            if(!(k>=first_begin&&k<first_end)&&!(k>=second_begin&&k<second_end))continue;
+            const size_t px=size_t(rows?x+k:x),py=size_t(rows?y:y+k);
+            uint8_t* pixel=&back[(py*pixels_width+px)*4];
+            for(unsigned channel=0;channel<3;++channel) {
+                // GL_ZERO/GL_SRC_COLOR multiplies framebuffer UNORM8 values by the
+                // quantized source color; round the resulting UNORM8 product.
+                pixel[channel]=blend?uint8_t((unsigned(pixel[channel])*rgb[channel]+127)/255):rgb[channel];
+            }
         }
     }
 }
@@ -210,6 +263,17 @@ void Video::draw_overlays() {
             reference_color_byte(float(overlay.b))};
         draw_quad(float(overlay.x/Circuit::timescale),float(overlay.y),float(end_x),float(end_y),rgb,true);
     }
+}
+// The progressive VBLANK glClear(0,0,0,0): every pixel of the RGBA back
+// buffer becomes opaque black (0,0,0,255), written a pixel at a time.
+void Video::clear_back() {
+    static const uint8_t black[4]={0,0,0,255};
+    uint32_t pixel;
+    std::memcpy(&pixel,black,sizeof pixel);
+    uint8_t* bytes=back.data();
+    const size_t whole=back.size()/4;
+    for(size_t i=0;i<whole;++i)std::memcpy(bytes+4*i,&pixel,sizeof pixel);
+    for(size_t i=4*whole;i<back.size();++i)bytes[i]=(i%4==3)?255:0;
 }
 void Video::swap_buffers() { front=back; }
 void Video::show_cursor(bool) {}

@@ -14,7 +14,15 @@ SOURCES+=("$ROOT/core/api.cpp" "$ROOT/core/platform/portable_input.cpp")
 # Each game ported from 0.2.0 on registers its access contract in core/games/<id>.cpp.
 mapfile -t GAME_DEFINITIONS < <(find "$ROOT/core/games" -maxdepth 1 -name '*.cpp' | LC_ALL=C sort)
 SOURCES+=("${GAME_DEFINITIONS[@]}")
-COMMON=(-std=c++14 -O3 -fexceptions -I "$ROOT/build/core/source" -I "$ROOT/core")
+COMMON=(-std=c++14 -O3 -I "$ROOT/build/core/source" -I "$ROOT/core")
+# C++ exceptions are caught only at the ABI boundary (allocation failures while
+# building a circuit or staging ROMs). Native code uses the host's zero-cost
+# unwinding; Wasm uses WebAssembly exception handling (supported by every
+# target browser: Chrome 95, Firefox 100, Safari 15.2), not Emscripten's
+# JavaScript emulation, whose invoke_* trampolines wrapped every call that
+# could unwind through a destructor (docs/PERFORMANCE.md).
+NATIVE_EH=(-fexceptions)
+WASM_EH=(-fwasm-exceptions)
 
 record_build() {
   local target=$1 compiler=$2 version=$3
@@ -45,9 +53,9 @@ if [[ "$TARGET" == native || "$TARGET" == all ]]; then
   command -v "$CXX" >/dev/null
   [[ -f core/native_runner.cpp ]] || { echo 'Missing core/native_runner.cpp' >&2; exit 1; }
   mkdir -p build/core/native
-  "$CXX" "${COMMON[@]}" "${SOURCES[@]}" core/native_runner.cpp -lz -Wl,-Map=build/core/native/linker.map -o build/core/native/pong-runner
+  "$CXX" "${COMMON[@]}" "${NATIVE_EH[@]}" "${SOURCES[@]}" core/native_runner.cpp -lz -Wl,-Map=build/core/native/linker.map -o build/core/native/pong-runner
   "$CXX" "${COMMON[@]}" -MM "${SOURCES[@]}" core/native_runner.cpp > build/core/native/dependencies.mk
-  record_build native "$CXX" "$("$CXX" --version | head -1)" -lz -Wl,-Map=build/core/native/linker.map
+  record_build native "$CXX" "$("$CXX" --version | head -1)" "${NATIVE_EH[@]}" -lz -Wl,-Map=build/core/native/linker.map
 fi
 
 if [[ "$TARGET" == wasm || "$TARGET" == all ]]; then
@@ -64,7 +72,7 @@ if [[ "$TARGET" == wasm || "$TARGET" == all ]]; then
   # /emsdk/emscripten) into a cache dedicated to that recipe; the link then
   # runs with a frozen cache so nothing can be rebuilt path-dependently.
   # Our own sources map the checkout (and an outside SDK) the same way.
-  SYSTEM_LIBS=(libGL-getprocaddr libal libc libc++ libc++abi libcompiler_rt libdlmalloc libhtml5 libnoexit libsockets libstubs)
+  SYSTEM_LIBS=(libGL-getprocaddr libal libc libc++-except libc++abi-except libcompiler_rt-wasm-sjlj libunwind-except libdlmalloc libhtml5 libnoexit libsockets libstubs)
   CACHE_KEY=$(printf '%s\n' "$EM_VERSION" 'embuilder deterministic_paths v1' "${SYSTEM_LIBS[@]}" | sha256sum | cut -c1-12)
   export EM_CACHE=${NOCPU_EM_CACHE:-"$ROOT/build/emscripten-cache-repro-$CACHE_KEY"}
   mkdir -p "$EM_CACHE" build/core/wasm web/public/core
@@ -87,10 +95,10 @@ PY
   # (OPTIMIZATION_HINT queues); memory grows on demand up to 2 GiB.
   WASM_FLAGS=(--no-entry -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=web,worker,node
     -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=2147483648
-    -sFILESYSTEM=0 -sDISABLE_EXCEPTION_CATCHING=0 "-sEXPORTED_FUNCTIONS=$EXPORTS"
+    -sFILESYSTEM=0 "-sEXPORTED_FUNCTIONS=$EXPORTS"
     -Wl,-Map=build/core/wasm/linker.map)
-  "$EMXX" "${COMMON[@]}" "${PREFIX_MAPS[@]}" "${SOURCES[@]}" "${WASM_FLAGS[@]}" -o build/core/wasm/nocpu.js
+  "$EMXX" "${COMMON[@]}" "${WASM_EH[@]}" "${PREFIX_MAPS[@]}" "${SOURCES[@]}" "${WASM_FLAGS[@]}" -o build/core/wasm/nocpu.js
   "$EMXX" "${COMMON[@]}" -MM "${SOURCES[@]}" > build/core/wasm/dependencies.mk
   cp build/core/wasm/nocpu.js build/core/wasm/nocpu.wasm web/public/core/
-  record_build wasm "$EMXX" "$EM_VERSION" "${PREFIX_MAPS[@]}" "${WASM_FLAGS[@]}"
+  record_build wasm "$EMXX" "$EM_VERSION" "${WASM_EH[@]}" "${PREFIX_MAPS[@]}" "${WASM_FLAGS[@]}"
 fi

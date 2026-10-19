@@ -92,8 +92,8 @@ the release steps.
 | ROM-free batch A | 0.2.0 | Released (2026-10-17) |
 | Docs refresh, browser license re-assessment, packaging check; CI skips the comparison for docs/packaging-only changes and releases reuse it | 0.2.1 | Released (2026-10-17) |
 | WebKit CI stability: CPU-backed game canvas against a WebKit/Skia crash at game start; Breakout ball check on the held clock | 0.2.2 | Released (2026-10-18) |
-| ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | In review |
-| Profiling and performance | 0.4.0 | Planned |
+| ROM-free batch B: TV Basketball, Pin Pong and Hi-Way | 0.3.0 | Released (2026-10-18) |
+| Profiling and performance (part 1: worker pacing, renderer and Wasm exception-handling speedups, speed tool; [PERFORMANCE.md](PERFORMANCE.md)); Pin Pong schematic sound and free-game select (part 2; [PINPONG_SOUND.md](PINPONG_SOUND.md)) | 0.4.0 | In review |
 | ROM-backed batch A | 0.5.0 | Planned |
 | ROM-backed batch B | 0.6.0 | Planned |
 | Accuracy closure | 0.7.0 and later 0.x | Planned |
@@ -173,6 +173,43 @@ Pin Pong and the Firefox cases (Gotcha, TV Basketball) run in real time on
 CI-class hardware. Also for 0.4.0: Pin Pong's sound from the schematic (DICE
 has none) and its free-ball award, which no 0.3.0 scenario reaches.
 
+Both parts are done and in review (merged into the working branch at
+`a75a826`; the full comparison runs in the release pull request's CI).
+
+Part 1 (profiling and performance) is done; [PERFORMANCE.md](PERFORMANCE.md)
+has the method, the profiles, each change's gain and the before/after tables.
+The changes are all exact (comparisons pass):
+
+- the worker's pacing no longer idles on clamped zero-delay timeouts, so paced
+  speed equals raw speed;
+- Wasm uses WebAssembly exception handling;
+- NoCPU's frame clear, rotated-raster rasterizer and output hook are faster.
+
+Measured on the 4-vCPU Xeon @2.1 GHz CI-class host:
+
+- Pin Pong, TV Basketball, Gotcha, Breakout and Stunt Cycle now run at full
+  speed in Playwright's Chromium and in a release Firefox.
+- Hi-Way reaches 0.97 at the start of play in Chromium (0.89 in release
+  Firefox) and is slower in heavy driving: its core runs its recorded scenario
+  at about 0.7x, and 89% of its time is DICE's own scheduler. The owner
+  accepted this (decision of 2026-10-19).
+- Playwright's Firefox build runs WebAssembly with its baseline compiler only,
+  so its numbers stay four to five times below a release Firefox's.
+
+Part 2 (Pin Pong's schematic sound and free-game select) is done; see
+[PINPONG_SOUND.md](PINPONG_SOUND.md):
+
+- the sound board (NE566 tone pitched by the last-hit object's latch, MFC6040
+  decay) and the free-game score select are reconstructed from the TM-007
+  Rev G schematic and labelled as NoCPU's reconstruction; a Tone setting
+  adjusts the board's trimmer, whose factory setting is unknown;
+- the picture and play still match original DICE exactly; the PCM is compared
+  native↔Wasm and checked against values derived from the components;
+- the new `pinpong-free-ball` scenario reaches the free-ball award, and a probe
+  checks the free-game select ([ACCEPTANCE.md](ACCEPTANCE.md)).
+- Pin Pong with sound still runs at full speed (paced 1.00) in Playwright's
+  Chromium.
+
 ### 0.5.0 — ROM-backed batch A
 
 Port Anti-Aircraft, Shark Jaws, Jet Fighter and Attack (including Attack's
@@ -236,6 +273,8 @@ at the bottom; do not rewrite earlier ones.
 - **2026-10-18 — Pin Pong held, then released; schematic sound planned.** Pin Pong passed its comparison but ran below real time in every browser on the 4-vCPU test host, so the owner first moved it to 0.4.0. Hi-Way measured slower still on that host. The owner then released TV Basketball, Pin Pong and Hi-Way as playable in 0.3.0 to test them on their own hardware, since the test host is slow; the measured speeds are recorded in ACCEPTANCE.md and the changelog, and making them (and the Firefox cases) real time on CI-class hardware is the 0.4.0 target.
 - **2026-10-18 — Pin Pong sound and free-game select from the schematic (0.4.0).** DICE leaves Pin Pong's sound and its free-game score select unfinished (`TODO: Finish Sound`, `TODO: FREE GAME SELECT`). The owner approved reconstructing both in 0.4.0 from Atari's Rev G schematic (TM-007 manual, linked only, never included), after Pin Pong runs in real time. This is the first opt-in exception to reproducing only what DICE implements: the reconstruction is labelled as such, video and logic must still match original DICE exactly, and the sound is checked against values derived from the schematic's components. The other games without DICE audio stay in accuracy closure.
 - **2026-10-18 — 0.2.2 released.** v0.2.2 (the WebKit canvas crash fix) was published (release run 39099705868) and reused the 0.2.1 comparison as the new CI rule intends.
+- **2026-10-18 — 0.4.0 started.** The owner gave the go-ahead for 0.4.0 after v0.3.0: part 1 is profiling and performance, part 2 Pin Pong's schematic sound and free-game select.
+- **2026-10-19 — Hi-Way speed accepted (0.4.0 option A).** Profiling showed Hi-Way's remaining cost is DICE's own event scheduler (0.87x paced in Playwright's Chromium on the 2.8 GHz test host, slower in heavy driving; native code too is below real time there). (The final before/after table in [PERFORMANCE.md](PERFORMANCE.md#results), measured on the 2.1 GHz CI-class host, has 0.97 at the start of play.) The owner accepted its current speed for 0.4.0, with no scheduler restructuring; the owner tests it on their own hardware, and a scheduler investigation would be a later patch only if it is slow there.
 
 ## After 1.0
 

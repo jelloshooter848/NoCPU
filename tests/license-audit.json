@@ -42,7 +42,7 @@
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "sha256": "7f180e4b74f3c6b5ce5eb0339238434abb9005dedfe300dcf27bc5b5564558e6"
+      "sha256": "6624694d40ffcd8640cfa61df476303c112b695fe17645fb3aa29d3eef423b3c"
     },
     {
       "path": "upstream/dice-0.9/README.txt"
@@ -84,6 +84,10 @@
     {
       "path": "docs/licenses/LLVM-libcxxabi-3.1.74-LICENSE.txt",
       "sha256": "e2b35be49f7284a45b7baca8fc7b3ab7440e7902392b2528a457816b5bb2a15c"
+    },
+    {
+      "path": "docs/licenses/LLVM-libunwind-3.1.74-LICENSE.txt",
+      "sha256": "b5efebcaca80879234098e52d1725e6d9eb8fb96a19fce625d39184b705f7b6d"
     },
     {
       "path": "docs/licenses/musl-emscripten-3.1.74-COPYRIGHT.txt",
