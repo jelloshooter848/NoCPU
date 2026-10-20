@@ -33,6 +33,10 @@ struct ReferenceGame {
     std::vector<std::vector<ReferenceTerm>> scores;
     std::string active, attract_n, hit;
     std::vector<std::string> events;
+    // ROM-backed (from 0.5.0): original DICE loads the player's ZIP itself; the
+    // ROM comparison (tools/compare-rom-games.py) also needs the complete RGB
+    // stream and the audio sample timestamps, as for Stunt Cycle and Indy 4.
+    bool roms = false;
 };
 static std::vector<ReferenceGame>& reference_games() { static std::vector<ReferenceGame> games; return games; }
 static bool reference_add_game(const ReferenceGame& game) { reference_games().push_back(game); return true; }
@@ -42,6 +46,9 @@ static bool reference_add_game(const ReferenceGame& game) { reference_games().pu
     static void reference_define_##ident(ReferenceGame& g)
 #include "reference_games.inc"
 static const ReferenceGame* ref_registered = nullptr;
+// Complete RGB frames and audio sample timestamps: Stunt Cycle, Indy 4 and the
+// registered ROM-backed games.
+static bool reference_full_media();
 static bool ref_left_right[2][2] = {}, ref_buttons[4][3] = {};
 static unsigned reference_dip_mask(const ReferenceGame& game) {
     unsigned mask = 0, shift = 0;
@@ -76,6 +83,7 @@ static unsigned ref_breakout_dip[4] = {3, 0, 0, 0};
 static bool ref_start = false, ref_directions[2][2] = {{false, false}, {false, false}};
 static int16_t ref_axes[4] = {0, 0, 0, 0};
 static std::string ref_game = "pong";
+static bool reference_full_media() { return ref_game == "stuntcycle" || ref_game == "indy4" || (ref_registered && ref_registered->roms); }
 static unsigned ref_epochs = 2;
 static int ref_dip = -1;
 static unsigned ref_pot = 0;
@@ -133,7 +141,7 @@ static void reference_open_epoch() {
         for(unsigned p = 1; p <= 4; ++p) ref_hardware << ",car" << p << "_attract,car" << p << "_collision,car" << p << "_heading,car" << p << "_speed,car" << p << "_lap,car" << p << "_score_code,car" << p << "_displayed_score";
         ref_hardware << '\n';
     }
-    if(ref_game == "stuntcycle" || ref_game == "indy4") {
+    if(reference_full_media()) {
         ref_audio_events.open(path + "/audio-events.csv");
         if(!ref_audio_events)throw std::runtime_error("Cannot open selected audio timestamp evidence");
         ref_audio_events << "time_ps,phase,sample\n";
@@ -183,7 +191,7 @@ static void reference_close_epoch() {
     ref_hardware.close(); ref_geometry.close();
     if(ref_rgb && gzclose(ref_rgb) != Z_OK) throw std::runtime_error("Complete RGB stream write failed");
     ref_rgb = nullptr;
-    if(ref_game == "stuntcycle" || ref_game == "indy4") { if(!ref_audio_events)throw std::runtime_error("Selected audio event write failed");ref_audio_events.close(); if(ref_audio_events.fail())throw std::runtime_error("Selected audio event close failed"); }
+    if(reference_full_media()) { if(!ref_audio_events)throw std::runtime_error("Selected audio event write failed");ref_audio_events.close(); if(ref_audio_events.fail())throw std::runtime_error("Selected audio event close failed"); }
     if(ref_diagnostics) {
         if(!ref_diagnostic_state||!ref_diagnostic_events)throw std::runtime_error("Diagnostic evidence write failed");
         ref_diagnostic_state.close();ref_diagnostic_events.close();
@@ -673,7 +681,7 @@ static void reference_state(Circuit* circuit) {
 }
 
 void reference_sample(uint64_t time, int16_t sample) {
-    if(ref_game == "stuntcycle" || ref_game == "indy4")ref_audio_events << time << ',' << (ref_started ? "ongoing" : "construction") << ',' << sample << '\n';
+    if(reference_full_media())ref_audio_events << time << ',' << (ref_started ? "ongoing" : "construction") << ',' << sample << '\n';
     const unsigned char bytes[] = {static_cast<unsigned char>(sample & 255),
                                    static_cast<unsigned char>((static_cast<uint16_t>(sample) >> 8) & 255)};
     ref_pcm.write(reinterpret_cast<const char*>(bytes), sizeof(bytes));

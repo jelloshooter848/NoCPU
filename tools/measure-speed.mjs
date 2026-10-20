@@ -42,8 +42,10 @@ process.env.PLAYWRIGHT_BROWSERS_PATH ??= join(ROOT, 'build/playwright');
 const { chromium, firefox, webkit, devices } = await import('playwright');
 
 const ALL_GAMES = ['pong', 'pongdoubles', 'spacerace', 'breakout', 'stuntcycle', 'indy4', 'rebound', 'gotcha',
-  'quadrapong', 'crossfire', 'tvbasketball', 'pinpong', 'hiway'];
-const ROM_FILES = { stuntcycle: 'stuntcyc.zip', indy4: 'indy4.zip' };
+  'quadrapong', 'crossfire', 'tvbasketball', 'pinpong', 'hiway', 'antiaircraft', 'sharkjaws', 'jetfighter', 'attack'];
+// The private fixture archive of each ROM-backed game (docs/ROMS.md).
+const ROM_FILES = { stuntcycle: 'stuntcyc.zip', indy4: 'indy4.zip', antiaircraft: 'antiairc.zip', sharkjaws: 'sharkjaw.zip',
+  jetfighter: 'jetfight.zip', attack: 'attckexd.zip' };
 // Core IDs (core/nocpu.h, docs/ARCHITECTURE.md).
 const CORE_IDS = Object.fromEntries(ALL_GAMES.map((id, index) => [id, index]));
 const options = { mode: 'app', engines: 'chromium,firefox,webkit', games: 'all', repeats: 3, rawSeconds: 2, pacedSeconds: 5,
@@ -135,6 +137,7 @@ async function measureApp(browser, engine, base, gameId) {
     if (gameId === 'breakout') { await page.keyboard.down('KeyS'); await stepSeconds(page, 0.2); await page.keyboard.up('KeyS'); }
     if (gameId === 'hiway') await page.keyboard.down('ArrowUp'); // Held accelerator: driving.
     if (gameId === 'stuntcycle') await page.keyboard.down('ArrowUp');
+    if (gameId === 'antiaircraft') { await page.keyboard.down('KeyQ'); await page.keyboard.down('KeyO'); } // Both launchers keep firing.
     await stepSeconds(page, 0.5);
     const now = () => page.evaluate(() => performance.now());
     // Raw: requests sized to about half a wall second each (at most 1 simulated
@@ -187,6 +190,7 @@ self.onmessage = async ({ data }) => {
     core._nocpu_start(1); advance(1e5); core._nocpu_start(0); advance(9e5);
     if (game === 11) { core._nocpu_start(1); advance(1e5); core._nocpu_start(0); advance(9e5); }
     if (game === 12) core._nocpu_button(0, 1, 1);
+    if (game === 13) { core._nocpu_button(0, 1, 1); core._nocpu_button(1, 3, 1); }
     // Warm up the engine's tiers for a wall second, then measure.
     for (const warm = performance.now(); performance.now() - warm < 1000;) advance(5000);
     const total = data.seconds * 1e6; let done = 0;
@@ -243,8 +247,10 @@ async function measureCore(browser, engine, gameId) {
 async function romMembers(gameId) {
   const { unzipSync } = await import('fflate');
   const { crc32 } = await import('node:zlib');
-  const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2'];
   const manifest = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/game-manifest.json'), 'utf8')).games.find((g) => g.id === gameId);
+  // Registered games' core slots are the manifest's members in order.
+  const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2']
+    : manifest.roms.map((rom) => rom.expected_member);
   const files = Object.values(unzipSync(readFileSync(join(romDir, ROM_FILES[gameId]))));
   return names.map((name) => {
     const accepted = manifest.roms.find((rom) => rom.expected_member === name).accepted_crc32.map((crc) => parseInt(crc, 16));

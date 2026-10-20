@@ -513,6 +513,181 @@ about 1.2), `tools/measure-speed.mjs --mode app` in Playwright's Chromium
 measurable cost; the sound model itself takes 0.78 ms of native CPU per
 simulated second).
 
+## 0.5.0 Anti-Aircraft comparison run — 2026-10-19
+
+The first ROM-backed game ported through the registered-game contract (core
+ID 13) on `wip/0.5.0-rom-batch-a`, seed 848, Wasm `nocpu.wasm` `f89fd2b8…`.
+ROM fixtures: `NoCPU-Roms` commit `87a448a` (`antiairc.zip`, audited). The
+original was captured fresh in the pinned image (`nocpu-dice-qt4:0.1.0`,
+`sha256:bfdadad2…`), Xvfb, Mesa llvmpipe, on an x86-64 host with FMA, with
+the private ZIP bind-mounted read-only as `antiaircraft.zip`. Native: GCC
+13.3.0; Wasm: Emscripten 3.1.74 in Node 22.22.0. Command:
+`python3 tools/compare-rom-games.py --rom-dir <fixtures> --scenario antiaircraft-default --scenario antiaircraft-min-time`.
+
+| Scenario | Settings | Result | Original behavior checked on the original capture (`tools/reference/games/antiaircraft.py`) |
+| --- | --- | --- | --- |
+| `antiaircraft-default` (98 s) | DIP 0 (one credit a coin, airplanes), 830 kΩ | **PASS** (73 streams in each of the five pairs) | Start without a credit and a coin alone do not start; attract fires both launchers; Start with a credit begins a game with cleared scores; each of the six buttons sets its launcher's angle alone (left 1/2/3 high/middle/low, right 1/2/3 low/middle/high); every press with no missile in flight fires within 30 ms; held buttons refire; 13 and 11 points, each one launcher's and counted during its B1 burst; the tens digit; the D9 timer ends the game 91.18 s after Start (ln 3 R C); a new game clears the scores; a coin during a game ends it; airplane pictures only (34 checks) |
+| `antiaircraft-min-time` (56 s) | DIP 3 (two credits a coin, UFOs), 220 kΩ | **PASS** (71 streams) | One coin buys two games, both ended by D9 after 24.17 s; Start without a credit then does not start; both launchers score in each game; UFO pictures only (27 checks) |
+
+Each pair (original↔native, native↔Wasm in both reset epochs, and each
+runtime's reset) is byte-equal for the decoded full-RGB frames and snapshots,
+PCM (the audio chip's constructor sample only: DICE wires no audio output),
+inputs, events, telemetry, hardware samples, frame geometry and the audio
+boundary. The registered-game ABI probe, run with the staged descriptors,
+passed 601/601 checks (Anti-Aircraft's ROM slots equal the audited manifest's,
+creation without the ROM is refused, held-input reset equals a fresh machine).
+
+DICE's `RANDOM_CLOCK_GEN` draws its period from `rand()`. The core replaces it
+with an exact reproduction of glibc's generator ([UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md)),
+as Emscripten's musl `rand()` differs; the equal plane traffic of the
+original (glibc 2.27), native (glibc 2.39) and Wasm captures over both
+scenarios confirms it. Report:
+`build/rom-comparison/20261019T163935600357Z/report.json`; ROM-derived media
+were pruned after the run.
+
+Browser (packaged preview, Playwright 1.58.2's headless Chromium
+145.0.7632.6, Firefox 146.0.1 and WebKit 26.0): `tests/browser/game-antiaircraft.spec.ts`
+passes with the private fixture in all three (Chromium three consecutive
+runs) and without it (its ROM test skipped). Speed on a 4-vCPU Xeon @2.80 GHz host, quiet, three runs each
+(`tools/measure-speed.mjs --mode app,core`, both launchers firing): Chromium
+1.00 paced / 1.95 raw, core 1.85; release Firefox 146.0.1 1.00 / 1.80, core
+1.78. These are automated checks, not human play or speaker output.
+
+## 0.5.0 Shark Jaws comparison run — 2026-10-19
+
+Core ID 14 on `wip/0.5.0-rom-batch-a`, seed 848, Wasm `nocpu.wasm` `688b9287…`
+(the build that also registers Jet Fighter; Shark Jaws' circuit and chips
+are unaffected). Fixtures, pinned image, Xvfb/llvmpipe on an FMA host and the
+native/Wasm toolchains as in the Anti-Aircraft run. Command:
+`python3 tools/compare-rom-games.py --rom-dir <fixtures> --jobs 2 --scenario sharkjaws-default --scenario sharkjaws-min-time`.
+Play is recorded closed-loop against the Wasm core (the diver steered toward
+the nearest fish, away from a near shark); the recorded TSV is the scenario.
+
+| Scenario | Settings | Result | Original behavior checked on the original capture (`tools/reference/games/sharkjaws.py`) |
+| --- | --- | --- | --- |
+| `sharkjaws-default` (112 s) | DIP 0, 970 kΩ | **PASS** (74 streams in each of the five pairs) | Start without a credit and a coin alone do not start; Start with a credit begins with a cleared score; up, down, left and right each move the diver that way alone; 33 catches, one point each, counted 0.52 s after each FISHSCORE (C9A) rise; the tens digit; five shark catches, the diver gone while 6H RESET is high and back after it; N9A ends the game 106.565 s after Start (ln 3 R C); Start without a credit after the end; the blue overlay on every lit pixel (29 checks) |
+| `sharkjaws-min-time` (109 s) | DIP 1 (two credits a coin), 470 kΩ | **PASS** (73 streams) | One coin buys two games of 51.635 s each, each beginning with a cleared score; 25 points; 14 shark catches; Start without a credit then does not start (24 checks) |
+
+Each pair is byte-equal for the decoded full-RGB frames and snapshots, PCM
+(the constructor sample only: DICE's sound hookup is commented out), inputs,
+events, telemetry, hardware samples, frame geometry and the audio boundary.
+A first attempt was killed by the host's out-of-memory guard: the
+comparison tool decompressed each full-RGB stream (about 5 GB for these
+scenarios) into memory to hash it. It now hashes them in chunks (identical
+digests). The registered-game ABI probe with the three ported ROM games'
+descriptors passed 703/703 checks. Report:
+`build/rom-comparison/20261019T180137668821Z/report.json` (media pruned).
+
+Browser (packaged preview, Playwright's Chromium 145.0.7632.6, Firefox 146.0.1
+and WebKit 26.0): `tests/browser/game-sharkjaws.spec.ts` passes with the
+private fixtures (credits, all four directions by keyboard and gamepad, a
+fish caught by steering, the timer with the shortest play time, two credits a
+coin) and without them (its ROM test skipped).
+
+**Speed: below real time.** On a 4-vCPU Xeon @2.80 GHz host, quiet, three
+runs each (`tools/measure-speed.mjs --mode app,core`): Chromium 0.79 paced /
+0.87 raw, core 0.84; release Firefox 146.0.1 0.78 / 0.81, core 0.84. A
+native gprof profile puts most of the time in DICE's own scheduler
+(`Chip::activation_check`, `Chip::update_inputs`, the event queue), as for
+Hi-Way; NoCPU's rasterizer takes about 5%. Reported to the owner, not gated.
+
+## 0.5.0 Jet Fighter comparison run — 2026-10-19
+
+Core ID 15 on `wip/0.5.0-rom-batch-a`, seed 848, Wasm `nocpu.wasm` `bade543b…`.
+Fixtures, pinned image, Xvfb/llvmpipe on an FMA host and the native/Wasm
+toolchains as in the Anti-Aircraft run (`jetfight.zip` staged as
+`jetfighter.zip`). Command:
+`python3 tools/compare-rom-games.py --rom-dir <fixtures> --jobs 2 --scenario jetfighter-two-players --scenario jetfighter-one-player`.
+Play is recorded closed-loop against the Wasm core (each jet turned toward
+the other and firing when lined up); the recorded TSV is the scenario.
+
+| Scenario | Settings | Result | Original behavior checked on the original capture (`tools/reference/games/jetfighter.py`) |
+| --- | --- | --- | --- |
+| `jetfighter-two-players` (89 s) | DIP 0 (25 cents a game), 510 kΩ | **PASS** (73 streams in each of the five pairs) | Start 2 with a credit begins a two-player game with cleared scores (1PLAY falls); both jets' shells follow their own buttons within 100 ms; two points each, each counted on the shooter's counter after its HIT pulse; Up makes each jet faster and Down slower (least-squares speed on the raster, at least ×1.2 and ×0.8); K9 ends the game 84.378 s after Start, GNE warning first; Start 2 after the end without a credit does not start; white and black jets on a gray sky (28 checks) |
+| `jetfighter-one-player` (60 s) | DIP 1 (50 cents for two players), 10 kΩ | **PASS** (71 streams) | Start 2 with one coin does not start; Start 1 does (1PLAY stays high); with no player 2 input the circuit's pilot fires and scores five points against one; K9 ends the game 54.625 s after Start; Start without a credit then does not start (27 checks) |
+
+Each pair is byte-equal for the decoded full-RGB frames and snapshots, PCM
+(the constructor sample only: DICE does not implement the sound circuits),
+inputs, events, telemetry, hardware samples, frame geometry and the audio
+boundary. The original leaves its two 8225 RAMs' static descriptors to
+zero-initialization; the core zeroes them at every reset, and both reset
+epochs are byte-equal. The registered-game ABI probe with Jet Fighter's
+descriptors passed 623/623 checks (the three ported ROM games together:
+703/703). Report: `build/rom-comparison/20261019T192705615083Z/report.json`
+(media pruned).
+
+Browser (packaged preview, Playwright's Chromium 145.0.7632.6, Firefox 146.0.1
+and WebKit 26.0): `tests/browser/game-jetfighter.spec.ts` passes with the
+private fixtures (credits and Start 2; Left and Right turning each jet that
+way and firing, by keyboard and gamepad; Up and Down speed by keyboard; the
+coinage setting refusing Start 2 for one coin and allowing Start 1; the
+shortest play time) and without them (its ROM test skipped).
+
+**Speed: below real time.** On a 4-vCPU Xeon @2.80 GHz host, quiet, three
+runs each (`tools/measure-speed.mjs --mode app` then `--mode core`):
+Chromium 0.79 paced / 0.78 raw, core 0.80; release Firefox 146.0.1 0.75 /
+0.80, core 0.77. Native capture runs at about 1.5× real time. Reported to
+the owner, not gated.
+
+## 0.5.0 Attack comparison run — 2026-10-19
+
+Core ID 16 on `wip/0.5.0-rom-batch-a`, seed 848, Wasm `nocpu.wasm` `59c3dd77…`.
+Fixtures, pinned image, Xvfb/llvmpipe on an FMA host and the native/Wasm
+toolchains as in the Anti-Aircraft run. `attckexd.zip` holds both accepted
+dump sets: `attack-default` stages the 256-byte set, and `attack-alt-roms`
+(`"rom_variant": 1`) stages only the 512-byte set, both for the portable
+runtimes and, as a private ZIP of those members, for the original. Command:
+`python3 tools/compare-rom-games.py --rom-dir <fixtures> --jobs 2 --scenario attack-default --scenario attack-alt-roms`.
+Play is recorded closed-loop against the Wasm core (the ship keeping under
+the plane and firing, the plane firing and turning now and then) after
+scripted control windows; the recorded TSV is the scenario.
+
+| Scenario | Settings | Result | Original behavior checked on the original capture (`tools/reference/games/attack.py`) |
+| --- | --- | --- | --- |
+| `attack-default` (104 s) | 256-byte ROMs, 2500 kΩ | **PASS** (73 streams in each of the five pairs) | No game before the coin; the coin starts a game at once with CLK_SCR clearing the scores; Left and Right move the ship (265 → 119 → 263 px); 79 ship and 136 plane bullets, each following its own button within 100 ms; the held button 2 makes the plane about seven times faster; three points for the ship (two planes shot down, one flown into the ship) and five for the plane (two ships sunk by its bullets), each counted as PLN_FAL or SNK_SHP clears, and every fall and sinking in play scored; a coin at 52.5 s neither restarts, clears nor extends the game; E13 ends it 90.647 s after the coin (ln 3 (R + 330 Ω) C); a coin after the end starts a new cleared game; nontrivial PCM in play; white objects on a gray sky (32 checks) |
+| `attack-alt-roms` (47 s) | 512-byte ROMs, 1000 kΩ | **PASS** (71 streams) | The coin starts a cleared game; the plane flown into the sea falls and scores for the ship; two planes shot down; three and two points; E13 ends the game 36.266 s after the coin; a new game after it (28 checks) |
+
+Each pair is byte-equal for the decoded full-RGB frames and snapshots, PCM
+(DICE's own sound circuit for Attack), inputs, events, telemetry, hardware
+samples, frame geometry and the audio boundary. The registered-game ABI
+probe with Attack's descriptors passed 624/624 checks. Report:
+`build/rom-comparison/20261019T200524156401Z/report.json` (media pruned).
+
+Browser (packaged preview, Playwright's Chromium 145.0.7632.6, Firefox 146.0.1
+and WebKit 26.0): `tests/browser/game-attack.spec.ts` passes with the private
+fixtures (Chromium three consecutive runs): the coin starting the game; A
+and D moving the ship; S and W turning the gun right and left (measured on
+the bullets); ↑ and controller 2's A making the plane faster; → and ←
+turning it clockwise and counter-clockwise; / and both controllers' Y
+firing; controller 1's stick moving the ship; generated sound; a coin in play
+changing nothing; the timer at 2500 and 1000 kΩ. Without the fixtures its
+ROM test is skipped.
+
+Speed on a 4-vCPU Xeon @2.80 GHz host, quiet, three runs each
+(`tools/measure-speed.mjs --mode app` then `--mode core`): Chromium 1.00
+paced / 17.9 raw, core 17.7; release Firefox 146.0.1 1.00 / 18.2, core 17.9.
+
+## 0.5.0 whole-set verification — 2026-10-20
+
+On `wip/0.5.0-rom-batch-a` with Wasm `nocpu.wasm` `59c3dd77…` (all four
+batch games registered), on the 4-vCPU Xeon @2.80 GHz host:
+
+- **ROM-free games:** all 36 scenarios of `tests/replays/game-scenarios.json`
+  captured fresh from original DICE (whole-batch qualification passed), then
+  compared with native and Wasm game by game (`capture-games.sh --scenarios`
+  and `replay-games.sh --subset`, as the host disk could not hold the whole
+  batch's replays at once): **36/36 PASS**, with the multi-game, Breakout and
+  Pin Pong free-game probes passing. Pong's core comparison passes.
+- **ROM-backed games:** all fourteen scenarios of
+  `tests/replays/rom-scenarios.json` (Stunt Cycle, Indy 4 and the four batch
+  games) with the private fixtures, two at a time: **14/14 PASS** (twelve in a
+  run that a host restart interrupted before its report, the two Attack
+  scenarios re-run to a complete report). The registered-game ABI probe with
+  all four batch games' descriptors staged: 762/762.
+- **Browsers:** the packaged suites with the private fixtures pass in
+  Playwright's Chromium 145.0.7632.6, Firefox 146.0.1 and WebKit 26.0
+  (85 tests each).
+
 ## Desktop browser acceptance (generated by each release)
 
 Desktop acceptance for the ported games is produced by the release

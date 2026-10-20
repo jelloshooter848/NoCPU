@@ -72,6 +72,11 @@ test('audited controls describe all 21 circuits while the implemented games have
   // The six earlier games stay playable; each registered game is an audited DICE title.
   assert.deepEqual(contract.PLAYABLE_GAME_IDS.slice(0, 6), LEGACY);
   for (const game of registry.REGISTERED_GAMES) assert.ok(inventory.games.some((entry) => entry.id === game.id), game.id);
+  // A registered game's ROM slots are exactly the audited manifest's members,
+  // in order; a ROM-free game declares none (the core checks the same).
+  for (const game of registry.REGISTERED_GAMES) {
+    assert.deepEqual([...(game.roms ?? [])], inventory.games.find((entry) => entry.id === game.id).roms.map((rom) => rom.expected_member), game.id);
+  }
   assert.equal(schema.getControlSchema('missing'), undefined);
   assert.deepEqual(schema.getControlSchema('pong').keyboardActions, ['p1Up', 'p1Down', 'p2Up', 'p2Down', 'coin', 'menu', 'reset', 'mute']);
   assert.ok(schema.getControlSchema('pong').controls.some((control) => control.sourceChip === 'COIN_INPUT' && control.label === 'Insert Coin and Start Game'));
@@ -474,7 +479,7 @@ test('the last started game persists, version 5 migrates silently and an unplaya
   assert.equal(migrated.preferences.lastGameId, null); assert.equal(migrated.preferences.volume, .33); assert.equal(migrated.preferences.mouseByGame.pong, 1);
   // Older versions never stored a remembered game, so a stray field there is not trusted.
   assert.equal(prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 5, preferences: value }))).preferences.lastGameId, null);
-  for (const stale of ['antiaircraft', 'unknown', 3, '', undefined]) {
+  for (const stale of ['steeplechase', 'unknown', 3, '', undefined]) {
     const result = prefs.loadPreferences(memoryStorage(JSON.stringify({ version: 6, preferences: { ...value, lastGameId: stale } })));
     assert.equal(result.status, 'available'); assert.equal(result.preferences.lastGameId, null); assert.equal(result.preferences.volume, .33);
   }

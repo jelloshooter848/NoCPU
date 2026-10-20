@@ -29,7 +29,11 @@ for (let id = 0; id < 32; id += 1) { const name = core._nocpu_game_name(id); if 
 if (gameId === undefined) throw new Error('Unsupported replay game.');
 const info = (field) => core._nocpu_game_info(gameId, field) >>> 0;
 const registered = info(0) === 1;
-const selected = gameId === 4 || gameId === 5;
+// ROM-backed games: Stunt Cycle, Indy 4 and registered games declaring ROM
+// slots (info field 16, from 0.5.0) record the complete RGB stream for
+// tools/compare-rom-games.py.
+const romRegistered = registered && info(16) > 0;
+const selected = gameId === 4 || gameId === 5 || romRegistered;
 if (!['raw', 'gzip'].includes(options.snapshotEncoding) || (options.snapshotEncoding === 'gzip' && !selected)) throw new Error('Unsupported selected snapshot encoding.');
 if (gameId === 4 && !dipProvided) options.dip = 76;
 if (gameId === 5 && options.potOhms === 0) options.potOhms = 720000;
@@ -80,12 +84,19 @@ function nativeFrameHash(rgba, frameWidth = width, frameHeight = height) {
 
 if (selected) {
   if (!options.romDir || core._nocpu_rom_begin(gameId) !== 1) throw new Error('Trusted private ROM input required.');
-  const members = gameId === 4 ? [['82s123.4d',32],['82s115.1fh',512]] : [['indy.s1',512],['indy.s2',32],['indy.c1',512],['indy.c2',32]];
+  // A registered game names each descriptor slot and its accepted sizes
+  // through the ABI (Attack accepts two dump sizes per slot).
+  const registeredMembers = () => Array.from({ length: info(16) }, (_, slot) => {
+    const sizes = [];
+    for (let variant = 0; (core._nocpu_game_rom_size(gameId, slot, variant) >>> 0) !== 0xffffffff; variant += 1) sizes.push(core._nocpu_game_rom_size(gameId, slot, variant) >>> 0);
+    return [cString(core._nocpu_game_rom_name(gameId, slot)), sizes];
+  });
+  const members = romRegistered ? registeredMembers() : gameId === 4 ? [['82s123.4d',[32]],['82s115.1fh',[512]]] : [['indy.s1',[512]],['indy.s2',[32]],['indy.c1',[512]],['indy.c2',[32]]];
   for (let slot = 0; slot < members.length; slot += 1) {
-    const [name,size] = members[slot];
+    const [name,sizes] = members[slot];
     let data;try { data = await readFile(resolve(options.romDir,options.game,name)); } catch { throw new Error('Private descriptor input unavailable.'); }
-    if (data.length !== size) throw new Error('Private descriptor size invalid.');
-    const pointer = core._nocpu_rom_buffer(slot,size);if (!pointer) throw new Error('Owned ROM buffer rejected.');
+    if (!sizes.includes(data.length)) throw new Error('Private descriptor size invalid.');
+    const pointer = core._nocpu_rom_buffer(slot,data.length);if (!pointer) throw new Error('Owned ROM buffer rejected.');
     core.HEAPU8.set(data,pointer);
   }
   if (core._nocpu_rom_finish() !== 1) throw new Error('Private ROM CRC verification failed.');
@@ -104,7 +115,7 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   const frames = ['frame,time_ps,fnv1a64\n'], telemetry = [`time_ps,${Array.from({ length: scoreSlots }, (_, slot) => `score${slot + 1}`).join(',')},run_n,attract_n,hits${gameId === 0 ? '\n' : ',active\n'}`];
   const inputs = ['requested_ps,applied_ps,action,value\n'], collisions = ['time_ps,hit_output\n'];
   const transitions = ['time_ps,signal,value\n'], directions = [[0, 0], [0, 0]], sticks = [[0, 0, 0, 0], [0, 0, 0, 0]], wheelKeys = Array.from({length:4},()=>[0,0]), keys = Array.from({length:4},()=>[0,0]), buttons = Array.from({length:4},()=>[0,0]);
-  const hardware = [gameId === 4 ? 'time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n' : `time_ps,play,endgame_n,credit_n${[1,2,3,4].map((p)=>`,car${p}_attract,car${p}_collision,car${p}_heading,car${p}_speed,car${p}_lap,car${p}_score_code,car${p}_displayed_score`).join('')}\n`];
+  const hardware = [romRegistered ? 'time_ps\n' : gameId === 4 ? 'time_ps,attract_n,player_control,jump,flip,good_jump,bad_jump,miss_counter,credit,throttle_milli,score1,score2\n' : `time_ps,play,endgame_n,credit_n${[1,2,3,4].map((p)=>`,car${p}_attract,car${p}_collision,car${p}_heading,car${p}_speed,car${p}_lap,car${p}_score_code,car${p}_displayed_score`).join('')}\n`];
   const geometry = ['frame,time_ps,width,height\n'];
   let gzip, outputStream, gzipDone;
   if (selected) {
@@ -139,7 +150,8 @@ for (let epoch = 0; epoch < options.epochs; epoch += 1) {
   while (true) {
     const now = ps();
     telemetry.push(`${now},${Array.from({ length: scoreSlots }, (_, slot) => core._nocpu_score(slot)).join(',')},${core._nocpu_run_n()},${core._nocpu_attract_n() >>> 0},${core._nocpu_hits()}${gameId === 0 ? '' : `,${core._nocpu_active()}`}\n`);
-    if (selected) {
+    if (romRegistered) hardware.push(`${now}\n`);
+    else if (selected) {
       const values = gameId === 4 ? [...Array.from({length:8},(_,i)=>core._nocpu_stuntcycle_signal(i)),core._nocpu_stuntcycle_throttle(),core._nocpu_score(0),core._nocpu_score(1)]
         : [...Array.from({length:3},(_,i)=>core._nocpu_indy4_signal(0,i)),...[0,1,2,3].flatMap((p)=>[...Array.from({length:6},(_,i)=>core._nocpu_indy4_signal(p,i+3)),core._nocpu_score(p)])];
       hardware.push(`${now},${values.join(',')}\n`);

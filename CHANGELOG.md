@@ -13,6 +13,28 @@ releases below.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-20
+
+### Added
+
+- Anti-Aircraft (Atari, 1975) is playable with your own ROM file: two players fire missiles from
+  launchers at the bottom of the screen at passing airplanes or UFOs. Each launcher has three
+  buttons that aim it high, to the middle or low and fire (Q/A/Z and O/L/. by default). It is
+  verified against original DICE, and like DICE it has no sound.
+- Shark Jaws (Atari, 1975) is playable with your own ROM files: steer the diver with the arrow keys
+  or WASD to catch fish while the shark hunts you. It is verified against original DICE and, like
+  DICE, has no sound. It runs below full speed on slower computers (about 0.8x on the test machine).
+- Jet Fighter (Atari, 1975) is playable with your own ROM files: two jets dogfight across a gray sky,
+  or one player flies the white jet against the circuit's own pilot. Turn with A/D, speed up and
+  slow down with W/S and fire with F (the black jet: the arrow keys and /). It is verified against
+  original DICE and, like DICE, has no sound. It runs below full speed on slower computers (about
+  0.8x on the test machine).
+- Attack (Exidy, 1977) is playable with your own ROM files, in either accepted dump set: one player
+  sails a ship and shoots at a plane, the other flies the plane and sinks the ship. The ship moves
+  with A/D, turns its gun with W/S and fires with F; the plane turns with the left and right arrow
+  keys, speeds up with the up arrow and fires with /. The coin starts the game. It is verified
+  against original DICE, with DICE's sound.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added
@@ -231,7 +253,8 @@ while the desktop interface and the renewed accuracy checks follow in 0.1.x upda
 - Hand-published "preview" builds. Testers get release candidates instead, which are listed on the
   GitHub Releases page like every other release.
 
-[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/jelloshooter848/NoCPU/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/jelloshooter848/NoCPU/compare/v0.2.1...v0.2.2

@@ -200,6 +200,20 @@ LEGACY_GAMES=['pong','pongdoubles','spacerace','breakout','stuntcycle','indy4']
 SOURCE_FILES={'hiway':'highway'}
 added=sorted(path.stem for path in (ROOT/'core/games').glob('*.inc') if path.stem not in LEGACY_GAMES)
 GAMES=LEGACY_GAMES+added
+
+# Anti-Aircraft's RANDOM_CLOCK_GEN custom chip draws its period from the C
+# library's rand(). The original reference runs on glibc, whose rand() is the
+# additive-feedback TYPE_3 generator; Emscripten's musl rand() is a different
+# generator, so the Wasm build would draw other periods than native and the
+# original. The derived copy calls nocpu_glibc_rand(), an exact reproduction
+# of glibc's generator seeded with the core's seed (core/api.cpp), in native
+# and Wasm alike; NOCPU_GLIBC_RAND_MAX equals glibc's RAND_MAX. The
+# arithmetic of the period is unchanged (docs/UPSTREAM_PATCHES.md).
+if 'antiaircraft' in GAMES:
+    edit('games/antiaircraft.cpp',[
+        ('#include "../circuit.h"\n', '#include "../circuit.h"\n#include "../port_hooks.h"\n'),
+        ('        double r = 1.0 + (double(rand()) / RAND_MAX - 0.5) / 2.0;',
+         '        double r = 1.0 + (double(nocpu_glibc_rand()) / NOCPU_GLIBC_RAND_MAX - 0.5) / 2.0; // NoCPU: glibc rand()')])
 for game in GAMES:
     source=SOURCE_FILES.get(game,game)
     if not (out/'games'/(source+'.cpp')).is_file():
@@ -219,7 +233,11 @@ chips=['7400','7402','7404','7410','7420','7425','7427','7430','7448','7450','74
        # Chips first needed by the 0.3.0 batch (TV Basketball, Pin Pong).
        '74151','74155','7454','9314',
        # Hi-Way: 2533 RAM, 7442 (74145 is its alias) and the wired-AND chip.
-       '2533','7442','wired_logic']
+       '2533','7442','wired_logic',
+       # The 0.5.0 batch: 8225 RAM (Jet Fighter), 74116, 74191, 7495, 7496
+       # and 82S131 (Attack); 74123 is in 9602, 74H04 in 7404, 7413/7414 are
+       # aliases of 7420/7404.
+       '8225','74116','74191','7495','7496','82S131']
 sources += ['chips/'+name+'.cpp' for name in chips]
 (out.parent/'sources.txt').write_text('\n'.join(str(out/name) for name in sources)+'\n')
 (out.parent/'adapter.diff').write_text(''.join(diff))

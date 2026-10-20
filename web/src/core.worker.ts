@@ -420,7 +420,10 @@ async function handle(command: CoreCommand): Promise<void> {
         : `${gameSpec(gameId).title} stopped unexpectedly. Reload the game to try again.`, detail: errorDetail(what) }),
     });
     if (core._nocpu_abi_version() !== 5) throw new PlayerError(`${gameSpec(gameId).title} needs an updated game download. Reload this page and try again.`);
-    const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2'] : [];
+    // A registered ROM-backed game's descriptor slots are the audited
+    // manifest's members in order (core/games/<id>.cpp declares the same).
+    const names = gameId === 'stuntcycle' ? ['82s123.4d', '82s115.1fh'] : gameId === 'indy4' ? ['indy.s1', 'indy.s2', 'indy.c1', 'indy.c2']
+      : [...(registeredGame(gameId)?.roms ?? [])];
     const members = command.roms ?? [];
     if (members.length !== names.length || names.some((name) => members.filter((member) => member.expectedName === name).length !== 1)) throw new PlayerError('The required ROM members are missing or duplicated. Import the game ROMs again.');
     if (names.length) {

@@ -4,7 +4,8 @@ name: ROM-backed validation
 # descriptors and ROM-derived frames/PCM stay on the runner; only payload-free
 # JSON reports are uploaded. Without the secret (including every fork pull
 # request) the validation job is skipped and reported as blocked, never passed.
-# The ROM-backed browser tests (Stunt Cycle and Indy 4 in Chromium and Firefox)
+# The ROM-backed browser tests (Stunt Cycle, Indy 4 and the ROM-backed games
+# ported from 0.5.0, in Chromium and Firefox)
 # run in verify-browser.yml's rom-browser job instead, against the exact package
 # the other browser jobs test, so their results bind to that build's runtime
 # digest and feed the desktop acceptance record.
@@ -37,14 +38,14 @@ jobs:
         else
           echo 'blocked: NOCPU_ROMS_TOKEN not configured'
           echo '::warning title=ROM validation blocked::blocked: NOCPU_ROMS_TOKEN not configured; ROM-backed checks were skipped, not passed.'
-          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** ROM audit and Stunt Cycle/Indy 4 original/native/Wasm comparisons were skipped, not passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** ROM audit and the ROM-backed original/native/Wasm comparisons were skipped, not passed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'configured=false' >> "$GITHUB_OUTPUT"
         fi
   rom-validation:
     needs: access
     if: needs.access.outputs.configured == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -62,7 +63,11 @@ jobs:
       run: ./tools/build-native.sh --jobs 2
     - name: Build portable native and Wasm cores
       run: ./tools/build-core.sh all
-    - name: Compare ROM-backed Stunt Cycle and Indy 4 across original, native and Wasm
+    # Fourteen scenarios (Stunt Cycle, Indy 4 and the 0.5.0 games) took about
+    # 80 minutes two at a time on a 4-vCPU 2.8 GHz host.
+    - name: Compare the ROM-backed games across original, native and Wasm
+      env:
+        NOCPU_ROM_COMPARE_JOBS: '2'
       run: python3 tools/compare-rom-games.py
     - name: Collect payload-free reports only
       if: always()

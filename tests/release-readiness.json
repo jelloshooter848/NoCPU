@@ -1,15 +1,15 @@
 {
   "schema_version": 3,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "release_ready": true,
   "blockers": [],
-  "release_scope": "0.4.0 milestone: profiling and performance — faster worker pacing and NoCPU adapter code, WebAssembly exception handling (core 1.25x to 2.3x faster in Chromium; Pin Pong and the other heavy games at full speed in Chromium and release Firefox on the test host; Hi-Way close to it, accepted by the owner) — and Pin Pong's sound and free-game select reconstructed from Atari's schematic (owner-approved, labelled as reconstructed; picture and play still verified against original DICE). Thirteen playable games. Each release generates its desktop acceptance record from its own verification run (all thirteen ported games in Playwright's Chromium and Firefox builds, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
+  "release_scope": "0.5.0 milestone: ROM-backed batch A — Anti-Aircraft, Shark Jaws, Jet Fighter and Attack (both ROM sets) ported and verified against original DICE with player-supplied ROMs (seventeen playable games); Shark Jaws and Jet Fighter can run below full speed (recorded, not gated). Each release generates its desktop acceptance record from its own verification run (all seventeen ported games in Playwright's Chromium and Firefox builds, the six ROM games from the private fixtures, at the exact packaged runtime) and refuses to publish unless it passed. The physical-device gate stays deferred.",
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,
-    "games": ["pong", "pongdoubles", "spacerace", "breakout", "stuntcycle", "indy4", "rebound", "gotcha", "quadrapong", "crossfire", "tvbasketball", "pinpong", "hiway"],
+    "games": ["pong", "pongdoubles", "spacerace", "breakout", "stuntcycle", "indy4", "rebound", "gotcha", "quadrapong", "crossfire", "tvbasketball", "pinpong", "hiway", "antiaircraft", "sharkjaws", "jetfighter", "attack"],
     "browsers": ["chromium", "firefox"],
-    "scope": "The release workflow's browser jobs test the exact packaged site; tools/desktop-acceptance.py turns their results into the nocpu-X.Y.Z-acceptance.json release asset, bound to that site's runtime_sha256. It is passed only when every listed game's tagged browser tests passed in every listed engine (Playwright builds of Chromium and Firefox; Stunt Cycle and Indy 4 from the private ROM fixtures), and publishing refuses a release without it. Original/native/Wasm comparisons are recorded in docs/ACCEPTANCE.md; optional human checks there are supplementary and never replace this gate."
+    "scope": "The release workflow's browser jobs test the exact packaged site; tools/desktop-acceptance.py turns their results into the nocpu-X.Y.Z-acceptance.json release asset, bound to that site's runtime_sha256. It is passed only when every listed game's tagged browser tests passed in every listed engine (Playwright builds of Chromium and Firefox; Stunt Cycle, Indy 4, Anti-Aircraft, Shark Jaws, Jet Fighter and Attack from the private ROM fixtures), and publishing refuses a release without it. Original/native/Wasm comparisons are recorded in docs/ACCEPTANCE.md; optional human checks there are supplementary and never replace this gate."
   },
   "physical_device_gate": {
     "status": "deferred",

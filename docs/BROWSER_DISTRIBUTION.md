@@ -9,7 +9,40 @@ for the current `VERSION` and every notice it lists is present and unchanged.
 The legacy line's assessments (0.2.0 through 0.6.0) are history in
 [legacy/BROWSER_DISTRIBUTION_0.6.md](legacy/BROWSER_DISTRIBUTION_0.6.md).
 
-## 0.4.0 assessment (2026-10-19)
+## 0.5.0 assessment (2026-10-20)
+
+**Result: ready** (the porting agent's review, not an independent one). This
+re-checks the actual local packaged build of `wip/0.5.0-rom-batch-a`, which
+adds Anti-Aircraft, Shark Jaws, Jet Fighter and Attack, against a fresh
+rebuild of v0.4.0 (which reproduced its `core/nocpu.wasm`, `1ef66c15…`, byte
+for byte). The audit's `version` field is bumped by the release commit.
+
+- **Runtime:** the same seven files as 0.4.0 (`core/nocpu.wasm` `59c3dd77…`).
+- **Compiled code:** seventeen circuits. The linker map has 105 compiled
+  units, 14 more than 0.4.0: the four DICE circuits, their four NoCPU
+  registrations (`core/games/<id>.cpp`) and six DICE chips (8225, 74116,
+  74191, 7495, 7496, 82S131), all GPL-3.0-or-later under the existing DICE
+  notice or NoCPU's own code.
+- **Anti-Aircraft's random generator:** `nocpu_glibc_rand()` in `core/api.cpp`
+  is NoCPU's own independent implementation of the published TYPE_3
+  additive-feedback recurrence and Park–Miller seeding, matching glibc's
+  `rand()` output; no glibc source is copied, so no LGPL text is needed
+  ([UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md)).
+- **SDK members:** 149, the identical set to 0.4.0 (libc 103 with the same 27
+  math members, compiler-rt 18, libc++ 12, libc++abi 11, libunwind 1,
+  dlmalloc 2, noexit 1, stubs 1). No new component, so no new notice.
+- **Notices:** `THIRD_PARTY_NOTICES.md` now names the seventeen circuits; its
+  hash is updated in both audits. The other 27 notices match their recorded
+  hashes.
+- **Dependencies:** still one npm runtime dependency, fflate 0.8.2.
+- **Source archive and ROMs:** 930 files (every tracked file plus
+  `RELEASE-MANIFEST.json`, all 566 original DICE files) and no ROMs or build
+  output; the packaged `notices/` holds 118 files. The ROM-exclusion test
+  passes with the ten private fixture archives (44 members) present.
+
+The record's `review.findings` hold the hashes and counts.
+
+## 0.4.0 assessment (2026-10-19, history)
 
 **Result: ready** (an agent's review, not an independent one). This re-checks
 the actual local packaged build of `restart/desktop-first` after the 0.4.0
