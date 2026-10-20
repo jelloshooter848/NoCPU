@@ -271,6 +271,8 @@ def main():
     parser.add_argument('--timeout', type=int, default=int(os.environ.get('NOCPU_REFERENCE_TIMEOUT', '900')))
     parser.add_argument('--jobs', type=int, default=int(os.environ.get('NOCPU_ROM_COMPARE_JOBS', '1')),
                         help='scenarios compared at once (default NOCPU_ROM_COMPARE_JOBS, else 1)')
+    parser.add_argument('--keep-media', action='store_true',
+                        help="keep a passing scenario's ROM-derived captures (by default only its logs and the report stay)")
     args = parser.parse_args()
 
     if args.jobs < 1:
@@ -362,6 +364,12 @@ def main():
                           'failures': [f'{type(error).__name__}: {error}']}
             print(f"  {scenario['id']}: {'PASS' if result['passed'] else 'FAIL'}"
                   + ''.join(f'\n    {failure}' for failure in result['failures']), flush=True)
+            if result['passed'] and not args.keep_media:
+                # The frames and PCM are ROM-derived and large (gigabytes for
+                # the whole set); a passing scenario keeps its logs only, so
+                # the full set fits a CI runner's disk. A failure keeps all.
+                for part in ('original', 'native', 'wasm'):
+                    shutil.rmtree(run_dir / scenario['id'] / part, ignore_errors=True)
             return result
         # Scenarios are independent (each writes only below its own directory);
         # NOCPU_ROM_COMPARE_JOBS runs that many at once. The report keeps the
