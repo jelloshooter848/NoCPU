@@ -178,7 +178,8 @@ test('remembered ZIP replacement, corruption, eviction and remove recover from a
   await page.getByTestId('open-library').click();
   await page.getByTestId('game-antiaircraft').click();
   await expect(page.getByTestId('game-rom-status')).toHaveText('Saved ROM needs re-import');
-  await expect(page.getByTestId('play-selected')).toBeDisabled();
+  // Anti-Aircraft is playable from 0.5.0: Play offers the import instead of a game.
+  await expect(page.getByTestId('play-selected')).toHaveText('Import ROMs to play');
   await page.getByRole('button', { name: 'Local ROMs', exact: true }).click();
   await page.getByTestId('remove-antiaircraft').click();
   await expect(page.getByTestId('rom-item-antiaircraft')).toHaveCount(0);
