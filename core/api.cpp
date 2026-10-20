@@ -36,6 +36,8 @@ namespace {
 constexpr size_t AUDIO_LIMIT=96000; // two seconds; consumers normally drain every tick.
 constexpr size_t COLLISION_LIMIT=4096;
 constexpr size_t EVENT_LIMIT=4096;
+// A descriptor slot and its accepted dump identities (CRC32 with exact size).
+struct RomRequirement { std::string file,name; std::vector<NoCPURomVariant> variants; };
 struct Engine {
     Settings settings;
     Input input;
@@ -66,6 +68,9 @@ struct Engine {
     }
     uint32_t event_counts[NOCPU_EVENT_TYPES]={};
     NoCPURomSession roms;
+    // The selected game's descriptor requirements, resolved once at creation
+    // (nocpu_rom_read runs for every PROM lookup the circuit builds).
+    std::vector<RomRequirement> rom_requirements;
     uint32_t game=NOCPU_PONG,dip=0,pot_ohms=0,crashes[2]={0,0};
     uint32_t breakout_counts[3]={0,0,0};
     uint64_t deadline=0,frame_time=0;
@@ -124,18 +129,24 @@ bool configure_registered(const NoCPUGameDef& def,const CircuitDesc* desc,uint32
     for(size_t i=0;i<found.size();++i)if(found[i]!=(def.dips[i].nocpu?0u:1u))return false;
     return pots==(def.pot.empty()||def.pot_nocpu?0u:1u);
 }
-struct RomRequirement { const char* file;const char* name;uint32_t crc,size; };
-const RomRequirement stunt_roms[]={
-    {"stuntcycle","82s123.4d",0x31A09EFB,32},
-    {"stuntcycle","82s115.1fh",0x4ED5A99D,512}};
-const RomRequirement indy_roms[]={
-    {"indy4","indy.s1",0x1AAFBE72,512},
-    {"indy4","indy.s2",0xE30EA877,32},
-    {"indy4","indy.c1",0xB3443354,512},
-    {"indy4","indy.c2",0x01DCA5B9,32}};
-const RomRequirement* requirements(uint32_t game,unsigned& count) {
-    count=game==NOCPU_STUNT_CYCLE?2:game==NOCPU_INDY_4?4:0;
-    return game==NOCPU_STUNT_CYCLE?stunt_roms:game==NOCPU_INDY_4?indy_roms:nullptr;
+std::vector<RomRequirement> legacy_roms(uint32_t game) {
+    if(game==NOCPU_STUNT_CYCLE)return {{"stuntcycle","82s123.4d",{{0x31A09EFB,32}}},
+        {"stuntcycle","82s115.1fh",{{0x4ED5A99D,512}}}};
+    if(game==NOCPU_INDY_4)return {{"indy4","indy.s1",{{0x1AAFBE72,512}}},{"indy4","indy.s2",{{0xE30EA877,32}}},
+        {"indy4","indy.c1",{{0xB3443354,512}}},{"indy4","indy.c2",{{0x01DCA5B9,32}}}};
+    return {};
+}
+// Registered ROM-backed games (from 0.5.0) declare theirs in core/games/<id>.cpp.
+std::vector<RomRequirement> requirements(uint32_t game) {
+    if(game<=NOCPU_INDY_4)return legacy_roms(game);
+    std::vector<RomRequirement> result;
+    if(const auto* def=nocpu_registered_game(game))
+        for(const auto& rom:def->roms)result.push_back({def->rom_file,rom.name,rom.variants});
+    return result;
+}
+bool accepted_size(const RomRequirement& rom,uint32_t size) {
+    for(const auto& variant:rom.variants)if(variant.size==size)return true;
+    return false;
 }
 uint32_t crc32(const std::vector<uint8_t>& bytes) {
     uint32_t crc=0xffffffff;
@@ -146,7 +157,7 @@ uint32_t crc32(const std::vector<uint8_t>& bytes) {
     return crc^0xffffffff;
 }
 bool valid_roms(const NoCPURomSession& session,uint32_t game) {
-    unsigned count=0;const auto* expected=requirements(game,count);
+    const auto expected=requirements(game);const size_t count=expected.size();
     if(!count) {
         // An unstaged legacy ROM-free launch remains valid. An explicit stage
         // belongs only to its named game, even when the target needs no ROMs.
@@ -156,14 +167,23 @@ bool valid_roms(const NoCPURomSession& session,uint32_t game) {
         rom_error=NOCPU_ROM_OK;return true;
     }
     if(session.game!=game||session.members.size()!=count) {rom_error=NOCPU_ROM_MISSING;return false;}
-    for(unsigned i=0;i<count;++i) {
+    for(size_t i=0;i<count;++i) {
         if(session.members[i].empty()) {rom_error=NOCPU_ROM_MISSING;return false;}
-        if(session.members[i].size()!=expected[i].size) {rom_error=NOCPU_ROM_SIZE;return false;}
-        if(crc32(session.members[i])!=expected[i].crc) {rom_error=NOCPU_ROM_CRC;return false;}
+        if(!accepted_size(expected[i],uint32_t(session.members[i].size()))) {rom_error=NOCPU_ROM_SIZE;return false;}
+        // The CRC must be the one accepted for this exact size.
+        const uint32_t crc=crc32(session.members[i]);bool identified=false;
+        for(const auto& variant:expected[i].variants)
+            identified=identified||(variant.crc==crc&&variant.size==session.members[i].size());
+        if(!identified) {rom_error=NOCPU_ROM_CRC;return false;}
     }
     rom_error=NOCPU_ROM_OK;return true;
 }
 const char* cars[]={"GREEN.","CYAN.","VIOLET.","RED."};
+// glibc random_r TYPE_3 state: r[i] = r[i-31] + r[i-3] (mod 2^32), output
+// r >> 1, after seeding r[0..30] with the Park-Miller minimal standard and
+// discarding 310 outputs, exactly as glibc's srandom_r does.
+uint32_t glibc_state[34];
+unsigned glibc_index=0;
 NoCPUFrameHook frame_hook=nullptr;
 NoCPUHitHook hit_hook=nullptr;
 NoCPUEventHook event_hook=nullptr;
@@ -230,17 +250,39 @@ uint32_t indy_display_code(unsigned slot) {
 }
 uint8_t nocpu_rom_read(const RomDesc* rom,unsigned offset) {
     if(!engine||!rom)return 0xff;
-    unsigned count=0;const auto* expected=requirements(engine->game,count);
-    for(unsigned i=0;i<count;++i) {
+    const auto& expected=engine->rom_requirements;
+    for(size_t i=0;i<expected.size();++i) {
         // Descriptor names distinguish logical circuit chips, while accepted
         // CRC resolution may reuse one imported member for several descriptors.
-        if(rom->file_name==expected[i].file&&rom->rom_name==expected[i].name
-           &&(rom->crc==expected[i].crc||rom->alt_crc==expected[i].crc)) {
+        bool crc=false;
+        for(const auto& variant:expected[i].variants)crc=crc||rom->crc==variant.crc||rom->alt_crc==variant.crc;
+        if(rom->file_name==expected[i].file&&rom->rom_name==expected[i].name&&crc) {
             const auto& data=engine->roms.members[i];
             return offset<data.size()?data[offset]:0xff;
         }
     }
     return 0xff;
+}
+void nocpu_glibc_srand(unsigned seed) {
+    int32_t r[344];
+    r[0]=int32_t(seed?seed:1);
+    for(int i=1;i<31;++i) {
+        // 16807 * r[i-1] % 2147483647 without overflow (Schrage), as glibc.
+        const int32_t hi=r[i-1]/127773,lo=r[i-1]%127773;
+        int32_t word=16807*lo-2836*hi;
+        if(word<0)word+=2147483647;
+        r[i]=word;
+    }
+    for(int i=31;i<34;++i)r[i]=r[i-31];
+    for(int i=34;i<344;++i)r[i]=int32_t(uint32_t(r[i-31])+uint32_t(r[i-3]));
+    for(int i=0;i<34;++i)glibc_state[i]=uint32_t(r[310+i]);
+    glibc_index=0;
+}
+int nocpu_glibc_rand() {
+    // glibc_state holds the last 34 values; slot glibc_index is the oldest (i-34).
+    const uint32_t value=glibc_state[(glibc_index+34-31)%34]+glibc_state[(glibc_index+34-3)%34];
+    glibc_state[glibc_index]=value;glibc_index=(glibc_index+1)%34;
+    return int(value>>1);
 }
 void nocpu_set_hooks(NoCPUFrameHook frame,NoCPUHitHook hit){frame_hook=frame;hit_hook=hit;}
 void nocpu_set_event_hook(NoCPUEventHook event){event_hook=event;}
@@ -358,7 +400,11 @@ bool nocpu_register_game(const NoCPUGameDef& def) {
        ||def.buttons>3||def.starts>2||def.scores.size()>4||def.active.empty()
        // A wheel reads axis N and held buttons 3/4 of slot N (nocpu_wheel_keys).
        ||def.wheels>4||(def.wheels&&(def.paddles||def.buttons>2))
-       ||def.events.size()>NOCPU_GAME_EVENT_LIMIT||(def.pot.empty()?def.pot_min||def.pot_max||def.pot_default
+       ||def.events.size()>NOCPU_GAME_EVENT_LIMIT||def.roms.size()>8||def.roms.empty()!=def.rom_file.empty()
+       ||std::any_of(def.roms.begin(),def.roms.end(),[](const NoCPURom& rom){
+           return rom.name.empty()||rom.variants.empty()||rom.variants.size()>2
+               ||std::any_of(rom.variants.begin(),rom.variants.end(),[](const NoCPURomVariant& v){return !v.size||v.size>65536;});})
+       ||(def.pot.empty()?def.pot_min||def.pot_max||def.pot_default
          :!(def.pot_min<=def.pot_default&&def.pot_default<=def.pot_max))
        ||!registry().emplace(def.id,def).second)std::abort();
     return true;
@@ -406,23 +452,38 @@ uint32_t nocpu_game_info(uint32_t game,uint32_t field) {
     case NOCPU_INFO_COINS:return 1;
     case NOCPU_INFO_PORTRAIT:return def->portrait?1:0;
     case NOCPU_INFO_WHEELS:return def->wheels;
+    case NOCPU_INFO_ROMS:return uint32_t(def->roms.size());
     default:return UINT32_MAX;
     }
+}
+const char* nocpu_game_rom_name(uint32_t game,uint32_t slot) {
+    const auto* def=nocpu_registered_game(game);
+    return def&&slot<def->roms.size()?def->roms[slot].name.c_str():nullptr;
+}
+static const NoCPURomVariant* rom_variant(uint32_t game,uint32_t slot,uint32_t variant) {
+    const auto* def=nocpu_registered_game(game);
+    if(!def||slot>=def->roms.size()||variant>=def->roms[slot].variants.size())return nullptr;
+    return &def->roms[slot].variants[variant];
+}
+uint32_t nocpu_game_rom_crc(uint32_t game,uint32_t slot,uint32_t variant) {
+    const auto* found=rom_variant(game,slot,variant);return found?found->crc:UINT32_MAX;
+}
+uint32_t nocpu_game_rom_size(uint32_t game,uint32_t slot,uint32_t variant) {
+    const auto* found=rom_variant(game,slot,variant);return found?found->size:UINT32_MAX;
 }
 uint32_t nocpu_rom_begin(uint32_t game) {
     if(engine) {rom_error=NOCPU_ROM_BUSY;return 0;}
     if(game>NOCPU_INDY_4&&!nocpu_registered_game(game)) {rom_error=NOCPU_ROM_GAME;return 0;}
     try {
-        unsigned count=0;requirements(game,count);
-        NoCPURomSession next;next.game=game;next.members.resize(count);
+        NoCPURomSession next;next.game=game;next.members.resize(requirements(game).size());
         staged_roms=std::move(next);rom_error=NOCPU_ROM_OK;return 1;
     } catch(...) {rom_error=NOCPU_ROM_MEMORY;return 0;}
 }
 uint8_t* nocpu_rom_buffer(uint32_t slot,uint32_t size) {
     if(engine) {rom_error=NOCPU_ROM_BUSY;return nullptr;}
-    unsigned count=0;const auto* expected=requirements(staged_roms.game,count);
-    if(slot>=count) {rom_error=NOCPU_ROM_SLOT;return nullptr;}
-    if(size!=expected[slot].size) {rom_error=NOCPU_ROM_SIZE;return nullptr;}
+    const auto expected=requirements(staged_roms.game);
+    if(slot>=expected.size()) {rom_error=NOCPU_ROM_SLOT;return nullptr;}
+    if(!accepted_size(expected[slot],size)) {rom_error=NOCPU_ROM_SIZE;return nullptr;}
     try {
         staged_roms.members[slot].assign(size,0);
         rom_error=NOCPU_ROM_OK;return staged_roms.members[slot].data();
@@ -437,7 +498,7 @@ uint32_t nocpu_rom_error(){return rom_error;}
 uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot_ohms){
     if(engine||!valid_options(game,dip,pot_ohms)||!valid_roms(staged_roms,game))return 0;
     try {
-        std::srand(seed);
+        std::srand(seed);nocpu_glibc_srand(seed);
         // Each selected machine starts with cold original custom descriptors.
         // The original Space Race potentiometer updates C9 in its initial
         // custom-update callback and subsequent 250 ms polls. Configuration
@@ -479,6 +540,7 @@ uint32_t nocpu_create_game(uint32_t game,uint32_t seed,uint32_t dip,uint32_t pot
             buttons.button3=def->wheels?KeyAssignment():KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,2,slot);
         }
         engine->roms=std::move(staged_roms);staged_roms=NoCPURomSession{};
+        engine->rom_requirements=requirements(game);
         if(game==NOCPU_INDY_4)engine->settings.input.buttons[0].button1=
             KeyAssignment(KeyAssignment::JOYSTICK_BUTTON,0,0);
         engine->pcm.reserve(8192);

@@ -51,8 +51,8 @@ LIMITATIONS = [
     'release Firefox or Safari.',
     'Audio is scheduled into a PulseAudio null sink: generated and played sound is checked, speaker '
     'output is not.',
-    'Stunt Cycle and Indy 4 play from private ROM fixtures in Chromium and Firefox only; they inherit '
-    "DICE's absent audio.",
+    'Stunt Cycle, Indy 4, Anti-Aircraft, Shark Jaws, Jet Fighter and Attack play from private ROM '
+    "fixtures in Chromium and Firefox only; all but Attack inherit DICE's absent audio.",
     'Browser behavior only: original/native/Wasm accuracy is the comparison record in docs/ACCEPTANCE.md.',
 ]
 

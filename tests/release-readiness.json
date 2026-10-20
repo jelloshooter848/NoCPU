@@ -7,9 +7,9 @@
   "desktop_acceptance": {
     "policy": "generated_at_release",
     "required_for_release": true,
-    "games": ["pong", "pongdoubles", "spacerace", "breakout", "stuntcycle", "indy4", "rebound", "gotcha", "quadrapong", "crossfire", "tvbasketball", "pinpong", "hiway"],
+    "games": ["pong", "pongdoubles", "spacerace", "breakout", "stuntcycle", "indy4", "rebound", "gotcha", "quadrapong", "crossfire", "tvbasketball", "pinpong", "hiway", "antiaircraft", "sharkjaws", "jetfighter", "attack"],
     "browsers": ["chromium", "firefox"],
-    "scope": "The release workflow's browser jobs test the exact packaged site; tools/desktop-acceptance.py turns their results into the nocpu-X.Y.Z-acceptance.json release asset, bound to that site's runtime_sha256. It is passed only when every listed game's tagged browser tests passed in every listed engine (Playwright builds of Chromium and Firefox; Stunt Cycle and Indy 4 from the private ROM fixtures), and publishing refuses a release without it. Original/native/Wasm comparisons are recorded in docs/ACCEPTANCE.md; optional human checks there are supplementary and never replace this gate."
+    "scope": "The release workflow's browser jobs test the exact packaged site; tools/desktop-acceptance.py turns their results into the nocpu-X.Y.Z-acceptance.json release asset, bound to that site's runtime_sha256. It is passed only when every listed game's tagged browser tests passed in every listed engine (Playwright builds of Chromium and Firefox; Stunt Cycle, Indy 4, Anti-Aircraft, Shark Jaws, Jet Fighter and Attack from the private ROM fixtures), and publishing refuses a release without it. Original/native/Wasm comparisons are recorded in docs/ACCEPTANCE.md; optional human checks there are supplementary and never replace this gate."
   },
   "physical_device_gate": {
     "status": "deferred",

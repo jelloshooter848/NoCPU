@@ -244,7 +244,7 @@ requests and by `release.yml` for releases) runs these jobs:
 | `package` | always | Verifies and installs the transferred core, builds and packages the site, and uploads it with a SHA-256 list, plus the release assets and the Pages artifact (named `github-pages-<sha>-<attempt>`). |
 | `browser (chromium / firefox / webkit)` | always | One job per engine against the exact packaged site; any missing, extra or changed file fails before the tests. Collects the engine's `browser.version()` and its `@game-` test outcomes for the acceptance record. |
 | `rom-access` | always | Reports whether the `NOCPU_ROMS_TOKEN` secret is available (never for fork pull requests). |
-| `rom-browser` | when the secret is available | Fetches the private ROM fixtures and plays Stunt Cycle and Indy 4 in Chromium and Firefox against the same packaged site, ROM-safe; uploads only the stripped results and the acceptance inputs. |
+| `rom-browser` | when the secret is available | Fetches the private ROM fixtures and plays Stunt Cycle, Indy 4 and each ROM-backed game ported from 0.5.0 (its `game-<id>.spec.ts`) in Chromium and Firefox against the same packaged site, ROM-safe; uploads only the stripped results and the acceptance inputs. |
 | `acceptance` | after the browser jobs | Combines every engine's results into the desktop acceptance record of this package (`tools/desktop-acceptance.py`). Must pass on a release, and on any run whose `rom-browser` job ran. |
 | `verify` | always | Requires every job. It accepts a skipped `core-compare` only when `scope` skipped it (on a release too), and a skipped `rom-browser` only when the secret is absent, never on a release. |
 
@@ -339,13 +339,13 @@ python3 tools/compare-rom-games.py    # or: make rom-compare; exit 77 = skipped,
 ```
 
 `fetch-roms.sh` fetches the private development/CI fixtures into ignored
-`build/roms/` and audits them. `compare-rom-games.py` runs the Stunt Cycle and
-Indy 4 scenarios in [`tests/replays/rom-scenarios.json`](../tests/replays/rom-scenarios.json)
+`build/roms/` and audits them. `compare-rom-games.py` runs the ROM-backed scenarios (Stunt Cycle, Indy 4,
+and from 0.5.0 Anti-Aircraft, Shark Jaws, Jet Fighter and Attack) in [`tests/replays/rom-scenarios.json`](../tests/replays/rom-scenarios.json)
 through original DICE, the native runner and Wasm, after
 `./tools/build-native.sh` and `./tools/build-core.sh all`, and writes
 `build/rom-comparison/<timestamp>/report.json`. Its frames and audio are
 ROM-derived and must never be published. Without fixtures it reports
-`SKIPPED (blocked: no ROM access)`; that is not a pass. Both games inherit
+`SKIPPED (blocked: no ROM access)`; that is not a pass. All but Attack inherit
 DICE's missing audio hookup, so equal PCM is not audible sound.
 
 The separate `rom-validation.yml` workflow runs these comparisons with the
@@ -605,7 +605,7 @@ source/notice hashes; they do not replace the full local matrix.
 
 ## What is still untested
 
-Eight of the 21 DICE 0.9 games are unported. The thirteen playable games pass their
+Four of the 21 DICE 0.9 games are unported. The seventeen playable games pass their
 bounded original/native/Wasm comparisons ([ACCEPTANCE.md](ACCEPTANCE.md)), with
 the coverage gaps listed there, and automated browser checks in Playwright's
 engine builds; nobody has yet recorded a manual check in a release Chrome or

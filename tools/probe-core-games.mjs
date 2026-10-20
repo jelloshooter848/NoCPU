@@ -4,10 +4,14 @@
 // No mock module, descriptor edits, fake memory or browser viewport inference.
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const options = { module: 'build/core/wasm/nocpu.js', output: 'build/core/game-abi-probe.json' };
+// --rom-dir: staged descriptors <dir>/<game>/<member> (tools/compare-rom-games.py
+// stages them privately). Without it a ROM-backed registered game is only
+// checked to refuse creation without its ROMs; that is not a contract pass.
+const options = { module: 'build/core/wasm/nocpu.js', output: 'build/core/game-abi-probe.json', 'rom-dir': '' };
 for (let i = 2; i < process.argv.length; i += 2) {
   const key = process.argv[i].replace(/^--/, '');
   if (!(key in options) || !process.argv[i + 1]) throw new Error(`Unknown or incomplete option ${process.argv[i]}`);
@@ -45,6 +49,7 @@ function state() {
     audio_count: core._nocpu_audio_count(), event_count: core._nocpu_event_count() };
 }
 function create(game) {
+  if (game.roms) stageRoms(game);
   check(`${game.name}: configured create succeeds`, core._nocpu_create_game(game.id, 848, game.dip, game.pot) === 1);
   check(`${game.name}: native settings accepted`, core._nocpu_game() === game.id && core._nocpu_dip() === game.dip && core._nocpu_pot_ohms() === game.pot);
   check(`${game.name}: cold integer clock`, time() === 0n && core._nocpu_frame_number() === 0);
@@ -57,7 +62,19 @@ const SYNC_STOPPING_COIN = new Set(['tvbasketball']);
 // DICE wires no circuit output to the AUDIO chip of these games (inherited
 // absent audio): their PCM is the audio chip's single constructor sample.
 // Pin Pong's sound is NoCPU's reconstruction from the schematic: a full stream.
-const NO_AUDIO_HOOKUP = new Set(['hiway']);
+const NO_AUDIO_HOOKUP = new Set(['hiway', 'antiaircraft', 'sharkjaws', 'jetfighter']);
+// Staged descriptor bytes of ROM-backed registered games, by game name.
+const romPayloads = new Map();
+function stageRoms(game) {
+  const payloads = romPayloads.get(game.name);
+  check(`${game.name}: ROM session begins`, core._nocpu_rom_begin(game.id) === 1);
+  payloads.forEach((bytes, slot) => {
+    const pointer = core._nocpu_rom_buffer(slot, bytes.length);
+    check(`${game.name}: ROM slot ${slot} buffer`, pointer !== 0);
+    core.HEAPU8.set(bytes, pointer);
+  });
+  check(`${game.name}: staged ROMs verified`, core._nocpu_rom_finish() === 1);
+}
 const probeMs = (game) => SYNC_STOPPING_COIN.has(game.name) ? 3300 : 2200;
 function playScript(game) {
   if (SYNC_STOPPING_COIN.has(game.name)) return [action(100, 'coin', 0, 1), action(200, 'coin', 0, 0),
@@ -245,13 +262,35 @@ try {
   check('Space Race has explicit unsupported attract/HIT semantics', baselines.get(2).final.attract_n === 4294967295 && baselines.get(2).final.hits === 0);
   // Games ported from 0.2.0 on (core/games/<id>.cpp): the generic contract.
   const cString = (pointer) => { let end = pointer; while (core.HEAPU8[end]) end += 1; return Buffer.from(core.HEAPU8.subarray(pointer, end)).toString('latin1'); };
-  report.registered_games = [];
+  report.registered_games = []; report.rom_games_checked = []; report.rom_games_skipped = [];
+  const manifest = JSON.parse(await readFile(new URL('../tests/fixtures/game-manifest.json', import.meta.url), 'utf8'));
   for (let id = 6; id < 32; id += 1) {
     const info = (field) => core._nocpu_game_info(id, field) >>> 0;
     if (info(0) !== 1) { check(`ID ${id}: unregistered ID has no name or create`, core._nocpu_game_name(id) === 0 && core._nocpu_create_game(id, 848, 0, 0) === 0); continue; }
     const game = { id, name: cString(core._nocpu_game_name(id)), dip: info(7), pot: info(11), paddles: info(1), joysticks: info(2),
-      directions: info(3), buttonSlots: info(4), buttons: info(5), starts: info(6), mask: info(8), portrait: info(14), wheels: info(15), registered: true };
+      directions: info(3), buttonSlots: info(4), buttons: info(5), starts: info(6), mask: info(8), portrait: info(14), wheels: info(15),
+      roms: info(16), registered: true };
     report.registered_games.push({ ...game, pot_min: info(9), pot_max: info(10), scores: info(12) });
+    if (game.roms) {
+      // The core's descriptor slots are the audited manifest's, in order, with
+      // the same accepted identities (CRC32 and exact size).
+      const audited = manifest.games.find((entry) => entry.id === game.name)?.roms ?? [];
+      const declared = Array.from({ length: game.roms }, (_, slot) => {
+        const variants = [];
+        for (let variant = 0; (core._nocpu_game_rom_size(id, slot, variant) >>> 0) !== 0xffffffff; variant += 1)
+          variants.push({ crc32: (core._nocpu_game_rom_crc(id, slot, variant) >>> 0).toString(16).toUpperCase().padStart(8, '0'), size_bytes: core._nocpu_game_rom_size(id, slot, variant) >>> 0 });
+        return { expected_member: cString(core._nocpu_game_rom_name(id, slot)), dump_variants: variants };
+      });
+      check(`${game.name}: ROM slots match the audited manifest`, equal(declared,
+        audited.map((rom) => ({ expected_member: rom.expected_member, dump_variants: rom.dump_variants.map((v) => ({ crc32: v.crc32, size_bytes: v.size_bytes })) }))));
+      const cold = state();
+      check(`${game.name}: creation without its ROMs is refused`, core._nocpu_create_game(id, 848, game.dip, game.pot) === 0
+        && core._nocpu_rom_error() === 5 && equal(cold, state()));
+      // A run stages the descriptors of its own scenarios' games only.
+      if (!options['rom-dir'] || !existsSync(resolve(options['rom-dir'], game.name))) { report.rom_games_skipped.push(game.name); continue; }
+      romPayloads.set(game.name, await Promise.all(declared.map(async (rom) => readFile(resolve(options['rom-dir'], game.name, rom.expected_member)))));
+      report.rom_games_checked.push(game.name);
+    }
     check(`${game.name}: declared contract within the generic ABI`, game.paddles <= 4 && game.joysticks <= 2 && game.buttonSlots <= 4
       && game.buttons <= 3 && game.starts <= 2 && game.portrait <= 1 && game.wheels <= 4 && (game.dip & ~game.mask) === 0
       && info(13) === 1 && info(99) === 4294967295);

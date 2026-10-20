@@ -370,7 +370,7 @@ test('a remembered game is kept only while playable; stale ids open the Library 
   await expect(page.getByTestId('game-stuntcycle')).toBeFocused();
   // A remembered game that is unknown or not playable in this build is ignored
   // without disturbing the saved settings.
-  for (const stale of ['antiaircraft', 'bogus', 7]) {
+  for (const stale of ['steeplechase', 'bogus', 7]) {
     await remember(stale);
     await page.reload();
     await screen(page, 'title');

@@ -17,6 +17,14 @@ import { pinpong } from './pinpong';
 
 import { hiway } from './hiway';
 
+import { antiaircraft } from './antiaircraft';
+
+import { sharkjaws } from './sharkjaws';
+
+import { jetfighter } from './jetfighter';
+
+import { attack } from './attack';
+
 export const REGISTERED_GAMES = [
   rebound,
 
@@ -31,4 +39,12 @@ export const REGISTERED_GAMES = [
   pinpong,
 
   hiway,
+
+  antiaircraft,
+
+  sharkjaws,
+
+  jetfighter,
+
+  attack,
 ] as const satisfies readonly GameDefinition[];

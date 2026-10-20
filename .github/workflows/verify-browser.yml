@@ -26,7 +26,7 @@ permissions:
 #   scope ──────────────┐
 #   core-build ─┬─ core-compare (original/native/Wasm; skipped only for docs/UI/packaging/release-metadata-only changes)
 #               └─ package ─┬─ browser (chromium | firefox | webkit in parallel)
-#   rom-access ─────────────┴─ rom-browser (Stunt Cycle/Indy 4 from private ROMs, chromium + firefox)
+#   rom-access ─────────────┴─ rom-browser (ROM-backed games from private ROMs, chromium + firefox)
 #   browser + rom-browser ──── acceptance (the desktop acceptance record of this exact package)
 #   verify requires every job, and accepts a skipped core-compare only when
 #   scope decided so. scope skips it, on a release too, only when a passing
@@ -560,13 +560,21 @@ jobs:
         echo "Packaged site verified: $(wc -l < pages-transfer.sha256) files"
     # NOCPU_TEST_ROM_SAFE turns off traces, videos, failure screenshots and the
     # HTML report (playwright.config.ts): their frames would be ROM-derived.
-    - name: Play Stunt Cycle and Indy 4 from the private ROMs in Chromium and Firefox
+    - name: Play the ROM-backed games from the private ROMs in Chromium and Firefox
       env:
         NOCPU_ROM_DIR: build/roms
         NOCPU_TEST_PACKAGED: '1'
         NOCPU_TEST_ROM_SAFE: '1'
       run: |-
+        # Stunt Cycle and Indy 4, and each ROM-backed game ported from 0.5.0 on
+        # (its tests/browser/game-<id>.spec.ts; the public job skips their ROM tests).
+        # A listed game without its spec fails the step rather than going untested.
         specs=(tests/browser/v060-driving.spec.ts)
+        for game in antiaircraft sharkjaws jetfighter attack; do
+          spec="tests/browser/game-$game.spec.ts"
+          [ -f "$spec" ] || { echo "::error::Missing ROM-backed browser spec $spec"; exit 1; }
+          specs+=("$spec")
+        done
         if [ -f tests/browser/browser-identity.spec.ts ]; then specs=(tests/browser/browser-identity.spec.ts "${specs[@]}"); fi
         ./tools/run-browser-tests.sh --project=chromium --project=firefox "${specs[@]}"
     - name: Keep payload-free results only and collect the acceptance inputs

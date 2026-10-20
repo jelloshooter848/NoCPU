@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "ROM-backed original/native/Wasm comparison scenarios. Inputs only; the ROM fixtures are supplied privately at run time.",
+  "description": "ROM-backed original/native/Wasm comparison scenarios. Inputs only; the ROM fixtures are supplied privately at run time. Fields beyond id/game/replay/dip/pot_ohms are read by the game's analysis module (tools/reference/games/<game>.py), when it has one.",
   "scenarios": [
     {
       "id": "stuntcycle-throttle",
@@ -43,6 +43,244 @@
       "replay": "tests/replays/indy4-max-time-keys.tsv",
       "dip": 0,
       "pot_ohms": 1220000
+    },
+    {
+      "id": "antiaircraft-default",
+      "game": "antiaircraft",
+      "replay": "tests/replays/antiaircraft.tsv",
+      "dip": 0,
+      "pot_ohms": 830000,
+      "aim_tests": [
+        {
+          "slot": 1,
+          "button": 1,
+          "before_ms": 1800,
+          "after_ms": 2200
+        },
+        {
+          "slot": 1,
+          "button": 2,
+          "before_ms": 3900,
+          "after_ms": 4250
+        },
+        {
+          "slot": 1,
+          "button": 3,
+          "before_ms": 5750,
+          "after_ms": 6500
+        },
+        {
+          "slot": 2,
+          "button": 1,
+          "before_ms": 7500,
+          "after_ms": 8500
+        },
+        {
+          "slot": 2,
+          "button": 2,
+          "before_ms": 9500,
+          "after_ms": 10500
+        },
+        {
+          "slot": 2,
+          "button": 3,
+          "before_ms": 11500,
+          "after_ms": 13000
+        }
+      ],
+      "games": 2,
+      "timed_games": 1,
+      "minimum_points": 5,
+      "expect_tens": true
+    },
+    {
+      "id": "antiaircraft-min-time",
+      "game": "antiaircraft",
+      "replay": "tests/replays/antiaircraft-min-time.tsv",
+      "dip": 3,
+      "pot_ohms": 220000,
+      "games": 2,
+      "timed_games": 2,
+      "minimum_points": 3,
+      "start_without_credit_ms": [
+        53000
+      ]
+    },
+    {
+      "id": "sharkjaws-default",
+      "game": "sharkjaws",
+      "replay": "tests/replays/sharkjaws.tsv",
+      "dip": 0,
+      "pot_ohms": 970000,
+      "direction_tests": [
+        {
+          "direction": "up",
+          "before_ms": 1800,
+          "after_ms": 2500
+        },
+        {
+          "direction": "down",
+          "before_ms": 2600,
+          "after_ms": 3400
+        },
+        {
+          "direction": "left",
+          "before_ms": 3400,
+          "after_ms": 4250
+        },
+        {
+          "direction": "right",
+          "before_ms": 4250,
+          "after_ms": 5000
+        }
+      ],
+      "games": 1,
+      "timed_games": 1,
+      "minimum_points": 20,
+      "expect_tens": true,
+      "start_without_credit_ms": [
+        110000
+      ]
+    },
+    {
+      "id": "sharkjaws-min-time",
+      "game": "sharkjaws",
+      "replay": "tests/replays/sharkjaws-min-time.tsv",
+      "dip": 1,
+      "pot_ohms": 470000,
+      "games": 2,
+      "timed_games": 2,
+      "minimum_points": 10,
+      "start_without_credit_ms": [
+        107500
+      ]
+    },
+    {
+      "id": "jetfighter-two-players",
+      "game": "jetfighter",
+      "replay": "tests/replays/jetfighter.tsv",
+      "dip": 0,
+      "pot_ohms": 510000,
+      "players": 2,
+      "start_tests": [
+        {
+          "action": "start2",
+          "ms": 1000,
+          "starts": true
+        },
+        {
+          "action": "start2",
+          "ms": 86700,
+          "starts": false
+        }
+      ],
+      "speed_tests": [
+        {
+          "slot": 1,
+          "direction": "up",
+          "ms": [
+            11400,
+            12400
+          ]
+        },
+        {
+          "slot": 1,
+          "direction": "down",
+          "ms": [
+            13000,
+            14000
+          ]
+        },
+        {
+          "slot": 2,
+          "direction": "down",
+          "ms": [
+            14600,
+            15600
+          ]
+        },
+        {
+          "slot": 2,
+          "direction": "up",
+          "ms": [
+            18600,
+            19600
+          ]
+        }
+      ],
+      "minimum_points": 2
+    },
+    {
+      "id": "jetfighter-one-player",
+      "game": "jetfighter",
+      "replay": "tests/replays/jetfighter-one-player.tsv",
+      "dip": 1,
+      "pot_ohms": 10000,
+      "players": 1,
+      "start_tests": [
+        {
+          "action": "start2",
+          "ms": 1000,
+          "starts": false
+        },
+        {
+          "action": "start",
+          "ms": 1500,
+          "starts": true
+        },
+        {
+          "action": "start",
+          "ms": 58000,
+          "starts": false
+        }
+      ],
+      "minimum_points": 1
+    },
+    {
+      "id": "attack-default",
+      "game": "attack",
+      "replay": "tests/replays/attack.tsv",
+      "dip": 0,
+      "pot_ohms": 2500000,
+      "move_tests": [
+        {
+          "direction": "left",
+          "ms": [
+            3000,
+            4000
+          ]
+        },
+        {
+          "direction": "right",
+          "ms": [
+            4500,
+            5500
+          ]
+        }
+      ],
+      "faster_test": {
+        "ms": [
+          11500,
+          13500
+        ]
+      },
+      "coin_in_play_ms": [
+        52500
+      ],
+      "games": 2,
+      "minimum_points": 3
+    },
+    {
+      "id": "attack-alt-roms",
+      "game": "attack",
+      "replay": "tests/replays/attack-alt-roms.tsv",
+      "rom_variant": 1,
+      "dip": 0,
+      "pot_ohms": 1000000,
+      "games": 2,
+      "minimum_points": 2,
+      "expect_sea_fall": true,
+      "expect_bombing": false
     }
   ]
 }

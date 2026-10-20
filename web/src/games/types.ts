@@ -59,6 +59,10 @@ export interface GameDefinition {
   hasHit: boolean;
   /** The circuit has an ATTRACT_n observation (snapshot `attract`). */
   hasAttract: boolean;
+  /** ROM-backed games (from 0.5.0): the descriptor member names in core slot
+   * order, exactly the audited manifest's `expected_member` list (checked by
+   * the foundation tests). The player imports the ZIP; nothing is bundled. */
+  roms?: readonly string[];
   /** Number of score displays the core observes. */
   scoreSlots: 2 | 4;
   settings: readonly SettingDefinition[];
