@@ -44,7 +44,7 @@ jobs:
     needs: access
     if: needs.access.outputs.configured == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -62,7 +62,11 @@ jobs:
       run: ./tools/build-native.sh --jobs 2
     - name: Build portable native and Wasm cores
       run: ./tools/build-core.sh all
-    - name: Compare ROM-backed Stunt Cycle and Indy 4 across original, native and Wasm
+    # Fourteen scenarios (Stunt Cycle, Indy 4 and the 0.5.0 games) took about
+    # 80 minutes two at a time on a 4-vCPU 2.8 GHz host.
+    - name: Compare the ROM-backed games across original, native and Wasm
+      env:
+        NOCPU_ROM_COMPARE_JOBS: '2'
       run: python3 tools/compare-rom-games.py
     - name: Collect payload-free reports only
       if: always()
