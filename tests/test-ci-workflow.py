@@ -113,6 +113,8 @@ class DesktopAcceptanceTests(unittest.TestCase):
         for spec in ('v060-driving.spec.ts', 'game-$game.spec.ts'):
             self.assertIn(spec, play)
         self.assertIn('for game in antiaircraft sharkjaws jetfighter attack; do', play)
+        # A missing spec fails the step instead of being skipped.
+        self.assertIn('|| { echo "::error::Missing ROM-backed browser spec $spec"; exit 1; }', play)
         upload = [step for step in rom if 'upload-artifact' in step]
         self.assertTrue(upload)
         for step in upload:

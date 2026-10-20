@@ -227,7 +227,9 @@ in review. Shark Jaws and Jet Fighter run at about 0.8x real time on the
 
 Port Crash 'N Score, Clean Sweep, Wipe Out and Steeplechase (six players; its
 missing bugle ROM is an inherited DICE limitation). All 21 games are ported at
-exit.
+exit. Steeplechase's source also calls `rand()` (a small random term in its
+circuit), so it needs the same glibc-equivalent generator edit as
+Anti-Aircraft ([UPSTREAM_PATCHES.md](UPSTREAM_PATCHES.md)).
 
 ### Circuits workbench — after 0.6.0
 

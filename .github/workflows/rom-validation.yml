@@ -4,7 +4,8 @@ name: ROM-backed validation
 # descriptors and ROM-derived frames/PCM stay on the runner; only payload-free
 # JSON reports are uploaded. Without the secret (including every fork pull
 # request) the validation job is skipped and reported as blocked, never passed.
-# The ROM-backed browser tests (Stunt Cycle and Indy 4 in Chromium and Firefox)
+# The ROM-backed browser tests (Stunt Cycle, Indy 4 and the ROM-backed games
+# ported from 0.5.0, in Chromium and Firefox)
 # run in verify-browser.yml's rom-browser job instead, against the exact package
 # the other browser jobs test, so their results bind to that build's runtime
 # digest and feed the desktop acceptance record.
@@ -37,7 +38,7 @@ jobs:
         else
           echo 'blocked: NOCPU_ROMS_TOKEN not configured'
           echo '::warning title=ROM validation blocked::blocked: NOCPU_ROMS_TOKEN not configured; ROM-backed checks were skipped, not passed.'
-          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** ROM audit and Stunt Cycle/Indy 4 original/native/Wasm comparisons were skipped, not passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo '**blocked: NOCPU_ROMS_TOKEN not configured.** ROM audit and the ROM-backed original/native/Wasm comparisons were skipped, not passed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'configured=false' >> "$GITHUB_OUTPUT"
         fi
   rom-validation:

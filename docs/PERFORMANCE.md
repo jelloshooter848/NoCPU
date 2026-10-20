@@ -269,7 +269,10 @@ browsers. A native gprof profile of Shark Jaws puts most of the time in
 DICE's own scheduler (`Chip::activation_check`, `Chip::update_inputs`, the
 event queue), as for Hi-Way; NoCPU's rasterizer takes about 5%. Jet
 Fighter's native capture runs at about 1.5x real time, its Wasm core at 0.8x.
-Reported to the owner, not optimized in 0.5.0.
+Reported to the owner, not optimized in 0.5.0. The figures vary by host: the
+independent 0.5.0 review measured them paced in Playwright's Chromium on the
+2.1 GHz host at 0.98 (Shark Jaws) and 0.92 (Jet Fighter), still below real
+time.
 
 ## What remains
 

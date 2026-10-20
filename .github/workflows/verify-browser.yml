@@ -568,9 +568,12 @@ jobs:
       run: |-
         # Stunt Cycle and Indy 4, and each ROM-backed game ported from 0.5.0 on
         # (its tests/browser/game-<id>.spec.ts; the public job skips their ROM tests).
+        # A listed game without its spec fails the step rather than going untested.
         specs=(tests/browser/v060-driving.spec.ts)
         for game in antiaircraft sharkjaws jetfighter attack; do
-          if [ -f "tests/browser/game-$game.spec.ts" ]; then specs+=("tests/browser/game-$game.spec.ts"); fi
+          spec="tests/browser/game-$game.spec.ts"
+          [ -f "$spec" ] || { echo "::error::Missing ROM-backed browser spec $spec"; exit 1; }
+          specs+=("$spec")
         done
         if [ -f tests/browser/browser-identity.spec.ts ]; then specs=(tests/browser/browser-identity.spec.ts "${specs[@]}"); fi
         ./tools/run-browser-tests.sh --project=chromium --project=firefox "${specs[@]}"
